@@ -22,12 +22,12 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 
 public class BookieResources extends BaseResources<BookiesRackConfiguration> {
 
-    public BookieResources(MetadataStoreExtended store, int operationTimeoutSec) {
+    public BookieResources(MetadataStore store, int operationTimeoutSec) {
         super(store, BookiesRackConfiguration.class, operationTimeoutSec);
     }
 

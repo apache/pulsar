@@ -38,7 +38,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -64,15 +63,10 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,26 +74,9 @@ public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
     public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
-    private static final String MANAGED_LEDGER_PATH_ZNODE = "/managed-ledgers";
 
     protected BookKeeper bookKeeper() {
         return pulsar().getBookKeeperClient();
-    }
-
-    protected ZooKeeper localZk() {
-        return pulsar().getZkClient();
-    }
-
-    protected ZooKeeperCache localZkCache() {
-        return pulsar().getLocalZkCache();
-    }
-
-    protected LocalZooKeeperCacheService localCacheService() {
-        return pulsar().getLocalZkCacheService();
-    }
-
-    protected void localZKCreate(String path, byte[] content) throws Exception {
-        localZk().create(path, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
     /**
@@ -154,7 +131,7 @@ public abstract class AdminResource extends PulsarWebResource {
             arePoliciesReadOnly = pulsar().getPulsarResources().getNamespaceResources()
                     .exists(POLICIES_READONLY_FLAG_PATH);
         } catch (Exception e) {
-            log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
+            log.warn("Unable to fetch contents of [{}] from configuration store", POLICIES_READONLY_FLAG_PATH, e);
             throw new RestException(e);
         }
 
@@ -180,7 +157,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
         CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
-        Optional<MetadataStoreExtended> localStore = getPulsarResources().getLocalMetadataStore();
+        Optional<MetadataStore> localStore = getPulsarResources().getLocalMetadataStore();
         if (!localStore.isPresent()) {
             result.completeExceptionally(new IllegalStateException("metadata store not initialized"));
             return result;
@@ -600,25 +577,13 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
-        List<String> topicPartitions = Lists.newArrayList();
-
         try {
-            String topicPartitionPath = joinPath(MANAGED_LEDGER_PATH_ZNODE,
-                    namespaceName.toString(), topicDomain.value());
-            List<String> topics = localZk().getChildren(topicPartitionPath, false);
-            topicPartitions = topics.stream()
-                    .map(s -> String.format("%s://%s/%s", topicDomain.value(), namespaceName.toString(), decode(s)))
-                    .collect(Collectors.toList());
-        } catch (KeeperException.NoNodeException e) {
-            // NoNode means there are no topics in this domain for this namespace
+            return getPulsarResources().getTopicResources().getExistingPartitions(topicName).join();
         } catch (Exception e) {
             log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
                     namespaceName.toString(), e);
             throw new RestException(e);
         }
-
-        topicPartitions.sort(null);
-        return topicPartitions;
     }
 
     protected void internalCreatePartitionedTopic(AsyncResponse asyncResponse, int numPartitions,

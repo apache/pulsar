@@ -2289,19 +2289,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private boolean hasLedgerRetentionExpired(long ledgerTimestamp) {
-        if (config.getRetentionTimeMillis() < 0) {
-            // Negative retention time equates to infinite retention
-            return false;
-        }
-
-        long elapsedMs = clock.millis() - ledgerTimestamp;
-        return elapsedMs > config.getRetentionTimeMillis();
+        return config.getRetentionTimeMillis() >= 0
+                && clock.millis() - ledgerTimestamp > config.getRetentionTimeMillis();
     }
 
-    private boolean isLedgerRetentionOverSizeQuota() {
+    private boolean isLedgerRetentionOverSizeQuota(long sizeToDelete) {
         // Handle the -1 size limit as "infinite" size quota
         return config.getRetentionSizeInMB() >= 0
-                && TOTAL_SIZE_UPDATER.get(this) > config.getRetentionSizeInMB() * 1024 * 1024;
+                && TOTAL_SIZE_UPDATER.get(this) - sizeToDelete >= config.getRetentionSizeInMB() * MegaByte;
     }
 
     private boolean isOffloadedNeedsDelete(OffloadContext offload) {
@@ -2369,11 +2364,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Slowest consumer ledger id: {}", name, slowestReaderLedgerId);
             }
+
+            long totalSizeToDelete = 0;
+            boolean retentionSizeQuotaMet = false;
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
-                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
-                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
+                // currentLedger can not be deleted
+                if (ls.getLedgerId() == currentLedger.getId()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
+                                ls.getLedgerId());
+                    }
+                    break;
+                }
+                // if truncate, all ledgers besides currentLedger are going to be deleted
+                if (isTruncate){
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} will be truncated with ts {}",
+                                name, ls.getLedgerId(), ls.getTimestamp());
+                    }
+                    ledgersToDelete.add(ls);
+                    continue;
+                }
 
+                totalSizeToDelete += ls.getSize();
+                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota(totalSizeToDelete);
+                boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
                 if (log.isDebugEnabled()) {
                     log.debug(
                             "[{}] Checking ledger {} -- time-old: {} sec -- "
@@ -2381,21 +2397,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
                             overRetentionQuota, currentLedger.getId());
                 }
-                if (ls.getLedgerId() == currentLedger.getId()) {
-                    log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
-                            ls.getLedgerId());
-                    break;
-                } else if (expired || isTruncate) {
-                    log.debug("[{}] Ledger {} has expired or be truncated, expired is {}, isTruncate is {}, ts {}", name, ls.getLedgerId(), expired,  isTruncate, ls.getTimestamp());
-                    ledgersToDelete.add(ls);
-                } else if (overRetentionQuota || isTruncate) {
-                    log.debug("[{}] Ledger {} is over quota or be truncated, overRetentionQuota is {}, isTruncate is {}", name, ls.getLedgerId(), overRetentionQuota, isTruncate);
+
+                if (expired || overRetentionQuota) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} has expired or over quota, expired is: {}, ts: {}, "
+                                        + "overRetentionQuota is: {}, ledge size: {}",
+                                name, ls.getLedgerId(), expired, ls.getTimestamp(), overRetentionQuota, ls.getSize());
+                    }
                     ledgersToDelete.add(ls);
                 } else {
-                    log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                    // once retention constraint has been met, skip check
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                    }
                     break;
                 }
             }
+
             for (LedgerInfo ls : ledgers.values()) {
                 if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
                     log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted", name,
@@ -3395,20 +3413,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private ManagedLedgerInfo getManagedLedgerInfo() {
-        ManagedLedgerInfo.Builder mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values());
-        if (state == State.Terminated) {
-            mlInfo.setTerminatedPosition(NestedPositionInfo.newBuilder().setLedgerId(lastConfirmedEntry.getLedgerId())
-                    .setEntryId(lastConfirmedEntry.getEntryId()));
-        }
-        if (managedLedgerInterceptor != null) {
-            managedLedgerInterceptor.onUpdateManagedLedgerInfo(propertiesMap);
-        }
-        for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
-            mlInfo.addProperties(MLDataFormats.KeyValue.newBuilder()
-                    .setKey(property.getKey()).setValue(property.getValue()));
-        }
-
-        return mlInfo.build();
+        return buildManagedLedgerInfo(ledgers);
     }
 
     private ManagedLedgerInfo buildManagedLedgerInfo(Map<Long, LedgerInfo> ledgers) {

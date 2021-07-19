@@ -58,6 +58,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -84,6 +85,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +97,10 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
     private static final String MESSAGE_ID = "X-Pulsar-Message-ID";
     private static final String PUBLISH_TIME = "X-Pulsar-publish-time";
+    private static final String EVENT_TIME = "X-Pulsar-event-time";
+    private static final String DELIVER_AT_TIME = "X-Pulsar-deliver-at-time";
+    private static final String BROKER_ENTRY_TIMESTAMP = "X-Pulsar-Broker-Entry-METADATA-timestamp";
+    private static final String BROKER_ENTRY_INDEX =  "X-Pulsar-Broker-Entry-METADATA-index";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
@@ -1504,6 +1510,24 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
 
         String msgId = response.getHeaderString(MESSAGE_ID);
+
+        // build broker entry metadata if exist
+        String brokerEntryTimestamp = response.getHeaderString(BROKER_ENTRY_TIMESTAMP);
+        String brokerEntryIndex = response.getHeaderString(BROKER_ENTRY_INDEX);
+        BrokerEntryMetadata brokerEntryMetadata;
+        if (brokerEntryTimestamp == null && brokerEntryIndex == null) {
+            brokerEntryMetadata = null;
+        } else {
+            brokerEntryMetadata = new BrokerEntryMetadata();
+            if (brokerEntryTimestamp != null) {
+                brokerEntryMetadata.setBrokerTimestamp(DateFormatter.parse(brokerEntryTimestamp.toString()));
+            }
+
+            if (brokerEntryIndex != null) {
+                brokerEntryMetadata.setIndex(Long.parseLong(brokerEntryIndex));
+            }
+        }
+
         MessageMetadata messageMetadata = new MessageMetadata();
         try (InputStream stream = (InputStream) response.getEntity()) {
             byte[] data = new byte[stream.available()];
@@ -1513,7 +1537,17 @@ public class TopicsImpl extends BaseResource implements Topics {
             MultivaluedMap<String, Object> headers = response.getHeaders();
             Object tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
-                properties.put("publish-time", (String) tmp);
+                messageMetadata.setPublishTime(DateFormatter.parse(tmp.toString()));
+            }
+
+            tmp = headers.getFirst(EVENT_TIME);
+            if (tmp != null) {
+                messageMetadata.setEventTime(DateFormatter.parse(tmp.toString()));
+            }
+
+            tmp = headers.getFirst(DELIVER_AT_TIME);
+            if (tmp != null) {
+                messageMetadata.setDeliverAtTime(DateFormatter.parse(tmp.toString()));
             }
 
             tmp = headers.getFirst("X-Pulsar-null-value");
@@ -1535,18 +1569,32 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
 
             tmp = headers.getFirst(BATCH_HEADER);
-            if (response.getHeaderString(BATCH_HEADER) != null) {
+            if (tmp != null) {
                 properties.put(BATCH_HEADER, (String) tmp);
-                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata);
             }
 
-            return Collections.singletonList(new MessageImpl<byte[]>(topic, msgId, properties,
-                    Unpooled.wrappedBuffer(data), Schema.BYTES, messageMetadata));
+            boolean isEncrypted = false;
+            tmp = headers.getFirst("X-Pulsar-Is-Encrypted");
+            if (tmp != null) {
+                isEncrypted = Boolean.parseBoolean(tmp.toString());
+            }
+
+            if (!isEncrypted && response.getHeaderString(BATCH_HEADER) != null) {
+                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata, brokerEntryMetadata);
+            }
+
+            MessageImpl message = new MessageImpl(topic, msgId, properties,
+                    Unpooled.wrappedBuffer(data), Schema.BYTES, messageMetadata);
+            if (brokerEntryMetadata != null) {
+                message.setBrokerEntryMetadata(brokerEntryMetadata);
+            }
+            return Collections.singletonList(message);
         }
     }
 
     private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
-                                 Map<String, String> properties, MessageMetadata msgMetadataBuilder) {
+                                 Map<String, String> properties, MessageMetadata msgMetadataBuilder,
+                                                             BrokerEntryMetadata brokerEntryMetadata) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
         ByteBuf buf = Unpooled.wrappedBuffer(data);
@@ -1561,8 +1609,12 @@ public class TopicsImpl extends BaseResource implements Topics {
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload,
-                        Schema.BYTES, msgMetadataBuilder));
+                MessageImpl message = new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload,
+                        Schema.BYTES, msgMetadataBuilder);
+                if (brokerEntryMetadata != null) {
+                    message.setBrokerEntryMetadata(brokerEntryMetadata);
+                }
+                ret.add(message);
             } catch (Exception ex) {
                 log.error("Exception occurred while trying to get BatchMsgId: {}", batchMsgId, ex);
             }

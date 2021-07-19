@@ -21,15 +21,11 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.EventLoopGroup;
-import org.awaitility.Awaitility;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -37,15 +33,14 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Maps;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -55,16 +50,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -84,20 +77,18 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.protocol.ByteBufPair;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.Commands.ChecksumType;
-import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -107,18 +98,23 @@ import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
-import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
-import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -136,7 +132,9 @@ public class ServerCnxTest {
     private ManagedLedgerFactory mlFactoryMock;
     private ClientChannelHelper clientChannelHelper;
     private PulsarService pulsar;
+    private MetadataStoreExtended store;
     private ConfigurationCacheService configCacheService;
+    private NamespaceResources namespaceResources;
     protected NamespaceService namespaceService;
     private final int currentProtocolVersion = ProtocolVersion.values()[ProtocolVersion.values().length - 1]
             .getValue();
@@ -180,6 +178,8 @@ public class ServerCnxTest {
         doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
+        store = new ZKMetadataStore(mockZk);
+
         configCacheService = mock(ConfigurationCacheService.class);
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         doReturn(Optional.empty()).when(zkDataCache).get(any());
@@ -192,11 +192,19 @@ public class ServerCnxTest {
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
 
+        doReturn(store).when(pulsar).getLocalMetadataStore();
+        doReturn(store).when(pulsar).getConfigurationMetadataStore();
+
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
+
+        PulsarResources pulsarResources = spy(new PulsarResources(store, store));
+        namespaceResources = spy(new NamespaceResources(store, store, 30));
+        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         namespaceService = mock(NamespaceService.class);
         doReturn(CompletableFuture.completedFuture(null)).when(namespaceService).getBundleAsync(any());
@@ -222,6 +230,7 @@ public class ServerCnxTest {
         brokerService.close();
         executor.shutdownNow();
         eventLoopGroup.shutdownGracefully().get();
+        store.close();
     }
 
     @Test(timeOut = 30000)
@@ -1045,7 +1054,8 @@ public class ServerCnxTest {
             assertEquals(((CommandError) response).getRequestId(), 5);
 
             // We should receive response for 1st producer, since it was not cancelled by the close
-            assertFalse(channel.outboundMessages().isEmpty());
+            Awaitility.await().untilAsserted(() -> assertFalse(channel.outboundMessages().isEmpty()));
+
             assertTrue(channel.isActive());
             response = getResponse();
             assertEquals(response.getClass(), CommandSuccess.class);
@@ -1334,16 +1344,14 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Set encryption_required to true
-        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
         policies.clusterDispatchRate = Maps.newHashMap();
-        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(zkDataCache).when(configCacheService).policiesCache();
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
+                .getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
 
         // test failure case: unencrypted producer cannot connect
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 2 /* producer id */, 2 /* request id */,
@@ -1441,16 +1449,13 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Set encryption_required to true
-        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.topicDispatchRate = Maps.newHashMap();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
         policies.clusterDispatchRate = Maps.newHashMap();
-        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(zkDataCache).when(configCacheService).policiesCache();
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
 
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 1 /* producer id */, 1 /* request id */,
                 "prod-name", true, Collections.emptyMap());

@@ -739,9 +739,9 @@ public class ClustersBase extends PulsarWebResource {
                 tenants.forEach(tenant -> namespaces.getNamespacesAsync(tenant)
                     .whenComplete((nss, e) -> {
                         int leftTenantsToHandle = tenantsNumber.decrementAndGet();
-                        if (ex != null) {
+                        if (e != null) {
                             log.error("[{}] Failed to get namespaces for tenant {} when setNamespaceIsolationPolicy.",
-                                clientAppId(), tenant, ex);
+                                clientAppId(), tenant, e);
 
                             if (leftTenantsToHandle == 0) {
                                 unloadMatchedNamespacesList(asyncResponse, nssToUnload, namespaces);

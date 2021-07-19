@@ -90,6 +90,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -2494,6 +2495,8 @@ public class PersistentTopicsBase extends AdminResource {
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
+        long totalSize = metadataAndPayload.readableBytes();
+        BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
         MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
 
         ResponseBuilder responseBuilder = Response.ok();
@@ -2501,15 +2504,27 @@ public class PersistentTopicsBase extends AdminResource {
         for (KeyValue keyValue : metadata.getPropertiesList()) {
             responseBuilder.header("X-Pulsar-PROPERTY-" + keyValue.getKey(), keyValue.getValue());
         }
+        if (brokerEntryMetadata != null) {
+            if (brokerEntryMetadata.hasBrokerTimestamp()) {
+                responseBuilder.header("X-Pulsar-Broker-Entry-METADATA-timestamp",
+                        DateFormatter.format(brokerEntryMetadata.getBrokerTimestamp()));
+            }
+            if (brokerEntryMetadata.hasIndex()) {
+                responseBuilder.header("X-Pulsar-Broker-Entry-METADATA-index", brokerEntryMetadata.getIndex());
+            }
+        }
         if (metadata.hasPublishTime()) {
             responseBuilder.header("X-Pulsar-publish-time", DateFormatter.format(metadata.getPublishTime()));
         }
         if (metadata.hasEventTime()) {
             responseBuilder.header("X-Pulsar-event-time", DateFormatter.format(metadata.getEventTime()));
         }
+        if (metadata.hasDeliverAtTime()) {
+            responseBuilder.header("X-Pulsar-deliver-at-time", DateFormatter.format(metadata.getDeliverAtTime()));
+        }
         if (metadata.hasNumMessagesInBatch()) {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
-            responseBuilder.header("X-Pulsar-batch-size", metadataAndPayload.readableBytes()
+            responseBuilder.header("X-Pulsar-batch-size", totalSize
                     - metadata.getSerializedSize());
         }
         if (metadata.hasNullValue()) {
@@ -2519,6 +2534,7 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-PROPERTY-TOTAL-CHUNKS", Integer.toString(metadata.getNumChunksFromMsg()));
             responseBuilder.header("X-Pulsar-PROPERTY-CHUNK-ID", Integer.toString(metadata.getChunkId()));
         }
+        responseBuilder.header("X-Pulsar-Is-Encrypted", metadata.getEncryptionKeysCount() > 0);
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -162,22 +163,22 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
-        Assert.assertEquals(method.invoke(persistentTopic), 3600);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 3600);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 10);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 10);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 0);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 0);
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 3600);
     }
 
     @Test(timeOut = 20000)
@@ -219,7 +220,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().removeMessageTTL(topicName);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>)method.invoke(persistentTopic)).join(), 3600);
     }
 
 }

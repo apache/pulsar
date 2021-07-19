@@ -21,12 +21,10 @@ package org.apache.pulsar.broker.resources;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.Getter;
-
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public class ClusterResources extends BaseResources<ClusterData> {
 
@@ -34,7 +32,7 @@ public class ClusterResources extends BaseResources<ClusterData> {
     @Getter
     private FailureDomainResources failureDomainResources;
 
-    public ClusterResources(MetadataStoreExtended store, int operationTimeoutSec) {
+    public ClusterResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ClusterData.class, operationTimeoutSec);
         this.failureDomainResources = new FailureDomainResources(store, FailureDomainImpl.class, operationTimeoutSec);
     }
@@ -46,7 +44,7 @@ public class ClusterResources extends BaseResources<ClusterData> {
     public static class FailureDomainResources extends BaseResources<FailureDomainImpl> {
         public static final String FAILURE_DOMAIN = "failureDomain";
 
-        public FailureDomainResources(MetadataStoreExtended store, Class<FailureDomainImpl> clazz,
+        public FailureDomainResources(MetadataStore store, Class<FailureDomainImpl> clazz,
                 int operationTimeoutSec) {
             super(store, clazz, operationTimeoutSec);
         }

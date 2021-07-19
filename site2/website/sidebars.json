@@ -25,8 +25,8 @@
     ],
     "Pulsar Functions": [
       "functions-overview",
-      "functions-worker",
       "functions-runtime",
+      "functions-worker",
       "functions-develop",
       "functions-package",
       "functions-debug",
@@ -59,9 +59,11 @@
      "tiered-storage-aliyun"
   ],
   "Transactions": [
-    "transactions",
-    "transactions-guarantee",
-    "transactions-api"
+    "txn-why",
+    "txn-what",
+    "txn-how",
+    "txn-use",
+    "txn-monitor"
   ],
     "Kubernetes (Helm)": [
       "helm-overview",

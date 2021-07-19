@@ -115,18 +115,18 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     @Test
     public void testResourceGroupAttachToNamespace() throws Exception {
         createResourceGroup(rgName, testAddRg);
-
         admin.tenants().createTenant(tenantName,
                 new TenantInfoImpl(Sets.newHashSet("fake-admin-role"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
 
+        admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
         Awaitility.await().untilAsserted(() ->
-                        assertNotNull(pulsar
-                                .getResourceGroupServiceManager()
-                                .getNamespaceResourceGroup(namespaceName)));
+            assertNotNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
 
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
+        Awaitility.await().untilAsserted(() ->
+            assertNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
+
         admin.namespaces().deleteNamespace(namespaceName);
         deleteResourceGroup(rgName);
     }

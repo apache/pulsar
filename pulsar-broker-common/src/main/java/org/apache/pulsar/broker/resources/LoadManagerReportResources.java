@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 
 public class LoadManagerReportResources extends BaseResources<LoadManagerReport> {
 
-    public LoadManagerReportResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
+    public LoadManagerReportResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, LoadManagerReport.class, operationTimeoutSec);
     }
 }
