@@ -50,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import lombok.Cleanup;
 
@@ -837,19 +838,24 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Update partitioned topic from R2
         admin2.topics().updatePartitionedTopic(persistentTopicName, 5);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
-        assertEquals(admin2.topics().getList(namespace).size(), 5);
+        assertEquals((int) admin2.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 5);
         // Update partitioned topic from R3
         admin3.topics().updatePartitionedTopic(persistentTopicName, 6);
         assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
-        assertEquals(admin3.topics().getList(namespace).size(), 6);
+        assertEquals(admin3.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 6);
         // Update partitioned topic from R1
         admin1.topics().updatePartitionedTopic(persistentTopicName, 7);
         assertEquals(admin1.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
         assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
-        assertEquals(admin1.topics().getList(namespace).size(), 7);
-        assertEquals(admin2.topics().getList(namespace).size(), 7);
-        assertEquals(admin3.topics().getList(namespace).size(), 7);
+        assertEquals(admin1.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
+        assertEquals(admin2.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
+        assertEquals(admin3.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
     }
 
     /**
@@ -1258,7 +1264,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final List<String> list = new ArrayList<>();
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> {
             list.clear();
-            list.addAll(admin.topics().getList(namespace));
+            list.addAll(admin.topics().getList(namespace).stream()
+                    .filter(topic -> !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME))
+                    .collect(Collectors.toList()));
             return list.size() == expectedTopicList.size();
         });
         for (String expectTopic : expectedTopicList) {
