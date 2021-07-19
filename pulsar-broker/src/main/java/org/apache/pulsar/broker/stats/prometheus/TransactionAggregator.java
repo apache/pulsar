@@ -66,7 +66,8 @@ public class TransactionAggregator {
                                     localManageLedgerStats.get().reset();
                                     if (!checkTopicIsEventsNames(TopicName.get(subscription.getTopic().getName()))) {
                                         ManagedLedger managedLedger =
-                                                ((PersistentSubscription) subscription).getPendingAckManageLedger().get();
+                                                ((PersistentSubscription) subscription)
+                                                        .getPendingAckManageLedger().get();
                                         generateManageLedgerStats(managedLedger,
                                                 stream, cluster, namespace, name, subscription.getName());
                                     }

@@ -1978,7 +1978,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         transactionMetadataStoreService
                 .endTransaction(txnID, txnAction, false)
-                .whenComplete((v ,ex) -> {
+                .whenComplete((v, ex) -> {
                     if (ex == null) {
                         ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
@@ -2175,11 +2175,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         }
 
                         if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
-                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                                    txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
+                                    ex.getMessage()));
                         } else {
-                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
+                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                                    txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex.getCause()),
                                     ex.getCause().getMessage()));
                         }
                         transactionMetadataStoreService.handleOpFail(ex, tcId);

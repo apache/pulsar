@@ -191,8 +191,8 @@ public class TransactionMetadataStoreService {
             return CompletableFuture.completedFuture(null);
         } else {
             return FutureUtil.failedFuture(
-                    new ServiceUnitNotReadyException("Could not remove " +
-                            "TransactionMetadataStore, it is doing other operations!"));
+                    new ServiceUnitNotReadyException("Could not remove "
+                            + "TransactionMetadataStore, it is doing other operations!"));
         }
     }
 
