@@ -54,8 +54,8 @@ public class RateLimiter implements AutoCloseable{
     private TimeUnit timeUnit;
     private final boolean externalExecutor;
     private ScheduledFuture<?> renewTask;
-    private long permits;
-    private long acquiredPermits;
+    private volatile long permits;
+    private volatile long acquiredPermits;
     private boolean isClosed;
     // permitUpdate helps to update permit-rate at runtime
     private Supplier<Long> permitUpdater;
@@ -203,7 +203,7 @@ public class RateLimiter implements AutoCloseable{
      *
      * @return returns 0 if permits is not available
      */
-    public synchronized long getAvailablePermits() {
+    public long getAvailablePermits() {
         return Math.max(0, this.permits - this.acquiredPermits);
     }
 
