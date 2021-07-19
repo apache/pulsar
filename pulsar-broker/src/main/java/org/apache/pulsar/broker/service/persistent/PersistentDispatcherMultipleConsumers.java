@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -791,6 +792,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
                 .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.SUBSCRIPTION)) {
             this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION));
+        }
+    }
+
+    @Override
+    public boolean trackDelayedDelivery(long ledgerId, long entryId, PulsarApi.MessageMetadata msgMetadata) {
+        if (!topic.isDelayedDeliveryEnabled()) {
+            // If broker has the feature disabled, always deliver messages immediately
+            return false;
+        }
+        synchronized (this) {
+            if (!delayedDeliveryTracker.isPresent()) {
+                // Initialize the tracker the first time we need to use it
+                delayedDeliveryTracker = Optional
+                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+            }
+
+            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
         }
     }
 
