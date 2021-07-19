@@ -78,11 +78,14 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -1216,6 +1219,38 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Awaitility.await().untilAsserted(() -> Assert.assertNull(
                 pulsar1.getBrokerService().getReplicationClients().get(cluster4)));
+    }
+
+    @Test
+    public void testDoNotReplicateSystemTopic() throws Exception {
+        final String namespace = newUniqueName("pulsar/ns");
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        String topic = TopicName.get("persistent", NamespaceName.get(namespace),
+                "testDoesNotReplicateSystemTopic").toString();
+        String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
+                EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME).toString();
+        admin1.topics().createNonPartitionedTopic(topic);
+        Awaitility.await()
+                .until(() -> pulsar1.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        Awaitility.await()
+                .until(() -> pulsar2.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        Awaitility.await()
+                .until(() -> pulsar3.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        admin1.topics().setRetention(topic, new RetentionPolicies(10, 10));
+        admin2.topics().setRetention(topic, new RetentionPolicies(20, 20));
+        admin3.topics().setRetention(topic, new RetentionPolicies(30, 30));
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);
+            Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
+            Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin1.topics().getRetention(topic).getRetentionSizeInMB(), 10);
+            Assert.assertEquals(admin2.topics().getRetention(topic).getRetentionSizeInMB(), 20);
+            Assert.assertEquals(admin3.topics().getRetention(topic).getRetentionSizeInMB(), 30);
+        });
     }
 
     private void checkListContainExpectedTopic(PulsarAdmin admin, String namespace, List<String> expectedTopicList) {
