@@ -96,7 +96,7 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.protobuf.shaded.version>2.1.0-incubating</pulsar.protobuf.shaded.version>
 
     <!-- apache commons -->
-    <commons-compress.version>1.19</commons-compress.version>
+    <commons-compress.version>1.21</commons-compress.version>
 
     <bookkeeper.version>4.12.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
