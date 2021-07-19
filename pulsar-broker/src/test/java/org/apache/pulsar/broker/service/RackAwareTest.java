@@ -24,7 +24,12 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
+import com.google.gson.Gson;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -33,6 +38,9 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
+import org.assertj.core.util.Lists;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -92,6 +100,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
     @Test
     public void testPlacement() throws Exception {
+        final String group = "default";
         for (int i = 0; i < NUM_BOOKIES; i++) {
             String bookie = bookies.get(i).getLocalAddress().toString();
 
@@ -102,20 +111,31 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .hostname("bookie-" + (i + 1))
                     .build();
             log.info("setting rack for bookie at {} -- {}", bookie, bi);
-            admin.bookies().updateBookieRackInfo(bookie, "default", bi);
+            admin.bookies().updateBookieRackInfo(bookie, group, bi);
         }
 
         // Make sure the racks cache gets updated through the ZK watch
-        Thread.sleep(1000);
+        Awaitility.await().untilAsserted(() -> {
+            byte[] data = bkEnsemble.getZkClient()
+                    .getData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false, null);
+            TreeMap<String, Map<String, Map<String, String>>> rackInfoMap =
+                    new Gson().fromJson(new String(data), TreeMap.class);
+            assertTrue(rackInfoMap.get(group).size() == NUM_BOOKIES);
+            Set<String> racks = rackInfoMap.values().stream()
+                    .map(Map::values)
+                    .flatMap(bookieId -> bookieId.stream().map(rackInfo -> rackInfo.get("rack")))
+                    .collect(Collectors.toSet());
+            assertTrue(racks.containsAll(Lists.newArrayList("rack-1", "rack-2")));
+        });
 
         BookKeeper bkc = this.pulsar.getBookKeeperClient();
 
         // Create few ledgers and verify all of them should have a copy in the first bookie
-        BookieId fistBookie = bookies.get(0).getBookieId();
+        BookieId firstBookie = bookies.get(0).getBookieId();
         for (int i = 0; i < 100; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
             log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
-            assertTrue(lh.getLedgerMetadata().getEnsembleAt(0).contains(fistBookie),
+            assertTrue(lh.getLedgerMetadata().getEnsembleAt(0).contains(firstBookie),
                     "first bookie in rack 0 not included in ensemble");
             lh.close();
         }
