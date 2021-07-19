@@ -105,7 +105,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.63.Final</version>
+      <version>4.1.66.Final</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
