@@ -111,6 +111,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
         }
 
+        bkConf.setMaxAllowedEnsembleChanges(conf.getMaxNumEnsembleChanges());
         bkConf.setBusyWaitEnabled(conf.isEnableBusyWait());
         bkConf.setNumWorkerThreads(conf.getBookkeeperClientNumWorkerThreads());
         bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
