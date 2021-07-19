@@ -39,7 +39,7 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "zookeeperServers",
-            value = "Local-Zookeeper quorum connection string"
+            value = "Local ZooKeeper quorum connection string"
     )
     private String zookeeperServers;
     // Global-Zookeeper quorum connection string
@@ -48,43 +48,43 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "configurationStoreServers",
-            value = "Configuration Store connection string"
+            value = "Configuration store connection string"
     )
     private String configurationStoreServers;
 
     @ApiModelProperty(
             name = "zookeeperSessionTimeoutMs",
-            value = "ZooKeeper session timeout in ms"
+            value = "ZooKeeper session timeout (in million seconds)"
     )
     private int zookeeperSessionTimeoutMs = 30_000;
 
     @ApiModelProperty(
             name = "zooKeeperCacheExpirySeconds",
-            value = "ZooKeeper cache expiry time in seconds"
+            value = "ZooKeeper cache expiry time (in seconds)"
     )
     private int zooKeeperCacheExpirySeconds=300;
 
     @ApiModelProperty(
             name = "servicePort",
-            value = "Port to use to server binary-proto request"
+            value = "Port used to server binary-proto request"
     )
     private Optional<Integer> servicePort = Optional.ofNullable(5000);
 
     @ApiModelProperty(
             name = "servicePortTls",
-            value = "Port to use to server binary-proto-tls request"
+            value = "Port used to server binary-proto-tls request"
     )
     private Optional<Integer> servicePortTls = Optional.empty();
 
     @ApiModelProperty(
             name = "webServicePort",
-            value = "Port to use to server HTTP request"
+            value = "Port used to server HTTP request"
     )
     private Optional<Integer> webServicePort = Optional.ofNullable(8080);
 
     @ApiModelProperty(
             name = "webServicePortTls",
-            value = "Port to use to server HTTPS request"
+            value = "Port used to server HTTPS request"
     )
     private Optional<Integer> webServicePortTls = Optional.empty();
 
@@ -96,15 +96,16 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "superUserRoles",
-            value = "Role names that are treated as \"super-user\", meaning they will be able to "
-                    + "do all admin operations and publish/consume from all topics"
+            value = "Role names that are treated as \"super-user\", meaning they are able to "
+                    + "do all admin operations and publish to or consume from all topics"
     )
     private Set<String> superUserRoles = Sets.newTreeSet();
 
     @ApiModelProperty(
             name = "authorizationAllowWildcardsMatching",
             value = "Allow wildcard matching in authorization (wildcard matching only applicable "
-                    + "if wildcard-char: * presents at first or last position eg: *.pulsar.service, pulsar.service.*"
+                    + "if wildcard char * presents at first or last position. "
+                    + "For example, *.pulsar.service, pulsar.service.*"
     )
     private boolean authorizationAllowWildcardsMatching = false;
 
@@ -122,7 +123,7 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "authorizationEnabled",
-            value = "Whether Enforce authorization"
+            value = "Whether enforce authorization"
     )
     private boolean authorizationEnabled = false;
 
@@ -138,7 +139,7 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "tlsCertRefreshCheckDurationSec",
-            value = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+            value = "TLS cert refresh duration (in seconds). 0 means checking every new connection."
     )
     private long tlsCertRefreshCheckDurationSec = 300;
 
@@ -168,22 +169,22 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "tlsProtocols",
-            value = "Specify the tls protocols the broker will use to negotiate during TLS Handshake. "
-                    + "Example:- [TLSv1.3, TLSv1.2]"
+            value = "Specify the TLS protocols the broker uses to negotiate during TLS Handshake. "
+                    + "Example: [TLSv1.3, TLSv1.2]"
     )
     private Set<String> tlsProtocols = Sets.newTreeSet();
 
     @ApiModelProperty(
             name = "tlsCiphers",
             value = "Specify the tls cipher the broker will use to negotiate during TLS Handshake. "
-                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+                    + "Example: [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
     private Set<String> tlsCiphers = Sets.newTreeSet();
 
     @ApiModelProperty(
             name = "tlsRequireTrustedClientCertOnConnect",
-            value = "Specify whether Client certificates are required for TLS. "
-                    + "Reject the Connection if the Client Certificate is not trusted."
+            value = "Specify whether client certificates are required for TLS. "
+                    + "Reject the connection if the client certificate is not trusted."
     )
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
@@ -202,7 +203,7 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "tlsKeyStoreType",
-            value = "TLS KeyStore type configuration in broker: JKS, PKCS12"
+            value = "TLS KeyStore type configurations in broker are JKS or PKCS12"
     )
     private String tlsKeyStoreType = "JKS";
 
@@ -220,7 +221,7 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "tlsTrustStoreType",
-            value = "TLS TrustStore type configuration in broker: JKS, PKCS12"
+            value = "TLS TrustStore type configuration in broker are JKS or PKCS12"
     )
     private String tlsTrustStoreType = "JKS";
 
@@ -238,7 +239,7 @@ public class ServiceConfig implements PulsarConfiguration {
 
     @ApiModelProperty(
             name = "properties",
-            value = "Can store string in key-value format"
+            value = "You can store string in key-value format"
     )
     private Properties properties = new Properties();
 
