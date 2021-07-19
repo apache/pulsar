@@ -626,6 +626,32 @@ public class BrokerService implements Closeable {
         }
     }
 
+    public CompletableFuture<Void> closeAndRemoveReplicationClient(String clusterName) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>((int) topics.size());
+        topics.forEach((__, future) -> {
+            CompletableFuture<Void> f = new CompletableFuture<>();
+            futures.add(f);
+            future.whenComplete((ot, ex) -> {
+                if (ot.isPresent()) {
+                    Replicator r = ot.get().getReplicators().get(clusterName);
+                    if (r != null && r.isConnected()) {
+                        r.disconnect(false).whenComplete((v, e) -> f.complete(null));
+                        return;
+                    }
+                }
+                f.complete(null);
+            });
+        });
+
+        return FutureUtil.waitForAll(futures).thenCompose(__ -> {
+            PulsarClient client = replicationClients.remove(clusterName);
+            if (client == null) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return client.closeAsync();
+        });
+    }
+
     public CompletableFuture<Void> closeAsync() {
         try {
             log.info("Shutting down Pulsar Broker service");
