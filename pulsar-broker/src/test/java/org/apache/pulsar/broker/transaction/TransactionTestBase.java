@@ -73,7 +73,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     @Getter
     private final List<ServiceConfiguration> serviceConfigurationList = new ArrayList<>();
     @Getter
-    private final List<PulsarService> pulsarServiceList = new ArrayList<>();
+    protected final List<PulsarService> pulsarServiceList = new ArrayList<>();
 
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;

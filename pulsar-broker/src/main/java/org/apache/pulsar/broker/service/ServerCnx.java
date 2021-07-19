@@ -112,6 +112,7 @@ import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnect;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -1838,6 +1839,40 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
+    protected void handleTcClientConnect(CommandTcClientConnect command) {
+        final long requestId = command.getRequestId();
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
+        if (log.isDebugEnabled()) {
+            log.debug("Receive tc client connect request {} to transaction meta store {} from {}.",
+                    requestId, tcId, remoteAddress);
+        }
+
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            BrokerServiceException.NotAllowedException ex =
+                    new BrokerServiceException.NotAllowedException(
+                            "Transaction manager is not not enabled");
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            return;
+        }
+
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
+
+        transactionMetadataStoreService.handleTcClientConnect(tcId).thenAccept(connection -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Handle tc client connect request {} to transaction meta store {} from {} success.",
+                        requestId, tcId, remoteAddress);
+            }
+            commandSender.sendSuccessResponse(requestId);
+        }).exceptionally(e -> {
+            log.error("Handle tc client connect request {} to transaction meta store {} from {} fail.",
+                    requestId, tcId, remoteAddress, e.getCause());
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(e), e.getMessage());
+            return null;
+        });
+    }
+
+    @Override
     protected void handleNewTxn(CommandNewTxn command) {
         final long requestId = command.getRequestId();
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
@@ -1845,16 +1880,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.",
                     requestId, tcId, remoteAddress);
         }
-        TransactionMetadataStoreService transactionMetadataStoreService =
-                service.pulsar().getTransactionMetadataStoreService();
-        if (transactionMetadataStoreService == null) {
-            CoordinatorException.CoordinatorNotFoundException ex =
-                    new CoordinatorException.CoordinatorNotFoundException(
-                                               "Transaction manager is not started or not enabled");
-            ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
-                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            BrokerServiceException.NotAllowedException ex =
+                    new BrokerServiceException.NotAllowedException(
+                            "Transaction manager is not not enabled");
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
             return;
         }
+
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
         transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlSeconds())
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
@@ -1867,8 +1903,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response error for new txn request {}", requestId, ex);
                     }
+
                     ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
                             BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                    transactionMetadataStoreService.handleOpFail(ex, tcId);
                 }
             }));
     }
@@ -1876,12 +1914,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     protected void handleAddPartitionToTxn(CommandAddPartitionToTxn command) {
         final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
         final long requestId = command.getRequestId();
         if (log.isDebugEnabled()) {
             command.getPartitionsList().forEach(partion ->
                     log.debug("Receive add published partition to txn request {} "
                             + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partion));
         }
+
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            BrokerServiceException.NotAllowedException ex =
+                    new BrokerServiceException.NotAllowedException(
+                            "Transaction manager is not not enabled");
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            return;
+        }
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
         service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(txnID,
                 command.getPartitionsList())
                 .whenComplete(((v, ex) -> {
@@ -1895,10 +1944,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (log.isDebugEnabled()) {
                             log.debug("Send response error for add published partition to txn request {}", requestId,
                                     ex);
+                        }
+
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                            ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
+                                    ex.getCause().getMessage()));
+                        }
+                        transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
-                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
-                }
             }));
     }
 
@@ -1907,16 +1964,38 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long requestId = command.getRequestId();
         final int txnAction = command.getTxnAction().getValue();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        service.pulsar().getTransactionMetadataStoreService()
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            BrokerServiceException.NotAllowedException ex =
+                    new BrokerServiceException.NotAllowedException(
+                            "Transaction manager is not not enabled");
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            return;
+        }
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
+
+        transactionMetadataStoreService
                 .endTransaction(txnID, txnAction, false)
-                .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                        txnID.getLeastSigBits(), txnID.getMostSigBits())))
-                .exceptionally(throwable -> {
-                    log.error("Send response error for end txn request.", throwable);
-                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
-                            BrokerServiceException.getClientErrorCode(throwable.getCause()), throwable.getMessage()));
-                    return null; });
+                .whenComplete((v ,ex) -> {
+                    if (ex == null) {
+                        ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                                txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                    } else {
+                        log.error("Send response error for end txn request.", ex);
+
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                            ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
+                                    ex.getCause().getMessage()));
+                        }
+                        transactionMetadataStoreService.handleOpFail(ex, tcId);
+                    }
+                });
     }
 
     @Override
@@ -2066,7 +2145,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, remoteAddress, txnID);
         }
 
-        service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID,
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
+
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            BrokerServiceException.NotAllowedException ex =
+                    new BrokerServiceException.NotAllowedException(
+                            "Transaction manager is not not enabled");
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            return;
+        }
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
+
+        transactionMetadataStoreService.addAckedPartitionToTxn(txnID,
                 MLTransactionMetadataStore.subscriptionToTxnSubscription(command.getSubscriptionsList()))
                 .whenComplete(((v, ex) -> {
                     if (ex == null) {
@@ -2082,9 +2173,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             log.debug("Send response error for add published partition to txn request {}",
                                     requestId, ex);
                         }
-                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
-                                txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
-                                ex.getMessage()));
+
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
+                                    ex.getCause().getMessage()));
+                        }
+                        transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
                 }));
     }

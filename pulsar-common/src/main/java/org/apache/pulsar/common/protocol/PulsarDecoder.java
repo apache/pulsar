@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
-
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
@@ -75,6 +74,7 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnect;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
@@ -361,6 +361,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleAuthResponse(cmd.getAuthResponse());
                 break;
 
+            case TC_CLIENT_CONNECT:
+                checkArgument(cmd.hasTcClientConnect());
+                handleTcClientConnect(cmd.getTcClientConnect());
+                break;
+
             case NEW_TXN:
                 checkArgument(cmd.hasNewTxn());
                 handleNewTxn(cmd.getNewTxn());
@@ -599,6 +604,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleAuthChallenge(CommandAuthChallenge commandAuthChallenge) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleTcClientConnect(CommandTcClientConnect tcClientConnect) {
         throw new UnsupportedOperationException();
     }
 

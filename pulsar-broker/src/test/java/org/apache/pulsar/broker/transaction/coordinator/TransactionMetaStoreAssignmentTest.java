@@ -19,56 +19,95 @@
 package org.apache.pulsar.broker.transaction.coordinator;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
-public class TransactionMetaStoreAssignmentTest extends TransactionMetaStoreTestBase {
+public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
 
-    @Test(groups = "broker")
+    @Override
+    @BeforeMethod(alwaysRun = true)
+    protected void setup() throws Exception {
+        setBrokerCount(3);
+        super.internalSetup();
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
+        pulsarClient = PulsarClient.builder()
+                .serviceUrlProvider(new ServiceUrlProvider() {
+                    final AtomicInteger atomicInteger = new AtomicInteger();
+                    @Override
+                    public void initialize(PulsarClient client) {
+
+                    }
+
+                    @Override
+                    public String getServiceUrl() {
+                        return pulsarServiceList.get(atomicInteger.getAndIncrement() % pulsarServiceList.size()).getBrokerServiceUrl();
+                    }
+                })
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(true)
+                .build();
+    }
+
+    @Test
     public void testTransactionMetaStoreAssignAndFailover() throws IOException {
 
         Awaitility.await()
                 .untilAsserted(() -> {
-                    int transactionMetaStoreCount = Arrays.stream(pulsarServices)
+                    int transactionMetaStoreCount = pulsarServiceList.stream()
                             .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
                             .sum();
                     Assert.assertEquals(transactionMetaStoreCount, 16);
                 });
 
         PulsarService crashedMetaStore = null;
-        for (int i = pulsarServices.length - 1; i >= 0; i--) {
-            if (pulsarServices[i].getTransactionMetadataStoreService().getStores().size() > 0) {
-                crashedMetaStore = pulsarServices[i];
+        for (int i = pulsarServiceList.size() - 1; i >= 0; i--) {
+            if (pulsarServiceList.get(i).getTransactionMetadataStoreService().getStores().size() > 0) {
+                System.out.println(i);
+                System.out.println("get size"
+                        + pulsarServiceList.get(i).getTransactionMetadataStoreService().getStores().size());
+                crashedMetaStore = pulsarServiceList.get(i);
                 break;
             }
         }
 
         Assert.assertNotNull(crashedMetaStore);
-        List<PulsarService> services = new ArrayList<>(pulsarServices.length - 1);
-        for (PulsarService pulsarService : pulsarServices) {
-            if (pulsarService != crashedMetaStore) {
-                services.add(pulsarService);
-            }
-        }
-        pulsarServices = new PulsarService[pulsarServices.length - 1];
-        for (int i = 0; i < services.size(); i++) {
-            pulsarServices[i] = services.get(i);
-        }
+        pulsarServiceList.remove(crashedMetaStore);
         crashedMetaStore.close();
 
-        Awaitility.await()
+        Awaitility.await().atMost(1, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
-                    int transactionMetaStoreCount2 = Arrays.stream(pulsarServices)
+                    int transactionMetaStoreCount2 = pulsarServiceList.stream()
                             .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
                             .sum();
+                    System.out.println(transactionMetaStoreCount2);
                     Assert.assertEquals(transactionMetaStoreCount2, 16);
                 });
-        transactionCoordinatorClient.close();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 }
