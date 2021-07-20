@@ -82,6 +82,9 @@ public class CmdProduce {
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
     private static final int MAX_MESSAGES = 1000;
+    private static final String KEY_VALUE_ENCODING_TYPE_NOT_SET = "";
+    private static final String KEY_VALUE_ENCODING_TYPE_SEPARATED = "separated";
+    private static final String KEY_VALUE_ENCODING_TYPE_INLINE = "inline";
 
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions;
@@ -126,8 +129,8 @@ public class CmdProduce {
     @Parameter(names = { "-ks", "--key-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
     private String keySchema = "string";
 
-    @Parameter(names = { "-kvet", "--key-value-encoding-type"}, description = "Key Value Encoding Type (can be none,separated,inline)")
-    private String keyValueEncodingType = "none";
+    @Parameter(names = { "-kvet", "--key-value-encoding-type"}, description = "Key Value Encoding Type (it can be separated or inline)")
+    private String keyValueEncodingType = null;
 
     @Parameter(names = { "-ekn", "--encryption-key-name" }, description = "The public key name to encrypt payload")
     private String encKeyName = null;
@@ -205,6 +208,18 @@ public class CmdProduce {
             throw (new ParameterException("Please supply message content with either --messages or --files"));
         }
 
+        if (keyValueEncodingType == null) {
+            keyValueEncodingType = KEY_VALUE_ENCODING_TYPE_NOT_SET;
+        } else {
+            switch (keyValueEncodingType) {
+                case KEY_VALUE_ENCODING_TYPE_SEPARATED:
+                case KEY_VALUE_ENCODING_TYPE_INLINE:
+                    break;
+                default:
+                    throw (new ParameterException("--key-value-encoding-type "+keyValueEncodingType+" is not valid, only 'separated' or 'inline'"));
+            }
+        }
+
         int totalMessages = (messages.size() + messageFileNames.size()) * numTimesProduce;
         if (totalMessages > MAX_MESSAGES) {
             String msg = "Attempting to send " + totalMessages + " messages. Please do not send more than "
@@ -261,14 +276,14 @@ public class CmdProduce {
                     }
 
                     switch (keyValueEncodingType) {
-                        case "none":
+                        case KEY_VALUE_ENCODING_TYPE_NOT_SET:
                             if (key != null && !key.isEmpty()) {
                                 message.key(key);
                             }
                             message.value(content);
                             break;
-                        case "separated":
-                        case "inline":
+                        case KEY_VALUE_ENCODING_TYPE_SEPARATED:
+                        case KEY_VALUE_ENCODING_TYPE_INLINE:
                             KeyValue kv = new KeyValue<>(
                                     // TODO: support AVRO encoded key
                                     key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
@@ -299,11 +314,12 @@ public class CmdProduce {
 
     static Schema<?> buildSchema(String keySchema, String schema, String keyValueEncodingType) {
         switch (keyValueEncodingType) {
-            case "none":
+            case KEY_VALUE_ENCODING_TYPE_NOT_SET:
                 return buildComponentSchema(schema);
-            case "separated":
-            case "inline":
-                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.valueOf(keyValueEncodingType.toUpperCase(Locale.ROOT)));
+            case KEY_VALUE_ENCODING_TYPE_SEPARATED:
+                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.SEPARATED);
+            case KEY_VALUE_ENCODING_TYPE_INLINE:
+                return Schema.KeyValue(buildComponentSchema(keySchema), buildComponentSchema(schema), KeyValueEncodingType.INLINE);
             default:
                 throw new IllegalArgumentException("Invalid KeyValueEncodingType "+keyValueEncodingType+", only: 'none','separated' and 'inline");
         }
