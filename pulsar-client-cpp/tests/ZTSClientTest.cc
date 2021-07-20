@@ -43,6 +43,18 @@ TEST(ZTSClientTest, testZTSClient) {
     }
 
     {
+        PrivateKeyUri uri = ZTSClientWrapper::parseUri("file:./path/to/private.key");
+        ASSERT_EQ("file", uri.scheme);
+        ASSERT_EQ("./path/to/private.key", uri.path);
+    }
+
+    {
+        PrivateKeyUri uri = ZTSClientWrapper::parseUri("file://./path/to/private.key");
+        ASSERT_EQ("file", uri.scheme);
+        ASSERT_EQ("./path/to/private.key", uri.path);
+    }
+
+    {
         PrivateKeyUri uri = ZTSClientWrapper::parseUri("data:application/x-pem-file;base64,SGVsbG8gV29ybGQK");
         ASSERT_EQ("data", uri.scheme);
         ASSERT_EQ("application/x-pem-file;base64", uri.mediaTypeAndEncodingType);

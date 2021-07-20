@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.resources;
 
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.MetadataStore;
 
 public class ResourceGroupResources extends BaseResources<ResourceGroup> {
-    public ResourceGroupResources(MetadataStoreExtended store, int operationTimeoutSec) {
+    public ResourceGroupResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ResourceGroup.class, operationTimeoutSec);
     }
 }

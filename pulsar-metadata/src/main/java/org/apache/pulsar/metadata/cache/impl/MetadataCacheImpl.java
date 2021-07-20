@@ -159,10 +159,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
-                        // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
+                        objCache.synchronous().invalidate(path);
+                        objCache.synchronous().refresh(path);
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
@@ -190,10 +189,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
-                        // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
+                        objCache.synchronous().invalidate(path);
+                        objCache.synchronous().refresh(path);
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
@@ -267,7 +265,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         case Created:
         case Modified:
             if (objCache.synchronous().getIfPresent(path) != null) {
-                // Trigger background refresh of the cached item
+                // Trigger background refresh of the cached item, but before make sure
+                // to invalidate the entry so that we won't serve a stale cached version
+                objCache.synchronous().invalidate(path);
                 objCache.synchronous().refresh(path);
             }
             break;

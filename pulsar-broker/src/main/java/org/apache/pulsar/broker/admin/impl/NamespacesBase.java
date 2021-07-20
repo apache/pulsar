@@ -105,7 +105,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -459,18 +458,10 @@ public abstract class NamespacesBase extends AdminResource {
                     deleteRecursive(namespaceResources(), globalPartitionedPath);
                 }
 
-                final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, namespaceName.toString());
-                final String persistentDomain = managedLedgerPath + "/" + TopicDomain.persistent.value();
-                final String nonPersistentDomain = managedLedgerPath +  "/" + TopicDomain.non_persistent.value();
-
                 try {
-                    LocalZooKeeperConnectionService.deleteIfExists(
-                            pulsar().getLocalZkCache().getZooKeeper(), persistentDomain, -1);
-                    LocalZooKeeperConnectionService.deleteIfExists(
-                            pulsar().getLocalZkCache().getZooKeeper(), nonPersistentDomain, -1);
-                    LocalZooKeeperConnectionService.deleteIfExists(
-                            pulsar().getLocalZkCache().getZooKeeper(), managedLedgerPath, -1);
-                } catch (KeeperException | InterruptedException e) {
+                    pulsar().getPulsarResources().getTopicResources().clearDomainPersistence(namespaceName).get();
+                    pulsar().getPulsarResources().getTopicResources().clearNamespacePersistence(namespaceName).get();
+                } catch (ExecutionException | InterruptedException e) {
                     // warn level log here since this failure has no side effect besides left a un-used metadata
                     // and also will not affect the re-creation of namespace
                     log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
@@ -798,11 +789,11 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalSetSubscriptionExpirationTime(int expirationTime) {
+    protected void internalSetSubscriptionExpirationTime(Integer expirationTime) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
-        if (expirationTime < 0) {
+        if (expirationTime != null && expirationTime < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for subscription expiration time");
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), (policies) -> {

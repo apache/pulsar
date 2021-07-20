@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 
 @Data
 @Parameters(commandDescription = "Generate documentation automatically.")
@@ -79,12 +80,15 @@ public class CmdGenerateDocumentation {
 
     public String generateDocumentByClassName(String className) throws Exception {
         if (ServiceConfiguration.class.getName().equals(className)) {
-            return generateDocForServiceConfiguration(className, "Broker");
+            return generateDocByFieldContext(className, "Broker");
+        }
+        if (WebSocketProxyConfiguration.class.getName().equals(className)) {
+            return generateDocByFieldContext(className, "WebSocket");
         }
         return "Class [" + className + "] not found";
     }
 
-    protected String generateDocForServiceConfiguration(String className, String type) throws Exception {
+    protected String generateDocByFieldContext(String className, String type) throws Exception {
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();

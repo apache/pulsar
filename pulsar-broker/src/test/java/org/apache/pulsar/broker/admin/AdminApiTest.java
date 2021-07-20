@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.admin.AdminResource.MANAGED_LEDGER_PATH_ZNODE;
-import static org.apache.pulsar.common.policies.path.PolicyPath.joinPath;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -265,9 +263,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                         .build());
 
         admin.clusters().deleteCluster("usw");
-        Thread.sleep(300);
-
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test"));
+        Awaitility.await()
+                .untilAsserted(() -> assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test")));
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.clusters().deleteCluster("test");
@@ -476,7 +473,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Map<String, NamespaceOwnershipStatus> nsMap = admin.brokers().getOwnedNamespaces("test", list.get(0));
         // since sla-monitor ns is not created nsMap.size() == 1 (for HeartBeat Namespace)
-        Assert.assertEquals(nsMap.size(), 1);
+        Assert.assertEquals(nsMap.size(), 2);
         for (String ns : nsMap.keySet()) {
             NamespaceOwnershipStatus nsStatus = nsMap.get(ns);
             if (ns.equals(
@@ -492,7 +489,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(parts.length, 2);
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test",
                 String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
-        Assert.assertEquals(nsMap2.size(), 1);
+        Assert.assertEquals(nsMap2.size(), 2);
 
         admin.namespaces().deleteNamespace("prop-xyz/ns1");
         admin.clusters().deleteCluster("test");
@@ -584,25 +581,23 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testInvalidDynamicConfigContentInZK() throws Exception {
         final int newValue = 10;
-        stopBroker();
         // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
+        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(),
+                Optional.empty()).join();
+        stopBroker();
+
         // start broker: it should have set watch even if with failure of deserialization
         startBroker();
         Assert.assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
         // update zk with config-value which should fire watch and broker should update the config value
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
-        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap), -1);
+
+        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
+                Optional.empty()).join();
         // wait config to be updated
-        for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != newValue) {
-                Thread.sleep(100 + (i * 10));
-            } else {
-                break;
-            }
-        }
+        Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
     }
@@ -1221,8 +1216,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     assertFalse(admin.tenants().getTenants().contains(tenant));
                 });
 
-        final String managedLedgerPathForTenant = joinPath(MANAGED_LEDGER_PATH_ZNODE, tenant);
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPathForTenant, false));
+        final String managedLedgerPathForTenant = "/managed-ledgers/" + tenant;
+        assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgerPathForTenant).join());
 
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test")));
@@ -1273,13 +1268,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
-        final String managedLedgerPath = joinPath(MANAGED_LEDGER_PATH_ZNODE, namespace);
+        final String managedLedgerPath = "/managed-ledgers/" + namespace;
         final String persistentDomain = managedLedgerPath + "/" + TopicDomain.persistent.value();
         final String nonPersistentDomain = managedLedgerPath + "/" + TopicDomain.non_persistent.value();
 
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(persistentDomain, false));
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(nonPersistentDomain, false));
-        assertNull(pulsar.getLocalZkCache().getZooKeeper().exists(managedLedgerPath, false));
+        assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgerPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(persistentDomain).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(nonPersistentDomain).join());
 
         // reset back to false
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
@@ -1586,15 +1581,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         LOG.info("--- RELOAD ---");
 
         // Force reload of namespace and wait for topic to be ready
-        for (int i = 0; i < 30; i++) {
-            try {
-                admin.topics().getStats("persistent://prop-xyz/ns1/ds2");
-                break;
-            } catch (PulsarAdminException e) {
-                LOG.warn("Failed to get topic stats.. {}", e.getMessage());
-                Thread.sleep(1000);
-            }
-        }
+        Awaitility.await().timeout(30, TimeUnit.SECONDS).ignoreExceptionsInstanceOf(PulsarAdminException.class)
+                .until(() -> admin.topics().getStats("persistent://prop-xyz/ns1/ds2") != null);
 
         admin.topics().deleteSubscription("persistent://prop-xyz/ns1/ds2", "my-sub");
         admin.topics().delete("persistent://prop-xyz/ns1/ds2");
@@ -1644,15 +1632,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         LOG.info("--- RELOAD ---");
 
         // Force reload of namespace and wait for topic to be ready
-        for (int i = 0; i < 30; i++) {
-            try {
-                admin.topics().getStats("persistent://prop-xyz/ns1-bundles/ds2");
-                break;
-            } catch (PulsarAdminException e) {
-                LOG.warn("Failed to get topic stats.. {}", e.getMessage());
-                Thread.sleep(1000);
-            }
-        }
+        Awaitility.await().timeout(30, TimeUnit.SECONDS).ignoreExceptionsInstanceOf(PulsarAdminException.class)
+                .until(() -> admin.topics().getStats("persistent://prop-xyz/ns1-bundles/ds2") != null);
 
         admin.topics().deleteSubscription("persistent://prop-xyz/ns1-bundles/ds2", "my-sub");
         admin.topics().delete("persistent://prop-xyz/ns1-bundles/ds2");
@@ -2824,33 +2805,40 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testSubscriptionExpiry() throws Exception {
         final String namespace1 = "prop-xyz/sub-gc1";
         final String namespace2 = "prop-xyz/sub-gc2";
+        final String namespace3 = "prop-xyz/sub-gc3";
         final String topic1 = "persistent://" + namespace1 + "/testSubscriptionExpiry";
         final String topic2 = "persistent://" + namespace2 + "/testSubscriptionExpiry";
+        final String topic3 = "persistent://" + namespace3 + "/testSubscriptionExpiry";
         final String sub = "sub1";
 
         admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
         admin.namespaces().createNamespace(namespace2, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(namespace3, Sets.newHashSet("test"));
         admin.topics().createSubscription(topic1, sub, MessageId.latest);
         admin.topics().createSubscription(topic2, sub, MessageId.latest);
+        admin.topics().createSubscription(topic3, sub, MessageId.latest);
         admin.namespaces().setSubscriptionExpirationTime(namespace1, 0);
         admin.namespaces().setSubscriptionExpirationTime(namespace2, 1);
+        admin.namespaces().setSubscriptionExpirationTime(namespace3, 1);
+        admin.namespaces().removeSubscriptionExpirationTime(namespace3);
 
-        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
-        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
-        Thread.sleep(60000);
-        for (int i = 0; i < 60; i++) {
-            if (admin.topics().getSubscriptions(topic2).size() == 0) {
-                break;
-            }
-            Thread.sleep(1000);
-        }
+        Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
+        Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
+        Assert.assertNull(admin.namespaces().getSubscriptionExpirationTime(namespace3));
+
+
+        Awaitility.await().timeout(120, TimeUnit.SECONDS)
+                .until(() -> admin.topics().getSubscriptions(topic2).size() == 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
         Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
+        Assert.assertEquals(admin.topics().getSubscriptions(topic3).size(), 1);
 
         admin.topics().delete(topic1);
         admin.topics().delete(topic2);
+        admin.topics().delete(topic3);
         admin.namespaces().deleteNamespace(namespace1);
         admin.namespaces().deleteNamespace(namespace2);
+        admin.namespaces().deleteNamespace(namespace3);
     }
 
     @Test
