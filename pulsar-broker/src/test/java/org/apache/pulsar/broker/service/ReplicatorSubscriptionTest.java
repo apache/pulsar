@@ -514,9 +514,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
             for (int i = 0; i < numMessages; i++) {
                 String body = "message" + i;
                 producer.send(body.getBytes(StandardCharsets.UTF_8));
-                Thread.sleep(config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
             }
-            producer.close();
         }
 
         // consume 6 messages in r1
@@ -524,9 +522,8 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         assertEquals(readMessages(consumer1, receivedMessages, numMessages, false), numMessages);
 
         // wait for subscription to be replicated
-        Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
-        assertTrue(topic2.getReplicators().get("r1").isConnected());
-        assertNotNull(topic2.getSubscription(subscriptionName));
+        Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
+        Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
     }
 
     void publishMessages(Producer<byte[]> producer, int startIndex, int numMessages, Set<String> sentMessages)
