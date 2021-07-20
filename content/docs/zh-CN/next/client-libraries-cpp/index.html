@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar C++ client · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use Pulsar C++ client to create Pulsar producers and consumers in C++."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar C++ client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="You can use Pulsar C++ client to create Pulsar producers and consumers in C++."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar C++ client · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="您可以使用 Pulsar C++ 客户端在 C++ 中创建 Pulsar 生产者和消费者。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar C++ client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="您可以使用 Pulsar C++ 客户端在 C++ 中创建 Pulsar 生产者和消费者。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -75,13 +75,13 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar C++ client</h1></header><article><div><span><p>You can use Pulsar C++ client to create Pulsar producers and consumers in C++.</p>
-<p>All the methods in producer, consumer, and reader of a C++ client are thread-safe.</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar C++ client</h1></header><article><div><span><p>您可以使用 Pulsar C++ 客户端在 C++ 中创建 Pulsar 生产者和消费者。</p>
+<p>C++ 客户端中生产者、消费者和 Reader 的所有方法都是线程安全的。</p>
 <h2><a class="anchor" aria-hidden="true" id="支持的平台"></a><a href="#支持的平台" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>支持的平台</h2>
-<p>Pulsar C++ client is supported on <strong>Linux</strong> and <strong>MacOS</strong> platforms.</p>
-<p><a href="http://www.doxygen.nl/">Doxygen</a>-generated API docs for the C++ client are available <a href="/api/cpp/2.8.0-SNAPSHOT">here</a>.</p>
+<p><strong>Linux</strong> 和 <strong>MacOS</strong> 都支持Pulsar C++ 客户端。</p>
+<p>关于 <a href="http://www.doxygen.nl/">Doxygen</a> 生成的适用于 C++ 客户端的 API 文档，参阅<a href="/api/cpp/2.8.0-SNAPSHOT">这里</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="系统要求"></a><a href="#系统要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>系统要求</h2>
-<p>You need to install the following components before using the C++ client:</p>
+<p>您需要先安装下列组件才能使用 C++ 客户端：</p>
 <ul>
 <li><a href="https://cmake.org/">CMake</a></li>
 <li><a href="http://www.boost.org/">Boost</a></li>
@@ -92,18 +92,18 @@
 <h2><a class="anchor" aria-hidden="true" id="linux"></a><a href="#linux" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Linux</h2>
 <h3><a class="anchor" aria-hidden="true" id="编译"></a><a href="#编译" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>编译</h3>
 <ol>
-<li>Clone the Pulsar repository.</li>
+<li>克隆Pulsar项目仓库</li>
 </ol>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar</span>
 </code></pre>
 <ol>
-<li>Install all necessary dependencies.</li>
+<li>安装所有必要的依赖项。</li>
 </ol>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \</span>
   libprotobuf-dev protobuf-compiler libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
 </code></pre>
 <ol>
-<li>Compile and install <a href="https://github.com/google/googletest">Google Test</a>.</li>
+<li>编译并安装 <a href="https://github.com/google/googletest">Google 测试</a>。</li>
 </ol>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"> libgtest-dev version is 1.18.0 or above</span>
 <span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/googletest</span>
@@ -123,45 +123,45 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 <span class="hljs-meta">$</span><span class="bash"> sudo cp libgmock.a /usr/lib</span>
 </code></pre>
 <ol>
-<li>Compile the Pulsar client library for C++ inside the Pulsar repository.</li>
+<li>在 Pulsar 仓库中编译Pulsar C++ 客户端库。</li>
 </ol>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">cd</span> pulsar-client-cpp</span>
 <span class="hljs-meta">$</span><span class="bash"> cmake .</span>
 <span class="hljs-meta">$</span><span class="bash"> make</span>
 </code></pre>
-<p>After you install the components successfully, the files <code>libpulsar.so</code> and <code>libpulsar.a</code> are in the <code>lib</code> folder of the repository. The tools <code>perfProducer</code> and <code>perfConsumer</code> are in the <code>perf</code> directory.</p>
-<h3><a class="anchor" aria-hidden="true" id="install-dependencies"></a><a href="#install-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Dependencies</h3>
+<p>安装组件成功后，文件 <code>libpulsar.so</code> 和 <code>libpulsar.a</code> 位于资源库的 <code>liblib</code> 文件夹中。 工具 <code>famerProducer</code> and <code>familConsumer</code> 在 <code>perf</code> 目录中。</p>
+<h3><a class="anchor" aria-hidden="true" id="安装依赖项"></a><a href="#安装依赖项" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装依赖项</h3>
 <blockquote>
-<p>Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can download and install those packages directly.</p>
+<p>自从2.1.0 发布以来，Pulsar 预先构建了RPM 和 Debian 包。您可以直接下载并安装包。</p>
 </blockquote>
-<p>After you download and install RPM or DEB, the <code>libpulsar.so</code>, <code>libpulsarnossl.so</code>, <code>libpulsar.a</code>, and <code>libpulsarwithdeps.a</code> libraries are in your <code>/usr/lib</code> directory.</p>
-<p>By default, they are built in code path <code>${PULSAR_HOME}/pulsar-client-cpp</code>. You can build with the command below.</p>
+<p>下载并安装 RPM 或 DEB后， <code>libpulsar.so</code>, <code>libpulsarnosl.so</code>, <code>libpulsar.</code>和 <code>libpulsarwithdeps.a</code> 库位于您的 <code>/usr/lib</code> 目录。</p>
+<p>默认情况下，它们是在代码路径 <code>${PULSAR_HOME}/pulsar-client-cpp</code>中构建的。您可以使用下面的命令构建。</p>
 <p><code>cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON &amp;&amp; make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps -j 3</code>.</p>
-<p>These libraries rely on some other libraries. If you want to get detailed version of dependencies, see <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/rpm/Dockerfile">RPM</a> or <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/deb/Dockerfile">DEB</a> files.</p>
+<p>这些库依靠其他一些库。 如果您想要获得详细的依赖版本，请参阅 <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/rpm/Dockerfile">RPM</a> or <a href="https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/deb/Dockerfile">DEB</a> 文件。</p>
 <ol>
-<li><code>libpulsar.so</code> is a shared library, containing statically linked <code>boost</code> and <code>openssl</code>. It also dynamically links all other necessary libraries. You can use this Pulsar library with the command below.</li>
+<li><code>libpulsar.so</code> 是一个共享的库，其中包含静态链接的 <code>boost</code> 和 <code>openssl</code> 它还动态地连接所有其他必要的库。 您可以使用此Pulsar库下面的命令。</li>
 </ol>
 <pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsar.so -I/usr/<span class="hljs-built_in">local</span>/ssl/include
 </code></pre>
 <ol>
-<li><code>libpulsarnossl.so</code> is a shared library, similar to <code>libpulsar.so</code> except that the libraries <code>openssl</code> and <code>crypto</code> are dynamically linked. You can use this Pulsar library with the command below.</li>
+<li><code>libpulsarnossl.so</code> 是一个共享的库，类似于 <code>libpulsar.so</code> ，然而 <code>openssl</code> 和 <code>crypto</code> 库是动态链接的。 您可以使用此Pulsar库下面的命令。</li>
 </ol>
 <pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsarnossl.so -lssl -lcrypto -I/usr/<span class="hljs-built_in">local</span>/ssl/include -L/usr/<span class="hljs-built_in">local</span>/ssl/lib
 </code></pre>
 <ol>
-<li><code>libpulsar.a</code> is a static library. You need to load dependencies before using this library. You can use this Pulsar library with the command below.</li>
+<li><code>libpulsar.a</code> 是一个静态库。您需要在使用此库之前加载依赖项。 您可以使用此Pulsar库下面的命令。</li>
 </ol>
 <pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsar.a -lssl -lcrypto -ldl -lpthread  -I/usr/<span class="hljs-built_in">local</span>/ssl/include -L/usr/<span class="hljs-built_in">local</span>/ssl/lib -lboost_system -lboost_regex -lcurl -lprotobuf -lzstd -lz
 </code></pre>
 <ol>
-<li><code>libpulsarwithdeps.a</code> is a static library, based on <code>libpulsar.a</code>. It is archived in the dependencies of <code>libboost_regex</code>, <code>libboost_system</code>, <code>libcurl</code>, <code>libprotobuf</code>, <code>libzstd</code> and <code>libz</code>. You can use this Pulsar library with the command below.</li>
+<li><code>libpulsarwithdep.a</code> 是一个静态库，基于 <code>libpulsar.a</code>。 它被归档于 <code>libnourt_regex</code>, <code>libnot_system</code>, <code>libcurl</code>, <code>libprotobuf</code>, <code>libzstd</code> 和 <code>libz</code>. 您可以使用此Pulsar库下面的命令。</li>
 </ol>
 <pre><code class="hljs css language-bash"> g++ --std=c++11  PulsarTest.cpp -o <span class="hljs-built_in">test</span> /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/<span class="hljs-built_in">local</span>/ssl/include -L/usr/<span class="hljs-built_in">local</span>/ssl/lib
 </code></pre>
-<p>The <code>libpulsarwithdeps.a</code> does not include library openssl related libraries <code>libssl</code> and <code>libcrypto</code>, because these two libraries are related to security. It is more reasonable and easier to use the versions provided by the local system to handle security issues and upgrade libraries.</p>
-<h3><a class="anchor" aria-hidden="true" id="install-rpm"></a><a href="#install-rpm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install RPM</h3>
+<p><code>libpulsarwithdeps.</code> 不包括和 openssl 相关的 <code>libssl</code> 和 <code>libcrypto</code>库, 因为这两个库与安全有关。 使用本地系统提供的版本来处理安全问题和升级库更加简单合理。</p>
+<h3><a class="anchor" aria-hidden="true" id="安装-rpm"></a><a href="#安装-rpm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装 RPM</h3>
 <ol>
-<li>Download a RPM package from the links in the table.</li>
+<li>从表中的链接下载RPM包。</li>
 </ol>
 <table>
 <thead>
@@ -174,14 +174,14 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 </tbody>
 </table>
 <ol>
-<li>Install the package using the following command.</li>
+<li>使用以下命令安装服务：</li>
 </ol>
 <pre><code class="hljs css language-bash">$ rpm -ivh apache-pulsar-client*.rpm
 </code></pre>
-<p>After you install RPM successfully, Pulsar libraries are in the <code>/usr/lib</code> directory.</p>
-<h3><a class="anchor" aria-hidden="true" id="install-debian"></a><a href="#install-debian" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install Debian</h3>
+<p>安装RPM成功后，Pulsar 库位于 <code>/usr/lib</code> 目录中。</p>
+<h3><a class="anchor" aria-hidden="true" id="安装-debian"></a><a href="#安装-debian" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装 Debian</h3>
 <ol>
-<li>Download a Debian package from the links in the table.</li>
+<li>从表中的链接下载Debian 软件包。</li>
 </ol>
 <table>
 <thead>
@@ -193,21 +193,21 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 </tbody>
 </table>
 <ol>
-<li>Install the package using the following command.</li>
+<li>使用以下命令安装服务：</li>
 </ol>
 <pre><code class="hljs css language-bash">$ apt install ./apache-pulsar-client*.deb
 </code></pre>
-<p>After you install DEB successfully, Pulsar libraries are in the <code>/usr/lib</code> directory.</p>
+<p>安装DEB成功后，Pulsar 库位于 <code>/usr/lib</code> 目录中。</p>
 <h3><a class="anchor" aria-hidden="true" id="编译-1"></a><a href="#编译-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>编译</h3>
 <blockquote>
-<p>If you want to build RPM and Debian packages from the latest master, follow the instructions below. You should run all the instructions at the root directory of your cloned Pulsar repository.</p>
+<p>如果需要从最新的master分支上编译RPM和Debian包，可以参考下面的说明。注意：所有的命令都是在本地的Pulsar代码仓库的根目录中执行的。</p>
 </blockquote>
-<p>There are recipes that build RPM and Debian packages containing a statically linked <code>libpulsar.so</code> / <code>libpulsarnossl.so</code> / <code>libpulsar.a</code> / <code>libpulsarwithdeps.a</code> with all required dependencies.</p>
-<p>To build the C++ library packages, you need to build the Java packages first.</p>
+<p>你可以通过下面的方式来编译包含<code>libpulsar.so</code> / <code>libpulsar.a</code> / <code>libpulsarnossl.so</code> / <code>libpulsarwithdeps.a</code>静态库以及所有必要依赖的二进制包。</p>
+<p>要构建C++库包，您需要先构建Java 包。</p>
 <pre><code class="hljs css language-shell">mvn install -DskipTests
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rpm"></a><a href="#rpm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>RPM</h4>
-<p>To build the RPM inside a Docker container, use the command below. The RPMs are in the <code>pulsar-client-cpp/pkg/rpm/RPMS/x86_64/</code> path.</p>
+<p>若要在 Docker 容器内构建RPM ，请使用下面的命令。RPM 在 <code>pulsar-client-cpp/pkg/rpm/RPMS/x86_64/</code> 路径中。</p>
 <pre><code class="hljs css language-shell">pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
 </code></pre>
 <table>
@@ -216,33 +216,33 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 </thead>
 <tbody>
 <tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
-<tr><td>pulsar-client-devel</td><td>Static library <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code>and C++ and C headers</td></tr>
+<tr><td>pulsar-client-devel</td><td>静态库 <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code>和 C++ 和 Cheaders</td></tr>
 <tr><td>pulsar-client-debuginfo</td><td>Debug symbols for <code>libpulsar.so</code></td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="debian"></a><a href="#debian" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Debian</h4>
-<p>To build Debian packages, enter the following command.</p>
+<p>要构建Debian 软件包，请输入以下命令。</p>
 <pre><code class="hljs css language-shell">pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 </code></pre>
-<p>Debian packages are created in the <code>pulsar-client-cpp/pkg/deb/BUILD/DEB/</code> path.</p>
+<p>编译好的DEB包会被保存在文件夹 <code>pulsar-client-cpp/pkg/deb/BUILD/DEB/</code>中.</p>
 <table>
 <thead>
 <tr><th>包名</th><th>内容</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
-<tr><td>pulsar-client-dev</td><td>Static library <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code> and C++ and C headers</td></tr>
+<tr><td>pulsar-client-dev</td><td>静态库 <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code> 和 C++ 和 Cheaders</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="macos"></a><a href="#macos" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>MacOS</h2>
 <h3><a class="anchor" aria-hidden="true" id="编译-2"></a><a href="#编译-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>编译</h3>
 <ol>
-<li>Clone the Pulsar repository.</li>
+<li>克隆Pulsar项目仓库</li>
 </ol>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar</span>
 </code></pre>
 <ol>
-<li>Install all necessary dependencies.</li>
+<li>安装所有必要的依赖项。</li>
 </ol>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"> OpenSSL installation</span>
 <span class="hljs-meta">$</span><span class="bash"> brew install openssl</span>
@@ -262,29 +262,29 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 <span class="hljs-meta">$</span><span class="bash"> make install</span>
 </code></pre>
 <ol>
-<li>Compile the Pulsar client library in the repository that you cloned.</li>
+<li>然后在您克隆的repo中编译Pulsar客户端库：</li>
 </ol>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">cd</span> pulsar-client-cpp</span>
 <span class="hljs-meta">$</span><span class="bash"> cmake .</span>
 <span class="hljs-meta">$</span><span class="bash"> make</span>
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="install-libpulsar"></a><a href="#install-libpulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install <code>libpulsar</code></h3>
-<p>Pulsar releases are available in the <a href="https://brew.sh/">Homebrew</a> core repository. You can install the C++ client library with the following command. The package is installed with the library and headers.</p>
+<h3><a class="anchor" aria-hidden="true" id="安装-libpulsar"></a><a href="#安装-libpulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装 <code>libpulsar</code></h3>
+<p>Pulsar 版本在 <a href="https://brew.sh/">Homebrew</a> 核心仓库中可用。 您可以使用以下命令安装 C++ 客户端库。 软件包已安装在库和信头中。</p>
 <pre><code class="hljs css language-shell">brew install libpulsar
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="连接-url"></a><a href="#连接-url" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>连接 URL</h2>
-<p>To connect Pulsar using client libraries, you need to specify a Pulsar protocol URL.</p>
-<p>Pulsar protocol URLs are assigned to specific clusters, you can use the Pulsar URI scheme. The default port is <code>6650</code>. The following is an example for localhost.</p>
+<p>要使用客户端库连接Pulsar，您需要指定一个 Pulsar 协议 URL。</p>
+<p>Pulsar 协议 URL 被分配到特定集群，您可以使用 Pulsar URI 方案。 默认端口是 <code>6650</code>。下面是本地主机的一个例子。</p>
 <pre><code class="hljs css language-http">pulsar://localhost:6650
 </code></pre>
-<p>In a Pulsar cluster in production, the URL looks as follows.</p>
+<p>在一个Pulsar生产集群中，URL如下所示。</p>
 <pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
-<p>If you use TLS authentication, you need to add <code>ssl</code>, and the default port is <code>6651</code>. The following is an example.</p>
+<p>如果您使用 TLS 身份验证，您需要添加 <code>ssl</code>，默认端口是 <code>6651</code>。 以下是一个例子。</p>
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="create-a-consumer"></a><a href="#create-a-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a consumer</h2>
-<p>To use Pulsar as a consumer, you need to create a consumer on the C++ client. The following is an example.</p>
+<h2><a class="anchor" aria-hidden="true" id="创建消费者"></a><a href="#创建消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建消费者</h2>
+<p>若要使用 Pulsar 作为消费者，您需要在 C++ 客户端创建一个消费者。下面是一个例子。</p>
 <pre><code class="hljs css language-c++"><span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
 
 Consumer consumer;
@@ -306,8 +306,8 @@ Message msg;
 
 client.<span class="hljs-built_in">close</span>();
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="create-a-producer"></a><a href="#create-a-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a producer</h2>
-<p>To use Pulsar as a producer, you need to create a producer on the C++ client. The following is an example.</p>
+<h2><a class="anchor" aria-hidden="true" id="创建生产者"></a><a href="#创建生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建生产者</h2>
+<p>要使用 Pulsar 作为生产者，您需要在 C++ 客户端创建一个生产者。下面是一个例子。</p>
 <pre><code class="hljs css language-c++"><span class="hljs-function"><span class="hljs-built_in">Client</span> <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar://localhost:6650"</span>)</span></span>;
 
 Producer producer;
@@ -325,8 +325,8 @@ Result result = client.createProducer(<span class="hljs-string">"my-topic"</span
 }
 client.<span class="hljs-built_in">close</span>();
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="enable-authentication-in-connection-urls"></a><a href="#enable-authentication-in-connection-urls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable authentication in connection URLs</h2>
-<p>If you use TLS authentication when connecting to Pulsar, you need to add <code>ssl</code> in the connection URLs, and the default port is <code>6651</code>. The following is an example.</p>
+<h2><a class="anchor" aria-hidden="true" id="启用连接-url-的身份验证"></a><a href="#启用连接-url-的身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用连接 URL 的身份验证</h2>
+<p>如果您连接到 Pulsar 时使用 TLS 身份验证， 您需要在连接 URL 中添加 <code>ssl</code> ，默认端口是 <code>6651</code>。 以下是一个例子。</p>
 <pre><code class="hljs css language-cpp">ClientConfiguration config = ClientConfiguration();
 config.setUseTls(<span class="hljs-literal">true</span>);
 config.setTlsTrustCertsFilePath(<span class="hljs-string">"/path/to/cacert.pem"</span>);
@@ -336,11 +336,11 @@ config.setAuth(pulsar::AuthTls::create(
 
 <span class="hljs-function">Client <span class="hljs-title">client</span><span class="hljs-params">(<span class="hljs-string">"pulsar+ssl://my-broker.com:6651"</span>, config)</span></span>;
 </code></pre>
-<p>For complete examples, refer to <a href="https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples">C++ client examples</a>.</p>
+<p>如需完整的示例，请参阅 <a href="https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples">C++ 客户端示例</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h2>
-<p>This section describes some examples about schema. For more information about schema, see <a href="/docs/zh-CN/next/schema-get-started">Pulsar schema</a>.</p>
-<h3><a class="anchor" aria-hidden="true" id="create-producer-with-avro-schema"></a><a href="#create-producer-with-avro-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create producer with Avro schema</h3>
-<p>The following example shows how to create a producer with an Avro schema.</p>
+<p>本节描述了一些示例关于架构的示例。欲了解更多有关架构的信息，请参阅 <a href="/docs/zh-CN/next/schema-get-started">Pulsar schema</a>。</p>
+<h3><a class="anchor" aria-hidden="true" id="使用-avro-schema-创建生产者"></a><a href="#使用-avro-schema-创建生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 Avro schema 创建生产者</h3>
+<p>下面的示例演示如何使用 Avro 模式创建一个生产者。</p>
 <pre><code class="hljs css language-cpp"><span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-built_in">std</span>::<span class="hljs-built_in">string</span> exampleSchema =
     <span class="hljs-string">"{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","</span>
     <span class="hljs-string">"\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}"</span>;
@@ -349,8 +349,8 @@ ProducerConfiguration producerConf;
 producerConf.setSchema(SchemaInfo(AVRO, <span class="hljs-string">"Avro"</span>, exampleSchema));
 client.createProducer(<span class="hljs-string">"topic-avro"</span>, producerConf, producer);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="create-consumer-with-avro-schema"></a><a href="#create-consumer-with-avro-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create consumer with Avro schema</h3>
-<p>The following example shows how to create a consumer with an Avro schema.</p>
+<h3><a class="anchor" aria-hidden="true" id="使用-avro-schema-创建消费者"></a><a href="#使用-avro-schema-创建消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 Avro schema 创建消费者</h3>
+<p>下面的示例演示如何使用 Avro 模式创建消费者。</p>
 <pre><code class="hljs css language-cpp"><span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-built_in">std</span>::<span class="hljs-built_in">string</span> exampleSchema =
     <span class="hljs-string">"{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","</span>
     <span class="hljs-string">"\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}"</span>;
@@ -360,7 +360,7 @@ consumerConf.setSchema(SchemaInfo(AVRO, <span class="hljs-string">"Avro"</span>,
 client.subscribe(<span class="hljs-string">"topic-avro"</span>, <span class="hljs-string">"sub-2"</span>, consumerConf, consumer)
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-python"><span class="arrow-prev">← </span><span>Python</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-node"><span>Node.js
-</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#支持的平台">支持的平台</a></li><li><a href="#系统要求">系统要求</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#编译">编译</a></li><li><a href="#install-dependencies">Install Dependencies</a></li><li><a href="#install-rpm">Install RPM</a></li><li><a href="#install-debian">Install Debian</a></li><li><a href="#编译-1">编译</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#编译-2">编译</a></li><li><a href="#install-libpulsar">Install <code>libpulsar</code></a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#create-a-consumer">Create a consumer</a></li><li><a href="#create-a-producer">Create a producer</a></li><li><a href="#enable-authentication-in-connection-urls">Enable authentication in connection URLs</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#create-producer-with-avro-schema">Create producer with Avro schema</a></li><li><a href="#create-consumer-with-avro-schema">Create consumer with Avro schema</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#支持的平台">支持的平台</a></li><li><a href="#系统要求">系统要求</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#编译">编译</a></li><li><a href="#安装依赖项">安装依赖项</a></li><li><a href="#安装-rpm">安装 RPM</a></li><li><a href="#安装-debian">安装 Debian</a></li><li><a href="#编译-1">编译</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#编译-2">编译</a></li><li><a href="#安装-libpulsar">安装 <code>libpulsar</code></a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#创建消费者">创建消费者</a></li><li><a href="#创建生产者">创建生产者</a></li><li><a href="#启用连接-url-的身份验证">启用连接 URL 的身份验证</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#使用-avro-schema-创建生产者">使用 Avro schema 创建生产者</a></li><li><a href="#使用-avro-schema-创建消费者">使用 Avro schema 创建消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
