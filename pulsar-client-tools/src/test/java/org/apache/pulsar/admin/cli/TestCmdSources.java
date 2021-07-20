@@ -441,21 +441,6 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
     
-    /*
-     * Test where the class name provided doesn't exist
-     */
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid Discovery Triggerer specified")
-    public void testBatchSourceConfigDiscoveryTriggererClassNotFound() throws Exception {
-    	SourceConfig testSourceConfig = getSourceConfig();
-    	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
-    	batchSourceConfig.setDiscoveryTriggererClassName("com.foo.Bar");
-    	testSourceConfig.setBatchSourceConfig(batchSourceConfig);
-    	
-    	SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
-        testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
-    }
-    
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
