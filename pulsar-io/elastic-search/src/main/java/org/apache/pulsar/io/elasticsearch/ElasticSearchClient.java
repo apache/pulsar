@@ -58,7 +58,6 @@ import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.*;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
@@ -69,7 +68,6 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 import javax.net.ssl.HostnameVerifier;
@@ -84,8 +82,13 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
@@ -445,16 +448,7 @@ public class ElasticSearchClient {
 
     @VisibleForTesting
     protected long totalHits(String indexName) throws IOException {
-        client.indices().refresh(new RefreshRequest(indexName), RequestOptions.DEFAULT);
-        SearchResponse response =  client.search(
-                new SearchRequest()
-                        .indices(indexName)
-                        .source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery())),
-                RequestOptions.DEFAULT);
-        for(SearchHit searchHit : response.getHits()) {
-            System.out.println(searchHit.getId()+": "+searchHit.getFields());
-        }
-        return response.getHits().getTotalHits().value;
+        return search(indexName).getHits().getTotalHits().value;
     }
 
     @VisibleForTesting
