@@ -93,7 +93,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
+            cursor.ledger.getPinnedExecutor().execute(safeRun(() -> {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
             }));
@@ -142,7 +142,7 @@ class OpReadEntry implements ReadEntriesCallback {
             }
 
             // Schedule next read
-            cursor.ledger.getExecutor().execute(safeRun(() -> {
+            cursor.ledger.getPinnedExecutor().execute(safeRun(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition, OpReadEntry.this);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
             }));
@@ -152,7 +152,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 cursor.readOperationCompleted();
 
             } finally {
-                cursor.ledger.getExecutor().execute(safeRun(() -> {
+                cursor.ledger.getPinnedExecutor().execute(safeRun(() -> {
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
                 }));

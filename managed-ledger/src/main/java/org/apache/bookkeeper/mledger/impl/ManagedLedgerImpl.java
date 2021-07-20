@@ -3416,11 +3416,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers;
     }
 
-    ScheduledExecutorService getScheduledExecutor() {
+    ScheduledExecutorService getPinnedScheduledExecutor() {
         return pinnedScheduledExecutor;
     }
 
-    Executor getExecutor() {
+    Executor getPinnedExecutor() {
         return pinnedExecutor;
     }
 

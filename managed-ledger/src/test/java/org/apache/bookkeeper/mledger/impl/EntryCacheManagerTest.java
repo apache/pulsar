@@ -54,13 +54,13 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
 
         ml1 = mock(ManagedLedgerImpl.class);
-        when(ml1.getScheduledExecutor()).thenReturn(executor);
+        when(ml1.getPinnedScheduledExecutor()).thenReturn(executor);
         when(ml1.getName()).thenReturn("cache1");
         when(ml1.getMBean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
-        when(ml1.getExecutor()).thenReturn(super.executor);
+        when(ml1.getPinnedExecutor()).thenReturn(super.executor);
 
         ml2 = mock(ManagedLedgerImpl.class);
-        when(ml2.getScheduledExecutor()).thenReturn(executor);
+        when(ml2.getPinnedScheduledExecutor()).thenReturn(executor);
         when(ml2.getName()).thenReturn("cache2");
     }
 

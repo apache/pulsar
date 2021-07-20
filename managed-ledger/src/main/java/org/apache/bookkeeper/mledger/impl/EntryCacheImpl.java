@@ -235,7 +235,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor()).exceptionally(exception->{
+                    }, ml.getPinnedExecutor()).exceptionally(exception->{
                           ml.invalidateLedgerHandle(lh);
                           callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                           return null;
@@ -313,7 +313,7 @@ public class EntryCacheImpl implements EntryCache {
                         }
 
                         checkNotNull(ml.getName());
-                        checkNotNull(ml.getExecutor());
+                        checkNotNull(ml.getPinnedExecutor());
 
                         try {
                             // We got the entries, we need to transform them to a List<> type
@@ -334,7 +334,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor()).exceptionally(exception->{
+                    }, ml.getPinnedExecutor()).exceptionally(exception->{
                     	  if (exception instanceof BKException
                                   && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
                                   callback.readEntriesFailed(createManagedLedgerException(exception), ctx);

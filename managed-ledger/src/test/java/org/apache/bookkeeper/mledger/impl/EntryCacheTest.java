@@ -29,7 +29,6 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.Unpooled;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +44,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class EntryCacheTest extends MockedBookKeeperTestCase {
@@ -56,7 +54,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     protected void setUpTestCase() throws Exception {
         ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn("name");
-        when(ml.getExecutor()).thenReturn(executor);
+        when(ml.getPinnedExecutor()).thenReturn(executor);
         when(ml.getMBean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
     }
 
