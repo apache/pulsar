@@ -154,7 +154,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
                 lh.getId());
-        
+
         if (!checkAndCompleteOp(ctx)) {
             // means callback might have been completed by different thread (timeout task thread).. so do nothing
             return;
@@ -170,7 +170,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             handleAddFailure(lh);
         } else {
             // Trigger addComplete callback in a thread hashed on the managed ledger name
-            ml.getExecutor().executeOrdered(ml.getName(), this);
+            ml.getExecutor().execute(this);
         }
     }
 
@@ -248,7 +248,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * Checks if add-operation is completed
-     * 
+     *
      * @return true if task is not already completed else returns false.
      */
     private boolean checkAndCompleteOp(Object ctx) {
@@ -269,7 +269,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
-     * 
+     *
      * @param ledger
      */
     void handleAddFailure(final LedgerHandle ledger) {
@@ -278,7 +278,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         // be marked as failed.
         ml.mbean.recordAddEntryError();
 
-        ml.getExecutor().executeOrdered(ml.getName(), SafeRun.safeRun(() -> {
+        ml.getExecutor().execute(SafeRun.safeRun(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
             ml.ledgerClosed(ledger);

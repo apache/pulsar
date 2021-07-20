@@ -235,7 +235,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
+                    }, ml.getExecutor()).exceptionally(exception->{
                           ml.invalidateLedgerHandle(lh);
                           callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                           return null;
@@ -334,7 +334,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
+                    }, ml.getExecutor()).exceptionally(exception->{
                     	  if (exception instanceof BKException
                                   && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
                                   callback.readEntriesFailed(createManagedLedgerException(exception), ctx);

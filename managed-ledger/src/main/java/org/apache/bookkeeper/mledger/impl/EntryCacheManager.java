@@ -247,7 +247,7 @@ public class EntryCacheManager {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName()));
+                    }, ml.getExecutor());
         }
 
         @Override

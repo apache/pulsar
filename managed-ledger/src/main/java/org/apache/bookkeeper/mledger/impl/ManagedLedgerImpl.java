@@ -57,6 +57,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -3416,8 +3417,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return scheduledExecutor;
     }
 
-    OrderedExecutor getExecutor() {
-        return executor;
+    ExecutorService getExecutor() {
+        return executor.chooseThread(getName());
     }
 
     private ManagedLedgerInfo getManagedLedgerInfo() {
