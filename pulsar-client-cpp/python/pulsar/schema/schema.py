@@ -92,4 +92,4 @@ class JsonSchema(Schema):
         return json.dumps(obj.__dict__, default=self._get_serialized_value, indent=True).encode('utf-8')
 
     def decode(self, data):
-        return self._record_cls(**json.loads(data))
+        return self._record_cls(decode=True, **json.loads(data))

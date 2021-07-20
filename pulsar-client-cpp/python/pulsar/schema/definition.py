@@ -17,9 +17,10 @@
 # under the License.
 #
 
-from abc import abstractmethod, ABCMeta
-from enum import Enum, EnumMeta
+import copy
+from abc import abstractmethod
 from collections import OrderedDict
+from enum import Enum, EnumMeta
 from six import with_metaclass
 
 
@@ -56,15 +57,20 @@ class RecordMeta(type):
 
 class Record(with_metaclass(RecordMeta, object)):
 
-    def __init__(self, default=None, required_default=False, required=False, *args, **kwargs):
+    def __init__(self, default=None, required_default=False, required=False, decode=False, *args, **kwargs):
         self._required_default = required_default
         self._default = default
         self._required = required
 
         for k, value in self._fields.items():
             if k in kwargs:
-                # Value was overridden at constructor
-                self.__setattr__(k, kwargs[k])
+                if decode and isinstance(value, Record) and isinstance(kwargs[k], dict):
+                    copied = copy.copy(value)
+                    copied.__init__(decode=True, **kwargs[k])
+                    self.__setattr__(k, copied)
+                else:
+                    # Value was overridden at constructor
+                    self.__setattr__(k, kwargs[k])
             elif isinstance(value, Record):
                 # Value is a subrecord
                 self.__setattr__(k, value)
