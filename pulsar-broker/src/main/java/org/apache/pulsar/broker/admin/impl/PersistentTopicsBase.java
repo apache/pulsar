@@ -1055,8 +1055,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                 .topics().getSubscriptionsAsync(topic);
                                         subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
                                     } catch (PulsarServerException e) {
-                                        asyncResponse.resume(new RestException(e));
-                                        return;
+                                        throw new RestException(e);
                                     }
                                 });
                             }).thenAccept(__ -> resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures));
@@ -1066,8 +1065,8 @@ public class PersistentTopicsBase extends AdminResource {
                                         .getSubscriptionsAsync(topicName.getPartition(i).toString());
                                 subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
                             }
+                            resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures);
                         }
-                        resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures);
                     } catch (Exception e) {
                         log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
                         asyncResponse.resume(e);
