@@ -95,6 +95,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -2888,6 +2889,82 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 .atMost(12, TimeUnit.SECONDS)
                 .pollInterval(500, TimeUnit.MILLISECONDS)
                 .until(() -> firstLedgerId != ((PositionImpl) ml.addEntry("test".getBytes())).getLedgerId());
+    }
+
+    @Test
+    public void testInvalidateReadHandleWhenDeleteLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+
+        // Verify the read handle should be invalidated after ledger been removed.
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("testInvalidateReadHandleWhenDeleteLedger", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        ManagedCursor cursor2 = ledger.openCursor("test-cursor2");
+        final int entries = 3;
+        for (int i = 0; i < entries; i++) {
+            ledger.addEntry(String.valueOf(i).getBytes(Encoding));
+        }
+        List<Entry> entryList = cursor.readEntries(3);
+        assertEquals(entryList.size(), 3);
+        assertEquals(ledger.ledgers.size(), 3);
+        assertEquals(ledger.ledgerCache.size(), 2);
+        cursor.clearBacklog();
+        cursor2.clearBacklog();
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.ledgers.size(), 1);
+            assertEquals(ledger.ledgerCache.size(), 0);
+        });
+
+        cursor.close();
+        cursor2.close();
+        ledger.close();
+    }
+
+    @Test
+    public void testInvalidateReadHandleWhenConsumed() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+        // Verify the read handle should be invalidated when all cursors consumed
+        // even if the ledger can not been removed due to the data retention
+        config.setRetentionSizeInMB(50);
+        config.setRetentionTime(1, TimeUnit.DAYS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("testInvalidateReadHandleWhenConsumed", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        ManagedCursor cursor2 = ledger.openCursor("test-cursor2");
+        final int entries = 3;
+        for (int i = 0; i < entries; i++) {
+            ledger.addEntry(String.valueOf(i).getBytes(Encoding));
+        }
+        List<Entry> entryList = cursor.readEntries(3);
+        assertEquals(entryList.size(), 3);
+        assertEquals(ledger.ledgers.size(), 3);
+        assertEquals(ledger.ledgerCache.size(), 2);
+        cursor.clearBacklog();
+        cursor2.clearBacklog();
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.ledgers.size(), 3);
+            assertEquals(ledger.ledgerCache.size(), 0);
+        });
+
+        // Verify the ReadHandle can be reopened.
+        ManagedCursor cursor3 = ledger.openCursor("test-cursor3", InitialPosition.Earliest);
+        entryList = cursor3.readEntries(3);
+        assertEquals(entryList.size(), 3);
+        assertEquals(ledger.ledgerCache.size(), 2);
+        cursor3.clearBacklog();
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.ledgers.size(), 3);
+            assertEquals(ledger.ledgerCache.size(), 0);
+        });
+
+
+        cursor.close();
+        cursor2.close();
+        cursor3.close();
+        ledger.close();
     }
 
 }
