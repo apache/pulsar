@@ -26,10 +26,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import org.testng.annotations.Test;
 
-/**
- * A starter to start function worker.
- */
-
 public class PulsarTransactionCoordinatorMetadataSetupTest {
     @Test
     public void testMainGenerateDocs() throws Exception {
