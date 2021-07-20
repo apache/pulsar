@@ -3154,8 +3154,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             assertEquals(ledger.ledgers.size(), 3);
             assertEquals(ledger.ledgerCache.size(), 0);
         });
+
+        // Verify the ReadHandle can be reopened.
+        ManagedCursor cursor3 = ledger.openCursor("test-cursor3", InitialPosition.Earliest);
+        entryList = cursor3.readEntries(3);
+        assertEquals(entryList.size(), 3);
+        assertEquals(ledger.ledgerCache.size(), 2);
+        cursor3.clearBacklog();
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.ledgers.size(), 3);
+            assertEquals(ledger.ledgerCache.size(), 0);
+        });
+
+
         cursor.close();
         cursor2.close();
+        cursor3.close();
         ledger.close();
     }
 }
