@@ -1249,9 +1249,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertFalse(consumer.isConnected()));
 
         // Out of limit period
-        Thread.sleep(6000L);
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        assertTrue(consumer.isConnected());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
 
         // Disable Subscribe Rate Limiter
         subscribeRate = new SubscribeRate(0, 10);
