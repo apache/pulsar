@@ -75,9 +75,9 @@ public class NarUnpacker {
                 throw new IOException("Cannot create " + parentDirectory);
             }
         }
-        String sha256Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(calculateSha256Sum(nar));
+        String md5Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(calculateMd5sum(nar));
         // ensure that one process can extract the files
-        File lockFile = new File(parentDirectory, "." + sha256Sum + ".lock");
+        File lockFile = new File(parentDirectory, "." + md5Sum + ".lock");
         // prevent OverlappingFileLockException by ensuring that one thread tries to create a lock in this JVM
         Object localLock = CURRENT_JVM_FILE_LOCKS.computeIfAbsent(lockFile.getAbsolutePath(), key -> new Object());
         synchronized (localLock) {
@@ -85,7 +85,7 @@ public class NarUnpacker {
             // using the same lock file don't execute concurrently
             try (FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
                  FileLock lock = channel.lock()) {
-                File narWorkingDirectory = new File(parentDirectory, sha256Sum);
+                File narWorkingDirectory = new File(parentDirectory, md5Sum);
                 if (narWorkingDirectory.mkdir()) {
                     try {
                         log.info("Extracting {} to {}", nar, narWorkingDirectory);
@@ -150,27 +150,27 @@ public class NarUnpacker {
     }
 
     /**
-     * Calculates an sha256 sum of the specified file.
+     * Calculates an md5 sum of the specified file.
      *
      * @param file
-     *            to calculate the sha256 of
-     * @return the sha256 bytes
+     *            to calculate the md5sum of
+     * @return the md5sum bytes
      * @throws IOException
      *             if cannot read file
      */
-    private static byte[] calculateSha256Sum(final File file) throws IOException {
+    private static byte[] calculateMd5sum(final File file) throws IOException {
         try (final FileInputStream inputStream = new FileInputStream(file)) {
-            final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            final MessageDigest md5 = MessageDigest.getInstance("md5");
 
             final byte[] buffer = new byte[1024];
             int read = inputStream.read(buffer);
 
             while (read > -1) {
-                sha256.update(buffer, 0, read);
+                md5.update(buffer, 0, read);
                 read = inputStream.read(buffer);
             }
 
-            return sha256.digest();
+            return md5.digest();
         } catch (NoSuchAlgorithmException nsae) {
             throw new IllegalArgumentException(nsae);
         }
