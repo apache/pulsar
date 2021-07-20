@@ -33,7 +33,7 @@ RUN apt-get update && \
                 curl doxygen openjdk-8-jdk-headless openjdk-11-jdk-headless clang-format-5.0 \
                 gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip libpython-dev
 
-# Build protobuf 3.x.y from source since the default
+# Build protobuf 3.x.y from source since the default protobuf from Ubuntu's apt source is 2.x.y
 RUN curl -O -L https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz && \
     tar xvfz protobuf-cpp-3.17.3.tar.gz && \
     cd protobuf-3.17.3/ && \
