@@ -386,6 +386,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     if (deleteSchema) {
                         futures.add(deleteSchema().thenApply(schemaVersion -> null));
                     }
+                    futures.add(deleteTopicPolicies());
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);

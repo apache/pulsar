@@ -2668,11 +2668,19 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // NoNode means there are no partitioned topics in this domain for this namespace
         } catch (Exception e) {
             log.error("Failed to create partitioned topic {}", topicName, e);
-                topicFuture.completeExceptionally(new RestException(e));
-                return false;
+            topicFuture.completeExceptionally(new RestException(e));
+            return false;
         }
 
         return true;
+    }
+
+    public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
+        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(cloneTopicName);
     }
 
     public void setInterceptor(BrokerInterceptor interceptor) {
