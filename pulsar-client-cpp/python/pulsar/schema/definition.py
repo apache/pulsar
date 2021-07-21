@@ -57,14 +57,15 @@ class RecordMeta(type):
 
 class Record(with_metaclass(RecordMeta, object)):
 
-    def __init__(self, default=None, required_default=False, required=False, decode=False, *args, **kwargs):
+    def __init__(self, default=None, required_default=False, required=False, *args, **kwargs):
         self._required_default = required_default
         self._default = default
         self._required = required
 
         for k, value in self._fields.items():
             if k in kwargs:
-                if decode and isinstance(value, Record) and isinstance(kwargs[k], dict):
+                if isinstance(value, Record) and isinstance(kwargs[k], dict):
+                    # Use dict init Record object
                     copied = copy.copy(value)
                     copied.__init__(decode=True, **kwargs[k])
                     self.__setattr__(k, copied)

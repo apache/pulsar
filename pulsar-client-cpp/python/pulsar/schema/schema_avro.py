@@ -40,6 +40,8 @@ if HAS_AVRO:
         def _get_serialized_value(self, x):
             if isinstance(x, enum.Enum):
                 return x.name
+            elif isinstance(x, Record):
+                return self.encode_dict(x.__dict__)
             else:
                 return x
 
@@ -53,16 +55,13 @@ if HAS_AVRO:
         def encode_dict(self, d: dict):
             obj = {}
             for k, v in d.items():
-                if isinstance(v, Record):
-                    obj[k] = self.encode_dict(v.__dict__)
-                else:
-                    obj[k] = self._get_serialized_value(v)
+                obj[k] = self._get_serialized_value(v)
             return obj
 
         def decode(self, data):
             buffer = io.BytesIO(data)
             d = fastavro.schemaless_reader(buffer, self._schema)
-            return self._record_cls(decode=True, **d)
+            return self._record_cls(**d)
 
 else:
     class AvroSchema(Schema):
