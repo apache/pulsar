@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -67,7 +69,7 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         }
         log.info("value {}", record.getValue());
         log.info("value schema type {}", record.getValue().getSchemaType());
-        log.info("value native object {}", record.getValue().getNativeObject());
+        log.info("value native object {} class {}", record.getValue().getNativeObject(), record.getValue().getNativeObject().getClass());
 
         String expectedSchemaDefinition = record.getProperties().getOrDefault("expectedSchemaDefinition", "");
         log.info("schemaDefinition {}", record.getSchema().getSchemaInfo().getSchemaDefinition());
@@ -77,6 +79,18 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
             if (!expectedSchemaDefinition.equals(schemaDefinition)) {
                 throw new RuntimeException("Unexpected schema definition " + schemaDefinition + " is not " + expectedSchemaDefinition);
             }
+        }
+
+        // testing that actually the Sink is able to use Native AVRO
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
+            GenericRecord nativeGenericRecord = (GenericRecord) record.getValue().getNativeObject();
+            log.info("Schema from AVRO generic object {}", nativeGenericRecord.getSchema());
+        }
+
+        // testing that actually the Sink is able to use Native JSON
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.JSON) {
+            JsonNode nativeGenericRecord = (JsonNode) record.getValue().getNativeObject();
+            log.info("NodeType from JsonNode generic object {}", nativeGenericRecord.getNodeType());
         }
 
         record.ack();
