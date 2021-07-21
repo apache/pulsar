@@ -68,5 +68,13 @@ runs:
 
             # stop Azure Linux agent to save RAM
             sudo systemctl stop walinuxagent.service || true
+
+            # show memory
+            free -m
+            # show disk
+            df -h
+            # show cggroup
+            echo "/actions_job cgroup settings:"
+            sudo cgget actions_job
         fi
       shell: bash
