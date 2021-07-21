@@ -53,5 +53,16 @@ runs:
             sudo systemctl stop fstrim.timer || true
             sudo systemctl disable fstrim.service || true
             sudo systemctl stop fstrim.service || true
+
+            # stop php-fpm
+            sudo systemctl stop php8.0-fpm.service || true
+            sudo systemctl stop php7.4-fpm.service || true
+            # stop mono-xsp4
+            sudo systemctl disable mono-xsp4.service || true
+            sudo systemctl stop mono-xsp4.service || true
+            sudo killall mono || true
+
+            # stop Azure Linux agent to save RAM
+            sudo systemctl stop walinuxagent.service || true
         fi
       shell: bash
