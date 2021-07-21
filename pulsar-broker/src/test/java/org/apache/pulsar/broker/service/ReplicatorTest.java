@@ -82,6 +82,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -1107,6 +1108,47 @@ public class ReplicatorTest extends ReplicatorTestBase {
         checkListContainExpectedTopic(admin1, namespace, expectedTopicList);
         checkListContainExpectedTopic(admin2, namespace, expectedTopicList);
         checkListContainExpectedTopic(admin3, namespace, expectedTopicList);
+    }
+
+    @Test(priority = 100)
+    public void testRemoveClusterFromNamespace() throws Exception {
+        final String cluster3 = "r3";
+
+        admin1.tenants().createTenant("pulsar1",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2", "appid3"),
+                        Sets.newHashSet("r1", "r3")));
+
+        admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r3"));
+
+        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient(cluster3);
+        Assert.assertNotNull(repClient1);
+        Assert.assertFalse(repClient1.isClosed());
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String topicName = "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
+
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topicName)
+                .create();
+
+        producer.send("Pulsar".getBytes());
+
+        producer.close();
+        client.close();
+
+        Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
+                .get().getReplicators().get(cluster3);
+
+        admin1.clusters().deleteCluster(cluster3);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(replicator.isConnected()));
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(repClient1.isClosed()));
+
+        Awaitility.await().untilAsserted(() -> Assert.assertNull(
+                pulsar1.getBrokerService().getReplicationClients().get(cluster3)));
     }
 
     private void checkListContainExpectedTopic(PulsarAdmin admin, String namespace, List<String> expectedTopicList) {

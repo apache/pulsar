@@ -22,4 +22,6 @@ import org.apache.zookeeper.data.Stat;
 
 public interface ZooKeeperCacheListener<T> {
     public void onUpdate(String path, T data, Stat stat);
+
+    default void onDelete(String path) {}
 }
