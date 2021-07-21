@@ -32,6 +32,10 @@ runs:
             # consumption is high.
             # Set vm.swappiness=1 to avoid swapping and allow high RAM usage
             echo 1 | sudo tee /proc/sys/vm/swappiness
+            # Set swappiness to 1 for all cgroups and sub-groups
+            for swappiness_file in /sys/fs/cgroup/memory/*/memory.swappiness /sys/fs/cgroup/memory/*/*/memory.swappiness; do
+              echo 1 | sudo tee $swappiness_file > /dev/null
+            done
 
             # use "madvise" Linux Transparent HugePages (THP) setting
             # https://www.kernel.org/doc/html/latest/admin-guide/mm/transhuge.html
