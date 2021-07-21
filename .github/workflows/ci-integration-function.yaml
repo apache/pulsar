@@ -103,7 +103,12 @@ jobs:
 
       - name: run integration tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: ./build/run_integration_group.sh FUNCTION
+        run: |
+          ./build/run_integration_group.sh FUNCTION &
+          while kill -0 $! > /dev/null 2>&1; do
+            free -m
+            sleep 1s
+          done
 
       - name: Upload container logs
         uses: actions/upload-artifact@v2
