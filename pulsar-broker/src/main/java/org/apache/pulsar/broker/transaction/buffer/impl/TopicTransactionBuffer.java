@@ -206,24 +206,28 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
                 txnID.getLeastSigBits());
 
-        topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
-            @Override
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                synchronized (TopicTransactionBuffer.this) {
-                    updateMaxReadPosition(txnID);
-                    handleLowWaterMark(txnID, lowWaterMark);
-                    clearAbortedTransactions();
-                    takeSnapshotByChangeTimes();
+        try {
+            topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    synchronized (TopicTransactionBuffer.this) {
+                        updateMaxReadPosition(txnID);
+                        handleLowWaterMark(txnID, lowWaterMark);
+                        clearAbortedTransactions();
+                        takeSnapshotByChangeTimes();
+                    }
+                    completableFuture.complete(null);
                 }
-                completableFuture.complete(null);
-            }
 
-            @Override
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Failed to commit for txn {}", txnID, exception);
-                completableFuture.completeExceptionally(new PersistenceException(exception));
-            }
-        }, null);
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("Failed to commit for txn {}", txnID, exception);
+                    completableFuture.completeExceptionally(new PersistenceException(exception));
+                }
+            }, null);
+        } finally {
+            commitMarker.release();
+        }
         return completableFuture;
     }
 
@@ -235,26 +239,30 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
         ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L, txnID.getMostSigBits(), txnID.getLeastSigBits());
-        topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
-            @Override
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                synchronized (TopicTransactionBuffer.this) {
-                    aborts.put(txnID, (PositionImpl) position);
-                    updateMaxReadPosition(txnID);
-                    handleLowWaterMark(txnID, lowWaterMark);
-                    changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
-                    clearAbortedTransactions();
-                    takeSnapshotByChangeTimes();
+        try {
+            topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    synchronized (TopicTransactionBuffer.this) {
+                        aborts.put(txnID, (PositionImpl) position);
+                        updateMaxReadPosition(txnID);
+                        handleLowWaterMark(txnID, lowWaterMark);
+                        changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
+                        clearAbortedTransactions();
+                        takeSnapshotByChangeTimes();
+                    }
+                    completableFuture.complete(null);
                 }
-                completableFuture.complete(null);
-            }
 
-            @Override
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Failed to abort for txn {}", txnID, exception);
-                completableFuture.completeExceptionally(new PersistenceException(exception));
-            }
-        }, null);
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("Failed to abort for txn {}", txnID, exception);
+                    completableFuture.completeExceptionally(new PersistenceException(exception));
+                }
+            }, null);
+        } finally {
+            abortMarker.release();
+        }
         return completableFuture;
     }
 
@@ -264,20 +272,24 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (firstTxn.getMostSigBits() == txnID.getMostSigBits() && lowWaterMark >= firstTxn.getLeastSigBits()) {
                 ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L,
                         txnID.getMostSigBits(), txnID.getLeastSigBits());
-                topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
-                    @Override
-                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                        synchronized (TopicTransactionBuffer.this) {
-                            aborts.put(firstTxn, (PositionImpl) position);
-                            updateMaxReadPosition(firstTxn);
+                try {
+                    topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
+                        @Override
+                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                            synchronized (TopicTransactionBuffer.this) {
+                                aborts.put(firstTxn, (PositionImpl) position);
+                                updateMaxReadPosition(firstTxn);
+                            }
                         }
-                    }
 
-                    @Override
-                    public void addFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("Failed to abort low water mark for txn {}", txnID, exception);
-                    }
-                }, null);
+                        @Override
+                        public void addFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("Failed to abort low water mark for txn {}", txnID, exception);
+                        }
+                    }, null);
+                } finally {
+                    abortMarker.release();
+                }
             }
         }
     }
