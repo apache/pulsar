@@ -45,6 +45,16 @@ public class FutureUtil {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
+    /**
+     * Return a future that represents the completion of any future in the provided list.
+     *
+     * @param futures futures to wait any
+     * @return a new CompletableFuture that is completed when any of the given CompletableFutures complete
+     */
+    public static CompletableFuture<Object> waitForAny(List<? extends CompletableFuture<?>> futures) {
+        return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
+    }
+
 
     /**
      * Return a future that represents the completion of the futures in the provided list.

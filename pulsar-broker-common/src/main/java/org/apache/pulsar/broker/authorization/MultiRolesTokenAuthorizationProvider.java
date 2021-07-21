@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +43,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationProvider {
     private static final Logger log = LoggerFactory.getLogger(MultiRolesTokenAuthorizationProvider.class);
@@ -52,7 +53,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When symmetric key is configured
-    static final String CONF_TOKEN_SETTING_PREFIX = "";
+    static final String CONF_TOKEN_SETTING_PREFIX = "tokenSettingPrefix";
 
     // The token's claim that corresponds to the "role" string
     static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
@@ -72,9 +73,9 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
             prefix = "";
         }
         String confTokenAuthClaimSettingName = prefix + CONF_TOKEN_AUTH_CLAIM;
-        if (conf.getProperty(confTokenAuthClaimSettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenAuthClaimSettingName))) {
-            this.roleClaim = (String) conf.getProperty(confTokenAuthClaimSettingName);
+        Object tokenAuthClaim = conf.getProperty(confTokenAuthClaimSettingName);
+        if (tokenAuthClaim != null && StringUtils.isNotBlank((String) tokenAuthClaim)) {
+            this.roleClaim = (String) tokenAuthClaim;
         }
 
         super.initialize(conf, configCache);
@@ -111,9 +112,13 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         try {
             Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
         } catch (RequiredTypeException requiredTypeException) {
-            List list = jwt.getBody().get(roleClaim, List.class);
-            if (list != null) {
-                return list;
+            try {
+                List list = jwt.getBody().get(roleClaim, List.class);
+                if (list != null) {
+                    return list;
+                }
+            } catch (RequiredTypeException requiredTypeException1) {
+                return Collections.emptyList();
             }
         }
 
@@ -124,10 +129,27 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         List<String> roles = getRoles(authenticationData);
         List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
         roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
-        CompletableFuture[] cfs = futures.toArray(new CompletableFuture[futures.size()]);
-        return CompletableFuture.allOf(cfs)
-                .thenApply(ignored -> futures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
-                .thenApply(list -> list.stream().anyMatch(result -> result));
+        return CompletableFuture.supplyAsync(() -> {
+            do {
+                try {
+                    List<CompletableFuture<Boolean>> doneFutures = new ArrayList<>();
+                    FutureUtil.waitForAny(futures).get();
+                    for (CompletableFuture<Boolean> future : futures) {
+                        if (!future.isDone()) continue;
+                        doneFutures.add(future);
+                        if (future.get()) {
+                            futures.forEach(f -> {
+                                if (!f.isDone()) f.cancel(false);
+                            });
+                            return true;
+                        }
+                    }
+                    futures.removeAll(doneFutures);
+                } catch (InterruptedException | ExecutionException ignored) {
+                }
+            } while (!futures.isEmpty());
+            return false;
+        });
     }
 
     /**
