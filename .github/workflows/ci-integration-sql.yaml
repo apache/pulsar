@@ -104,6 +104,11 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: ./build/run_integration_group.sh SQL
 
+      - name: Log dmesg when failed
+        if: ${{ failure() }}
+        continue-on-error: true
+        run: sudo dmesg
+
       - name: Upload container logs
         uses: actions/upload-artifact@v2
         if: ${{ cancelled() || failure() }}
