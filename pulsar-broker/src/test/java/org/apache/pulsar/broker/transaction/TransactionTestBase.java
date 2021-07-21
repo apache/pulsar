@@ -64,7 +64,7 @@ import org.apache.zookeeper.ZooKeeper;
 @Slf4j
 public abstract class TransactionTestBase extends TestRetrySupport {
 
-    public final static String CLUSTER_NAME = "test";
+    public static final String CLUSTER_NAME = "test";
 
     @Setter
     private int brokerCount = 3;

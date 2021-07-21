@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BaseResources;
+import org.apache.pulsar.broker.resources.BookieResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
@@ -76,7 +77,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -352,7 +353,8 @@ public abstract class PulsarWebResource {
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
         try {
-            ClusterData differentClusterData = getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
+            ClusterDataImpl differentClusterData =
+                    getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
             if (differentClusterData != null) {
                 URI redirect = getRedirectionUrl(differentClusterData);
                 // redirect to the cluster requested
@@ -373,7 +375,7 @@ public abstract class PulsarWebResource {
 
     }
 
-    private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
+    private URI getRedirectionUrl(ClusterDataImpl differentClusterData) throws MalformedURLException {
         try {
             PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
             if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
@@ -389,10 +391,11 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
-         String cluster, String clientAppId) {
+    protected static CompletableFuture<ClusterDataImpl> getClusterDataIfDifferentCluster(PulsarService pulsar,
+                                                                                         String cluster,
+                                                                                         String clientAppId) {
 
-        CompletableFuture<ClusterData> clusterDataFuture = new CompletableFuture<>();
+        CompletableFuture<ClusterDataImpl> clusterDataFuture = new CompletableFuture<>();
 
         if (!isValidCluster(pulsar, cluster)) {
             try {
@@ -664,7 +667,7 @@ public abstract class PulsarWebResource {
     protected void validateGlobalNamespaceOwnership(NamespaceName namespace) {
         int timeout = pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds();
         try {
-            ClusterData peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
+            ClusterDataImpl peerClusterData = checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
                     .get(timeout, SECONDS);
             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
             // redirect to the peer-cluster
@@ -717,12 +720,12 @@ public abstract class PulsarWebResource {
                 });
     }
 
-    public static CompletableFuture<ClusterData> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
-            NamespaceName namespace) {
+    public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
+                                                                                           NamespaceName namespace) {
         if (!namespace.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
-        final CompletableFuture<ClusterData> validationFuture = new CompletableFuture<>();
+        final CompletableFuture<ClusterDataImpl> validationFuture = new CompletableFuture<>();
         final String localCluster = pulsarService.getConfiguration().getClusterName();
         final String path = AdminResource.path(POLICIES, namespace.toString());
 
@@ -736,7 +739,7 @@ public abstract class PulsarWebResource {
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
                 } else if (!policies.replication_clusters.contains(localCluster)) {
-                    ClusterData ownerPeerCluster = getOwnerFromPeerClusterList(pulsarService,
+                    ClusterDataImpl ownerPeerCluster = getOwnerFromPeerClusterList(pulsarService,
                             policies.replication_clusters);
                     if (ownerPeerCluster != null) {
                         // found a peer that own this namespace
@@ -767,14 +770,14 @@ public abstract class PulsarWebResource {
         return validationFuture;
     }
 
-    private static ClusterData getOwnerFromPeerClusterList(PulsarService pulsar, Set<String> replicationClusters) {
+    private static ClusterDataImpl getOwnerFromPeerClusterList(PulsarService pulsar, Set<String> replicationClusters) {
         String currentCluster = pulsar.getConfiguration().getClusterName();
         if (replicationClusters == null || replicationClusters.isEmpty() || isBlank(currentCluster)) {
             return null;
         }
 
         try {
-            Optional<ClusterData> cluster = pulsar.getConfigurationCache().clustersCache()
+            Optional<ClusterDataImpl> cluster = pulsar.getConfigurationCache().clustersCache()
                     .get(path("clusters", currentCluster));
             if (!cluster.isPresent() || cluster.get().getPeerClusterNames() == null) {
                 return null;
@@ -896,6 +899,10 @@ public abstract class PulsarWebResource {
 
     protected ClusterResources clusterResources() {
         return pulsar().getPulsarResources().getClusterResources();
+    }
+
+    protected BookieResources bookieResources() {
+        return pulsar().getPulsarResources().getBookieResources();
     }
 
     protected NamespaceResources namespaceResources() {

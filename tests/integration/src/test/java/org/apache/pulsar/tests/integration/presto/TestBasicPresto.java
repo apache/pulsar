@@ -32,7 +32,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -41,8 +41,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -104,7 +102,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             schemaFlag = schema.getSchemaInfo().getType().name();
         } else if(schema.getSchemaInfo().getType().equals(SchemaType.KEY_VALUE)) {
             schemaFlag = schema.getSchemaInfo().getType().name() + "_"
-                    + ((KeyValueSchema) schema).getKeyValueEncodingType();
+                    + ((KeyValueSchemaImpl) schema).getKeyValueEncodingType();
         } else {
             // Because some schema types are same(such as BYTES and BYTEBUFFER), so use the schema name as flag.
             schemaFlag = schema.getSchemaInfo().getName();
@@ -313,7 +311,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             case KEY_VALUE:
                 validateContentForKeyValueSchema(messageNum, contentArr);
                 log.info("finish validate content for KEY_VALUE {} schema type.",
-                        ((KeyValueSchema) schema).getKeyValueEncodingType());
+                        ((KeyValueSchemaImpl) schema).getKeyValueEncodingType());
         }
     }
 

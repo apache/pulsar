@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.resources;
 
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.MetadataStore;
 
 public class TenantResources extends BaseResources<TenantInfo> {
-    public TenantResources(MetadataStoreExtended store, int operationTimeoutSec) {
+    public TenantResources(MetadataStore store, int operationTimeoutSec) {
         super(store, TenantInfo.class, operationTimeoutSec);
     }
 }

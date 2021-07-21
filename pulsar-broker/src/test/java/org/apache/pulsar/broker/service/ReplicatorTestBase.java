@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -47,8 +48,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -86,8 +87,8 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    protected final static String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    protected final static String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
+    protected static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
+    protected static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
@@ -156,15 +157,27 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
         // Provision the global namespace
-        admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), urlTls1.toString(),
-                pulsar1.getSafeBrokerServiceUrl(), pulsar1.getBrokerServiceUrlTls()));
-        admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), urlTls2.toString(),
-                pulsar2.getSafeBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls()));
-        admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), urlTls3.toString(),
-                pulsar3.getSafeBrokerServiceUrl(), pulsar3.getBrokerServiceUrlTls()));
+        admin1.clusters().createCluster("r1", ClusterData.builder()
+                .serviceUrl(url1.toString())
+                .serviceUrlTls(urlTls1.toString())
+                .brokerServiceUrl(pulsar1.getSafeBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                .build());
+        admin1.clusters().createCluster("r2", ClusterData.builder()
+                .serviceUrl(url2.toString())
+                .serviceUrlTls(urlTls2.toString())
+                .brokerServiceUrl(pulsar2.getSafeBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
+                .build());
+        admin1.clusters().createCluster("r3", ClusterData.builder()
+                .serviceUrl(url3.toString())
+                .serviceUrlTls(urlTls3.toString())
+                .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
+                .build());
 
         admin1.tenants().createTenant("pulsar",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
         admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
@@ -176,7 +189,10 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getSafeBrokerServiceUrl());
 
         // Also create V1 namespace for compatibility check
-        admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
+        admin1.clusters().createCluster("global", ClusterData.builder()
+                .serviceUrl("http://global:8080")
+                .serviceUrlTls("https://global:8443")
+                .build());
         admin1.namespaces().createNamespace("pulsar/global/ns");
         admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
 

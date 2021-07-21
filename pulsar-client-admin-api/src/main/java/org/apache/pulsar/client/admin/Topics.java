@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin;
 
-import com.google.gson.JsonObject;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -921,7 +920,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    JsonObject getInternalInfo(String topic) throws PulsarAdminException;
+    String getInternalInfo(String topic) throws PulsarAdminException;
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper.
@@ -936,7 +935,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<JsonObject> getInternalInfoAsync(String topic);
+    CompletableFuture<String> getInternalInfoAsync(String topic);
 
     /**
      * Get the stats for the partitioned topic
@@ -1349,6 +1348,28 @@ public interface Topics {
      * @return a future that can be used to track when the message is returned
      */
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
+
+    /**
+     * Get message ID published at or just after this absolute timestamp (in ms).
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return MessageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    MessageId getMessageIdByTimestamp(String topic, long timestamp) throws PulsarAdminException;
+
+    /**
+     * Get message ID published at or just after this absolute timestamp (in ms) asynchronously.
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return a future that can be used to track when the message ID is returned.
+     */
+    CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp);
 
     /**
      * Create a new subscription on a topic.
@@ -3302,4 +3323,24 @@ public interface Topics {
      * @return a future that can be used to track when the topic is truncated
      */
     CompletableFuture<Void> truncateAsync(String topic);
+
+    /**
+     * Enable or disable a replicated subscription on a topic.
+     *
+     * @param topic
+     * @param subName
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void setReplicatedSubscriptionStatus(String topic, String subName, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * Enable or disable a replicated subscription on a topic asynchronously.
+     *
+     * @param topic
+     * @param subName
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled);
 }

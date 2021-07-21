@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.net.URL;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,8 +38,10 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -108,16 +111,16 @@ public class SLAMonitoringTest {
 
     private void createTenant(PulsarAdmin pulsarAdmin)
             throws PulsarAdminException {
-        ClusterData clusterData = new ClusterData();
-        clusterData.setServiceUrl(pulsarAdmin.getServiceUrl());
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(pulsarAdmin.getServiceUrl())
+                .build();
         pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add("my-cluster");
-        TenantInfo adminConfig = new TenantInfo();
-        adminConfig.setAllowedClusters(allowedClusters);
-        Set<String> adminRoles = new HashSet<>();
-        adminRoles.add("");
-        adminConfig.setAdminRoles(adminRoles);
+        TenantInfo adminConfig = TenantInfo.builder()
+                .adminRoles(Collections.singleton(""))
+                .allowedClusters(allowedClusters)
+                .build();
         pulsarAdmin.tenants().createTenant("sla-monitor", adminConfig);
     }
 
@@ -159,7 +162,7 @@ public class SLAMonitoringTest {
 
                 Map<String, NamespaceOwnershipStatus> nsMap = pulsarAdmins[i].brokers().getOwnedNamespaces("my-cluster",
                         list.get(0));
-                Assert.assertEquals(nsMap.size(), 2);
+                Assert.assertEquals(nsMap.size(), 3);
             }
         } catch (Exception e) {
             e.printStackTrace();

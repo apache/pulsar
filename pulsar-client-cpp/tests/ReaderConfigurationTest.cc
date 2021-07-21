@@ -24,25 +24,13 @@
 #include <pulsar/Client.h>
 #include <lib/LogUtils.h>
 #include <lib/ReaderImpl.h>
+#include "NoOpsCryptoKeyReader.h"
 
 DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
 static const std::string lookupUrl = "pulsar://localhost:6650";
-
-class NoOpsCryptoKeyReader : public CryptoKeyReader {
-   public:
-    Result getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                        EncryptionKeyInfo& encKeyInfo) const override {
-        return ResultOk;
-    }
-
-    Result getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
-                         EncryptionKeyInfo& encKeyInfo) const override {
-        return ResultOk;
-    }
-};
 
 TEST(ReaderConfigurationTest, testDefaultConfig) {
     const std::string topic = "ReaderConfigurationTest-default-config";

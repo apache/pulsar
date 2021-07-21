@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -368,12 +368,11 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         // stats are at zero before any activity
         TopicStats stats = topic.getStats(false, false);
-        assertEquals(stats.bytesInCounter, 0);
-        assertEquals(stats.msgInCounter, 0);
-        assertEquals(stats.bytesOutCounter, 0);
-        assertEquals(stats.msgOutCounter, 0);
+        assertEquals(stats.getBytesInCounter(), 0);
+        assertEquals(stats.getMsgInCounter(), 0);
+        assertEquals(stats.getBytesOutCounter(), 0);
+        assertEquals(stats.getMsgOutCounter(), 0);
 
-        producer.newMessage().value("test").eventTime(5).send();
         producer.newMessage().value("test").eventTime(5).send();
 
         Message<String> msg = consumer1.receive();
@@ -383,10 +382,10 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         // send/receive result in non-zero stats
         TopicStats statsBeforeUnsubscribe = topic.getStats(false, false);
-        assertTrue(statsBeforeUnsubscribe.bytesInCounter > 0);
-        assertTrue(statsBeforeUnsubscribe.msgInCounter > 0);
-        assertTrue(statsBeforeUnsubscribe.bytesOutCounter > 0);
-        assertTrue(statsBeforeUnsubscribe.msgOutCounter > 0);
+        assertTrue(statsBeforeUnsubscribe.getBytesInCounter() > 0);
+        assertTrue(statsBeforeUnsubscribe.getMsgInCounter() > 0);
+        assertTrue(statsBeforeUnsubscribe.getBytesOutCounter() > 0);
+        assertTrue(statsBeforeUnsubscribe.getMsgOutCounter() > 0);
 
         consumer1.unsubscribe();
         consumer2.unsubscribe();
@@ -396,9 +395,41 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         // consumer unsubscribe/producer removal does not result in stats loss
         TopicStats statsAfterUnsubscribe = topic.getStats(false, false);
-        assertEquals(statsAfterUnsubscribe.bytesInCounter, statsBeforeUnsubscribe.bytesInCounter);
-        assertEquals(statsAfterUnsubscribe.msgInCounter, statsBeforeUnsubscribe.msgInCounter);
-        assertEquals(statsAfterUnsubscribe.bytesOutCounter, statsBeforeUnsubscribe.bytesOutCounter);
-        assertEquals(statsAfterUnsubscribe.msgOutCounter, statsBeforeUnsubscribe.msgOutCounter);
+        assertEquals(statsAfterUnsubscribe.getBytesInCounter(), statsBeforeUnsubscribe.getBytesInCounter());
+        assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
+        assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());
+        assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
+    }
+
+    @Test
+    public void testPersistentPartitionedTopicUnload() throws Exception {
+        final String topicName = "persistent://prop/ns/failedUnload";
+        final String ns = "prop/ns";
+        final int partitions = 5;
+        final int producers = 1;
+        // ensure that the number of bundle is greater than 1
+        final int bundles = 2;
+
+        admin.namespaces().createNamespace(ns, bundles);
+        admin.topics().createPartitionedTopic(topicName, partitions);
+
+        List<Producer> producerSet = new ArrayList<>();
+        for (int i = 0; i < producers; i++) {
+            producerSet.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topicName));
+        pulsar.getBrokerService().getTopicIfExists(topicName).get();
+        assertTrue(pulsar.getBrokerService().getTopics().containsKey(topicName));
+
+        // ref of partitioned-topic name should be empty
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+        pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 5, TimeUnit.SECONDS).get();
+
+        for (Producer producer : producerSet) {
+            producer.close();
+        }
     }
 }

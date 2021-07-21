@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -47,8 +48,11 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
 
-    protected AbstractBaseDispatcher(Subscription subscription) {
+    protected final ServiceConfiguration serviceConfig;
+
+    protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
+        this.serviceConfig = serviceConfig;
     }
 
     /**
@@ -98,13 +102,13 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
             ManagedCursor cursor, boolean isReplayRead) {
-        filterEntriesForConsumer(Optional.empty(), entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
+        filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
                 isReplayRead);
     }
 
-    public void filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, List<Entry> entries,
-            EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-            ManagedCursor cursor, boolean isReplayRead) {
+    public void filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
+             List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
+             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -114,8 +118,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[i] != null
-                    ? entryWrapper.get()[i].getMetadata()
+            int entryWrapperIndex = i + entryWrapperOffset;
+            MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
+                    ? entryWrapper.get()[entryWrapperIndex].getMetadata()
                     : null;
             msgMetadata = msgMetadata == null
                     ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
@@ -233,11 +238,20 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         // noop
     }
 
-    protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
+    protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
+                                                           long bytesToRead, long availablePermitsOnByte) {
+        if (availablePermitsOnMsg > 0) {
+            messagesToRead = Math.min(messagesToRead, availablePermitsOnMsg);
+        }
+
+        if (availablePermitsOnByte > 0) {
+            bytesToRead = Math.min(bytesToRead, availablePermitsOnByte);
+        }
+
+        return Pair.of(messagesToRead, bytesToRead);
     }
 
-    protected void addMessageToReplay(long ledgerId, long entryId) {
-        // No-op
+    protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
+        return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
     }
 }

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -57,7 +57,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -68,6 +68,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -188,7 +189,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.auth_policies.namespace_auth;
+        return policies.auth_policies.getNamespaceAuthentication();
     }
 
     @POST
@@ -313,7 +314,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get the subscription expiration time for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public int getSubscriptionExpirationTime(@PathParam("tenant") String tenant,
+    public Integer getSubscriptionExpirationTime(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateAdminAccessForTenant(tenant);
         validateNamespaceName(tenant, namespace);
@@ -335,6 +336,17 @@ public class Namespaces extends NamespacesBase {
                                                       required = true) int expirationTime) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionExpirationTime(expirationTime);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(value = "Remove subscription expiration time for namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
+    public void removeSubscriptionExpirationTime(@PathParam("tenant") String tenant,
+                                                 @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetSubscriptionExpirationTime(null);
     }
 
     @GET
@@ -568,7 +580,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "Dispatch rate for all topics of the specified namespace") DispatchRate dispatchRate) {
+            @ApiParam(value = "Dispatch rate for all topics of the specified namespace")
+                    DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetTopicDispatchRate(dispatchRate);
     }
@@ -600,7 +613,7 @@ public class Namespaces extends NamespacesBase {
     public void setSubscriptionDispatchRate(@PathParam("tenant") String tenant,
                                             @PathParam("namespace") String namespace, @ApiParam(value =
             "Subscription dispatch rate for all topics of the specified namespace")
-                                                        DispatchRate dispatchRate) {
+                                                        DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionDispatchRate(dispatchRate);
     }
@@ -675,7 +688,7 @@ public class Namespaces extends NamespacesBase {
     public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace, @ApiParam(value =
             "Replicator dispatch rate for all topics of the specified namespace")
-                                                      DispatchRate dispatchRate) {
+                                                      DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetReplicatorDispatchRate(dispatchRate);
     }
@@ -1649,7 +1662,7 @@ public class Namespaces extends NamespacesBase {
                     message = "OffloadPolicies is empty or driver is not supported or bucket is not valid")})
     public void setOffloadPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
                                    @ApiParam(value = "Offload policies for the specified namespace", required = true)
-                                           OffloadPolicies offload,
+                                           OffloadPoliciesImpl offload,
                                    @Suspended final AsyncResponse asyncResponse) {
         try {
             validateNamespaceName(tenant, namespace);
@@ -1688,8 +1701,8 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
-    public OffloadPolicies getOffloadPolicies(@PathParam("tenant") String tenant,
-                                              @PathParam("namespace") String namespace) {
+    public OffloadPoliciesImpl getOffloadPolicies(@PathParam("tenant") String tenant,
+                                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         return internalGetOffloadPolicies();
     }

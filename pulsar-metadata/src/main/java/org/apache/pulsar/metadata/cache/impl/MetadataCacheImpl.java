@@ -38,6 +38,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -50,6 +51,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
 
+@Slf4j
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
 
     private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
@@ -157,10 +159,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
-                        // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
+                        objCache.synchronous().invalidate(path);
+                        objCache.synchronous().refresh(path);
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
@@ -188,10 +189,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
-                        // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
+                        objCache.synchronous().invalidate(path);
+                        objCache.synchronous().refresh(path);
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
@@ -209,8 +209,17 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         store.put(path, content, Optional.of(-1L))
                 .thenAccept(stat -> {
                     // Make sure we have the value cached before the operation is completed
-                    objCache.put(path, FutureUtils.value(Optional.of(new CacheGetResult<>(value, stat))));
-                    future.complete(null);
+                    // In addition to caching the value, we need to add a watch on the path,
+                    // so when/if it changes on any other node, we are notified and we can
+                    // update the cache
+                    objCache.get(path).whenComplete( (stat2, ex) -> {
+                        if (ex == null) {
+                            future.complete(null);
+                        } else {
+                            log.error("Exception while getting path {}", path, ex);
+                            future.completeExceptionally(ex.getCause());
+                        }
+                    });
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof BadVersionException) {
                         // Use already exists exception to provide more self-explanatory error message
@@ -226,11 +235,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<Void> delete(String path) {
-        return store.delete(path, Optional.empty())
-                .thenAccept(v -> {
-                    // Mark in the cache that the object was removed
-                    objCache.put(path, FutureUtils.value(Optional.empty()));
-                });
+        return store.delete(path, Optional.empty());
     }
 
     @Override
@@ -260,7 +265,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         case Created:
         case Modified:
             if (objCache.synchronous().getIfPresent(path) != null) {
-                // Trigger background refresh of the cached item
+                // Trigger background refresh of the cached item, but before make sure
+                // to invalidate the entry so that we won't serve a stale cached version
+                objCache.synchronous().invalidate(path);
                 objCache.synchronous().refresh(path);
             }
             break;

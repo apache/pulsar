@@ -57,7 +57,7 @@ public class NettyTCPServerHandler extends SimpleChannelInboundHandler<byte[]> {
     }
 
     @Data
-    static private class NettyTCPRecord implements Record<byte[]>, Serializable {
+    private static class NettyTCPRecord implements Record<byte[]>, Serializable {
         private final Optional<String> key;
         private final byte[] value;
     }

@@ -24,7 +24,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
@@ -37,7 +37,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -133,12 +135,12 @@ public class GenericSchemaTest {
         for (Schema<Foo> keySchema : encodeSchemas) {
             for (Schema<Foo> valueSchema : encodeSchemas) {
                 // configure encode schema
-                Schema<KeyValue<Foo, Foo>> kvSchema = KeyValueSchema.of(
+                Schema<KeyValue<Foo, Foo>> kvSchema = KeyValueSchemaImpl.of(
                     keySchema, valueSchema
                 );
 
                 // configure decode schema
-                Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchema.of(
+                Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchemaImpl.of(
                     Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()
                 );
                 decodeSchema.configureSchemaInfo(

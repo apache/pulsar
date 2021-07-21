@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
-import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
 public class AggregatedNamespaceStats {
     public int topicsCount;
@@ -38,23 +36,12 @@ public class AggregatedNamespaceStats {
     public long bytesOutCounter;
     public long msgOutCounter;
 
-    public long storageSize;
+    public ManagedLedgerStats managedLedgerStats = new ManagedLedgerStats();
     public long msgBacklog;
     public long msgDelayed;
 
-    long backlogSize;
-    long offloadedStorageUsed;
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
-
-    public StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(
-            ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
-    public StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(
-            ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
-    public StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
-
-    public double storageWriteRate;
-    public double storageReadRate;
 
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
@@ -77,20 +64,21 @@ public class AggregatedNamespaceStats {
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
 
-        storageSize += stats.storageSize;
-        backlogSize += stats.backlogSize;
-        offloadedStorageUsed += stats.offloadedStorageUsed;
+        managedLedgerStats.storageSize += stats.managedLedgerStats.storageSize;
+        managedLedgerStats.backlogSize += stats.managedLedgerStats.backlogSize;
+        managedLedgerStats.offloadedStorageUsed += stats.managedLedgerStats.offloadedStorageUsed;
         backlogQuotaLimit = Math.max(backlogQuotaLimit, stats.backlogQuotaLimit);
         backlogQuotaLimitTime = Math.max(backlogQuotaLimitTime, stats.backlogQuotaLimitTime);
 
-        storageWriteRate += stats.storageWriteRate;
-        storageReadRate += stats.storageReadRate;
+        managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
+        managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
 
         msgBacklog += stats.msgBacklog;
 
-        storageWriteLatencyBuckets.addAll(stats.storageWriteLatencyBuckets);
-        storageLedgerWriteLatencyBuckets.addAll(stats.storageLedgerWriteLatencyBuckets);
-        entrySizeBuckets.addAll(stats.entrySizeBuckets);
+        managedLedgerStats.storageWriteLatencyBuckets.addAll(stats.managedLedgerStats.storageWriteLatencyBuckets);
+        managedLedgerStats.storageLedgerWriteLatencyBuckets
+                .addAll(stats.managedLedgerStats.storageLedgerWriteLatencyBuckets);
+        managedLedgerStats.entrySizeBuckets.addAll(stats.managedLedgerStats.entrySizeBuckets);
 
         stats.replicationStats.forEach((n, as) -> {
             AggregatedReplicationStats replStats =
@@ -100,6 +88,9 @@ public class AggregatedNamespaceStats {
             replStats.msgThroughputIn += as.msgThroughputIn;
             replStats.msgThroughputOut += as.msgThroughputOut;
             replStats.replicationBacklog += as.replicationBacklog;
+            replStats.msgRateExpired += as.msgRateExpired;
+            replStats.connectedCount += as.connectedCount;
+            replStats.replicationDelayInSeconds += as.replicationDelayInSeconds;
         });
 
         stats.subscriptionStats.forEach((n, as) -> {
@@ -123,6 +114,7 @@ public class AggregatedNamespaceStats {
     }
 
     public void reset() {
+        managedLedgerStats.reset();
         topicsCount = 0;
         subscriptionsCount = 0;
         producersCount = 0;
@@ -132,21 +124,12 @@ public class AggregatedNamespaceStats {
         throughputIn = 0;
         throughputOut = 0;
 
-        storageSize = 0;
-        backlogSize = 0;
         msgBacklog = 0;
         msgDelayed = 0;
-        storageWriteRate = 0;
-        storageReadRate = 0;
-        offloadedStorageUsed = 0;
         backlogQuotaLimit = 0;
         backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
-
-        storageWriteLatencyBuckets.reset();
-        storageLedgerWriteLatencyBuckets.reset();
-        entrySizeBuckets.reset();
     }
 }

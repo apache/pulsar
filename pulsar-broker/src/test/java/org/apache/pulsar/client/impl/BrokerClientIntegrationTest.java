@@ -93,12 +93,14 @@ import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -714,9 +716,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // (3) restart broker with invalid config value
 
-        ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar.getBrokerService()
+        MetadataCache<Map<String, String>> dynamicConfigurationCache = pulsar.getBrokerService()
                 .getDynamicConfigurationCache();
-        Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH).get();
+        Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH).get().get();
         configurationMap.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
         byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
         dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
@@ -745,7 +747,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     public void testCleanProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        admin.clusters().createCluster("global", new ClusterData());
+        admin.clusters().createCluster("global", ClusterData.builder().build());
         admin.namespaces().createNamespace("my-property/global/lookup");
 
         final int operationTimeOut = 500;

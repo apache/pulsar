@@ -42,94 +42,124 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Number of threads used by Global ZK
     public static final int GLOBAL_ZK_THREADS = 8;
 
-    // Name of the cluster to which this broker belongs to
-    @FieldContext(required = true)
+    @FieldContext(required = true, doc = "Name of the cluster to which this broker belongs to")
     private String clusterName;
 
-    // Pulsar cluster url to connect to broker (optional if configurationStoreServers present)
+    @FieldContext(doc = "The HTTPS REST service URL to connect to broker")
     private String serviceUrl;
+
+    @FieldContext(doc = "The HTTPS REST service TLS URL")
     private String serviceUrlTls;
+
+    @FieldContext(doc = "The broker binary service URL (for produce and consume operations)")
     private String brokerServiceUrl;
+
+    @FieldContext(doc = "The secured broker binary service URL (for produce and consume operations)")
     private String brokerServiceUrlTls;
 
-    // Path for the file used to determine the rotation status for the broker
-    // when responding to service discovery health checks
+    @FieldContext(doc = "Path for the file used to determine the rotation status for the broker "
+            + "when responding to service discovery health checks")
     private String statusFilePath;
 
-    // Configuration Store connection string
     @Deprecated
+    @FieldContext(
+            doc = "Configuration Store connection string",
+            deprecated = true
+    )
     private String globalZookeeperServers;
+
+    @FieldContext(doc = "Connection string of configuration store servers")
     private String configurationStoreServers;
-    // Zookeeper session timeout in milliseconds
+
+    @FieldContext(doc = "ZooKeeper session timeout in milliseconds")
     private long zooKeeperSessionTimeoutMillis = 30000;
-    // ZooKeeper cache expiry time in seconds
+
+    @FieldContext(doc = "ZooKeeper cache expiry time in seconds")
     private int zooKeeperCacheExpirySeconds = 300;
 
-    // Port to use to server HTTP request
+    @FieldContext(doc = "Port to use to server HTTP request")
     private Optional<Integer> webServicePort = Optional.of(8080);
-    // Port to use to server HTTPS request
+
+    @FieldContext(doc = "Port to use to server HTTPS request")
     private Optional<Integer> webServicePortTls = Optional.empty();
-    // Hostname or IP address the service binds on, default is 0.0.0.0.
+
+    @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
     private String bindAddress;
-    // The maximum size of a text message during parsing in WebSocket proxy
+
+    @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
     // --- Authentication ---
-    // Enable authentication
+    @FieldContext(doc = "Enable authentication")
     private boolean authenticationEnabled;
-    // Autentication provider name list, which is a list of class names
+
+    @FieldContext(doc = "Authentication provider name list, which is a list of class names")
     private Set<String> authenticationProviders = Sets.newTreeSet();
-    // Enforce authorization
+
+    @FieldContext(doc = "Enforce authorization")
     private boolean authorizationEnabled;
-    // Authorization provider fully qualified class-name
+
+    @FieldContext(doc = "Authorization provider fully qualified class name")
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
-    // Role names that are treated as "super-user", meaning they will be able to
-    // do all admin operations and publish/consume from all topics
+    @FieldContext(doc = "Role names that are treated as \"super-user\", "
+            + "which means they can do all admin operations and publish to or consume from all topics")
     private Set<String> superUserRoles = Sets.newTreeSet();
 
-    // Allow wildcard matching in authorization
-    // (wildcard matching only applicable if wildcard-char:
-    // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
+    @FieldContext(doc = "Allow wildcard matching in authorization "
+            + "(wildcard matching only applicable if wildcard-char: "
+            + "presents at first or last position. For example: *.pulsar.service,pulsar.service.*)")
     private boolean authorizationAllowWildcardsMatching = false;
 
-    // Authentication settings of the proxy itself. Used to connect to brokers
+    @FieldContext(doc = "Proxy authentication settings used to connect to brokers")
     private String brokerClientAuthenticationPlugin;
+
+    @FieldContext(doc = "Proxy authentication parameters used to connect to brokers")
     private String brokerClientAuthenticationParameters;
-    // Path for the trusted TLS certificate file for outgoing connection to a server (broker)
+
+    @FieldContext(doc = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
     private String brokerClientTrustCertsFilePath = "";
 
-    // Number of IO threads in Pulsar Client used in WebSocket proxy
+    @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
-    // Number of threads to use in HTTP server
+    @FieldContext(doc = "Number of threads to used in HTTP server")
     private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
-    // Number of connections per Broker in Pulsar Client used in WebSocket proxy
+    @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
-    // Time in milliseconds that idle WebSocket session times out
+
+    @FieldContext(doc = "Timeout of idling WebSocket session (in millisecond)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
-    // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
+    @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
     /***** --- TLS --- ****/
     @Deprecated
     private boolean tlsEnabled = false;
 
+    @FieldContext(doc = "Enable TLS of broker client")
     private boolean brokerClientTlsEnabled = false;
-    // Path for the TLS certificate file
+
+    @FieldContext(doc = "Path for the TLS certificate file")
     private String tlsCertificateFilePath;
-    // Path for the TLS private key file
+
+    @FieldContext(doc = "Path for the TLS private key file")
     private String tlsKeyFilePath;
-    // Path for the trusted TLS certificate file
+
+    @FieldContext(doc = "Path for the trusted TLS certificate file")
     private String tlsTrustCertsFilePath = "";
-    // Accept untrusted TLS certificate from client
+
+    @FieldContext(doc = "Accept untrusted TLS certificate from client")
     private boolean tlsAllowInsecureConnection = false;
-    // Specify whether Client certificates are required for TLS
-    // Reject the Connection if the Client Certificate is not trusted.
+
+    @FieldContext(doc = "Specify whether client certificates are required for "
+            + "TLS rejecting the connection if the client certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
-    // Tls cert refresh duration in seconds (set 0 to check on every new connection) 
+
+    @FieldContext(doc = "TLS cert refresh duration (in second). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
+    @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
 }

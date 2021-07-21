@@ -24,6 +24,7 @@ import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -45,7 +46,9 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -109,9 +112,10 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     }
     @Test
     public void testFindBrokerWithListenerName() throws Exception {
-        admin.clusters().createCluster("localhost", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("localhost"));
+        admin.clusters().createCluster("localhost", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Collections.singleton("localhost"))
+                .build();
         this.admin.tenants().createTenant("public", tenantInfo);
         this.admin.namespaces().createNamespace("public/default");
 
@@ -149,9 +153,10 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
     @Test
     public void testHttpLookupRedirect() throws Exception {
-        admin.clusters().createCluster("localhost", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo();
-        tenantInfo.setAllowedClusters(Sets.newHashSet("localhost"));
+        admin.clusters().createCluster("localhost", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfo tenantInfo = TenantInfo.builder()
+                .allowedClusters(Collections.singleton("localhost"))
+                .build();
         this.admin.tenants().createTenant("public", tenantInfo);
         this.admin.namespaces().createNamespace("public/default");
         ClientConfigurationData conf = new ClientConfigurationData();

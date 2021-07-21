@@ -85,7 +85,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -140,13 +140,15 @@ public class NamespaceService implements AutoCloseable {
 
     public static final String SLA_NAMESPACE_PROPERTY = "sla-monitor";
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/[^/]+/([^:]+:\\d+)");
+    public static final Pattern HEARTBEAT_NAMESPACE_PATTERN_V2 = Pattern.compile("pulsar/([^:]+:\\d+)");
     public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/[^/]+/([^:]+:\\d+)");
     public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s:%s";
+    public static final String HEARTBEAT_NAMESPACE_FMT_V2 = "pulsar/%s:%s";
     public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s:%s";
 
     public static final String NAMESPACE_ISOLATION_POLICIES = "namespaceIsolationPolicies";
 
-    private final ConcurrentOpenHashMap<ClusterData, PulsarClientImpl> namespaceClients;
+    private final ConcurrentOpenHashMap<ClusterDataImpl, PulsarClientImpl> namespaceClients;
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
@@ -220,7 +222,7 @@ public class NamespaceService implements AutoCloseable {
         return bundles.map(b -> b.findBundle(topicName));
     }
 
-    public NamespaceBundle getBundle(TopicName topicName) throws Exception {
+    public NamespaceBundle getBundle(TopicName topicName) {
         return bundleFactory.getBundles(topicName.getNamespaceObject()).findBundle(topicName);
     }
 
@@ -303,6 +305,12 @@ public class NamespaceService implements AutoCloseable {
         if (registerNamespace(getHeartbeatNamespace(host, config), true)) {
             this.uncountedNamespaces++;
             LOG.info("added heartbeat namespace name in local cache: ns={}", getHeartbeatNamespace(host, config));
+        }
+
+        // ensure that we own the heartbeat namespace
+        if (registerNamespace(getHeartbeatNamespaceV2(host, config), true)) {
+            this.uncountedNamespaces++;
+            LOG.info("added heartbeat namespace name in local cache: ns={}", getHeartbeatNamespaceV2(host, config));
         }
 
         // we may not need strict ownership checking for bootstrap names for now
@@ -470,6 +478,9 @@ public class NamespaceService implements AutoCloseable {
         try {
             // check if this is Heartbeat or SLAMonitor namespace
             candidateBroker = checkHeartbeatNamespace(bundle);
+            if (candidateBroker == null) {
+                candidateBroker = checkHeartbeatNamespaceV2(bundle);
+            }
             if (candidateBroker == null) {
                 String broker = getSLAMonitorBrokerName(bundle);
                 // checking if the broker is up and running
@@ -999,7 +1010,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         return getBundleAsync(topicName)
-                .thenCompose(bundle -> ownershipCache.checkOwnership(bundle));
+                .thenApply(ownershipCache::checkOwnership);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
@@ -1213,14 +1224,13 @@ public class NamespaceService implements AutoCloseable {
                 });
     }
 
-    private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterData peerClusterData,
-                                                               NamespaceName namespace) {
+    private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterDataImpl peerClusterData,
+                                                                                  NamespaceName namespace) {
         PulsarClientImpl client = getNamespaceClient(peerClusterData);
         return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT);
     }
 
-
-    public PulsarClientImpl getNamespaceClient(ClusterData cluster) {
+    public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {
         PulsarClientImpl client = namespaceClients.get(cluster);
         if (client != null) {
             return client;
@@ -1295,7 +1305,18 @@ public class NamespaceService implements AutoCloseable {
         }
         return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
-     public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
+
+    public static String getHeartbeatNamespaceV2(String host, ServiceConfiguration config) {
+        Integer port = null;
+        if (config.getWebServicePort().isPresent()) {
+            port = config.getWebServicePort().get();
+        } else if (config.getWebServicePortTls().isPresent()) {
+            port = config.getWebServicePortTls().get();
+        }
+        return String.format(HEARTBEAT_NAMESPACE_FMT_V2, host, port);
+    }
+
+    public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
         Integer port = null;
         if (config.getWebServicePort().isPresent()) {
             port = config.getWebServicePort().get();
@@ -1307,6 +1328,16 @@ public class NamespaceService implements AutoCloseable {
 
     public static String checkHeartbeatNamespace(ServiceUnitId ns) {
         Matcher m = HEARTBEAT_NAMESPACE_PATTERN.matcher(ns.getNamespaceObject().toString());
+        if (m.matches()) {
+            LOG.debug("SLAMonitoring namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
+            return String.format("http://%s", m.group(1));
+        } else {
+            return null;
+        }
+    }
+
+    public static String checkHeartbeatNamespaceV2(ServiceUnitId ns) {
+        Matcher m = HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
             LOG.debug("SLAMonitoring namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
             return String.format("http://%s", m.group(1));

@@ -19,7 +19,6 @@
 package org.apache.pulsar.io.core;
 
 import java.util.Map;
-
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.functions.api.Record;

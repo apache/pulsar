@@ -36,13 +36,47 @@ Pay attention to the following required settings when configuring functions-work
 
 - `numFunctionPackageReplicas`: The number of replicas to store function packages. The default value is `1`, which is good for standalone deployment. For production deployment, to ensure high availability, set it to be larger than `2`.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
-- `initializedDlogMetadata`: Whether to initialize distributed log metadata in runtime. If it is set to `true`, you must ensure that it has been initialized by `bin/pulsarinitialize-cluster-metadata` command.
+- `initializedDlogMetadata`: Whether to initialize distributed log metadata in runtime. If it is set to `true`, you must ensure that it has been initialized by `bin/pulsar initialize-cluster-metadata` command.
 
 If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.
 
 - `bookkeeperClientAuthenticationPlugin`: the BookKeeper client authentication plugin name.
 - `bookkeeperClientAuthenticationParametersName`: the BookKeeper client authentication plugin parameters name.
 - `bookkeeperClientAuthenticationParameters`: the BookKeeper client authentication plugin parameters.
+
+### Configure Stateful-Functions to run with broker
+
+If you want to use Stateful-Functions related functions (for example,  `putState()` and `queryState()` related interfaces), follow steps below.
+
+1. Enable the **streamStorage** service in the BookKeeper.
+
+   Currently, the service uses the NAR package, so you need to set the configuration in `bookkeeper.conf`.
+
+    ```text
+    extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+    ```
+
+   After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
+
+   Input:
+
+    ```shell
+    telnet localhost 4181
+    ```
+   Output:
+    ```text
+    Trying 127.0.0.1...
+    Connected to localhost.
+    Escape character is '^]'.
+    ```
+
+2. Turn on this function in `functions_worker.yml`.
+
+    ```text
+    stateStorageServiceUrl: bk://<bk-service-url>:4181
+    ```
+    
+    `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
 ### Start Functions-worker with broker
 

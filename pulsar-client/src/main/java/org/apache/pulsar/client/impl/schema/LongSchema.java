@@ -32,7 +32,7 @@ public class LongSchema extends AbstractSchema<Long> {
     private static final SchemaInfo SCHEMA_INFO;
 
     static {
-        SCHEMA_INFO = new SchemaInfo()
+        SCHEMA_INFO = new SchemaInfoImpl()
             .setName("INT64")
             .setType(SchemaType.INT64)
             .setSchema(new byte[0]);

@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.functions.sink;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
-
-import java.util.Map;
 
 @Getter
 @Setter

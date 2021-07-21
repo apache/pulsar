@@ -72,7 +72,7 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
-        managedLedgerConfig.setMaximumRolloverTime(5, TimeUnit.MILLISECONDS);
+        managedLedgerConfig.setMaximumRolloverTime(1, TimeUnit.SECONDS);
 
         int msgNum = 10;
         for (int i = 0; i < msgNum; i++) {

@@ -69,7 +69,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
@@ -931,7 +931,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         List<Metrics> metrics = Lists.newArrayList();
         Map<String, String> dimensions = new HashMap<>();
 
-        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf));
+        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf, true));
         dimensions.put("metric", "loadBalancing");
 
         Metrics m = Metrics.create(dimensions);
@@ -1006,7 +1006,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         try {
             FutureUtil.waitForAll(futures).join();
         } catch (Exception e) {
-            log.warn("Error when writing metadata data to store: {}", e);
+            log.warn("Error when writing metadata data to store", e);
         }
     }
 
@@ -1030,7 +1030,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
                 Map<String, String> tempBrokerToFailureDomainMap = Maps.newHashMap();
                 for (String domainName : pulsar.getConfigurationCache().failureDomainListCache().get()) {
                     try {
-                        Optional<FailureDomain> domain = pulsar.getConfigurationCache().failureDomainCache()
+                        Optional<FailureDomainImpl> domain = pulsar.getConfigurationCache().failureDomainCache()
                                 .get(clusterDomainRootPath + "/" + domainName);
                         if (domain.isPresent()) {
                             for (String broker : domain.get().brokers) {

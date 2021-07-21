@@ -29,6 +29,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
+import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -43,7 +44,7 @@ import software.amazon.kinesis.retrieval.RetrievalConfig;
 import software.amazon.kinesis.retrieval.polling.PollingConfig;
 
 /**
- * 
+ *
  * @see ConfigsBuilder
  */
 @Connector(
@@ -72,23 +73,23 @@ public class KinesisSource extends AbstractAwsConnector implements Source<byte[]
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        this.kinesisSourceConfig = KinesisSourceConfig.load(config);
-        
+        this.kinesisSourceConfig = IOConfigUtils.loadWithSecrets(config, KinesisSourceConfig.class, sourceContext);
+
         checkArgument(isNotBlank(kinesisSourceConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSourceConfig.getAwsEndpoint()) || 
-                      isNotBlank(kinesisSourceConfig.getAwsRegion()), 
+        checkArgument(isNotBlank(kinesisSourceConfig.getAwsEndpoint()) ||
+                      isNotBlank(kinesisSourceConfig.getAwsRegion()),
                      "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSourceConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
-        
+
         if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
             checkArgument((kinesisSourceConfig.getStartAtTime() != null),"Timestamp must be specified");
         }
-        
+
         queue = new LinkedBlockingQueue<KinesisRecord> (kinesisSourceConfig.getReceiveQueueSize());
         workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
-        
+
         AwsCredentialProviderPlugin credentialsProvider = createCredentialProvider(
-                kinesisSourceConfig.getAwsCredentialPluginName(), 
+                kinesisSourceConfig.getAwsCredentialPluginName(),
                 kinesisSourceConfig.getAwsCredentialPluginParam());
 
         KinesisAsyncClient kClient = kinesisSourceConfig.buildKinesisAsyncClient(credentialsProvider);

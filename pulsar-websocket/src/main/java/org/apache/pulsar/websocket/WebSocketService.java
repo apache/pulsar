@@ -204,10 +204,17 @@ public class WebSocketService implements Closeable {
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
         if (isNotBlank(config.getBrokerServiceUrl()) || isNotBlank(config.getBrokerServiceUrlTls())) {
-            return new ClusterData(config.getServiceUrl(), config.getServiceUrlTls(), config.getBrokerServiceUrl(),
-                    config.getBrokerServiceUrlTls());
+            return ClusterData.builder()
+                    .serviceUrl(config.getServiceUrl())
+                    .serviceUrlTls(config.getServiceUrlTls())
+                    .brokerServiceUrl(config.getBrokerServiceUrl())
+                    .brokerServiceUrlTls(config.getBrokerServiceUrlTls())
+                    .build();
         } else if (isNotBlank(config.getServiceUrl()) || isNotBlank(config.getServiceUrlTls())) {
-            return new ClusterData(config.getServiceUrl(), config.getServiceUrlTls());
+            return ClusterData.builder()
+                    .serviceUrl(config.getServiceUrl())
+                    .serviceUrlTls(config.getServiceUrlTls())
+                    .build();
         } else {
             return null;
         }

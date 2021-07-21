@@ -23,12 +23,14 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSubscription;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertNotNull;
@@ -37,6 +39,7 @@ import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 
 @Test(groups = "broker-api")
+@Slf4j
 public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -75,7 +78,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         }
         // 3 receive the first 5 messages
         for (int i = 0; i < 5; i++) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
             consumer.acknowledge(message);
@@ -84,7 +87,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         ((ConsumerImpl)consumer).getClientCnx().close();
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < messageNum; i++) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive();
             assertNotNull(message);
             Assert.assertEquals(message.getValue(), "message" + i);
         }
@@ -124,6 +127,65 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         Thread.sleep(500);
         nonPersistentSubscription = (NonPersistentSubscription) nonPersistentTopic.getSubscription(subName);
         assertNull(nonPersistentSubscription);
+
+    }
+
+    @DataProvider(name = "subscriptionTypes")
+    public static Object[][] subscriptionTypes() {
+        Object[][] result = new Object[SubscriptionType.values().length][];
+        int i = 0;
+        for (SubscriptionType type : SubscriptionType.values()) {
+            result[i++] = new Object[] {type};
+        }
+        return result;
+    }
+
+    @Test(dataProvider = "subscriptionTypes")
+    public void testNonDurableSubscriptionRecovery(SubscriptionType subscriptionType) throws Exception {
+        log.info("testing {}", subscriptionType);
+        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-"+subscriptionType;
+        // 1 setup producer、consumer
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscriptionType(subscriptionType)
+                .subscriptionName("my-nonDurable-subscriber")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        // 2 send messages
+        int messageNum = 15;
+        for (int i = 0; i < messageNum; i++) {
+            producer.send("message" + i);
+        }
+        // 3 receive the first 5 messages
+        for (int i = 0; i < 5; i++) {
+            Message<String> message = consumer.receive();
+            assertNotNull(message);
+            Assert.assertEquals(message.getValue(), "message" + i);
+            consumer.acknowledge(message);
+        }
+        // 4 trigger reconnect
+        ((ConsumerImpl)consumer).getClientCnx().close();
+
+        // 5 for non-durable we are going to restart from the next entry
+        for (int i = 5; i < 10; i++) {
+            Message<String> message = consumer.receive();
+            assertNotNull(message);
+            Assert.assertEquals(message.getValue(), "message" + i);
+        }
+
+        // 6 restart broker
+        restartBroker();
+
+        // 7 for non-durable we are going to restart from the next entry
+        for (int i = 10; i < messageNum; i++) {
+            Message<String> message = consumer.receive();
+            assertNotNull(message);
+            Assert.assertEquals(message.getValue(), "message" + i);
+        }
 
     }
 }

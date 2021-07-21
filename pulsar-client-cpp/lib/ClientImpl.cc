@@ -26,17 +26,24 @@
 #include "PartitionedConsumerImpl.h"
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
-#include <pulsar/SimpleLoggerFactory.h>
+#include <pulsar/ConsoleLoggerFactory.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
-#include <regex>
 #include <random>
 #include <mutex>
 #ifdef USE_LOG4CXX
 #include "Log4CxxLogger.h"
+#endif
+
+#ifdef PULSAR_USE_BOOST_REGEX
+#include <boost/regex.hpp>
+#define PULSAR_REGEX_NAMESPACE boost
+#else
+#include <regex>
+#define PULSAR_REGEX_NAMESPACE std
 #endif
 
 DECLARE_LOG_OBJECT()
@@ -101,11 +108,11 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
             loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
         } else {
             // Use default simple console logger
-            loggerFactory.reset(new SimpleLoggerFactory);
+            loggerFactory.reset(new ConsoleLoggerFactory);
         }
 #else
         // Use default simple console logger
-        loggerFactory.reset(new SimpleLoggerFactory);
+        loggerFactory.reset(new ConsoleLoggerFactory);
 #endif
     }
     LogUtils::setLoggerFactory(std::move(loggerFactory));
@@ -267,7 +274,7 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
     if (result == ResultOk) {
         ConsumerImplBasePtr consumer;
 
-        std::regex pattern(regexPattern);
+        PULSAR_REGEX_NAMESPACE::regex pattern(regexPattern);
 
         NamespaceTopicsPtr matchTopics =
             PatternMultiTopicsConsumerImpl::topicsPatternFilter(*topics, pattern);
@@ -480,8 +487,9 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     state_ = Closing;
     lock.unlock();
 
-    LOG_INFO("Closing Pulsar client");
     SharedInt numberOfOpenHandlers = std::make_shared<int>(producers.size() + consumers.size());
+    LOG_INFO("Closing Pulsar client with " << producers.size() << " producers and " << consumers.size()
+                                           << " consumers");
 
     for (ProducersList::iterator it = producers.begin(); it != producers.end(); ++it) {
         ProducerImplBasePtr producer = it->lock();

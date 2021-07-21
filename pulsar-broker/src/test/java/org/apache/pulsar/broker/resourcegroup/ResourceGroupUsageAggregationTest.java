@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -33,10 +34,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -45,6 +46,7 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
@@ -66,7 +68,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             }
         };
 
-        ResourceUsageTransportManager transportMgr = new ResourceUsageTransportManager(pulsar);
+        ResourceUsageTopicTransportManager transportMgr = new ResourceUsageTopicTransportManager(pulsar);
         this.rgs = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, transportMgr, dummyQuotaCalc);
     }
 
@@ -97,27 +99,21 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             public void acceptResourceUsage(String broker, ResourceUsage resourceUsage) {};
         };
 
-        ResourceGroupConfigInfo rgConfig = new ResourceGroupConfigInfo();
-        rgConfig.setName("runProduceConsume");
-        rgConfig.setPublishBytesPerPeriod(1500);
-        rgConfig.setPublishMessagesPerPeriod(100);
-        rgConfig.setDispatchBytesPerPeriod(4000);
-        rgConfig.setDispatchMessagesPerPeriod(500);
-        rgs.resourceGroupCreate(rgConfig, ruP, ruC);
+        org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
+          new org.apache.pulsar.common.policies.data.ResourceGroup();
+        final String rgName = "runProduceConsume";
+        rgConfig.setPublishRateInBytes(1500);
+        rgConfig.setPublishRateInMsgs(100);
+        rgConfig.setDispatchRateInBytes(4000);
+        rgConfig.setPublishRateInMsgs(500);
+        rgs.resourceGroupCreate(rgName, rgConfig, ruP, ruC);
 
         Producer<byte[]> producer = null;
         Consumer<byte[]> consumer = null;
 
-        this.pulsar.getBrokerService().getOrCreateTopic(topicString);
-
-        try {
-            producer = pulsarClient.newProducer()
-                    .topic(topicString)
-                    .create();
-        } catch (PulsarClientException p) {
-            final String errMesg = String.format("Got exception while building producer: ex={}", p.getMessage());
-            Assert.assertTrue(false, errMesg);
-        }
+        producer = pulsarClient.newProducer()
+                .topic(topicString)
+                .create();
 
         try {
             consumer = pulsarClient.newConsumer()
@@ -133,8 +129,8 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         final TopicName myTopic = TopicName.get(topicString);
         final String tenantString = myTopic.getTenant();
         final String nsString = myTopic.getNamespacePortion();
-        rgs.registerTenant(rgConfig.getName(), tenantString);
-        rgs.registerNameSpace(rgConfig.getName(), nsString);
+        rgs.registerTenant(rgName, tenantString);
+        rgs.registerNameSpace(rgName, nsString);
 
         final int NumMessagesToSend = 10;
         int sentNumBytes = 0;
@@ -149,7 +145,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 producer.send(mesg);
                 sentNumBytes += mesg.length;
                 sentNumMsgs++;
-                this.verfyStats(topicString, rgConfig.getName(), sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
+                this.verfyStats(topicString, rgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
             } catch (PulsarClientException p) {
                 final String errMesg = String.format("Got exception while sending {}-th time: ex={}", ix, p.getMessage());
                 Assert.assertTrue(false, errMesg);
@@ -157,7 +153,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         }
         producer.close();
 
-        this.verfyStats(topicString, rgConfig.getName(), sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
+        this.verfyStats(topicString, rgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
 
         Message<byte[]> message = null;
         while (recvdNumMsgs < sentNumMsgs) {
@@ -173,13 +169,13 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             recvdNumMsgs++;
         }
 
-        this.verfyStats(topicString, rgConfig.getName(), sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
+        this.verfyStats(topicString, rgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
 
         consumer.close();
 
-        rgs.unRegisterTenant(rgConfig.getName(), tenantString);
-        rgs.unRegisterNameSpace(rgConfig.getName(), nsString);
-        rgs.resourceGroupDelete(rgConfig.getName());
+        rgs.unRegisterTenant(rgName, tenantString);
+        rgs.unRegisterNameSpace(rgName, nsString);
+        rgs.resourceGroupDelete(rgName);
     }
 
     // Verify the app stats with what we see from the broker-service, and the resource-group (which in turn internally
@@ -192,11 +188,11 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                             boolean checkProduce, boolean checkConsume)
                                                                 throws InterruptedException, PulsarAdminException {
         BrokerService bs = pulsar.getBrokerService();
-        Map<String, TopicStats> topicStatsMap = bs.getTopicStats();
-        for (Map.Entry<String, TopicStats> entry : topicStatsMap.entrySet()) {
+        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
+        for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
             String mapTopicName = entry.getKey();
             if (mapTopicName.equals(topicString)) {
-                TopicStats stats = entry.getValue();
+                TopicStatsImpl stats = entry.getValue();
                 if (checkProduce) {
                     Assert.assertTrue(stats.bytesInCounter >= sentNumBytes);
                     Assert.assertTrue(stats.msgInCounter == sentNumMsgs);
@@ -251,9 +247,9 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         this.conf.setAllowAutoTopicCreation(true);
 
         final String clusterName = "test";
-        admin.clusters().createCluster(clusterName, new ClusterData(pulsar.getBrokerServiceUrl()));
+        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant(TenantName,
-                    new TenantInfo(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
+                    new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(TenantAndNsName);
         admin.namespaces().setNamespaceReplicationClusters(TenantAndNsName, Sets.newHashSet(clusterName));
     }

@@ -42,6 +42,7 @@ import org.apache.kafka.common.serialization.ShortDeserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -235,7 +236,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
      static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
         DeferredSchemaPlaceholder() {
-            super(SchemaInfo
+            super(SchemaInfoImpl
                     .builder()
                     .type(SchemaType.AVRO)
                     .properties(Collections.emptyMap())

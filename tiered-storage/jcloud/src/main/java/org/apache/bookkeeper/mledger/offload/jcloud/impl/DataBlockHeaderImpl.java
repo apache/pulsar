@@ -73,11 +73,11 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
     private final long blockLength;
     private final long firstEntryId;
 
-    static public int getBlockMagicWord() {
+    public static int getBlockMagicWord() {
         return MAGIC_WORD;
     }
 
-    static public int getDataStartOffset() {
+    public static int getDataStartOffset() {
         return HEADER_MAX_SIZE;
     }
 

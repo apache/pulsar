@@ -71,7 +71,6 @@ public class CmdGenerateDocumentation {
         cmdClassMap.put("simulation-controller", Class.forName("org.apache.pulsar.testclient.LoadSimulationController$MainArguments"));
         cmdClassMap.put("websocket-producer", Class.forName("org.apache.pulsar.proxy.socket.client.PerformanceClient$Arguments"));
         cmdClassMap.put("managed-ledger", Class.forName("org.apache.pulsar.testclient.ManagedLedgerWriter$Arguments"));
-        cmdClassMap.put("gen-doc", Class.forName("org.apache.pulsar.testclient.CmdGenerateDocumentation$Arguments"));
 
         for (Map.Entry<String, Class<?>> entry : cmdClassMap.entrySet()) {
             String cmd = entry.getKey();
@@ -110,17 +109,12 @@ public class CmdGenerateDocumentation {
         }
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
-        // IKey is an internal interface and cannot be accessed directly,
-        // so the type needs to be erased and force cast to a subclass
-        Map descriptionMap = cmd.getDescriptions();
-        descriptionMap.forEach((k, v) -> {
-            StringKey key = (StringKey) k;
-            ParameterDescription description = (ParameterDescription) v;
-            sb.append("| `").append(key.getName())
-                    .append("` | ").append(description.getDescription().replace("\n", " "))
-                    .append("|").append(description.getDefault()).append("|\n");
-
-        });
+        List<ParameterDescription> options = cmd.getParameters();
+        options.forEach((option) ->
+                sb.append("| `").append(option.getNames())
+                        .append("` | ").append(option.getDescription().replace("\n", " "))
+                        .append("|").append(option.getDefault()).append("|\n")
+        );
         System.out.println(sb.toString());
         return sb.toString();
     }

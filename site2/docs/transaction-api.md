@@ -1,12 +1,10 @@
 ---
 id: transactions-api
-title: Transactions API (Developer Preview)
+title: Transactions API
 sidebar_label: Transactions API
 ---
 
-All messages in a transaction is available only to consumers after the transaction is committed. If a transaction is aborted, all the writes and acknowledgments in this transaction rollback. 
-
-Currently, Pulsar transaction is a developer preview feature. It is disabled by default. You can enable the feature and use transactions in your application in development environment.
+All messages in a transaction are available only to consumers after the transaction has been committed. If a transaction has been aborted, all the writes and acknowledgments in this transaction roll back. 
 
 ## Prerequisites
 1. To enable transactions in Pulsar, you need to configure the parameter in the `broker.conf` file.
@@ -108,6 +106,7 @@ Consumer<String> sourceConsumer = pulsarClient
 Producer<String> sinkProducer = pulsarClient
         .newProducer(Schema.STRING)
         .topic(sinkTopic)
+        .sendTimeout(0, TimeUnit.MILLISECONDS)
         .create();
 
 Transaction txn = pulsarClient

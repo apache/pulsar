@@ -22,7 +22,7 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.policies.data.TransactionCoordinatorStatus;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreStats;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
@@ -112,11 +112,11 @@ public interface TransactionMetadataStore {
     TransactionCoordinatorID getTransactionCoordinatorID();
 
     /**
-     * Get the transaction metadata store status.
+     * Get the transaction metadata store stats.
      *
-     * @return transactionCoordinatorStatus {@link TransactionCoordinatorStatus}
+     * @return TransactionCoordinatorStats {@link TransactionCoordinatorStats}
      */
-    TransactionCoordinatorStatus getStatus();
+    TransactionCoordinatorStats getCoordinatorStats();
 
     /**
      * Close the transaction metadata store.
@@ -128,7 +128,14 @@ public interface TransactionMetadataStore {
     /**
      * Get the transaction metadata store stats.
      *
-     * @return transactionMetadataStoreStats {@link TransactionMetadataStoreStats}
+     * @return TransactionMetadataStoreStats {@link TransactionMetadataStoreStats}
      */
-    TransactionMetadataStoreStats getStats();
+    TransactionMetadataStoreStats getMetadataStoreStats();
+
+    /**
+     * Get the transactions witch timeout is bigger than given timeout.
+     *
+     * @return {@link TxnMeta} the txnMetas of slow transactions
+     */
+    List<TxnMeta> getSlowTransactions(long timeout);
 }

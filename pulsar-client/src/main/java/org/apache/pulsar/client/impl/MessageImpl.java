@@ -44,7 +44,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -68,7 +68,7 @@ public class MessageImpl<T> implements Message<T> {
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
     private String topic; // only set for incoming messages
-    transient private Map<String, String> properties;
+    private transient Map<String, String> properties;
     private int redeliveryCount;
     private int uncompressedSize;
 
@@ -269,39 +269,30 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
-    public static MessageImpl<byte[]> deserializeBrokerEntryMetaDataFirst(
-            ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
-        @SuppressWarnings("unchecked")
-        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
-
-        msg.brokerEntryMetadata =
+    public static long getEntryTimestamp( ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
+        BrokerEntryMetadata brokerEntryMetadata =
                 Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
-
-        if (msg.brokerEntryMetadata != null) {
-            msg.msgMetadata.clear();
-            msg.payload = null;
-            msg.messageId = null;
-            msg.topic = null;
-            msg.cnx = null;
-            msg.properties = Collections.emptyMap();
-            return msg;
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+            return brokerEntryMetadata.getBrokerTimestamp();
         }
+        // otherwise get the publish_time
+        return Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata).getPublishTime();
+    }
 
-        Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
-        msg.payload = headersAndPayloadWithBrokerEntryMetadata;
-        msg.messageId = null;
-        msg.topic = null;
-        msg.cnx = null;
-        msg.properties = Collections.emptyMap();
-        return msg;
+    public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
+        return messageTTLInSeconds != 0 &&
+                (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
+    }
+
+    public static boolean isEntryPublishedEarlierThan(long entryTimestamp, long timestamp) {
+        return entryTimestamp < timestamp;
     }
 
     public static MessageImpl<byte[]> deserializeSkipBrokerEntryMetaData(
             ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
-
-        Commands.skipBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
 
         Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
         msg.payload = headersAndPayloadWithBrokerEntryMetadata;
@@ -344,17 +335,19 @@ public class MessageImpl<T> implements Message<T> {
         return 0;
     }
 
+    public long getDeliverAtTime() {
+        if (msgMetadata.hasDeliverAtTime()) {
+            return msgMetadata.getDeliverAtTime();
+        }
+        return 0;
+    }
+
     public boolean isExpired(int messageTTLInSeconds) {
         return messageTTLInSeconds != 0 && (brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp()
                 ? (System.currentTimeMillis() >
                     getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
                 : (System.currentTimeMillis() >
                     brokerEntryMetadata.getBrokerTimestamp() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds)));
-    }
-
-    public boolean publishedEarlierThan(long timestamp) {
-        return brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp() ? getPublishTime() < timestamp
-                : brokerEntryMetadata.getBrokerTimestamp() < timestamp;
     }
 
     @Override
@@ -420,6 +413,8 @@ public class MessageImpl<T> implements Message<T> {
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
             ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
+        } else if (schema instanceof KeyValueSchemaImpl) {
+            ((KeyValueSchemaImpl) schema).fetchSchemaIfNeeded(getTopicName(), BytesSchemaVersion.of(getSchemaVersion()));
         }
     }
 
@@ -451,11 +446,11 @@ public class MessageImpl<T> implements Message<T> {
     }
 
 
-    private KeyValueSchema getKeyValueSchema() {
+    private KeyValueSchemaImpl getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchema) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
+            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
-            return (KeyValueSchema) schema;
+            return (KeyValueSchemaImpl) schema;
         }
     }
 
@@ -473,7 +468,7 @@ public class MessageImpl<T> implements Message<T> {
     }
     
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchema kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
@@ -490,7 +485,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     private T getKeyValue() {
-        KeyValueSchema kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
                     (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
@@ -661,7 +656,7 @@ public class MessageImpl<T> implements Message<T> {
 
     private Handle<MessageImpl<?>> recyclerHandle;
 
-    private final static Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
+    private static final Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
         @Override
         protected MessageImpl<?> newObject(Handle<MessageImpl<?>> handle) {
             return new MessageImpl<>(handle);

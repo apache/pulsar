@@ -21,7 +21,11 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -40,6 +44,7 @@ import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -108,6 +113,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -1966,6 +1972,49 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testRetentionSize() throws Exception {
+        final int retentionSizeInMB = 5;
+        final int totalMessage = 10;
+
+        // message size is 1MB
+        final int messageSize = 1048576;
+        char[] data = new char[messageSize];
+        Arrays.fill(data, 'a');
+        byte [] message = new String(data).getBytes(Encoding);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(retentionSizeInMB);
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(1, TimeUnit.HOURS);
+
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("retention_size_ledger", config);
+        ManagedCursor c1 = ml.openCursor("c1");
+        Position position = null;
+        for (int i = 0; i < totalMessage; i++) {
+            position = ml.addEntry(message);
+        }
+        // all ledgers are not delete yet since no entry has been acked for c1
+        assertEquals(ml.getLedgersInfoAsList().size(), totalMessage);
+
+        List<Entry> entryList = c1.readEntries(totalMessage);
+        if (null != position) {
+            c1.markDelete(position);
+        }
+        entryList.forEach(entry -> {
+            log.info("Read entry position {}:{}", entry.getLedgerId(), entry.getEntryId());
+            entry.release();
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(ml.getTotalSize() <= retentionSizeInMB * 1024 * 1024);
+            assertEquals(ml.getLedgersInfoAsList().size(), 5);
+        });
+    }
+
+    @Test
     public void testTimestampOnWorkingLedger() throws Exception {
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);
@@ -2922,6 +2971,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testLedgerReachMaximumRolloverTime() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
+
+        ManagedLedger ml = factory.open("ledger-reach-maximum-rollover-time", config);
+        long firstLedgerId = ml.addEntry("test".getBytes()).getLedgerId();
+
+        // the ledger rollover scheduled time is between 1000 and 1050 ms,
+        // wait 1100 ms, the ledger should be rolled over.
+        Awaitility.await()
+                .atMost(1100, TimeUnit.MILLISECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> firstLedgerId != ml.addEntry("test".getBytes()).getLedgerId());
+    }
+
+    @Test
     public void testExpiredLedgerDeletionAfterManagedLedgerRestart() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setRetentionTime(1, TimeUnit.SECONDS);
@@ -2940,11 +3006,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 2);
         List<Entry> entries = cursor.readEntries(3);
 
-        for (Entry entry : entries) {
-            cursor.markDelete(entry.getPosition());
-        }
-        entries.forEach(e -> e.release());
-
         // managed-ledger restart
         managedLedger.close();
         managedLedger = (ManagedLedgerImpl) factory.open("ml_restart_ledger", config);
@@ -2953,14 +3014,20 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // and now ledgers are [{entries=2}, {entries=1}, {entries=0}]
         Assert.assertTrue(managedLedger.getLedgersInfoAsList().size() >= 2);
 
+        cursor = managedLedger.openCursor("c1");
+        for (Entry entry : entries) {
+            cursor.markDelete(entry.getPosition());
+        }
+        entries.forEach(Entry::release);
         // Now we update the cursors that are still subscribing to ledgers that has been consumed completely
         managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
         managedLedger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
-        Thread.sleep(100);
-
-        // We only have one empty ledger at last [{entries=0}]
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-        Assert.assertEquals(managedLedger.getTotalSize(), 0);
+        ManagedLedgerImpl finalManagedLedger = managedLedger;
+        Awaitility.await().untilAsserted(() -> {
+            // We only have one empty ledger at last [{entries=0}]
+            Assert.assertEquals(finalManagedLedger.getLedgersInfoAsList().size(), 1);
+            Assert.assertEquals(finalManagedLedger.getTotalSize(), 0);
+        });
     }
   
     @Test(timeOut = 20000)

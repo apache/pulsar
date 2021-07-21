@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Set;
@@ -517,4 +518,25 @@ public interface ClientBuilder extends Cloneable {
      * @return
      */
     ClientBuilder enableTransaction(boolean enableTransaction);
+
+    /**
+     *  Set socks5 proxy address.
+     * @param socks5ProxyAddress
+     * @return
+     */
+    ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress);
+
+    /**
+     *  Set socks5 proxy username.
+     * @param socks5ProxyUsername
+     * @return
+     */
+    ClientBuilder socks5ProxyUsername(String socks5ProxyUsername);
+
+    /**
+     *  Set socks5 proxy password.
+     * @param socks5ProxyPassword
+     * @return
+     */
+    ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
 }

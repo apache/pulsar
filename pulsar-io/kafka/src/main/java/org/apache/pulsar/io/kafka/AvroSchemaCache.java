@@ -25,6 +25,7 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -65,7 +66,7 @@ final class AvroSchemaCache {
             org.apache.avro.Schema schema = schemaRegistryClient.getById(schemaId);
             String definition = schema.toString(false);
             log.info("Schema {} definition {}", schemaId, definition);
-            SchemaInfo schemaInfo = SchemaInfo.builder()
+            SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .type(SchemaType.AVRO)
                     .name(schema.getName())
                     .properties(Collections.emptyMap())

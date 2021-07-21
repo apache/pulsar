@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import lombok.Getter;
 import lombok.Setter;
@@ -51,17 +53,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
-import static org.mockito.Mockito.*;
 
 @Slf4j
 public class OwnerShipForCurrentServerTestBase {
 
-    public final static String CLUSTER_NAME = "test";
+    public static final String CLUSTER_NAME = "test";
 
     @Setter
     private int brokerCount = 3;

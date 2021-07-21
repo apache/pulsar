@@ -41,6 +41,7 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -50,7 +51,8 @@ import org.apache.pulsar.common.api.proto.KeyLongValue;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -98,7 +100,7 @@ public class Consumer {
 
     private final ConcurrentLongLongPairHashMap pendingAcks;
 
-    private final ConsumerStats stats;
+    private final ConsumerStatsImpl stats;
 
     private volatile int maxUnackedMessages;
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
@@ -123,12 +125,13 @@ public class Consumer {
     private boolean preciseDispatcherFlowControl;
     private PositionImpl readPositionWhenJoining;
     private final String clientAddress; // IP address only, no port number included
+    private final MessageId startMessageId;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    KeySharedMeta keySharedMeta) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId) {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -148,6 +151,10 @@ public class Consumer {
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
+
+        // Ensure we start from compacted view
+        this.startMessageId = (readCompacted && startMessageId == null) ? MessageId.earliest : startMessageId;
+
         this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
@@ -156,7 +163,7 @@ public class Consumer {
 
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
-        stats = new ConsumerStats();
+        stats = new ConsumerStatsImpl();
         if (cnx.hasHAProxyMessage()) {
             stats.setAddress(cnx.getHAProxyMessage().sourceAddress() + ":" + cnx.getHAProxyMessage().sourcePort());
         } else {
@@ -235,7 +242,8 @@ public class Consumer {
                 Entry entry = entries.get(i);
                 if (entry != null) {
                     int batchSize = batchSizes.getBatchSize(i);
-                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                    int stickyKeyHash = getStickyKeyHash(entry);
+                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, stickyKeyHash);
                     if (log.isDebugEnabled()){
                         log.debug("[{}-{}] Added {}:{} ledger entry with batchSize of {} to pendingAcks in"
                                         + " broker.service.Consumer for consumerId: {}",
@@ -529,7 +537,7 @@ public class Consumer {
             oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Added {} message permits in broker.service.Consumer before updating dispatcher "
-                        + "for consumer", topicName, subscription, additionalNumberOfMessages, consumerId);
+                        + "for consumer {}", topicName, subscription, additionalNumberOfMessages, consumerId);
             }
             subscription.consumerFlow(this, additionalNumberOfMessages);
         } else {
@@ -555,7 +563,7 @@ public class Consumer {
         // add newly flow permits to actual consumer.messagePermits
         MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
         if (log.isDebugEnabled()){
-            log.debug("[{}-{}] Added {} blocked permits to broker.service.Consumer for consumer", topicName,
+            log.debug("[{}-{}] Added {} blocked permits to broker.service.Consumer for consumer {}", topicName,
                     subscription, additionalNumberOfPermits, consumerId);
         }
         // dispatch pending permits to flow more messages: it will add more permits to dispatcher and consumer
@@ -581,7 +589,7 @@ public class Consumer {
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
-     * b. {@link maxUnackedMessages} value > 0
+     * b. {@link this#maxUnackedMessages} value > 0
      *
      * @return
      */
@@ -596,11 +604,10 @@ public class Consumer {
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
-        stats.chuckedMessageRate = chunkedMessageRate.getRate();
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
     }
 
-    public void updateStats(ConsumerStats consumerStats) {
+    public void updateStats(ConsumerStatsImpl consumerStats) {
         msgOutCounter.add(consumerStats.msgOutCounter);
         bytesOutCounter.add(consumerStats.bytesOutCounter);
         msgOut.recordMultipleEvents(consumerStats.msgOutCounter, consumerStats.bytesOutCounter);
@@ -608,7 +615,7 @@ public class Consumer {
         lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
         MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
         if (log.isDebugEnabled()){
-            log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer", topicName,
+            log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer {}", topicName,
                     subscription, consumerStats.availablePermits, consumerId);
         }
         unackedMessages = consumerStats.unackedMessages;
@@ -616,7 +623,7 @@ public class Consumer {
         AVG_MESSAGES_PER_ENTRY.set(this, consumerStats.avgMessagesPerEntry);
     }
 
-    public ConsumerStats getStats() {
+    public ConsumerStatsImpl getStats() {
         stats.msgOutCounter = msgOutCounter.longValue();
         stats.bytesOutCounter = bytesOutCounter.longValue();
         stats.lastAckedTimestamp = lastAckedTimestamp;
@@ -743,7 +750,7 @@ public class Consumer {
         if (pendingAcks != null) {
             List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
-            pendingAcks.forEach((ledgerId, entryId, batchSize, none) -> {
+            pendingAcks.forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                 totalRedeliveryMessages.add((int) batchSize);
                 pendingPositions.add(new PositionImpl(ledgerId, entryId));
             });
@@ -766,10 +773,11 @@ public class Consumer {
         List<PositionImpl> pendingPositions = Lists.newArrayList();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
-            LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
-            if (batchSize != null) {
+            LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            if (longPair != null) {
+                long batchSize = longPair.first;
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
-                totalRedeliveryMessages += batchSize.first;
+                totalRedeliveryMessages += batchSize;
                 pendingPositions.add(position);
             }
         }
@@ -834,6 +842,15 @@ public class Consumer {
 
     public String getClientAddress() {
         return clientAddress;
+    }
+
+    public MessageId getStartMessageId() {
+        return startMessageId;
+    }
+
+    private int getStickyKeyHash(Entry entry) {
+        byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
+        return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

@@ -64,7 +64,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FunctionStats;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -108,7 +108,7 @@ public class PulsarFunctionPublishTest {
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @BeforeMethod
@@ -155,7 +155,8 @@ public class PulsarFunctionPublishTest {
         functionsWorkerService = createPulsarFunctionWorker(config);
 
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {
+        });
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddressTls();
@@ -176,7 +177,7 @@ public class PulsarFunctionPublishTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = new ClusterData(urlTls.toString());
+        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -192,15 +193,16 @@ public class PulsarFunctionPublishTest {
         }
         pulsarClient = clientBuilder.build();
 
-        TenantInfo propAdmin = new TenantInfo();
-        propAdmin.getAdminRoles().add("superUser");
-        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+        TenantInfo propAdmin = TenantInfo.builder()
+                .adminRoles(Collections.singleton("superUser"))
+                .allowedClusters(Collections.singleton("use"))
+                .build();
         admin.tenants().updateTenant(tenant, propAdmin);
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
-        while(!functionsWorkerService.getLeaderService().isLeader()) {
+        while (!functionsWorkerService.getLeaderService().isLeader()) {
             Thread.sleep(1000);
         }
     }
@@ -278,7 +280,8 @@ public class PulsarFunctionPublishTest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         Map<String, Object> userConfig = new HashMap<>();
         userConfig.put("publish-topic", publishTopic);
-        functionConfig.setUserConfig(userConfig);        functionConfig.setCleanupSubscription(true);
+        functionConfig.setUserConfig(userConfig);
+        functionConfig.setCleanupSubscription(true);
         return functionConfig;
     }
 
@@ -309,13 +312,13 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
@@ -324,8 +327,8 @@ public class PulsarFunctionPublishTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -333,7 +336,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;
@@ -350,7 +354,7 @@ public class PulsarFunctionPublishTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
                 totalMsgs);
 
         // delete functions
@@ -358,14 +362,14 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
@@ -390,7 +394,7 @@ public class PulsarFunctionPublishTest {
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
-        String secondAddress = pulsar.getWebServiceAddressTls().replace("https://","");
+        String secondAddress = pulsar.getWebServiceAddressTls().replace("https://", "");
 
         //set multi webService url
         PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls() + "," + secondAddress)
@@ -403,16 +407,16 @@ public class PulsarFunctionPublishTest {
         pulsarAdmin.functions().createFunction(functionConfig, jarFile.getAbsolutePath());
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
         admin.functions().deleteFunction(tenant, namespacePortion, functionName);
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -438,7 +442,7 @@ public class PulsarFunctionPublishTest {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(publishTopic).subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-          sourceTopic, publishTopic, subscriptionName);
+                sourceTopic, publishTopic, subscriptionName);
 
         File jarFile = getPulsarApiExamplesJar();
         Assert.assertTrue(jarFile.exists() && jarFile.isFile());
@@ -446,13 +450,13 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
@@ -461,8 +465,8 @@ public class PulsarFunctionPublishTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -470,7 +474,8 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                FunctionStats functionStat = admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
+                FunctionStatsImpl functionStat = (FunctionStatsImpl)
+                        admin.functions().getFunctionStats(tenant, namespacePortion, functionName);
                 return functionStat.getProcessedSuccessfullyTotal() == 5;
             } catch (PulsarAdminException e) {
                 return false;
@@ -487,7 +492,7 @@ public class PulsarFunctionPublishTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
           totalMsgs);
 
         // delete functions
@@ -495,14 +500,14 @@ public class PulsarFunctionPublishTest {
 
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sourceTopic).subscriptions.size() == 0;
+                return admin.topics().getStats(sourceTopic).getSubscriptions().size() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
 
         // make sure subscriptions are cleanup
-        assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
+        assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
 
@@ -514,10 +519,10 @@ public class PulsarFunctionPublishTest {
         URI dlogUri = URI.create(url);
 
         Namespace dlogNamespace = NamespaceBuilder.newBuilder()
-          .conf(dlogConf)
-          .clientId("function-worker-" + workerConfig.getWorkerId())
-          .uri(dlogUri)
-          .build();
+                .conf(dlogConf)
+                .clientId("function-worker-" + workerConfig.getWorkerId())
+                .uri(dlogUri)
+                .build();
 
         List<String> files = new LinkedList<>();
         dlogNamespace.getLogs(String.format("%s/%s/%s", tenant, namespacePortion, functionName)).forEachRemaining(new java.util.function.Consumer<String>() {
@@ -529,5 +534,38 @@ public class PulsarFunctionPublishTest {
 
         assertEquals(files.size(), 0, "BK files left over: " + files);
 
+    }
+
+    @Test
+    public void testUpdateFunctionUserConfig() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/input";
+        final String publishTopic = "persistent://" + replNamespace + "/publishtopic";
+        final String functionName = "test-update-user-config";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, publishTopic, subscriptionName);
+
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        Map<String, Object> userConfig = functionConfig.getUserConfig();
+        functionConfig.setUserConfig(null);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+        FunctionConfig updatefunctionConfig1 = admin.functions().getFunction(tenant, namespacePortion, functionName);
+        Assert.assertEquals(userConfig, updatefunctionConfig1.getUserConfig());
+
+        Map<String, Object> newUserConfig = new HashMap<>();
+        newUserConfig.put("publish-topic", publishTopic);
+        newUserConfig.put("test", "test");
+        updatefunctionConfig1.setUserConfig(newUserConfig);
+        admin.functions().updateFunctionWithUrl(updatefunctionConfig1, jarFilePathUrl);
+        FunctionConfig updatefunctionConfig2 = admin.functions().getFunction(tenant, namespacePortion, functionName);
+        Assert.assertEquals(updatefunctionConfig2.getUserConfig(), updatefunctionConfig1.getUserConfig());
     }
 }

@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.functions.utils.io;
 
+import java.nio.file.Path;
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-
-import java.nio.file.Path;
-import java.util.List;
 
 @Builder
 @Data

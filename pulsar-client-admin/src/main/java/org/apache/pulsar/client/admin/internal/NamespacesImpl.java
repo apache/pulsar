@@ -48,6 +48,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -269,12 +270,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void createNamespace(String namespace, int numBundles) throws PulsarAdminException {
-        createNamespace(namespace, new BundlesData(numBundles));
+        createNamespace(namespace, BundlesData.builder().numBundles(numBundles).build());
     }
 
     @Override
     public CompletableFuture<Void> createNamespaceAsync(String namespace, int numBundles) {
-        return createNamespaceAsync(namespace, new BundlesData(numBundles));
+        return createNamespaceAsync(namespace, BundlesData.builder().numBundles(numBundles).build());
     }
 
     @Override
@@ -697,7 +698,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public int getSubscriptionExpirationTime(String namespace) throws PulsarAdminException {
+    public Integer getSubscriptionExpirationTime(String namespace) throws PulsarAdminException {
         try {
             return getSubscriptionExpirationTimeAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
@@ -750,6 +751,27 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionExpirationTime");
         return asyncPostRequest(path, Entity.entity(expirationTime, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeSubscriptionExpirationTime(String namespace) throws PulsarAdminException {
+        try {
+            removeSubscriptionExpirationTimeAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionExpirationTimeAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionExpirationTime");
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -3209,7 +3231,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies) throws PulsarAdminException {
+    public void setOffloadPolicies(String namespace, OffloadPolicies offloadPolicies)
+            throws PulsarAdminException {
         try {
             setOffloadPoliciesAsync(namespace, offloadPolicies)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -3273,9 +3296,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, "offloadPolicies");
         final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<OffloadPolicies>() {
+                new InvocationCallback<OffloadPoliciesImpl>() {
                     @Override
-                    public void completed(OffloadPolicies offloadPolicies) {
+                    public void completed(OffloadPoliciesImpl offloadPolicies) {
                         future.complete(offloadPolicies);
                     }
 
