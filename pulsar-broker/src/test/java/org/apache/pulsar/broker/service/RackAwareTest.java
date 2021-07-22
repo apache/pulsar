@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertTrue;
-
+import com.google.gson.Gson;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -28,8 +28,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-
-import com.google.gson.Gson;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -44,6 +42,7 @@ import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -85,6 +84,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     }
 
     @Override
+    @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.cleanup();
 
