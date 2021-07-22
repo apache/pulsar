@@ -33,6 +33,13 @@ public interface TopicPoliciesService {
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
 
     /**
+     * Delete policies for a topic async.
+     *
+     * @param topicName topic name
+     */
+    CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
+
+    /**
      * Update policies for a topic async.
      *
      * @param topicName topic name
@@ -93,6 +100,11 @@ public interface TopicPoliciesService {
     }
 
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
+
+        @Override
+        public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+            return FutureUtil.failedFuture(new UnsupportedOperationException("Topic policies service is disabled."));
+        }
 
         @Override
         public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {

@@ -20,8 +20,8 @@ You need to install the following components before using the C++ client:
 
 * [CMake](https://cmake.org/)
 * [Boost](http://www.boost.org/)
-* [Protocol Buffers](https://developers.google.com/protocol-buffers/) 2.6
-* [libcurl](https://curl.haxx.se/libcurl/)
+* [Protocol Buffers](https://developers.google.com/protocol-buffers/) >= 3
+* [libcurl](https://curl.se/libcurl/)
 * [Google Test](https://github.com/google/googletest)
 
 ## Linux

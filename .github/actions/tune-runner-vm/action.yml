@@ -32,6 +32,10 @@ runs:
             # consumption is high.
             # Set vm.swappiness=1 to avoid swapping and allow high RAM usage
             echo 1 | sudo tee /proc/sys/vm/swappiness
+            # Set swappiness to 1 for all cgroups and sub-groups
+            for swappiness_file in /sys/fs/cgroup/memory/*/memory.swappiness /sys/fs/cgroup/memory/*/*/memory.swappiness; do
+              echo 1 | sudo tee $swappiness_file > /dev/null
+            done
 
             # use "madvise" Linux Transparent HugePages (THP) setting
             # https://www.kernel.org/doc/html/latest/admin-guide/mm/transhuge.html
@@ -53,5 +57,24 @@ runs:
             sudo systemctl stop fstrim.timer || true
             sudo systemctl disable fstrim.service || true
             sudo systemctl stop fstrim.service || true
+
+            # stop php-fpm
+            sudo systemctl stop php8.0-fpm.service || true
+            sudo systemctl stop php7.4-fpm.service || true
+            # stop mono-xsp4
+            sudo systemctl disable mono-xsp4.service || true
+            sudo systemctl stop mono-xsp4.service || true
+            sudo killall mono || true
+
+            # stop Azure Linux agent to save RAM
+            sudo systemctl stop walinuxagent.service || true
+
+            # show memory
+            free -m
+            # show disk
+            df -h
+            # show cggroup
+            echo "/actions_job cgroup settings:"
+            sudo cgget actions_job
         fi
       shell: bash
