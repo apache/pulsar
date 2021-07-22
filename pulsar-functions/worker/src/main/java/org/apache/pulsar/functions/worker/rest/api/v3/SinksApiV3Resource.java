@@ -273,6 +273,6 @@ public class SinksApiV3Resource extends FunctionApiResource {
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sink.reloadConnectors(clientAppId());
+        sink.reloadConnectors(clientAppId(), clientAuthData());
     }
 }

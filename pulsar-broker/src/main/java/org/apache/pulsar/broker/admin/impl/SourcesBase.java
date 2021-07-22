@@ -507,6 +507,6 @@ public class SourcesBase extends AdminResource implements Supplier<WorkerService
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        source.reloadConnectors(clientAppId());
+        source.reloadConnectors(clientAppId(), clientAuthData());
     }
 }
