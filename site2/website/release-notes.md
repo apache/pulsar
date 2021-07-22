@@ -5,7 +5,7 @@
 
 ### Update notice
 
-Due to a breaking change in the Schema API, it may happen that some Pulsar Functions or Pulsar IO connectors fail to work, 
+Due to a [breaking change in the Schema API](https://github.com/apache/pulsar/pull/10878), it may happen that some Pulsar Functions or Pulsar IO connectors fail to work, 
 throwing an `IncompatibleClassChangeError`.
 
 In this case, you need to rebuild your Function using Apache Pulsar 2.8.0 as a dependency and redeploy it.
