@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -72,6 +73,18 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     @Override
     public void update(PublishRate maxPublishRate) {
       // No-op
+    }
+
+    public void update(BytesAndMessagesCount maxPublishRate) {
+        this.publishMaxMessageRate = (int) maxPublishRate.messages;
+        this.publishMaxByteRate = maxPublishRate.bytes;
+    }
+
+    public BytesAndMessagesCount getResourceGroupPublishValues() {
+        BytesAndMessagesCount bmc = new BytesAndMessagesCount();
+        bmc.bytes = this.publishMaxByteRate;
+        bmc.messages = this.publishMaxMessageRate;
+        return bmc;
     }
 
     public void update(ResourceGroup resourceGroup) {
