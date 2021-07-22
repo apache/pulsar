@@ -409,7 +409,7 @@ public class KubernetesRuntimeTest {
             totalArgs += 4;
         }
         if (config.isExposePulsarAdminClientEnabled()) {
-            totalArgs += 2;
+            totalArgs += 3;
             portArg += 2;
             metricsPortArg += 2;
         }
@@ -424,7 +424,8 @@ public class KubernetesRuntimeTest {
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
 
-        String pulsarAdminArg = config.isExposePulsarAdminClientEnabled() ? " --web_serviceurl " + pulsarAdminUrl : "";
+        String pulsarAdminArg = config.isExposePulsarAdminClientEnabled() ?
+                " --web_serviceurl " + pulsarAdminUrl + " --expose_pulsaradmin": "";
 
         String expectedArgs = "exec java -cp " + classpath
                 + extraDepsEnv
