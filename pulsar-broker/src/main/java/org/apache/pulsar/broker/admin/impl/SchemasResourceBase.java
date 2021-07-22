@@ -50,6 +50,8 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SchemasResourceBase extends AdminResource {
 
@@ -123,6 +125,7 @@ public class SchemasResourceBase extends AdminResource {
                                 .entity(DeleteSchemaResponse.builder().version(getLongSchemaVersion(version)).build())
                                 .build());
                     } else {
+                        log.error("[{}] Failed to delete schema for topic {}", clientAppId(), topicName, error);
                         response.resume(error);
                     }
                     return null;
@@ -162,6 +165,7 @@ public class SchemasResourceBase extends AdminResource {
                             response.resume(Response.status(422, /* Unprocessable Entity */
                                     error.getMessage()).build());
                         } else {
+                            log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
                             response.resume(Response.serverError().build());
                         }
                         return null;
@@ -173,6 +177,7 @@ public class SchemasResourceBase extends AdminResource {
                         .status(((RestException) error.getCause()).getResponse().getStatus(), error.getMessage())
                         .build());
             } else {
+                log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
                 response.resume(Response.serverError().build());
             }
             return null;
@@ -224,6 +229,7 @@ public class SchemasResourceBase extends AdminResource {
                 .thenAccept(version -> response.resume(Response.accepted()
                         .entity(LongSchemaVersionResponse.builder().version(version).build()).build()))
                 .exceptionally(error -> {
+                    log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, error);
                     response.resume(Response.serverError().build());
                     return null;
                 });
@@ -258,6 +264,7 @@ public class SchemasResourceBase extends AdminResource {
                         .entity(convertSchemaAndMetadataToGetSchemaResponse(schema)).build());
             }
         } else {
+            log.error("Failed to get schema", error);
             response.resume(error);
         }
 
@@ -278,6 +285,7 @@ public class SchemasResourceBase extends AdminResource {
                         .build());
             }
         } else {
+            log.error("Failed to get all schemas", error);
             response.resume(error);
         }
     }
@@ -294,4 +302,6 @@ public class SchemasResourceBase extends AdminResource {
             }
         }
     }
+
+    private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
 }
