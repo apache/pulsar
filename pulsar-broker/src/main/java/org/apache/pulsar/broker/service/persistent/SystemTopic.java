@@ -59,6 +59,11 @@ public class SystemTopic extends PersistentTopic {
         // do nothing for system topic
     }
 
+    @Override
+    public CompletableFuture<Void> checkReplication() {
+        return CompletableFuture.completedFuture(null);
+    }
+
     public CompletableFuture<Void> preCreateSubForCompactionIfNeeded() {
         if (!super.hasCompactionTriggered()) {
             // To pre-create the subscription for the compactor to avoid lost any data since we are using reader
