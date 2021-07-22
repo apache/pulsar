@@ -28,7 +28,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -212,6 +211,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
         if (exclusiveLeaderProducer == null) {
             throw new IllegalStateException("Not the leader");
         }
+        // Check first to avoid local cache update failure
+        checkRequestOutDated(functionMetaData, delete);
 
         byte[] toWrite;
         if (workerConfig.getUseCompactedMetadataTopic()) {
@@ -250,6 +251,22 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
         if (needsScheduling) {
             this.schedulerManager.schedule();
+        }
+    }
+
+    private void checkRequestOutDated(FunctionMetaData functionMetaData, boolean delete) {
+        Function.FunctionDetails details = functionMetaData.getFunctionDetails();
+        if (isRequestOutdated(details.getTenant(), details.getNamespace(),
+                details.getName(), functionMetaData.getVersion())) {
+            if (log.isDebugEnabled()) {
+                log.debug("{}/{}/{} Ignoring outdated request version: {}", details.getTenant(), details.getNamespace(),
+                        details.getName(), functionMetaData.getVersion());
+            }
+            if (delete) {
+                throw new IllegalArgumentException(
+                        "Delete request ignored because it is out of date. Please try again.");
+            }
+            throw new IllegalArgumentException("Update request ignored because it is out of date. Please try again.");
         }
     }
 
@@ -455,6 +472,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private boolean isRequestOutdated(String tenant, String namespace, String functionName, long version) {
+        // avoid NPE
+        if(!containsFunctionMetaData(tenant, namespace, functionName)){
+            return false;
+        }
         FunctionMetaData currentFunctionMetaData = this.functionMetaDataMap.get(tenant)
                 .get(namespace).get(functionName);
         return currentFunctionMetaData.getVersion() >= version;
