@@ -197,6 +197,8 @@ public class ReplicatorTestBase {
         config3.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config3.setDefaultNumberOfNamespaceBundles(1);
         config3.setAllowAutoTopicCreationType("non-partitioned");
+        config3.setSystemTopicEnabled(true);
+        config3.setTopicLevelPoliciesEnabled(true);
     }
 
     public void setConfig1DefaultValue(){
@@ -217,6 +219,8 @@ public class ReplicatorTestBase {
         config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config1.setDefaultNumberOfNamespaceBundles(1);
         config1.setAllowAutoTopicCreationType("non-partitioned");
+        config1.setSystemTopicEnabled(true);
+        config1.setTopicLevelPoliciesEnabled(true);
     }
 
     public void setConfig2DefaultValue() {
@@ -237,6 +241,8 @@ public class ReplicatorTestBase {
         config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config2.setDefaultNumberOfNamespaceBundles(1);
         config2.setAllowAutoTopicCreationType("non-partitioned");
+        config2.setSystemTopicEnabled(true);
+        config2.setTopicLevelPoliciesEnabled(true);
     }
 
     public void resetConfig1() {
