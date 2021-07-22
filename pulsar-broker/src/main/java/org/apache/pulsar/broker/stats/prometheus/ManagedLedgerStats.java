@@ -26,6 +26,7 @@ public class ManagedLedgerStats {
     long storageSize;
     long backlogSize;
     long offloadedStorageUsed;
+    long storageLogicalSize;
 
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
@@ -40,6 +41,7 @@ public class ManagedLedgerStats {
         storageReadRate = 0;
         backlogSize = 0;
         offloadedStorageUsed = 0;
+        storageLogicalSize = 0;
 
         storageWriteLatencyBuckets.reset();
         storageLedgerWriteLatencyBuckets.reset();

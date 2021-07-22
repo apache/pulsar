@@ -235,6 +235,10 @@ public class TransactionMetricsTest extends BrokerTestBase {
         checkManagedLedgerMetrics(subName, 32, metric);
         checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 252, metric);
 
+        metric = metrics.get("pulsar_storage_logical_size");
+        checkManagedLedgerMetrics(subName, 16, metric);
+        checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 126, metric);
+
         metric = metrics.get("pulsar_storage_backlog_size");
         checkManagedLedgerMetrics(subName, 16, metric);
         checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 126, metric);
@@ -245,6 +249,8 @@ public class TransactionMetricsTest extends BrokerTestBase {
         metrics = parseMetrics(metricsStr);
         metric = metrics.get("pulsar_storage_size");
         assertEquals(metric.size(), 3);
+        metric = metrics.get("pulsar_storage_logical_size");
+        assertEquals(metric.size(), 2);
         metric = metrics.get("pulsar_storage_backlog_size");
         assertEquals(metric.size(), 2);
     }
