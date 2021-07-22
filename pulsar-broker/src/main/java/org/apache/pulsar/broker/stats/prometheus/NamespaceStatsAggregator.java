@@ -96,6 +96,7 @@ public class NamespaceStatsAggregator {
             ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ml.getStats();
 
             stats.managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
+            stats.managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
             stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
             stats.backlogQuotaLimit = topic.getBacklogQuota().getLimitSize();
@@ -258,6 +259,7 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_out_messages_total", stats.msgOutCounter);
 
         metric(stream, cluster, namespace, "pulsar_storage_size", stats.managedLedgerStats.storageSize);
+        metric(stream, cluster, namespace, "pulsar_storage_logical_size", stats.managedLedgerStats.storageLogicalSize);
         metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize);
         metric(stream, cluster, namespace, "pulsar_storage_offloaded_size",
                 stats.managedLedgerStats.offloadedStorageUsed);
