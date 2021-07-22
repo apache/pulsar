@@ -123,7 +123,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
-        topic.publishMessage(subscriptionUpdate, this);
+        writeMarker(subscriptionUpdate);
     }
 
     private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
@@ -140,8 +140,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 request.getSourceCluster(),
                 localCluster,
                 lastMsgId.getLedgerId(), lastMsgId.getEntryId());
-
-        topic.publishMessage(marker, this);
+        writeMarker(marker);
     }
 
     private void receivedSnapshotResponse(Position position, ReplicatedSubscriptionsSnapshotResponse response) {
@@ -276,7 +275,11 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     void writeMarker(ByteBuf marker) {
-        topic.publishMessage(marker, this);
+        try {
+            topic.publishMessage(marker, this);
+        } finally {
+            marker.release();
+        }
     }
 
     /**
