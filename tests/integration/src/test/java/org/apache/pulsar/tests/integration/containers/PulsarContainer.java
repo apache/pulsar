@@ -147,6 +147,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     @Override
     protected void configure() {
+        super.configure();
         if (httpPort > 0) {
             addExposedPorts(httpPort);
         }
