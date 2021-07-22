@@ -1125,9 +1125,7 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandError.class);
         assertEquals(((CommandError) response).getRequestId(), 3);
 
-        while (serverCnx.hasConsumer(1)) {
-            Thread.sleep(10);
-        }
+        Awaitility.await().until(() -> !serverCnx.hasConsumer(1));
 
         ByteBuf subscribe3 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 4 /* request id */, SubType.Exclusive, 0,

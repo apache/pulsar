@@ -46,6 +46,12 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         this.clusterName = clusterName;
     }
 
+    @Override
+    protected void configure() {
+        super.configure();
+        addEnv("MALLOC_ARENA_MAX", "1");
+    }
+
     protected void beforeStop() {
         if (null == getContainerId()) {
             return;

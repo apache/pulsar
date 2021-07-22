@@ -2581,6 +2581,14 @@ public class BrokerService implements Closeable {
         }
     }
 
+    public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
+        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(cloneTopicName);
+    }
+
     private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
         return pulsar.getPulsarResources().getNamespaceResources()
                 .getPolicies(topicName.getNamespaceObject())
