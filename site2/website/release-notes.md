@@ -5,12 +5,15 @@
 
 ### Update notice
 
-Due to a breaking change in the Schema API it may happen that some Pulsar Functions or Pulsar IO Connector fail to work, 
+Due to a breaking change in the Schema API, it may happen that some Pulsar Functions or Pulsar IO connectors fail to work, 
 throwing an `IncompatibleClassChangeError`.
-In this case you have to rebuild your Function using Apache Pulsar 2.8.0 as dependency and redeploy it.
-If you are running on Kubernetes you can temporarily let the Functions Worker pod run with a previous version of Pulsar
+
+In this case, you need to rebuild your Function using Apache Pulsar 2.8.0 as a dependency and redeploy it.
+
+If you are running on Kubernetes, you can temporarily let the Functions Worker pod run with a previous version of Pulsar
 in order to not cause downtime.
-More context in [this issue](https://github.com/apache/pulsar/issues/11338).
+
+For more context about this issue, see [[Pulsar Functions and IO] Cannot upgrade Function built for Pulsar 2.7 to Pulsar 2.8](https://github.com/apache/pulsar/issues/11338).
 
 #### PIPs
 - [PIP 45] Pluggable metadata interface [#9148](https://github.com/apache/pulsar/pull/9148) [#9221](https://github.com/apache/pulsar/pull/9221) [#9240](https://github.com/apache/pulsar/pull/9240) [#9273](https://github.com/apache/pulsar/pull/9273) [#9274](https://github.com/apache/pulsar/pull/9274) [#9338](https://github.com/apache/pulsar/pull/9338) [#9346](https://github.com/apache/pulsar/pull/9346) [#9351](https://github.com/apache/pulsar/pull/9351) [#9412](https://github.com/apache/pulsar/pull/9412) [#9485](https://github.com/apache/pulsar/pull/9485) [#9586](https://github.com/apache/pulsar/pull/9586) [#9967](https://github.com/apache/pulsar/pull/9967) [#9973](https://github.com/apache/pulsar/pull/9973) [#10391](https://github.com/apache/pulsar/pull/10391) [#10457](https://github.com/apache/pulsar/pull/10457) [#10532](https://github.com/apache/pulsar/pull/10532) [#10545](https://github.com/apache/pulsar/pull/10545) [#10647](https://github.com/apache/pulsar/pull/10647)
