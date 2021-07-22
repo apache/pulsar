@@ -40,7 +40,7 @@ https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
  * A C++ compiler that supports C++11, like GCC >= 4.8
  * CMake >= 3.4
  * [Boost](http://www.boost.org/)
- * [Protocol Buffer](https://developers.google.com/protocol-buffers/)
+ * [Protocol Buffer](https://developers.google.com/protocol-buffers/) >= 3
  * [libcurl](https://curl.se/libcurl/)
  * [openssl](https://github.com/openssl/openssl)
 

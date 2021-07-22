@@ -251,6 +251,7 @@ You can configure Pulsar authentication provider directly from the Kafka propert
 | [`pulsar.producer.batching.enabled`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-) | `true` | Control whether automatic batching of messages is enabled for the producer. |
 | [`pulsar.producer.batching.max.messages`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-) | `1000` | The maximum number of messages in a batch. |
 | [`pulsar.block.if.producer.queue.full`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-) | | Specify the block producer if queue  is full. |
+| [`pulsar.crypto.reader.factory.class.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-) | | Specify the CryptoReader-Factory(`CryptoKeyReaderFactory`) classname which allows producer to create CryptoKeyReader. |
 
 
 ### Pulsar consumer Properties
@@ -262,3 +263,4 @@ You can configure Pulsar authentication provider directly from the Kafka propert
 | [`pulsar.consumer.acknowledgments.group.time.millis`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#acknowledgmentGroupTime-long-java.util.concurrent.TimeUnit-) | 100 | Set the maximum amount of group time for consumers to send the acknowledgments to the broker. |
 | [`pulsar.consumer.total.receiver.queue.size.across.partitions`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-) | 50000 | Set the maximum size of the total receiver queue across partitions. |
 | [`pulsar.consumer.subscription.topics.mode`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionTopicsMode-Mode-) | PersistentOnly | Set the subscription topic mode for consumers. |
+| [`pulsar.crypto.reader.factory.class.name`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-) | | Specify the CryptoReader-Factory(`CryptoKeyReaderFactory`) classname which allows consumer to create CryptoKeyReader. |

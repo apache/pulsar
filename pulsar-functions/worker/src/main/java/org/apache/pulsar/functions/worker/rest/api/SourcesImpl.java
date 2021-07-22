@@ -58,6 +58,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -719,7 +720,13 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             String archive = sourceConfig.getArchive();
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
-                classLoader = this.worker().getConnectorsManager().getConnector(archive).getClassLoader();
+
+                Connector connector = worker().getConnectorsManager().getConnector(archive);
+                // check if builtin connector exists
+                if (connector == null) {
+                    throw new IllegalArgumentException("Built-in source is not available");
+                }
+                classLoader = connector.getClassLoader();
             }
         }
 

@@ -42,6 +42,7 @@ static inline bool isBuiltInSchema(SchemaType schemaType) {
         case JSON:
         case AVRO:
         case PROTOBUF:
+        case PROTOBUF_NATIVE:
             return true;
 
         default:
@@ -61,6 +62,8 @@ static inline proto::Schema_Type getSchemaType(SchemaType type) {
             return Schema_Type_Protobuf;
         case AVRO:
             return Schema_Type_Avro;
+        case PROTOBUF_NATIVE:
+            return Schema_Type_ProtobufNative;
         default:
             return Schema_Type_None;
     }

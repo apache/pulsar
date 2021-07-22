@@ -36,9 +36,16 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
             totalUsage += usage;
         }
 
-        if (confUsage < 0 || myUsage < 0 || totalUsage < 0) {
-            String errMesg = String.format("Configured usage (%d), or local usage (%d) or total usage (%d) is negative",
-                    confUsage, myUsage, totalUsage);
+        if (confUsage < 0) {
+            // This can happen if the RG is not configured with this particular limit (message or byte count) yet.
+            // It is safe to return a high value (so we don't limit) for the quota.
+            log.debug("Configured usage (%d) is not set; returning a high calculated quota", confUsage);
+            return Long.MAX_VALUE;
+        }
+
+        if (myUsage < 0 || totalUsage < 0) {
+            String errMesg = String.format("Local usage (%d) or total usage (%d) is negative",
+                    myUsage, totalUsage);
             log.error(errMesg);
             throw new PulsarAdminException(errMesg);
         }
