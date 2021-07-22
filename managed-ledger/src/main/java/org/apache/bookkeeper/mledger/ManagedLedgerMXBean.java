@@ -41,6 +41,11 @@ public interface ManagedLedgerMXBean {
     long getStoredMessagesSize();
 
     /**
+     * @return the total size of the messages in active ledgers (without accounting for replicas)
+     */
+    long getStoredMessagesLogicalSize();
+
+    /**
      * @return the number of backlog messages for all the consumers
      */
     long getNumberOfMessagesInBacklog();
