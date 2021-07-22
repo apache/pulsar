@@ -296,7 +296,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("path") String path) {
-        return functions.uploadFunction(uploadedInputStream, path, clientAppId());
+        return functions.uploadFunction(uploadedInputStream, path, clientAppId(), clientAuthData());
     }
 
     @GET

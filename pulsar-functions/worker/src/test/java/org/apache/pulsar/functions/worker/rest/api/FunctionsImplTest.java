@@ -250,9 +250,9 @@ public class FunctionsImplTest {
 
         // test pulsar super user
         final String pulsarSuperUser = "pulsarSuperUser";
-        when(authorizationService.isSuperUser(pulsarSuperUser, null)).thenReturn(CompletableFuture.completedFuture(true));
+        when(authorizationService.isSuperUser(eq(pulsarSuperUser), any())).thenReturn(CompletableFuture.completedFuture(true));
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns", pulsarSuperUser, authenticationDataSource));
-        assertTrue(functionImpl.isSuperUser(pulsarSuperUser));
+        assertTrue(functionImpl.isSuperUser(pulsarSuperUser, null));
 
         // test normal user
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
@@ -263,7 +263,7 @@ public class FunctionsImplTest {
         when(admin.tenants()).thenReturn(tenants);
         when(this.mockedWorkerService.getBrokerAdmin()).thenReturn(admin);
         when(authorizationService.isTenantAdmin("test-tenant", "test-user", tenantInfo, authenticationDataSource)).thenReturn(CompletableFuture.completedFuture(false));
-        when(authorizationService.isSuperUser("test-user", null)).thenReturn(CompletableFuture.completedFuture(false));
+        when(authorizationService.isSuperUser(eq("test-user"), any())).thenReturn(CompletableFuture.completedFuture(false));
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", "test-user", authenticationDataSource));
 
         // if user is tenant admin
@@ -322,10 +322,10 @@ public class FunctionsImplTest {
             });
 
         AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
-        assertTrue(functionImpl.isSuperUser(superUser));
+        assertTrue(functionImpl.isSuperUser(superUser, null));
 
-        assertFalse(functionImpl.isSuperUser("normal-user"));
-        assertFalse(functionImpl.isSuperUser( null));
+        assertFalse(functionImpl.isSuperUser("normal-user", null));
+        assertFalse(functionImpl.isSuperUser( null, null));
 
         // test super roles is null and it's not a pulsar super user
         when(authorizationService.isSuperUser(superUser, null))
@@ -334,7 +334,7 @@ public class FunctionsImplTest {
         workerConfig = new WorkerConfig();
         workerConfig.setAuthorizationEnabled(true);
         doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
-        assertFalse(functionImpl.isSuperUser(superUser));
+        assertFalse(functionImpl.isSuperUser(superUser, null));
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {

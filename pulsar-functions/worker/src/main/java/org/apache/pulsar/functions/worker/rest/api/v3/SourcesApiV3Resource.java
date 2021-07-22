@@ -289,6 +289,6 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {
-        source.reloadConnectors(clientAppId());
+        source.reloadConnectors(clientAppId(), clientAuthData());
     }
 }

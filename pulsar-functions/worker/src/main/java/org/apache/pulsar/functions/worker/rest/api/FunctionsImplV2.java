@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -177,8 +178,9 @@ public class FunctionsImplV2 {
         return Response.ok().build();
     }
 
-    public Response uploadFunction(InputStream uploadedInputStream, String path, String clientRole) {
-        delegate.uploadFunction(uploadedInputStream, path, clientRole);
+    public Response uploadFunction(InputStream uploadedInputStream, String path, String clientRole,
+                                   AuthenticationDataSource authenticationData) {
+        delegate.uploadFunction(uploadedInputStream, path, clientRole, authenticationData);
         return Response.ok().build();
     }
 
