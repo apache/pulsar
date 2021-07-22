@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.utils;
+package org.apache.pulsar.discovery.service.util;
 
 import com.beust.jcommander.Parameters;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BaseGenerateDocumentation;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
+import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 @Data
 @Parameters(commandDescription = "Generate documentation automatically.")
@@ -33,11 +32,8 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
     @Override
     public String generateDocumentByClassName(String className) throws Exception {
         StringBuilder sb = new StringBuilder();
-        if (ServiceConfiguration.class.getName().equals(className)) {
-            return generateDocByFieldContext(className, "Broker", sb);
-        }
-        if (WebSocketProxyConfiguration.class.getName().equals(className)) {
-            return generateDocByFieldContext(className, "WebSocket", sb);
+        if (ServiceConfig.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Service discovery", sb);
         }
         return "Class [" + className + "] not found";
     }
