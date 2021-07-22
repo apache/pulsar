@@ -1548,9 +1548,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         topics.forEach((name, topicFuture) -> {
             TopicName topicName = TopicName.get(name);
-            if (serviceUnit.includes(topicName)) {
+            if (serviceUnit.includes(topicName) && getTopicReference(name).isPresent()) {
                 // Topic needs to be unloaded
-                log.info("[{}] Unloading topic", topicName);
+                log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), name);
                 closeFutures.add(topicFuture
                         .thenCompose(t -> t.isPresent() ? t.get().close(closeWithoutWaitingClientDisconnect) : CompletableFuture.completedFuture(null)));
             }
@@ -1579,9 +1579,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         .get(namespaceName);
                 if (namespaceMap != null) {
                     ConcurrentOpenHashMap<String, Topic> bundleMap = namespaceMap.get(bundleName);
-                    bundleMap.remove(topic);
-                    if (bundleMap.isEmpty()) {
-                        namespaceMap.remove(bundleName);
+                    if (bundleMap != null) {
+                        bundleMap.remove(topic);
+                        if (bundleMap.isEmpty()) {
+                            namespaceMap.remove(bundleName);
+                        }
                     }
 
                     if (namespaceMap.isEmpty()) {
