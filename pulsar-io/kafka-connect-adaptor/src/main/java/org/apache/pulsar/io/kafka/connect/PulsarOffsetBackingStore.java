@@ -66,8 +66,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             + WorkerConfig.BOOTSTRAP_SERVERS_CONFIG + "`");
         this.data = new HashMap<>();
 
-        log.info("Configure offset backing store on pulsar topic {} at cluster {}",
-            topic, serviceUrl);
+        log.info("Configure offset backing store on pulsar topic {} at cluster {}", topic);
     }
 
     void readToEnd(CompletableFuture<Void> future) {
