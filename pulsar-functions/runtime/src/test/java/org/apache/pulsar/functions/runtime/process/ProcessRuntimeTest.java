@@ -320,7 +320,7 @@ public class ProcessRuntimeTest {
         }
 
         String pulsarAdminArg = webServiceUrl != null && config.isExposePulsarAdminClientEnabled() ?
-                " --web_serviceurl " + webServiceUrl + "--expose_pulsaradmin" : "";
+                " --web_serviceurl " + webServiceUrl + " --expose_pulsaradmin" : "";
 
         String expectedArgs = "java -cp " + classpath
                 + extraDepsEnv
