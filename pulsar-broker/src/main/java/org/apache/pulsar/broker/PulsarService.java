@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
+import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -91,7 +93,10 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
+import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
@@ -108,6 +113,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -122,6 +128,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -135,6 +142,8 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -190,6 +199,7 @@ public class PulsarService implements AutoCloseable {
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private Compactor compactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
+    private ResourceGroupService resourceGroupServiceManager;
 
     private final ScheduledExecutorService executor;
     private final ScheduledExecutorService cacheExecutor;
@@ -280,7 +290,7 @@ public class PulsarService implements AutoCloseable {
         PulsarConfigurationLoader.isComplete(config);
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-        this.advertisedAddress = ServiceConfigurationUtils.getAppliedAdvertisedAddress(config);
+        this.advertisedAddress = ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, false);
         state = State.Init;
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
@@ -596,6 +606,8 @@ public class PulsarService implements AutoCloseable {
             pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
                     config.getZooKeeperOperationTimeoutSeconds());
 
+            pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
+
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
                     .name("pulsar-ordered")
@@ -797,12 +809,14 @@ public class PulsarService implements AutoCloseable {
             }
 
             // Start the task to publish resource usage, if necessary
+            this.resourceUsageTransportManager = DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
             if (isNotBlank(config.getResourceUsageTransportClassName())) {
                 Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
                 Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
                 Object object = ctor.newInstance(new Object[]{this});
-                this.resourceUsageTransportManager = (ResourceUsageTransportManager) object;
+                this.resourceUsageTransportManager = (ResourceUsageTopicTransportManager) object;
             }
+            this.resourceGroupServiceManager = new ResourceGroupService(this);
 
             long currentTimestamp = System.currentTimeMillis();
             final long bootstrapTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(currentTimestamp - startTimestamp);
@@ -822,6 +836,14 @@ public class PulsarService implements AutoCloseable {
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();
+        }
+    }
+
+    private void handleDeleteCluster(Notification notification) {
+        if (notification.getPath().startsWith(ClusterResources.CLUSTERS_ROOT)
+                && notification.getType() == NotificationType.Deleted) {
+            final String clusterName = notification.getPath().substring(ClusterResources.CLUSTERS_ROOT.length() + 1);
+            getBrokerService().closeAndRemoveReplicationClient(clusterName);
         }
     }
 
@@ -966,7 +988,7 @@ public class PulsarService implements AutoCloseable {
         if (config.isLoadBalancerEnabled()) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
-                long loadReportMinInterval = LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
+                long loadReportMinInterval = LoadManagerShared.LOAD_REPORT_UPDATE_MINIMUM_INTERVAL;
                 this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
                         TimeUnit.MILLISECONDS);
@@ -991,7 +1013,7 @@ public class PulsarService implements AutoCloseable {
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName).join()) {
                 try {
                     TopicName topicName = TopicName.get(topic);
-                    if (bundle.includes(topicName)) {
+                    if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
                         CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic);
                         if (future != null) {
                             persistentTopics.add(future);
@@ -1362,7 +1384,7 @@ public class PulsarService implements AutoCloseable {
 
     protected String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
-            return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+            return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
                     getBrokerListenPort().get());
         } else {
             return null;
@@ -1375,7 +1397,7 @@ public class PulsarService implements AutoCloseable {
 
     public String brokerUrlTls(ServiceConfiguration config) {
         if (config.getBrokerServicePortTls().isPresent()) {
-            return brokerUrlTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+            return brokerUrlTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
                     getBrokerListenPortTls().get());
         } else {
             return null;
@@ -1388,7 +1410,7 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return webAddress(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+            return webAddress(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
                     getListenPortHTTP().get());
         } else {
             return null;
@@ -1401,7 +1423,7 @@ public class PulsarService implements AutoCloseable {
 
     public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
-            return webAddressTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config),
+            return webAddressTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
                     getListenPortHTTPS().get());
         } else {
             return null;
@@ -1547,7 +1569,7 @@ public class PulsarService implements AutoCloseable {
 
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
-                ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig));
+                brokerConfig.getAdvertisedAddress());
         workerConfig.setWorkerHostname(hostname);
         workerConfig.setPulsarFunctionsCluster(brokerConfig.getClusterName());
         // inherit broker authorization setting
@@ -1583,6 +1605,15 @@ public class PulsarService implements AutoCloseable {
                         + "-" + (workerConfig.getTlsEnabled()
                         ? workerConfig.getWorkerPortTls() : workerConfig.getWorkerPort()));
         return workerConfig;
+    }
+
+
+    private static boolean isTransactionSystemTopic(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
+                || topic.startsWith(TopicName.get(TopicDomain.persistent.value(),
+                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString())
+                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
 }

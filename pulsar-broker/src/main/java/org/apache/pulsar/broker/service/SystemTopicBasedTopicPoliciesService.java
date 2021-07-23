@@ -70,10 +70,21 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
+    public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+        return sendTopicPolicyEvent(topicName, ActionType.DELETE, null);
+    }
+
+    @Override
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
+        return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
+    }
+
+    private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
+                                                         TopicPolicies policies) {
+        createSystemTopicFactoryIfNeeded();
+
         CompletableFuture<Void> result = new CompletableFuture<>();
 
-        createSystemTopicFactoryIfNeeded();
         SystemTopicClient<PulsarEvent> systemTopicClient =
                 namespaceEventsSystemTopicFactory.createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
 
@@ -84,14 +95,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             } else {
                 writer.writeAsync(
                         PulsarEvent.builder()
-                                .actionType(ActionType.UPDATE)
+                                .actionType(actionType)
                         .eventType(EventType.TOPIC_POLICY)
                         .topicPoliciesEvent(
                             TopicPoliciesEvent.builder()
                                 .domain(topicName.getDomain().toString())
                                 .tenant(topicName.getTenant())
                                 .namespace(topicName.getNamespaceObject().getLocalName())
-                                .topic(topicName.getLocalName())
+                                .topic(TopicName.get(topicName.getPartitionedTopicName()).getLocalName())
                                 .policies(policies)
                                 .build())
                         .build()).whenComplete(((messageId, e) -> {
@@ -147,7 +158,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
             throw new TopicPoliciesCacheNotInitException();
         }
-        return policiesCache.get(topicName);
+        return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override
@@ -188,7 +199,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         result.completeExceptionally(ex);
                     } else {
                         initPolicesCache(reader, result);
-                        readMorePolicies(reader);
+                        result.thenRun(() -> readMorePolicies(reader));
                     }
                 });
             }
@@ -264,9 +275,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Reach the end of the system topic.", reader.getSystemTopic().getTopicName());
                 }
-                future.complete(null);
                 policyCacheInitMap.computeIfPresent(
                         reader.getSystemTopic().getTopicName().getNamespaceObject(), (k, v) -> true);
+
+                // replay policy message
+                policiesCache.forEach(((topicName, topicPolicies) -> {
+                    if (listeners.get(topicName) != null) {
+                        for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                            listener.onUpdate(topicPolicies);
+                        }
+                    }
+                }));
+                future.complete(null);
             }
         });
     }
@@ -293,10 +313,27 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {
         if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
             TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
-            policiesCache.put(
-                    TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic()),
-                    event.getPolicies()
-            );
+            TopicName topicName =
+                    TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
+            switch (msg.getValue().getActionType()) {
+                case INSERT:
+                    TopicPolicies old = policiesCache.putIfAbsent(topicName, event.getPolicies());
+                    if (old != null) {
+                        log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
+                    }
+                    break;
+                case UPDATE:
+                    policiesCache.put(topicName, event.getPolicies());
+                    break;
+                case DELETE:
+                    policiesCache.remove(topicName);
+                    break;
+                case NONE:
+                    break;
+                default:
+                    log.warn("Unknown event action type: {}", msg.getValue().getActionType());
+                    break;
+            }
         }
     }
 
@@ -390,7 +427,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             //change persistent://tenant/namespace/xxx-partition-0  to persistent://tenant/namespace/xxx
             realTopicName = TopicName.get(topicName.getPartitionedTopicName());
         }
-        policiesCache.remove(realTopicName);
         listeners.remove(realTopicName);
     }
 

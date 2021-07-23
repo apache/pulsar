@@ -458,6 +458,15 @@ public abstract class NamespacesBase extends AdminResource {
                     deleteRecursive(namespaceResources(), globalPartitionedPath);
                 }
 
+                try {
+                    pulsar().getPulsarResources().getTopicResources().clearDomainPersistence(namespaceName).get();
+                    pulsar().getPulsarResources().getTopicResources().clearNamespacePersistence(namespaceName).get();
+                } catch (ExecutionException | InterruptedException e) {
+                    // warn level log here since this failure has no side effect besides left a un-used metadata
+                    // and also will not affect the re-creation of namespace
+                    log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
+                }
+
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
@@ -780,11 +789,11 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalSetSubscriptionExpirationTime(int expirationTime) {
+    protected void internalSetSubscriptionExpirationTime(Integer expirationTime) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
-        if (expirationTime < 0) {
+        if (expirationTime != null && expirationTime < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for subscription expiration time");
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), (policies) -> {

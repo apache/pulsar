@@ -1,6 +1,6 @@
 {
   "docs": {
-    "Get started": [
+    "Get Started": [
       "standalone",
       "standalone-docker",
       "kubernetes-helm"
@@ -25,8 +25,8 @@
     ],
     "Pulsar Functions": [
       "functions-overview",
-      "functions-worker",
       "functions-runtime",
+      "functions-worker",
       "functions-develop",
       "functions-package",
       "functions-debug",
@@ -50,7 +50,7 @@
       "sql-deployment-configurations",
       "sql-rest-api"
     ],
-   "Tiered storage": [
+   "Tiered Storage": [
      "tiered-storage-overview",
      "tiered-storage-aws",
      "tiered-storage-gcs",
@@ -59,9 +59,11 @@
      "tiered-storage-aliyun"
   ],
   "Transactions": [
-    "transactions",
-    "transactions-guarantee",
-    "transactions-api"
+    "txn-why",
+    "txn-what",
+    "txn-how",
+    "txn-use",
+    "txn-monitor"
   ],
     "Kubernetes (Helm)": [
       "helm-overview",
@@ -107,7 +109,7 @@
     "Performance": [
       "performance-pulsar-perf"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "client-libraries",
       "client-libraries-java",
       "client-libraries-go",

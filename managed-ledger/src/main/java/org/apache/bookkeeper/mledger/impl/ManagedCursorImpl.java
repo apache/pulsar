@@ -285,6 +285,40 @@ public class ManagedCursorImpl implements ManagedCursor {
         return lastMarkDeleteEntry != null ? lastMarkDeleteEntry.properties : Collections.emptyMap();
     }
 
+    @Override
+    public boolean putProperty(String key, Long value) {
+        if (lastMarkDeleteEntry != null) {
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
+                Map<String, Long> properties = last.properties;
+                Map<String, Long> newProperties = properties == null ? Maps.newHashMap() : Maps.newHashMap(properties);
+                newProperties.put(key, value);
+
+                MarkDeleteEntry newLastMarkDeleteEntry = new MarkDeleteEntry(last.newPosition, newProperties,
+                        last.callback, last.ctx);
+                newLastMarkDeleteEntry.callbackGroup = last.callbackGroup;
+
+                return newLastMarkDeleteEntry;
+            });
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean removeProperty(String key) {
+        if (lastMarkDeleteEntry != null) {
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
+                Map<String, Long> properties = last.properties;
+                if (properties != null && properties.containsKey(key)) {
+                    properties.remove(key);
+                }
+                return last;
+            });
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Performs the initial recovery, reading the mark-deleted position from the ledger and then calling initialize to
      * have a new opened ledger.
@@ -883,13 +917,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                     messagesConsumedCounter, markDeletePosition, readPosition);
         }
         if (isPrecise) {
-            return getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
+            return getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
         }
 
         long backlog = ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.get(ledger) - messagesConsumedCounter;
         if (backlog < 0) {
             // In some case the counters get incorrect values, fall back to the precise backlog count
-            backlog = getNumberOfEntries(Range.closed(markDeletePosition, ledger.getLastPosition())) - 1;
+            backlog = getNumberOfEntries(Range.openClosed(markDeletePosition, ledger.getLastPosition()));
         }
 
         return backlog;

@@ -96,6 +96,7 @@ public class NamespaceStatsAggregator {
             ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ml.getStats();
 
             stats.managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
+            stats.managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
             stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
             stats.backlogQuotaLimit = topic.getBacklogQuota().getLimitSize();
@@ -210,6 +211,11 @@ public class NamespaceStatsAggregator {
             aggReplStats.msgRateOut += replStats.msgRateOut;
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
+            aggReplStats.msgRateIn += replStats.msgRateIn;
+            aggReplStats.msgThroughputIn += replStats.msgThroughputIn;
+            aggReplStats.msgRateExpired += replStats.msgRateExpired;
+            aggReplStats.connectedCount += replStats.connected ? 1 : 0;
+            aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
     }
 
@@ -253,6 +259,7 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_out_messages_total", stats.msgOutCounter);
 
         metric(stream, cluster, namespace, "pulsar_storage_size", stats.managedLedgerStats.storageSize);
+        metric(stream, cluster, namespace, "pulsar_storage_logical_size", stats.managedLedgerStats.storageLogicalSize);
         metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize);
         metric(stream, cluster, namespace, "pulsar_storage_offloaded_size",
                 stats.managedLedgerStats.offloadedStorageUsed);
@@ -327,6 +334,12 @@ public class NamespaceStatsAggregator {
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_connected_count", remoteCluster,
+                        replStats.connectedCount);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_rate_expired", remoteCluster,
+                        replStats.msgRateExpired);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_delay_in_seconds",
+                        remoteCluster, replStats.replicationDelayInSeconds);
             });
         }
     }

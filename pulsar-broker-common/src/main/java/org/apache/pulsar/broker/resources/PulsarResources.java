@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resources;
 
 import java.util.Optional;
 
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -38,24 +39,30 @@ public class PulsarResources {
     private DynamicConfigurationResources dynamicConfigResources;
     private LocalPoliciesResources localPolicies;
     private LoadManagerReportResources loadReportResources;
-    private Optional<MetadataStoreExtended> localMetadataStore;
-    private Optional<MetadataStoreExtended> configurationMetadataStore;
+    private BookieResources bookieResources;
+    private TopicResources topicResources;
 
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore) {
+    private Optional<MetadataStore> localMetadataStore;
+    private Optional<MetadataStore> configurationMetadataStore;
+
+    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
         this(localMetadataStore, configurationMetadataStore, DEFAULT_OPERATION_TIMEOUT_SEC);
     }
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStoreExtended configurationMetadataStore,
+    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
             int operationTimeoutSec) {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
-            namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
+            namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore,
+                    operationTimeoutSec);
             resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
         }
         if (localMetadataStore != null) {
             dynamicConfigResources = new DynamicConfigurationResources(localMetadataStore, operationTimeoutSec);
             localPolicies = new LocalPoliciesResources(localMetadataStore, operationTimeoutSec);
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
+            bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
+            topicResources = new TopicResources(localMetadataStore);
         }
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);

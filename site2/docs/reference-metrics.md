@@ -144,6 +144,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_throughput_in | Gauge | The total throughput of the namespace coming into this broker (bytes/second). |
 | pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (bytes/second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
+| pulsar_storage_logical_size | Gauge | The storage size (without accounting for replicas) of the topics in this namespace owned by this broker (bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (messages). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this namespace offloaded to the tiered storage (bytes). |
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this namespace (message batches / second). |
@@ -165,6 +166,10 @@ All the replication metrics are also labelled with `remoteCluster=${pulsar_remot
 | pulsar_replication_throughput_in | Gauge | The total throughput of the namespace replicating from remote cluster (bytes/second). |
 | pulsar_replication_throughput_out | Gauge | The total throughput of the namespace replicating to remote cluster (bytes/second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the namespace replicating to remote cluster (messages). |
+| pulsar_replication_rate_expired | Gauge | Total rate of messages expired (messages/second). |
+| pulsar_replication_connected_count | Gauge | The count of replication-subscriber up and running to replicate to remote cluster. |
+| pulsar_replication_delay_in_seconds | Gauge | Time in seconds from the time a message was produced to the time when it is about to be replicated. |
+~~~~
 
 ### Topic metrics
 

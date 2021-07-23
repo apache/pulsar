@@ -192,7 +192,7 @@ public class NamespaceBundleFactory {
         return bundlesCache.get(nsname);
     }
 
-    public NamespaceBundles getBundles(NamespaceName nsname) throws Exception {
+    public NamespaceBundles getBundles(NamespaceName nsname) {
         return bundlesCache.synchronous().get(nsname);
     }
 

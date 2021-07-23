@@ -60,7 +60,7 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public Integer message_ttl_in_seconds = null;
     @SuppressWarnings("checkstyle:MemberName")
-    public int subscription_expiration_time_minutes = 0;
+    public Integer subscription_expiration_time_minutes = null;
     @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;

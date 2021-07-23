@@ -42,6 +42,7 @@ static inline bool isBuiltInSchema(SchemaType schemaType) {
         case JSON:
         case AVRO:
         case PROTOBUF:
+        case PROTOBUF_NATIVE:
             return true;
 
         default:
@@ -61,6 +62,8 @@ static inline proto::Schema_Type getSchemaType(SchemaType type) {
             return Schema_Type_Protobuf;
         case AVRO:
             return Schema_Type_Avro;
+        case PROTOBUF_NATIVE:
+            return Schema_Type_ProtobufNative;
         default:
             return Schema_Type_None;
     }
@@ -293,15 +296,20 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     }
 
     if (subType == CommandSubscribe_SubType_Key_Shared) {
-        KeySharedMeta ksm;
+        KeySharedMeta& ksm = *subscribe->mutable_keysharedmeta();
         switch (keySharedPolicy.getKeySharedMode()) {
             case pulsar::AUTO_SPLIT:
                 ksm.set_keysharedmode(proto::KeySharedMode::AUTO_SPLIT);
                 break;
             case pulsar::STICKY:
                 ksm.set_keysharedmode(proto::KeySharedMode::STICKY);
+                for (StickyRange range : keySharedPolicy.getStickyRanges()) {
+                    IntRange* intRange = IntRange().New();
+                    intRange->set_start(range.first);
+                    intRange->set_end(range.second);
+                    ksm.mutable_hashranges()->AddAllocated(intRange);
+                }
         }
-
         ksm.set_allowoutoforderdelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
     }
 

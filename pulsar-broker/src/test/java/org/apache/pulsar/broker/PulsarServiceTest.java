@@ -106,17 +106,22 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testAppliedAdvertised() throws Exception {
         useListenerName = true;
-        conf.setAdvertisedListeners("internal:pulsar://127.0.0.1, internal:pulsar+ssl://127.0.0.1");
+        conf.setAdvertisedListeners("internal:pulsar://127.0.0.1:6650, internal:pulsar+ssl://127.0.0.1:6651");
         conf.setInternalListenerName("internal");
         setup();
-
-        AssertJUnit.assertEquals(pulsar.getAdvertisedAddress(), "127.0.0.1");
+        assertEquals(pulsar.getAdvertisedAddress(), "127.0.0.1");
         assertNull(pulsar.getConfiguration().getAdvertisedAddress());
         assertEquals(conf, pulsar.getConfiguration());
-        assertEquals(pulsar.brokerUrlTls(conf), "pulsar+ssl://127.0.0.1:6651");
-        assertEquals(pulsar.brokerUrl(conf), "pulsar://127.0.0.1:6660");
-        assertEquals(pulsar.webAddress(conf), "http://127.0.0.1:8081");
-        assertEquals(pulsar.webAddressTls(conf), "https://127.0.0.1:8082");
+
+        cleanup();
+        resetConfig();
+        setup();
+        assertEquals(pulsar.getAdvertisedAddress(), "localhost");
+        assertEquals(conf, pulsar.getConfiguration());
+        assertEquals(pulsar.brokerUrlTls(conf), "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
+        assertEquals(pulsar.brokerUrl(conf), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
+        assertEquals(pulsar.webAddress(conf), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
+        assertEquals(pulsar.webAddressTls(conf), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
 }

@@ -18,13 +18,28 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.runtime.TaskConfig;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.apache.kafka.connect.source.SourceTaskContext;
-import org.apache.kafka.connect.storage.*;
+import org.apache.kafka.connect.storage.Converter;
+import org.apache.kafka.connect.storage.OffsetBackingStore;
+import org.apache.kafka.connect.storage.OffsetStorageReader;
+import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
+import org.apache.kafka.connect.storage.OffsetStorageWriter;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
@@ -34,8 +49,6 @@ import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter;
 import org.apache.pulsar.kafka.shade.io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import org.apache.pulsar.kafka.shade.io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 
-import java.util.*;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG;
@@ -102,7 +115,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         keyConverter.configure(config, true);
         valueConverter.configure(config, false);
 
-        offsetStore = new PulsarOffsetBackingStore();
+        offsetStore = new PulsarOffsetBackingStore(sourceContext.getPulsarClient());
         PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(stringConfig);
         offsetStore.configure(pulsarKafkaWorkerConfig);
         offsetStore.start();

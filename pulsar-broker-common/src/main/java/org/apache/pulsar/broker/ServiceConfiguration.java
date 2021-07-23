@@ -539,6 +539,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxTopicsPerNamespace = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections in the broker. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnections = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnectionsPerIp = 0;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -915,6 +927,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
     )
     private int retentionCheckIntervalInSeconds = 120;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
+    )
+    private int maxMessageSizeCheckIntervalInSeconds = 60;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -1471,9 +1489,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a ledger before triggering a rollover.\n\n"
-            + "A ledger rollover is triggered on these conditions Either the max"
-            + " rollover time has been reached or max entries have been written to the"
-            + " ledger and at least min-time has passed")
+            + "A ledger rollover is triggered after the min rollover time has passed"
+            + " and one of the following conditions is true:"
+            + " the max rollover time has been reached,"
+            + " the max entries have been written to the ledger, or"
+            + " the max ledger size has been written to the ledger")
     private int managedLedgerMaxEntriesPerLedger = 50000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -1880,6 +1900,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Using a value of 0, is disabling compression check."
     )
     private long brokerServiceCompactionThresholdInBytes = 0;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for the compaction phase one loop, If the execution time of the compaction " +
+                    "phase one loop exceeds this time, the compaction will not proceed."
+    )
+    private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
     @FieldContext(
         category = CATEGORY_SCHEMA,

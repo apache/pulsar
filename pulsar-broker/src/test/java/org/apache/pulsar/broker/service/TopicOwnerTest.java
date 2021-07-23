@@ -254,11 +254,12 @@ public class TopicOwnerTest {
         Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
 
         OwnershipCache ownershipCache1 = pulsar1.getNamespaceService().getOwnershipCache();
-        AsyncLoadingCache<String, OwnedBundle> ownedBundlesCache1 = Whitebox.getInternalState(ownershipCache1, "ownedBundlesCache");
+        AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache1 = Whitebox.getInternalState(ownershipCache1, "ownedBundlesCache");
 
         leaderAuthorizedBroker.setValue(null);
 
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
+        Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
+        ownedBundlesCache1.synchronous().invalidate(namespaceBundle);
         Assert.assertNull(ownershipCache1.getOwnedBundle(namespaceBundle));
 
         // pulsar1 is still owner in zk.
@@ -266,27 +267,6 @@ public class TopicOwnerTest {
         Assert.assertEquals(pulsarAdmins[2].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
         Assert.assertEquals(pulsarAdmins[3].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
         Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-
-        // Reestablish ownership through lookup ownership.
-        Assert.assertNull(ownershipCache1.getOwnedBundle(namespaceBundle));
-        Assert.assertEquals(pulsarAdmins[1].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
-        Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
-
-        // Reestablish ownership through check ownership.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
-        ownershipCache1.checkOwnership(namespaceBundle).join();
-        Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
-
-        // Reestablish ownership through load topic.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
-        pulsar1.getBrokerService().getTopic(topic1, true).join();
-        Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
-        pulsar1.getBrokerService().deleteTopic(topic1, true).join();
-
-        // Reestablish ownership through web.
-        ownedBundlesCache1.synchronous().invalidate(ServiceUnitUtils.path(namespaceBundle));
-        pulsarAdmins[0].topics().createNonPartitionedTopic(topic1);
-        Assert.assertNotNull(ownershipCache1.getOwnedBundle(namespaceBundle));
     }
 
     @Test

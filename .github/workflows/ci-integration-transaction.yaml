@@ -78,8 +78,7 @@ jobs:
       - name: clean disk
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
-          sudo swapoff -a
-          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt clean
           docker rmi $(docker images -q) -f
           df -h

@@ -47,7 +47,6 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
@@ -335,6 +334,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         Map<NamespaceName, LedgerOffloader> map = new HashMap<>();
         map.put(TopicName.get(topicName).getNamespaceObject(), namespaceOffloader);
         doReturn(map).when(pulsar).getLedgerOffloaderMap();
+        doReturn(namespaceOffloader).when(pulsar)
+                .getManagedLedgerOffloader(TopicName.get(topicName).getNamespaceObject(), null);
 
         admin.topics().removeOffloadPolicies(topicName);
         Awaitility.await().untilAsserted(()

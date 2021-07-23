@@ -45,6 +45,7 @@
 #include <pulsar/Client.h>
 #include <set>
 #include <lib/BrokerConsumerStatsImpl.h>
+#include "lib/PeriodicTask.h"
 
 using namespace pulsar;
 
@@ -283,6 +284,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     proto::BaseCommand incomingCmd_;
 
     Promise<Result, ClientConnectionWeakPtr> connectPromise_;
+    std::shared_ptr<PeriodicTask> connectTimeoutTask_;
 
     typedef std::map<long, PendingRequestData> PendingRequestsMap;
     PendingRequestsMap pendingRequests_;

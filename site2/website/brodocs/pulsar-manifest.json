@@ -1,0 +1,18 @@
+{
+  "docs": [
+    {
+      "filename": "broker.md"
+    },
+    {
+      "filename": "broker-tool.md"
+    },
+    {
+      "filename": "compact-topic.md"
+    },
+    {
+      "filename": "tokens.md"
+    }
+  ],
+  "title": "Docs",
+  "copyright": "<a href='http://pulsar.apache.org/'>Apache Pulsar</a>"
+}

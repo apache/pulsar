@@ -1,6 +1,6 @@
 {
   "version-2.7.2-docs": {
-    "Get started": [
+    "Get Started": [
       "version-2.7.2-standalone",
       "version-2.7.2-standalone-docker",
       "version-2.7.2-kubernetes-helm"
@@ -50,7 +50,7 @@
       "version-2.7.2-sql-deployment-configurations",
       "version-2.7.2-sql-rest-api"
     ],
-    "Tiered storage": [
+    "Tiered Storage": [
       "version-2.7.2-tiered-storage-overview",
       "version-2.7.2-tiered-storage-aws",
       "version-2.7.2-tiered-storage-gcs",
@@ -106,7 +106,7 @@
     "Performance": [
       "version-2.7.2-performance-pulsar-perf"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.7.2-client-libraries",
       "version-2.7.2-client-libraries-java",
       "version-2.7.2-client-libraries-go",

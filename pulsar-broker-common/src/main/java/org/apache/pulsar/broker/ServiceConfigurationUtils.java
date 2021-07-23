@@ -54,9 +54,13 @@ public class ServiceConfigurationUtils {
      * Get the address of Broker, first try to get it from AdvertisedAddress.
      * If it is not set, try to get the address set by advertisedListener.
      * If it is still not set, get it through InetAddress.getLocalHost().
+     * @param configuration
+     * @param ignoreAdvertisedListener Sometimes we can’t use the default key of AdvertisedListener,
+     *                                 setting it to true can ignore AdvertisedListener.
      * @return
      */
-    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration) {
+    public static String getAppliedAdvertisedAddress(ServiceConfiguration configuration,
+                                                     boolean ignoreAdvertisedListener) {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
                 .validateAndAnalysisAdvertisedListener(configuration);
 
@@ -66,7 +70,7 @@ public class ServiceConfigurationUtils {
         }
 
         AdvertisedListener advertisedListener = result.get(configuration.getInternalListenerName());
-        if (advertisedListener != null) {
+        if (advertisedListener != null && !ignoreAdvertisedListener) {
             String address = advertisedListener.getBrokerServiceUrl().getHost();
             if (address != null) {
                 return address;

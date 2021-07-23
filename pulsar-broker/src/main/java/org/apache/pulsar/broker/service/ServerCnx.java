@@ -189,6 +189,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private FeatureFlags features;
 
     private PulsarCommandSender commandSender;
+    private final ConnectionController connectionController;
 
     private static final KeySharedMeta emptyKeySharedMeta = new KeySharedMeta()
             .setKeySharedMode(KeySharedMode.AUTO_SPLIT);
@@ -243,11 +244,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
                 / conf.getNumIOThreads();
         this.resumeThresholdPendingBytesPerThread = this.maxPendingBytesPerThread / 2;
+        this.connectionController = new ConnectionController.DefaultConnectionController(conf);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        ConnectionController.Sate sate = connectionController.increaseConnection(remoteAddress);
+        if (!sate.equals(ConnectionController.Sate.OK)) {
+            ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
+                    sate.equals(ConnectionController.Sate.REACH_MAX_CONNECTION)
+                            ? "Reached the maximum number of connections"
+                            : "Reached the maximum number of connections on address" + remoteAddress));
+            ctx.channel().close();
+            return;
+        }
         log.info("New connection from {}", remoteAddress);
         this.ctx = ctx;
         this.commandSender = new PulsarCommandSenderImpl(getBrokerService().getInterceptor(), this);
@@ -258,6 +269,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        connectionController.decreaseConnection(ctx.channel().remoteAddress());
         isActive = false;
         log.info("Closed connection from {}", remoteAddress);
         BrokerInterceptor brokerInterceptor = getBrokerService().getInterceptor();
@@ -905,14 +917,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final String subscriptionName = subscribe.getSubscription();
         final SubType subType = subscribe.getSubType();
-        final String consumerName = subscribe.getConsumerName();
+        final String consumerName = subscribe.hasConsumerName() ? subscribe.getConsumerName() : "";
         final boolean isDurable = subscribe.isDurable();
         final MessageIdImpl startMessageId = subscribe.hasStartMessageId() ? new BatchMessageIdImpl(
                 subscribe.getStartMessageId().getLedgerId(), subscribe.getStartMessageId().getEntryId(),
                 subscribe.getStartMessageId().getPartition(), subscribe.getStartMessageId().getBatchIndex())
                 : null;
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
-        final boolean readCompacted = subscribe.isReadCompacted();
+        final boolean readCompacted = subscribe.hasReadCompacted() && subscribe.isReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
         final long startMessageRollbackDurationSec = subscribe.hasStartMessageRollbackDurationSec()
@@ -938,145 +950,145 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             remoteAddress, getPrincipal());
                 }
 
-                        log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
-                        try {
-                            Metadata.validateMetadata(metadata);
-                        } catch (IllegalArgumentException iae) {
-                            final String msg = iae.getMessage();
-                            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
-                            return null;
-                        }
-                        CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
-                        CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
-                                consumerFuture);
-
-                        if (existingConsumerFuture != null) {
-                            if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
-                                Consumer consumer = existingConsumerFuture.getNow(null);
-                                log.info("[{}] Consumer with the same id is already created:"
-                                         + " consumerId={}, consumer={}",
-                                         remoteAddress, consumerId, consumer);
-                                commandSender.sendSuccessResponse(requestId);
-                                return null;
-                            } else {
-                                // There was an early request to create a consumer with same consumerId. This can happen
-                                // when
-                                // client timeout is lower the broker timeouts. We need to wait until the previous
-                                // consumer
-                                // creation request either complete or fails.
-                                log.warn("[{}][{}][{}] Consumer with id is already present on the connection,"
-                                         + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
-                                ServerError error = null;
-                                if (!existingConsumerFuture.isDone()) {
-                                    error = ServerError.ServiceNotReady;
-                                } else {
-                                    error = getErrorCode(existingConsumerFuture);
-                                    consumers.remove(consumerId, existingConsumerFuture);
-                                }
-                                commandSender.sendErrorResponse(requestId, error,
-                                        "Consumer is already present on the connection");
-                                return null;
-                            }
-                        }
-
-                        boolean createTopicIfDoesNotExist = forceTopicCreation
-                                && service.isAllowAutoTopicCreation(topicName.toString());
-
-                        service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
-                                .thenCompose(optTopic -> {
-                                    if (!optTopic.isPresent()) {
-                                        return FutureUtil
-                                                .failedFuture(new TopicNotFoundException(
-                                                        "Topic " + topicName + " does not exist"));
-                                    }
-
-                                    Topic topic = optTopic.get();
-
-                                    boolean rejectSubscriptionIfDoesNotExist = isDurable
-                                        && !service.isAllowAutoSubscriptionCreation(topicName.toString())
-                                        && !topic.getSubscriptions().containsKey(subscriptionName);
-
-                                    if (rejectSubscriptionIfDoesNotExist) {
-                                        return FutureUtil
-                                                .failedFuture(
-                                                        new SubscriptionNotFoundException(
-                                                                "Subscription does not exist"));
-                                    }
-
-                                    if (schema != null) {
-                                        return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                                .thenCompose(v -> topic.subscribe(
-                                                        ServerCnx.this, subscriptionName, consumerId,
-                                                        subType, priorityLevel, consumerName, isDurable,
-                                                        startMessageId, metadata,
-                                                        readCompacted, initialPosition, startMessageRollbackDurationSec,
-                                                        isReplicated, keySharedMeta));
-                                    } else {
-                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                            subType, priorityLevel, consumerName, isDurable,
-                                            startMessageId, metadata, readCompacted, initialPosition,
-                                            startMessageRollbackDurationSec, isReplicated, keySharedMeta);
-                                    }
-                                })
-                                .thenAccept(consumer -> {
-                                    if (consumerFuture.complete(consumer)) {
-                                        log.info("[{}] Created subscription on topic {} / {}",
-                                                remoteAddress, topicName, subscriptionName);
-                                        commandSender.sendSuccessResponse(requestId);
-                                    } else {
-                                        // The consumer future was completed before by a close command
-                                        try {
-                                            consumer.close();
-                                            log.info("[{}] Cleared consumer created after timeout on client side {}",
-                                                    remoteAddress, consumer);
-                                        } catch (BrokerServiceException e) {
-                                            log.warn(
-                                                    "[{}] Error closing consumer created"
-                                                            + " after timeout on client side {}: {}",
-                                                    remoteAddress, consumer, e.getMessage());
-                                        }
-                                        consumers.remove(consumerId, consumerFuture);
-                                    }
-
-                                })
-                                .exceptionally(exception -> {
-                                    if (exception.getCause() instanceof ConsumerBusyException) {
-                                        if (log.isDebugEnabled()) {
-                                            log.debug(
-                                                    "[{}][{}][{}] Failed to create consumer because exclusive consumer"
-                                                            + " is already connected: {}",
-                                                    remoteAddress, topicName, subscriptionName,
-                                                    exception.getCause().getMessage());
-                                        }
-                                    } else if (exception.getCause() instanceof BrokerServiceException) {
-                                        log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
-                                                 remoteAddress, topicName, subscriptionName,
-                                                 consumerId,  exception.getCause().getMessage());
-                                    } else {
-                                        log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
-                                                 remoteAddress, topicName, subscriptionName,
-                                                 consumerId, exception.getCause().getMessage(), exception);
-                                    }
-
-                                    // If client timed out, the future would have been completed by subsequent close.
-                                    // Send error
-                                    // back to client, only if not completed already.
-                                    if (consumerFuture.completeExceptionally(exception)) {
-                                        commandSender.sendErrorResponse(requestId,
-                                                BrokerServiceException.getClientErrorCode(exception),
-                                                exception.getCause().getMessage());
-                                    }
-                                    consumers.remove(consumerId, consumerFuture);
-
-                                    return null;
-
-                                });
-                    } else {
-                        String msg = "Client is not authorized to subscribe";
-                        log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
-                    }
+                log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
+                try {
+                    Metadata.validateMetadata(metadata);
+                } catch (IllegalArgumentException iae) {
+                    final String msg = iae.getMessage();
+                    commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                     return null;
+                }
+                CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
+                CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId,
+                        consumerFuture);
+
+                if (existingConsumerFuture != null) {
+                    if (existingConsumerFuture.isDone() && !existingConsumerFuture.isCompletedExceptionally()) {
+                        Consumer consumer = existingConsumerFuture.getNow(null);
+                        log.info("[{}] Consumer with the same id is already created:"
+                                 + " consumerId={}, consumer={}",
+                                 remoteAddress, consumerId, consumer);
+                        commandSender.sendSuccessResponse(requestId);
+                        return null;
+                    } else {
+                        // There was an early request to create a consumer with same consumerId. This can happen
+                        // when
+                        // client timeout is lower the broker timeouts. We need to wait until the previous
+                        // consumer
+                        // creation request either complete or fails.
+                        log.warn("[{}][{}][{}] Consumer with id is already present on the connection,"
+                                 + " consumerId={}", remoteAddress, topicName, subscriptionName, consumerId);
+                        ServerError error = null;
+                        if (!existingConsumerFuture.isDone()) {
+                            error = ServerError.ServiceNotReady;
+                        } else {
+                            error = getErrorCode(existingConsumerFuture);
+                            consumers.remove(consumerId, existingConsumerFuture);
+                        }
+                        commandSender.sendErrorResponse(requestId, error,
+                                "Consumer is already present on the connection");
+                        return null;
+                    }
+                }
+
+                boolean createTopicIfDoesNotExist = forceTopicCreation
+                        && service.isAllowAutoTopicCreation(topicName.toString());
+
+                service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
+                        .thenCompose(optTopic -> {
+                            if (!optTopic.isPresent()) {
+                                return FutureUtil
+                                        .failedFuture(new TopicNotFoundException(
+                                                "Topic " + topicName + " does not exist"));
+                            }
+
+                            Topic topic = optTopic.get();
+
+                            boolean rejectSubscriptionIfDoesNotExist = isDurable
+                                && !service.isAllowAutoSubscriptionCreation(topicName.toString())
+                                && !topic.getSubscriptions().containsKey(subscriptionName);
+
+                            if (rejectSubscriptionIfDoesNotExist) {
+                                return FutureUtil
+                                        .failedFuture(
+                                                new SubscriptionNotFoundException(
+                                                        "Subscription does not exist"));
+                            }
+
+                            if (schema != null) {
+                                return topic.addSchemaIfIdleOrCheckCompatible(schema)
+                                        .thenCompose(v -> topic.subscribe(
+                                                ServerCnx.this, subscriptionName, consumerId,
+                                                subType, priorityLevel, consumerName, isDurable,
+                                                startMessageId, metadata,
+                                                readCompacted, initialPosition, startMessageRollbackDurationSec,
+                                                isReplicated, keySharedMeta));
+                            } else {
+                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                    subType, priorityLevel, consumerName, isDurable,
+                                    startMessageId, metadata, readCompacted, initialPosition,
+                                    startMessageRollbackDurationSec, isReplicated, keySharedMeta);
+                            }
+                        })
+                        .thenAccept(consumer -> {
+                            if (consumerFuture.complete(consumer)) {
+                                log.info("[{}] Created subscription on topic {} / {}",
+                                        remoteAddress, topicName, subscriptionName);
+                                commandSender.sendSuccessResponse(requestId);
+                            } else {
+                                // The consumer future was completed before by a close command
+                                try {
+                                    consumer.close();
+                                    log.info("[{}] Cleared consumer created after timeout on client side {}",
+                                            remoteAddress, consumer);
+                                } catch (BrokerServiceException e) {
+                                    log.warn(
+                                            "[{}] Error closing consumer created"
+                                                    + " after timeout on client side {}: {}",
+                                            remoteAddress, consumer, e.getMessage());
+                                }
+                                consumers.remove(consumerId, consumerFuture);
+                            }
+
+                        })
+                        .exceptionally(exception -> {
+                            if (exception.getCause() instanceof ConsumerBusyException) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug(
+                                            "[{}][{}][{}] Failed to create consumer because exclusive consumer"
+                                                    + " is already connected: {}",
+                                            remoteAddress, topicName, subscriptionName,
+                                            exception.getCause().getMessage());
+                                }
+                            } else if (exception.getCause() instanceof BrokerServiceException) {
+                                log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
+                                         remoteAddress, topicName, subscriptionName,
+                                         consumerId,  exception.getCause().getMessage());
+                            } else {
+                                log.warn("[{}][{}][{}] Failed to create consumer: consumerId={}, {}",
+                                         remoteAddress, topicName, subscriptionName,
+                                         consumerId, exception.getCause().getMessage(), exception);
+                            }
+
+                            // If client timed out, the future would have been completed by subsequent close.
+                            // Send error
+                            // back to client, only if not completed already.
+                            if (consumerFuture.completeExceptionally(exception)) {
+                                commandSender.sendErrorResponse(requestId,
+                                        BrokerServiceException.getClientErrorCode(exception),
+                                        exception.getCause().getMessage());
+                            }
+                            consumers.remove(consumerId, consumerFuture);
+
+                            return null;
+
+                        });
+            } else {
+                String msg = "Client is not authorized to subscribe";
+                log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+            }
+            return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
@@ -2199,6 +2211,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
         } else {
+            if (producer.getTopic().isResourceGroupRateLimitingEnabled()) {
+                final boolean resourceGroupPublishRateExceeded =
+                  producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
+                if (resourceGroupPublishRateExceeded) {
+                    producer.getTopic().disableCnxAutoRead();
+                    return;
+                }
+            }
             isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
         }
 

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -29,12 +32,14 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -168,5 +173,46 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         Assert.assertEquals(updatedStats.getMsgOutCounter(), 10);
         Assert.assertEquals(updatedStats.getBytesOutCounter(), 1280);
+    }
+
+    @Test
+    public void testConsumerStatsOutput() throws Exception {
+        Set<String> allowedFields = Sets.newHashSet(
+                "msgRateOut",
+                "msgThroughputOut",
+                "bytesOutCounter",
+                "msgOutCounter",
+                "msgRateRedeliver",
+                "chunkedMessageRate",
+                "consumerName",
+                "availablePermits",
+                "unackedMessages",
+                "avgMessagesPerEntry",
+                "blockedConsumerOnUnackedMsgs",
+                "readPositionWhenJoining",
+                "lastAckedTimestamp",
+                "lastConsumedTimestamp",
+                "keyHashRanges",
+                "metadata");
+
+        final String topicName = "persistent://prop/use/ns-abc/testConsumerStatsOutput";
+        final String subName = "my-subscription";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
+        TopicStats stats = admin.topics().getStats(topicName);
+        ObjectMapper mapper = ObjectMapperFactory.create();
+        JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(stats.getSubscriptions()
+                .get(subName).getConsumers().get(0)));
+        if (node.fieldNames().hasNext()) {
+            String field = node.fieldNames().next();
+            Assert.assertTrue(allowedFields.contains(field));
+        }
+
+        consumer.close();
     }
 }

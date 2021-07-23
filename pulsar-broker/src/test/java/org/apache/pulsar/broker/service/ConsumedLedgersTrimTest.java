@@ -145,8 +145,6 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         // the lastMessageId is still on the previous ledger
         restartBroker();
         // force load topic
-        Awaitility.await().ignoreExceptions().untilAsserted(()
-                -> assertNotNull(pulsar.getBrokerService().getTopicIfExists(topicName).get(3, TimeUnit.SECONDS).get()));
         pulsar.getAdminClient().topics().getStats(topicName);
         MessageId messageIdAfterRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
         LOG.info("lastmessageid " + messageIdAfterRestart);

@@ -20,4 +20,5 @@
 from .definition import Record, Field, Null, Boolean, Integer, Long, \
             Float, Double, Bytes, String, Array, Map
 
-from .schema import Schema, BytesSchema, StringSchema, JsonSchema, AvroSchema
+from .schema import Schema, BytesSchema, StringSchema, JsonSchema
+from .schema_avro import AvroSchema

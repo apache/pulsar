@@ -55,7 +55,6 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         resourcegroups = spy(new ResourceGroups());
         resourcegroups.setServletContext(new MockServletContext());
         resourcegroups.setPulsar(pulsar);
-        doReturn(mockZooKeeper).when(resourcegroups).localZk();
         doReturn(false).when(resourcegroups).isRequestHttps();
         doReturn("test").when(resourcegroups).clientAppId();
         doReturn(null).when(resourcegroups).originalPrincipal();

@@ -931,7 +931,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         List<Metrics> metrics = Lists.newArrayList();
         Map<String, String> dimensions = new HashMap<>();
 
-        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf));
+        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf, true));
         dimensions.put("metric", "loadBalancing");
 
         Metrics m = Metrics.create(dimensions);
@@ -1006,7 +1006,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         try {
             FutureUtil.waitForAll(futures).join();
         } catch (Exception e) {
-            log.warn("Error when writing metadata data to store: {}", e);
+            log.warn("Error when writing metadata data to store", e);
         }
     }
 

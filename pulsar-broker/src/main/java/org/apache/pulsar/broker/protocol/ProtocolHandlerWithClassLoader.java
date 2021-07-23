@@ -43,41 +43,74 @@ class ProtocolHandlerWithClassLoader implements ProtocolHandler {
 
     @Override
     public String protocolName() {
-        return handler.protocolName();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.protocolName();
+        }
     }
 
     @Override
     public boolean accept(String protocol) {
-        return handler.accept(protocol);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.accept(protocol);
+        }
     }
 
     @Override
     public void initialize(ServiceConfiguration conf) throws Exception {
-        handler.initialize(conf);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            handler.initialize(conf);
+        }
     }
 
     @Override
     public String getProtocolDataToAdvertise() {
-        return handler.getProtocolDataToAdvertise();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.getProtocolDataToAdvertise();
+        }
     }
 
     @Override
     public void start(BrokerService service) {
-        handler.start(service);
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            handler.start(service);
+        }
     }
 
     @Override
     public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
-        return handler.newChannelInitializers();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            return handler.newChannelInitializers();
+        }
     }
 
     @Override
     public void close() {
-        handler.close();
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            handler.close();
+        }
+
         try {
             classLoader.close();
         } catch (IOException e) {
             log.warn("Failed to close the protocol handler class loader", e);
+        }
+    }
+
+    /**
+     * Help to switch the class loader of current thread to the NarClassLoader, and change it back when it's done.
+     * With the help of try-with-resources statement, the code would be cleaner than using try finally every time.
+     */
+    private static class ClassLoaderSwitcher implements AutoCloseable {
+        private final ClassLoader prevClassLoader;
+
+        ClassLoaderSwitcher(ClassLoader classLoader) {
+            prevClassLoader = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(classLoader);
+        }
+
+        @Override
+        public void close() {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 }

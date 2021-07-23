@@ -4,6 +4,10 @@ title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
 ---
 
+> **Important**
+>
+> This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 
 Usage
@@ -2448,9 +2452,6 @@ Remove a deduplication policy for a topic.
 Usage
 ```bash
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
-```
-
-
 ```
 
 ## `tenants`

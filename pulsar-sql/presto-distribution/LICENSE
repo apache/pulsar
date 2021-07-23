@@ -229,25 +229,27 @@ The Apache Software License, Version 2.0
     - guice-multibindings-4.2.0.jar
  * Apache Commons
     - commons-math3-3.6.1.jar
-    - commons-compress-1.19.jar
+    - commons-compress-1.21.jar
     - commons-lang3-3.11.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-buffer-4.1.63.Final.jar
-    - netty-codec-4.1.63.Final.jar
-    - netty-codec-dns-4.1.63.Final.jar
-    - netty-codec-http-4.1.63.Final.jar
-    - netty-codec-haproxy-4.1.63.Final.jar
-    - netty-common-4.1.63.Final.jar
-    - netty-handler-4.1.63.Final.jar
+    - netty-buffer-4.1.66.Final.jar
+    - netty-codec-4.1.66.Final.jar
+    - netty-codec-dns-4.1.66.Final.jar
+    - netty-codec-http-4.1.66.Final.jar
+    - netty-codec-haproxy-4.1.66.Final.jar
+    - netty-codec-socks-4.1.66.Final.jar
+    - netty-handler-proxy-4.1.66.Final.jar
+    - netty-common-4.1.66.Final.jar
+    - netty-handler-4.1.66.Final.jar
     - netty-reactive-streams-2.0.4.jar
-    - netty-resolver-4.1.63.Final.jar
-    - netty-resolver-dns-4.1.63.Final.jar
-    - netty-tcnative-boringssl-static-2.0.38.Final.jar
-    - netty-transport-4.1.63.Final.jar
-    - netty-transport-native-epoll-4.1.63.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.63.Final.jar
-    - netty-transport-native-unix-common-4.1.63.Final-linux-x86_64.jar
+    - netty-resolver-4.1.66.Final.jar
+    - netty-resolver-dns-4.1.66.Final.jar
+    - netty-tcnative-boringssl-static-2.0.40.Final.jar
+    - netty-transport-4.1.66.Final.jar
+    - netty-transport-native-epoll-4.1.66.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.66.Final.jar
+    - netty-transport-native-unix-common-4.1.66.Final-linux-x86_64.jar
  * Joda Time
     - joda-time-2.10.5.jar
   * Jetty
@@ -274,7 +276,7 @@ The Apache Software License, Version 2.0
   * CGLIB Nodep
     - cglib-nodep-3.3.0.jar
   * Airlift
-    - aircompressor-0.16.jar
+    - aircompressor-0.19.jar
     - airline-0.8.jar
     - bootstrap-0.199.jar
     - bootstrap-0.195.jar
@@ -344,8 +346,8 @@ The Apache Software License, Version 2.0
     - maven-settings-builder-3.0.5.jar
 	- wagon-provider-api-2.4.jar
   * OkHttp
-    - okhttp-3.9.0.jar
-    - okhttp-urlconnection-3.9.0.jar
+    - okhttp-3.14.9.jar
+    - okhttp-urlconnection-3.14.9.jar
   * OpenCSV
     - opencsv-2.3.jar
   * Plexus
@@ -375,7 +377,7 @@ The Apache Software License, Version 2.0
   * Objenesis
     - objenesis-2.6.jar
   * Okio
-    - okio-1.13.0.jar
+    - okio-1.17.2.jar
   * Presto
     - presto-array-332.jar
     - presto-cli-332.jar
@@ -426,7 +428,7 @@ The Apache Software License, Version 2.0
     - codahale-metrics-provider-4.14.1.jar
   * Apache Commons
     - commons-cli-1.2.jar
-    - commons-codec-1.10.jar
+    - commons-codec-1.15.jar
     - commons-collections4-4.1.jar
     - commons-configuration-1.10.jar
     - commons-io-2.8.0.jar

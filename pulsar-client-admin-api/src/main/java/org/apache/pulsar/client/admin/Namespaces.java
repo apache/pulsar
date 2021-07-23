@@ -910,7 +910,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getSubscriptionExpirationTime(String namespace) throws PulsarAdminException;
+    Integer getSubscriptionExpirationTime(String namespace) throws PulsarAdminException;
 
     /**
      * Get the subscription expiration time for a namespace asynchronously.
@@ -964,6 +964,29 @@ public interface Namespaces {
      *            Expiration time values for all subscriptions for all topics in this namespace
      */
     CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String namespace, int expirationTime);
+
+    /**
+     * Remove the subscription expiration time for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeSubscriptionExpirationTime(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the subscription expiration time for a namespace asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeSubscriptionExpirationTimeAsync(String namespace);
 
     /**
      * Set anti-affinity group name for a namespace.

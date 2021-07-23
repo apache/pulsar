@@ -225,7 +225,7 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
-              <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G
+              <argLine>-Xmx1G -XX:MaxDirectMemorySize=1G
               -Dio.netty.leakDetectionLevel=advanced
               </argLine>
               <skipTests>false</skipTests>

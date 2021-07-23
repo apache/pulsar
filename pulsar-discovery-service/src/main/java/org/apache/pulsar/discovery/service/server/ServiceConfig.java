@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.discovery.service.server;
 
+import io.swagger.annotations.ApiModelProperty;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -36,91 +37,210 @@ import com.google.common.collect.Sets;
 @Data
 public class ServiceConfig implements PulsarConfiguration {
 
-    // Local-Zookeeper quorum connection string
+    @ApiModelProperty(
+            name = "zookeeperServers",
+            value = "Local ZooKeeper quorum connection string"
+    )
     private String zookeeperServers;
     // Global-Zookeeper quorum connection string
     @Deprecated
     private String globalZookeeperServers;
-    // Configuration Store connection string
+
+    @ApiModelProperty(
+            name = "configurationStoreServers",
+            value = "Configuration store connection string"
+    )
     private String configurationStoreServers;
 
-    // ZooKeeper session timeout
+    @ApiModelProperty(
+            name = "zookeeperSessionTimeoutMs",
+            value = "ZooKeeper session timeout (in million seconds)"
+    )
     private int zookeeperSessionTimeoutMs = 30_000;
 
-    // ZooKeeper cache expiry time in seconds
+    @ApiModelProperty(
+            name = "zooKeeperCacheExpirySeconds",
+            value = "ZooKeeper cache expiry time (in seconds)"
+    )
     private int zooKeeperCacheExpirySeconds=300;
 
-    // Port to use to server binary-proto request
+    @ApiModelProperty(
+            name = "servicePort",
+            value = "Port used to server binary-proto request"
+    )
     private Optional<Integer> servicePort = Optional.ofNullable(5000);
-    // Port to use to server binary-proto-tls request
+
+    @ApiModelProperty(
+            name = "servicePortTls",
+            value = "Port used to server binary-proto-tls request"
+    )
     private Optional<Integer> servicePortTls = Optional.empty();
-    // Port to use to server HTTP request
+
+    @ApiModelProperty(
+            name = "webServicePort",
+            value = "Port used to server HTTP request"
+    )
     private Optional<Integer> webServicePort = Optional.ofNullable(8080);
-    // Port to use to server HTTPS request
+
+    @ApiModelProperty(
+            name = "webServicePortTls",
+            value = "Port used to server HTTPS request"
+    )
     private Optional<Integer> webServicePortTls = Optional.empty();
-    // Control whether to bind directly on localhost rather than on normal
-    // hostname
+
+    @ApiModelProperty(
+            name = "bindOnLocalhost",
+            value = "Control whether to bind directly on localhost rather than on normal hostname"
+    )
     private boolean bindOnLocalhost = false;
 
-    // Role names that are treated as "super-user", meaning they will be able to
-    // do all admin operations and publish/consume from all topics
+    @ApiModelProperty(
+            name = "superUserRoles",
+            value = "Role names that are treated as \"super-user\", meaning they are able to "
+                    + "do all admin operations and publish to or consume from all topics"
+    )
     private Set<String> superUserRoles = Sets.newTreeSet();
 
-    // Allow wildcard matching in authorization
-    // (wildcard matching only applicable if wildcard-char:
-    // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
+    @ApiModelProperty(
+            name = "authorizationAllowWildcardsMatching",
+            value = "Allow wildcard matching in authorization (wildcard matching only applicable "
+                    + "if wildcard char * presents at first or last position. "
+                    + "For example, *.pulsar.service, pulsar.service.*"
+    )
     private boolean authorizationAllowWildcardsMatching = false;
 
-    // Enable authentication
+    @ApiModelProperty(
+            name = "authenticationEnabled",
+            value = "Whether enable authentication"
+    )
     private boolean authenticationEnabled = false;
-    // Authentication provider name list, which is a list of class names
+
+    @ApiModelProperty(
+            name = "authenticationProviders",
+            value = "Authentication provider name list, which is a list of class names"
+    )
     private Set<String> authenticationProviders = Sets.newTreeSet();
-    // Enforce authorization
+
+    @ApiModelProperty(
+            name = "authorizationEnabled",
+            value = "Whether enforce authorization"
+    )
     private boolean authorizationEnabled = false;
-    // Authorization provider fully qualified class-name
+
+    @ApiModelProperty(
+            name = "authorizationProvider",
+            value = "Authorization provider fully qualified class-name"
+    )
     private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     /***** --- TLS --- ****/
     @Deprecated
     private boolean tlsEnabled = false;
-    // Tls cert refresh duration in seconds (set 0 to check on every new connection)
+
+    @ApiModelProperty(
+            name = "tlsCertRefreshCheckDurationSec",
+            value = "TLS cert refresh duration (in seconds). 0 means checking every new connection."
+    )
     private long tlsCertRefreshCheckDurationSec = 300;
-    // Path for the TLS certificate file
+
+    @ApiModelProperty(
+            name = "tlsCertificateFilePath",
+            value = "Path for the TLS certificate file"
+    )
     private String tlsCertificateFilePath;
-    // Path for the TLS private key file
+
+    @ApiModelProperty(
+            name = "tlsKeyFilePath",
+            value = "Path for the TLS private key file"
+    )
     private String tlsKeyFilePath;
-    // Path for the trusted TLS certificate file
+
+    @ApiModelProperty(
+            name = "tlsTrustCertsFilePath",
+            value = "Path for the trusted TLS certificate file"
+    )
     private String tlsTrustCertsFilePath = "";
-    // Accept untrusted TLS certificate from client
+
+    @ApiModelProperty(
+            name = "tlsAllowInsecureConnection",
+            value = "Accept untrusted TLS certificate from client"
+    )
     private boolean tlsAllowInsecureConnection = false;
-    // Specify the tls protocols the broker will use to negotiate during TLS Handshake.
-    // Example:- [TLSv1.3, TLSv1.2]
+
+    @ApiModelProperty(
+            name = "tlsProtocols",
+            value = "Specify the TLS protocols the broker uses to negotiate during TLS Handshake. "
+                    + "Example: [TLSv1.3, TLSv1.2]"
+    )
     private Set<String> tlsProtocols = Sets.newTreeSet();
-    // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
-    // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+
+    @ApiModelProperty(
+            name = "tlsCiphers",
+            value = "Specify the tls cipher the broker will use to negotiate during TLS Handshake. "
+                    + "Example: [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
     private Set<String> tlsCiphers = Sets.newTreeSet();
-    // Specify whether Client certificates are required for TLS
-    // Reject the Connection if the Client Certificate is not trusted.
+
+    @ApiModelProperty(
+            name = "tlsRequireTrustedClientCertOnConnect",
+            value = "Specify whether client certificates are required for TLS. "
+                    + "Reject the connection if the client certificate is not trusted."
+    )
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
     /***** --- TLS with KeyStore--- ****/
-    // Enable TLS with KeyStore type configuration in broker
+    @ApiModelProperty(
+            name = "tlsEnabledWithKeyStore",
+            value = "Enable TLS with KeyStore type configuration in broker"
+    )
     private boolean tlsEnabledWithKeyStore = false;
-    // TLS Provider
+
+    @ApiModelProperty(
+            name = "tlsProvider",
+            value = "Full class name of TLS Provider"
+    )
     private String tlsProvider = null;
-    // TLS KeyStore type configuration in broker: JKS, PKCS12
+
+    @ApiModelProperty(
+            name = "tlsKeyStoreType",
+            value = "TLS KeyStore type configurations in broker are JKS or PKCS12"
+    )
     private String tlsKeyStoreType = "JKS";
-    // TLS KeyStore path in broker
+
+    @ApiModelProperty(
+            name = "tlsKeyStore",
+            value = "TLS KeyStore path in broker"
+    )
     private String tlsKeyStore = null;
-    // TLS KeyStore password in broker
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePassword",
+            value = "TLS KeyStore password in broker"
+    )
     private String tlsKeyStorePassword = null;
-    // TLS TrustStore type configuration in broker: JKS, PKCS12
+
+    @ApiModelProperty(
+            name = "tlsTrustStoreType",
+            value = "TLS TrustStore type configuration in broker are JKS or PKCS12"
+    )
     private String tlsTrustStoreType = "JKS";
-    // TLS TrustStore path in broker
+
+    @ApiModelProperty(
+            name = "tlsTrustStore",
+            value = "TLS TrustStore path in broker"
+    )
     private String tlsTrustStore = null;
-    // TLS TrustStore password in broker"
+
+    @ApiModelProperty(
+            name = "tlsTrustStorePassword",
+            value = "TLS TrustStore password in broker"
+    )
     private String tlsTrustStorePassword = null;
 
+    @ApiModelProperty(
+            name = "properties",
+            value = "You can store string in key-value format"
+    )
     private Properties properties = new Properties();
 
     public String getConfigurationStoreServers() {

@@ -92,6 +92,8 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize);
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.managedLedgerStats.storageSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_logical_size",
+                stats.managedLedgerStats.storageLogicalSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size",
                 stats.managedLedgerStats.backlogSize);
@@ -237,6 +239,12 @@ class TopicStats {
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_connected_count",
+                        remoteCluster, replStats.connectedCount);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_rate_expired",
+                        remoteCluster, replStats.msgRateExpired);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_delay_in_seconds",
+                        remoteCluster, replStats.replicationDelayInSeconds);
             });
         }
 

@@ -172,7 +172,9 @@ public class BKStateStoreImpl implements DefaultStateStore {
                         }
                         return null;
                     } finally {
-                        ReferenceCountUtil.safeRelease(data);
+                        if (data != null) {
+                            ReferenceCountUtil.safeRelease(data);
+                        }
                     }
                 }
         );

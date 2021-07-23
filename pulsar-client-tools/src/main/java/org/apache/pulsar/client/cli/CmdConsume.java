@@ -44,11 +44,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.apache.commons.io.HexDump;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -199,7 +209,7 @@ public class CmdConsume {
             return new String(msgData);
         } else {
             HexDump.dump(msgData, 0, out, 0);
-            return  new String(out.toByteArray());
+            return out.toString();
         }
     }
 
@@ -414,8 +424,9 @@ public class CmdConsume {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     try {
-                        System.out.println(Base64.getDecoder().decode(msg));
-                    }catch(Exception e) {
+                        String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
+                        System.out.println(output); // print decode
+                    } catch (Exception e) {
                         System.out.println(msg);
                     }
                     numMessagesConsumed += 1;
