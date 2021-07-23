@@ -32,6 +32,8 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -138,5 +140,23 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+    }
+
+    @Test
+    public void testGetTxnID() throws Exception {
+        Awaitility.await().atMost(4, TimeUnit.SECONDS).until(()->{
+            try {
+                Transaction transaction = pulsarClient.newTransaction()
+                        .withTransactionTimeout(0, TimeUnit.SECONDS).build().get();
+            } catch (Exception e){
+                return false;
+            }
+            return true;
+        });
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(0, TimeUnit.SECONDS).build().get();
+        TxnID txnID = transaction.getTxnID();
+        Assert.assertEquals(txnID.getLeastSigBits(), 1);
+        Assert.assertEquals(txnID.getMostSigBits(), 0);
     }
 }
