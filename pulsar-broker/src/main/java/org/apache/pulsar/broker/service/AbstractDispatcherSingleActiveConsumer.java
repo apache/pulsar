@@ -55,6 +55,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     protected static final AtomicIntegerFieldUpdater<AbstractDispatcherSingleActiveConsumer> IS_CLOSED_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(AbstractDispatcherSingleActiveConsumer.class, "isClosed");
     private volatile int isClosed = FALSE;
+    protected boolean isFirstRead = true;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
             String topicName, Subscription subscription, ServiceConfiguration serviceConfig) {
@@ -158,6 +159,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             isKeyHashRangeFiltered = true;
         } else {
             isKeyHashRangeFiltered = false;
+        }
+
+        if (consumers.isEmpty()) {
+            isFirstRead = true;
         }
 
         consumers.add(consumer);
