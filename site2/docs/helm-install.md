@@ -24,9 +24,6 @@ Install [`helm`](helm-tools.md) and [`kubectl`](helm-tools.md) on your computer.
 
 ## Cloud cluster preparation
 
-> #### Note 
-> Kubernetes 1.14 or higher is required.
-
 To create and connect to the Kubernetes cluster, follow the instructions:
 
 - [Google Kubernetes Engine](helm-prepare.md#google-kubernetes-engine)
