@@ -34,7 +34,9 @@ RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 WORKDIR /pulsar
 
-RUN apt-get update && apt-get -y install openjdk-11-jdk-headless
+RUN apt-get update \
+     && apt-get -y dist-upgrade \
+     && apt-get -y install openjdk-11-jdk-headless
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
@@ -64,5 +66,7 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
 
 # cleanup
-RUN apt-get clean \
+RUN apt-get -y --purge autoremove \
+    && apt-get autoclean \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
