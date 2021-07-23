@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -30,20 +29,17 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     protected volatile long publishMaxByteRate = 0;
     protected volatile boolean publishThrottlingEnabled = false;
     // precise mode for publish rate limiter
-    private volatile HashMap<String, RateLimiter> rateLimiters;
+    private RateLimiter topicPublishRateLimiterOnMessage;
+    private RateLimiter topicPublishRateLimiterOnByte;
     private final RateLimitFunction rateLimitFunction;
-    private static final String MESSAGE_RATE = "messageRate";
-    private static final String BYTE_RATE = "byteRate";
 
     public PrecisPublishLimiter(Policies policies, String clusterName, RateLimitFunction rateLimitFunction) {
         this.rateLimitFunction = rateLimitFunction;
-        this.rateLimiters = new HashMap<>();
         update(policies, clusterName);
     }
 
     public PrecisPublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction) {
         this.rateLimitFunction = rateLimitFunction;
-        this.rateLimiters = new HashMap<>();
         update(publishRate);
     }
 
@@ -67,11 +63,10 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
         return false;
     }
 
-    private void releaseThrottle() {
-        for (RateLimiter rateLimiter : rateLimiters.values()) {
-            if (rateLimiter.getAvailablePermits() <= 0) {
-                return;
-            }
+    private void tryReleaseConnectionThrottle() {
+        if ((topicPublishRateLimiterOnMessage != null && topicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
+        || (topicPublishRateLimiterOnByte != null && topicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
+            return;
         }
         this.rateLimitFunction.apply();
     }
@@ -90,27 +85,27 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
             this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
             this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
             if (this.publishMaxMessageRate > 0) {
-                rateLimiters.put(MESSAGE_RATE,
-                        new RateLimiter(publishMaxMessageRate
-                                , 1, TimeUnit.SECONDS, this::releaseThrottle));
+                topicPublishRateLimiterOnMessage =
+                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS,
+                                this::tryReleaseConnectionThrottle);
             }
             if (this.publishMaxByteRate > 0) {
-                rateLimiters.put(BYTE_RATE,
-                        new RateLimiter(publishMaxMessageRate
-                                , 1, TimeUnit.SECONDS, this::releaseThrottle));
+                topicPublishRateLimiterOnByte =
+                        new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS,
+                                this::tryReleaseConnectionThrottle);
             }
         } else {
             this.publishMaxMessageRate = 0;
             this.publishMaxByteRate = 0;
             this.publishThrottlingEnabled = false;
-            rateLimiters.put(MESSAGE_RATE, null);
-            rateLimiters.put(BYTE_RATE, null);
+            topicPublishRateLimiterOnMessage = null;
+            topicPublishRateLimiterOnByte = null;
         }
     }
 
     @Override
     public boolean tryAcquire(int numbers, long bytes) {
-        return (rateLimiters.get(MESSAGE_RATE) == null || rateLimiters.get(MESSAGE_RATE).tryAcquire(numbers))
-                && (rateLimiters.get(BYTE_RATE) == null || rateLimiters.get(BYTE_RATE).tryAcquire(bytes));
+        return (topicPublishRateLimiterOnMessage == null || topicPublishRateLimiterOnMessage.tryAcquire(numbers))
+                && (topicPublishRateLimiterOnByte == null || topicPublishRateLimiterOnByte.tryAcquire(bytes));
     }
 }
