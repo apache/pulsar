@@ -61,15 +61,18 @@ public class TransactionTest extends TransactionTestBase {
 
     private static final String TENANT = "tnx";
     private static final String NAMESPACE1 = TENANT + "/ns1";
+    private static final int NUM_BROKER = 1;
+    private static final int NUM_TC_PER_ = 1;
 
     @BeforeMethod
     protected void setup() throws Exception {
-        this.setBrokerCount(1);
+        this.setBrokerCount(NUM_BROKER);
         this.internalSetup();
 
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(NUM_BROKER - 1).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
+                .serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
@@ -77,7 +80,7 @@ public class TransactionTest extends TransactionTestBase {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_TC_PER_);
         pulsarClient.close();
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
@@ -151,14 +154,7 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testGetTxnID() throws Exception {
         // wait tc init success to ready state
-        Awaitility.await().untilAsserted(() -> {
-            TransactionMetadataStore transactionMetadataStore =
-                    getPulsarServiceList().get(0).getTransactionMetadataStoreService()
-                            .getStores().get(TransactionCoordinatorID.get(0));
-            assertNotNull(transactionMetadataStore);
-            assertEquals(((MLTransactionMetadataStore) transactionMetadataStore).getState(),
-                    TransactionMetadataStoreState.State.Ready);
-        });
+        Assert.assertTrue(waitForCoordinatorToBeAvailable(NUM_BROKER, NUM_TC_PER_));
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();
