@@ -45,7 +45,7 @@ public interface Transaction {
 
     /**
      * Get TxnID of the transaction.
-     * @return TxnID
+     *  @return {@link TxnID} the txnID.
      */
     TxnID getTxnID();
 }

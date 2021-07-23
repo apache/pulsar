@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.transaction;
 
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +42,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -144,18 +150,24 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testGetTxnID() throws Exception {
-        Awaitility.await().atMost(4, TimeUnit.SECONDS).until(()->{
-            try {
-                Transaction transaction = pulsarClient.newTransaction()
-                        .withTransactionTimeout(0, TimeUnit.SECONDS).build().get();
-            } catch (Exception e){
-                return false;
-            }
-            return true;
+        // wait tc init success to ready state
+        Awaitility.await().untilAsserted(() -> {
+            TransactionMetadataStore transactionMetadataStore =
+                    getPulsarServiceList().get(0).getTransactionMetadataStoreService()
+                            .getStores().get(TransactionCoordinatorID.get(0));
+            assertNotNull(transactionMetadataStore);
+            assertEquals(((MLTransactionMetadataStore) transactionMetadataStore).getState(),
+                    TransactionMetadataStoreState.State.Ready);
         });
         Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(0, TimeUnit.SECONDS).build().get();
+                .build().get();
         TxnID txnID = transaction.getTxnID();
+        Assert.assertEquals(txnID.getLeastSigBits(), 0);
+        Assert.assertEquals(txnID.getMostSigBits(), 0);
+        transaction.abort();
+        transaction = pulsarClient.newTransaction()
+                .build().get();
+        txnID = transaction.getTxnID();
         Assert.assertEquals(txnID.getLeastSigBits(), 1);
         Assert.assertEquals(txnID.getMostSigBits(), 0);
     }
