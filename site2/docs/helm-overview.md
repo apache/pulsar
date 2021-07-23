@@ -53,7 +53,7 @@ It includes support for:
 
 To get up and run with these charts as fast as possible, in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
 
-This guide walks the user through deploying these charts with default values and features, but does not meet production ready requirements. To deploy these charts into production under sustained load, follow the complete [Installation Guide](helm-install.md).
+This guide walks you through deploying these charts with default values and features; the default settings do not meet the production ready requirements. To deploy these charts into production under sustained load, follow the [installation guide](helm-install.md).
 
 ## Troubleshooting
 
