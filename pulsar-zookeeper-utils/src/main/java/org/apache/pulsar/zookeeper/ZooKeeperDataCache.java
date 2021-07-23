@@ -128,6 +128,7 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Node [{}] does not exist", path);
                 }
+                listeners.forEach(listener -> listener.onDelete(path));
                 return;
             }
 

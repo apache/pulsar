@@ -139,6 +139,7 @@ import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
+import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
@@ -148,6 +149,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -724,6 +726,23 @@ public class PulsarService implements AutoCloseable {
 
         this.configurationCacheService = new ConfigurationCacheService(globalZkCache, this.config.getClusterName());
         this.localZkCacheService = new LocalZooKeeperCacheService(getLocalZkCache(), this.configurationCacheService);
+        this.configurationCacheService.clustersCache().registerListener(new DeleteClusterListener());
+    }
+
+    class DeleteClusterListener implements ZooKeeperCacheListener {
+
+        @Override
+        public void onUpdate(String path, Object data, Stat stat) {
+
+        }
+
+        @Override
+        public void onDelete(String path) {
+            if (path.startsWith(ConfigurationCacheService.CLUSTERS_ROOT)) {
+                final String clusterName = path.substring(ConfigurationCacheService.CLUSTERS_ROOT.length() + 1);
+                getBrokerService().closeAndRemoveReplicationClient(clusterName);
+            }
+        }
     }
 
     protected void startNamespaceService() throws PulsarServerException {
