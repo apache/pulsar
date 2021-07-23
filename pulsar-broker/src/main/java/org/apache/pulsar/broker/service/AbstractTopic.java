@@ -892,6 +892,10 @@ public abstract class AbstractTopic implements Topic {
         return brokerService.getTopicPolicies(TopicName.get(topic));
     }
 
+    public CompletableFuture<Void> deleteTopicPolicies() {
+        return brokerService.deleteTopicPolicies(TopicName.get(topic));
+    }
+
     protected int getWaitingProducersCount() {
         return waitingExclusiveProducers.size();
     }

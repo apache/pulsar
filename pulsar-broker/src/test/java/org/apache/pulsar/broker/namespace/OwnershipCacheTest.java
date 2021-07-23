@@ -55,6 +55,7 @@ import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -354,12 +355,10 @@ public class OwnershipCacheTest {
         assertFalse(data1.isDisabled());
         assertEquals(cache.getOwnedBundles().size(), 1);
         cache.removeOwnership(bundle);
-        Thread.sleep(500);
-        assertTrue(cache.getOwnedBundles().isEmpty());
-
-        Thread.sleep(500);
-
-        assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(cache.getOwnedBundles().isEmpty());
+            assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
+        });
     }
 
     @Test

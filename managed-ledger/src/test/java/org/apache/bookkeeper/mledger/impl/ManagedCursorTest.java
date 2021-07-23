@@ -946,9 +946,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("dummy-entry-7".getBytes(Encoding));
 
         // Verify that GC trimming kicks in
-        while (ledger.getNumberOfEntries() > 2) {
-            Thread.sleep(10);
-        }
+        Awaitility.await().until(() -> ledger.getNumberOfEntries() <= 2);
     }
 
     @Test(timeOut = 20000)
