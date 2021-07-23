@@ -30,9 +30,6 @@ RUN chown -R root:root /pulsar
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
-
 WORKDIR /pulsar
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -40,6 +37,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install openjdk-11-jdk-headless
+
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
