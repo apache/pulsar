@@ -40,6 +40,8 @@ RUN mkdir /pulsar/data
 
 FROM ubuntu:20.04
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 # Install some utilities
 RUN apt-get update \
      && apt-get -y dist-upgrade \

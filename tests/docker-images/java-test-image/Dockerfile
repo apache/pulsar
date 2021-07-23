@@ -34,6 +34,8 @@ RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 WORKDIR /pulsar
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install openjdk-11-jdk-headless
