@@ -61,12 +61,12 @@ public class TransactionTest extends TransactionTestBase {
 
     private static final String TENANT = "tnx";
     private static final String NAMESPACE1 = TENANT + "/ns1";
-    private static final int NUM_BROKER = 1;
-    private static final int NUM_TC_PER = 1;
+    private static final int NUM_BROKERS = 1;
+    private static final int NUM_PARTITIONS = 1;
 
     @BeforeMethod
     protected void setup() throws Exception {
-        this.setBrokerCount(NUM_BROKER);
+        this.setBrokerCount(NUM_BROKERS);
         this.internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
@@ -80,7 +80,7 @@ public class TransactionTest extends TransactionTestBase {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_TC_PER);
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
         pulsarClient.close();
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
@@ -154,7 +154,7 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testGetTxnID() throws Exception {
         // wait tc init success to ready state
-        Assert.assertTrue(waitForCoordinatorToBeAvailable(NUM_BROKER, NUM_TC_PER));
+        Assert.assertTrue(waitForCoordinatorToBeAvailable(NUM_BROKERS, NUM_PARTITIONS));
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();
