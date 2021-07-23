@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM openjdk:11-jdk-slim
+FROM ubuntu:20.04
 
 RUN groupadd -g 10001 pulsar
 RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
@@ -34,7 +34,7 @@ RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 WORKDIR /pulsar
 
-RUN apt-get update
+RUN apt-get update && apt-get -y install openjdk-11-jdk-headless
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
