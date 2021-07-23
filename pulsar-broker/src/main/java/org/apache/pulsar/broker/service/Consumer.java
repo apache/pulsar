@@ -45,6 +45,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -128,12 +129,13 @@ public class Consumer {
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
     private PositionImpl readPositionWhenJoining;
+    private final MessageId startMessageId;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
+                    PulsarApi.KeySharedMeta keySharedMeta, MessageId startMessageId) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -154,6 +156,8 @@ public class Consumer {
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
         this.authenticationData = cnx.getAuthenticationData();
+        // Ensure we start from compacted view
+        this.startMessageId = (readCompacted && startMessageId == null) ? MessageId.earliest : startMessageId;
         this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
@@ -816,6 +820,10 @@ public class Consumer {
     private int getStickyKeyHash(Entry entry) {
         byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
         return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
+    }
+
+    public MessageId getStartMessageId() {
+        return startMessageId;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

@@ -194,6 +194,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         }
 
         havePendingRead = false;
+        isFirstRead = false;
         boolean isReplayRead = false;
         if (havePendingReplayRead) {
             isReplayRead = true;
@@ -479,7 +480,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 Set<PositionImpl> positionSet = messagesToRedeliver.items(messagesToRead, PositionImpl::get);
                 cursor.asyncReplayEntries(positionSet, this, consumer, true);
             } else if (consumer.readCompacted()) {
-                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
+                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                        this, consumer);
             } else {
                 cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, consumer);
             }
