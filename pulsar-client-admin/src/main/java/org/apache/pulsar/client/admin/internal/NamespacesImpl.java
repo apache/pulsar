@@ -3588,8 +3588,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> setNamespaceResourceGroupAsync(String namespace, String resourcegroupname) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "resourcegroup");
-        return asyncPostRequest(path, Entity.entity(resourcegroupname, MediaType.APPLICATION_JSON));
+        WebTarget path = namespacePath(ns, "resourcegroup", resourcegroupname);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
