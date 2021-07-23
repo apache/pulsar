@@ -30,6 +30,7 @@ RUN chown -R root:root /pulsar
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
 
 WORKDIR /pulsar
