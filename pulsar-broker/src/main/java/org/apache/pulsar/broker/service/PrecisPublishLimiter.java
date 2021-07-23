@@ -62,7 +62,7 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     public boolean isPublishRateExceeded() {
         return false;
     }
-
+    // If all rate limiters are not exceeded, re-enable auto read from socket.
     private void tryReleaseConnectionThrottle() {
         if ((topicPublishRateLimiterOnMessage != null && topicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
         || (topicPublishRateLimiterOnByte != null && topicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
