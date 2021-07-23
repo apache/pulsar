@@ -60,7 +60,7 @@ RUN python3 get-pip.py
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
 VOLUME  ["/pulsar/conf", "/pulsar/data"]

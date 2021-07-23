@@ -31,7 +31,7 @@ COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
 
 WORKDIR /pulsar
 
