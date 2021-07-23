@@ -64,6 +64,7 @@ public class MessageImpl<T> implements Message<T> {
     private ByteBuf payload;
 
     private Schema<T> schema;
+    private SchemaInfo schemaInfo;
     private SchemaState schemaState = SchemaState.None;
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
@@ -418,12 +419,22 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private SchemaInfo getSchemaInfo() {
+    public SchemaInfo getSchemaInfo() {
+        if (schemaInfo != null) {
+            return schemaInfo;
+        }
+        if (schema == null) {
+            return null;
+        }
         ensureSchemaIsLoaded();
         if (schema instanceof AutoConsumeSchema) {
             return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion());
         }
         return schema.getSchemaInfo();
+    }
+
+    public void setSchemaInfo(SchemaInfo schemaInfo) {
+        this.schemaInfo = schemaInfo;
     }
 
     @Override
@@ -690,6 +701,9 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     SchemaState getSchemaState() {
+        if (getSchemaInfo() == null) {
+            return SchemaState.Ready;
+        }
         return schemaState;
     }
 
