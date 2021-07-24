@@ -274,6 +274,7 @@ public class RateLimiter implements AutoCloseable{
                 setRate(newPermitRate);
             }
         }
+        // release the back-pressure by applying the rateLimitFunction only when there are available permits
         if (rateLimitFunction != null && this.getAvailablePermits() > 0) {
             rateLimitFunction.apply();
         }
