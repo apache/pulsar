@@ -30,10 +30,10 @@ Deploying a Pulsar cluster involves doing the following (in order):
 
 ### Requirements
 
-Currently, Pulsar is available for 64-bit **macOS*, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
-> If you already have an existing ZooKeeper cluster and want to reuse it, you do not need to prepare the machines
-> for running ZooKeeper.
+> If you already have an existing ZooKeeper cluster and want to reuse it, you do not need to prepare  additional machines 
+> running ZooKeeper.
 
 To run Pulsar on bare metal, the following configuration is recommended:
 
@@ -65,7 +65,7 @@ When you deploy a Pulsar cluster, keep in mind the following basic better choice
 
 #### ZooKeeper
 
-For machines running ZooKeeper, is is recommended to use less powerful machines or VMs. Pulsar uses ZooKeeper only for periodic coordination-related and configuration-related tasks, *not* for basic operations. If you run Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance might likely suffice.
+For machines running ZooKeeper, it is recommended to use less powerful machines or VMs. Pulsar uses ZooKeeper only for periodic coordination-related and configuration-related tasks, not for basic operations. If you run Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance might likely suffice.
 
 #### Bookies and Brokers
 
@@ -76,14 +76,14 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 
 ## Install the Pulsar binary package
 
-> You need to install the Pulsar binary package on *each machine in the cluster*, including machines running [ZooKeeper](#deploy-a-zookeeper-cluster) and [BookKeeper](#deploy-a-bookkeeper-cluster).
+> You need to install the Pulsar binary package on each machine in the cluster, including machines running [ZooKeeper](#deploy-a-zookeeper-cluster) and [BookKeeper](#deploy-a-bookkeeper-cluster).
 
 To get started deploying a Pulsar cluster on bare metal, you need to download a binary tarball release in one of the following ways:
 
 * By clicking on the link below directly, which automatically triggers a download:
   * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 * From the Pulsar [downloads page](pulsar:download_page_url)
-* From the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest) on [GitHub](https://github.com)
+* From the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest) on GitHub
 * Using [wget](https://www.gnu.org/software/wget):
 
 ```bash
@@ -111,7 +111,7 @@ Directory | Contains
 
 > Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `builtin` connectors.
 > If you want to enable those `builtin` connectors, you can follow the instructions as below; otherwise you can
-> skip this section for now.
+> skip this section now.
 
 To get started using builtin connectors, you need to download the connectors tarball release on every broker node in one of the following ways:
 
@@ -180,7 +180,7 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 > If you already have an exsiting zookeeper cluster and want to use it, you can skip this section.
 
-[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first (before all other components). A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
+[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
 
 To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) (in the Pulsar directory that you create [above](#install-the-pulsar-binary-package)). The following is an example:
 
@@ -199,11 +199,11 @@ On each host, you need to specify the ID of the node in the `myid` file, which i
 For example, on a ZooKeeper server like `zk1.us-west.example.com`, you can set the `myid` value as follows:
 
 ```bash
-$ mkdir -p data/zookeeper
-$ echo 1 > data/zookeeper/myid
+$ mkdir -p zookeeper/data
+$ echo 1 > zookeeper/data/myid
 ```
 
-On `zk2.us-west.example.com`, the command is `echo 2 > data/zookeeper/myid` and so on.
+On `zk2.us-west.example.com`, the command is `echo 2 > zookeeper/data/myid` and so on.
 
 Once you add each server to the `zookeeper.conf` configuration and have the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
@@ -252,7 +252,7 @@ Flag | Description
 
 > If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
 >
-> ```properties
+> ```shell
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
@@ -261,7 +261,7 @@ Flag | Description
 
 > If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
 >
-> ```properties
+> ```shell
 > --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
