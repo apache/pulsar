@@ -199,11 +199,11 @@ On each host, you need to specify the ID of the node in the `myid` file, which i
 For example, on a ZooKeeper server like `zk1.us-west.example.com`, you can set the `myid` value as follows:
 
 ```bash
-$ mkdir -p zookeeper/data
-$ echo 1 > zookeeper/data/myid
+$ mkdir -p data/zookeeper
+$ echo 1 > data/zookeeper/myid
 ```
 
-On `zk2.us-west.example.com`, the command is `echo 2 > zookeeper/data/myid` and so on.
+On `zk2.us-west.example.com`, the command is `echo 2 > data/zookeeper/myid` and so on.
 
 Once you add each server to the `zookeeper.conf` configuration and have the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
