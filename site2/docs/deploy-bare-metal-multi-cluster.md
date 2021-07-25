@@ -25,14 +25,13 @@ A Pulsar *instance* consists of multiple Pulsar clusters working in unison. You 
 * Deploying a [BookKeeper cluster](#deploy-bookkeeper) of bookies in each Pulsar cluster
 * Deploying [brokers](#deploy-brokers) in each Pulsar cluster
 
-If you want to deploy a single Pulsar cluster, see [Clusters and Brokers](getting-started-standalone.md#start-the-cluster).
 
 > #### Run Pulsar locally or on Kubernetes?
 > This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes.md) guide, which includes sections on running Pulsar on Kubernetes on [Google Kubernetes Engine](deploy-kubernetes#pulsar-on-google-kubernetes-engine) and on [Amazon Web Services](deploy-kubernetes#pulsar-on-amazon-web-services).
 
 ## System requirement
 
-Currently, Pulsar is available for 64-bit **macOS*, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
 > **Note**
 >
@@ -60,8 +59,6 @@ Once you download the tarball, untar it and `cd` into the resulting directory:
 $ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
 $ cd apache-pulsar-{{pulsar:version}}
 ```
-
-## What your package contains
 
 The Pulsar binary package initially contains the following directories:
 
@@ -127,7 +124,7 @@ $ bin/pulsar-daemon start zookeeper
 
 ### Deploy the configuration store 
 
-The ZooKeeper cluster that is configured and started up in the section above is a *local* ZooKeeper cluster that you can use to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
+The ZooKeeper cluster that is configured and started up in the section above is a local ZooKeeper cluster that you can use to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
 
 If you deploy a [single-cluster](#single-cluster-pulsar-instance) instance, you do not need a separate cluster for the configuration store. If, however, you deploy a [multi-cluster](#multi-cluster-pulsar-instance) instance, you should stand up a separate ZooKeeper cluster for configuration tasks.
 
@@ -252,7 +249,7 @@ $ bin/pulsar-daemon start bookie
 ```
 
 You can verify that the bookie works properly using the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
-```shell
+```bash
 $ bin/bookkeeper shell bookiesanity
 ```
 
