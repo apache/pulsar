@@ -193,6 +193,10 @@ public class RateLimiter implements AutoCloseable{
         if (isDispatchOrPrecisePublishRateLimiter) {
             // for dispatch rate limiter just add acquirePermit
             acquiredPermits += acquirePermit;
+
+            // we want to back-pressure from the current state of the rateLimiter therefore we should check if there
+            // are any available premits again
+            canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
         } else {
             // acquired-permits can't be larger than the rate
             if (acquirePermit > this.permits) {

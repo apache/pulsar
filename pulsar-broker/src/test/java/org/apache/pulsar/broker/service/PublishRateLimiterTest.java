@@ -106,7 +106,10 @@ public class PublishRateLimiterTest {
         assertFalse(precisPublishLimiter.tryAcquire(10, 101));
         Thread.sleep(1100);
 
+        // tryAcquire exceeded exactly
+        assertFalse(precisPublishLimiter.tryAcquire(10, 100));
+
         // tryAcquire not exceeded
-        assertTrue(precisPublishLimiter.tryAcquire(10, 100));
+        assertFalse(precisPublishLimiter.tryAcquire(9, 99));
     }
 }
