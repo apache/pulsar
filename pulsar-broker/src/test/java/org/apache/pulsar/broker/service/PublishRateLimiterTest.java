@@ -104,12 +104,13 @@ public class PublishRateLimiterTest {
 
         // tryAcquire msgSizeInBytes exceeded
         assertFalse(precisPublishLimiter.tryAcquire(10, 101));
-        Thread.sleep(1100);
+        Thread.sleep(2100);
 
         // tryAcquire exceeded exactly
         assertFalse(precisPublishLimiter.tryAcquire(10, 100));
+        Thread.sleep(2100);
 
         // tryAcquire not exceeded
-        assertFalse(precisPublishLimiter.tryAcquire(9, 99));
+        assertTrue(precisPublishLimiter.tryAcquire(9, 99));
     }
 }
