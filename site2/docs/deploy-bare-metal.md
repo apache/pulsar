@@ -212,7 +212,7 @@ $ bin/pulsar-daemon start zookeeper
 ```
 
 > If you plan to deploy Zookeeper with the Bookie on the same node, you
-> need to start zookeeper by using different stats ports.
+> need to start zookeeper by using different stats port.
 
 Start zookeeper with [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool like:
 
