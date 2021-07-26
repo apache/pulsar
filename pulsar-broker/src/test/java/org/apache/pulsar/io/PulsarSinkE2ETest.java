@@ -427,6 +427,12 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         testPulsarSinkStats(jarFilePathUrl);
     }
 
+    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "Built-in sink is not available")
+    public void testPulsarSinkStatsBuiltinDoesNotExist() throws Exception {
+        String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
+        testPulsarSinkStats(jarFilePathUrl);
+    }
+
     @Test(timeOut = 20000)
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
