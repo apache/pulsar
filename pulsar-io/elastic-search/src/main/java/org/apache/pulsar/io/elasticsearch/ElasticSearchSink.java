@@ -21,6 +21,7 @@ package org.apache.pulsar.io.elasticsearch;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
@@ -62,10 +63,14 @@ import org.elasticsearch.common.xcontent.XContentType;
 )
 public class ElasticSearchSink implements Sink<byte[]> {
 
-    private URL url;
     private RestHighLevelClient client;
     private CredentialsProvider credentialsProvider;
     private ElasticSearchConfig elasticSearchConfig;
+
+    protected void loadConfig(Map<String, Object> config) throws Exception {
+        elasticSearchConfig = ElasticSearchConfig.load(config);
+        elasticSearchConfig.validate();
+    }
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -122,13 +127,6 @@ public class ElasticSearchSink implements Sink<byte[]> {
         }
     }
 
-    private URL getUrl() throws MalformedURLException {
-        if (url == null) {
-            url = new URL(elasticSearchConfig.getElasticSearchUrl());
-        }
-        return url;
-    }
-
     private CredentialsProvider getCredentialsProvider() {
 
         if (StringUtils.isEmpty(elasticSearchConfig.getUsername())
@@ -143,11 +141,23 @@ public class ElasticSearchSink implements Sink<byte[]> {
         return credentialsProvider;
     }
 
-    private RestHighLevelClient getClient() throws MalformedURLException {
+    private HttpHost[] getHttpHosts() {
+        String url = elasticSearchConfig.getElasticSearchUrl();
+        return Arrays.stream(url.split(",")).map(host -> {
+            try {
+                URL hostUrl = new URL(host);
+                return new HttpHost(hostUrl.getHost(), hostUrl.getPort(),
+                        hostUrl.getProtocol());
+            } catch (MalformedURLException e) {
+                throw new RuntimeException("Invalid elasticSearch url :" + host);
+            }
+        }).toArray(HttpHost[]::new);
+    }
+
+    protected RestHighLevelClient getClient() throws MalformedURLException {
         if (client == null) {
           CredentialsProvider cp = getCredentialsProvider();
-          RestClientBuilder builder = RestClient.builder(new HttpHost(getUrl().getHost(),
-                  getUrl().getPort(), getUrl().getProtocol()));
+          RestClientBuilder builder = RestClient.builder(getHttpHosts());
 
           if (cp != null) {
               builder.setHttpClientConfigCallback(httpClientBuilder ->

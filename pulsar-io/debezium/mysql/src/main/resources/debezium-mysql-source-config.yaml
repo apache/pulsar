@@ -36,6 +36,7 @@ configs:
   database.whitelist: "inventory"
 
   database.history.pulsar.topic: "mysql-history-topic"
+  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
   offset.storage.topic: "mysql-offset-topic"
 
 

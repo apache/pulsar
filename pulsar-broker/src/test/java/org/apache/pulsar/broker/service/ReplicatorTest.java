@@ -50,6 +50,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import lombok.Cleanup;
 
@@ -78,11 +79,15 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -833,19 +838,24 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Update partitioned topic from R2
         admin2.topics().updatePartitionedTopic(persistentTopicName, 5);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
-        assertEquals(admin2.topics().getList(namespace).size(), 5);
+        assertEquals((int) admin2.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 5);
         // Update partitioned topic from R3
         admin3.topics().updatePartitionedTopic(persistentTopicName, 6);
         assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
-        assertEquals(admin3.topics().getList(namespace).size(), 6);
+        assertEquals(admin3.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 6);
         // Update partitioned topic from R1
         admin1.topics().updatePartitionedTopic(persistentTopicName, 7);
         assertEquals(admin1.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
         assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
-        assertEquals(admin1.topics().getList(namespace).size(), 7);
-        assertEquals(admin2.topics().getList(namespace).size(), 7);
-        assertEquals(admin3.topics().getList(namespace).size(), 7);
+        assertEquals(admin1.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
+        assertEquals(admin2.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
+        assertEquals(admin3.topics().getList(namespace).stream().filter(topic ->
+                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
     }
 
     /**
@@ -1168,12 +1178,95 @@ public class ReplicatorTest extends ReplicatorTestBase {
         checkListContainExpectedTopic(admin3, namespace, expectedTopicList);
     }
 
+    @Test
+    public void testRemoveClusterFromNamespace() throws Exception {
+        final String cluster4 = "r4";
+        admin1.clusters().createCluster(cluster4, ClusterData.builder()
+                .serviceUrl(url3.toString())
+                .serviceUrlTls(urlTls3.toString())
+                .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
+                .build());
+
+        admin1.tenants().createTenant("pulsar1",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
+                        Sets.newHashSet("r1", "r3", cluster4)));
+
+        admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r3", cluster4));
+
+        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient(cluster4);
+        Assert.assertNotNull(repClient1);
+        Assert.assertFalse(repClient1.isClosed());
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String topicName = "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
+
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topicName)
+                .create();
+
+        producer.send("Pulsar".getBytes());
+
+        producer.close();
+        client.close();
+
+        Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
+                .get().getReplicators().get(cluster4);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
+
+        admin1.clusters().deleteCluster(cluster4);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(replicator.isConnected()));
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(repClient1.isClosed()));
+
+        Awaitility.await().untilAsserted(() -> Assert.assertNull(
+                pulsar1.getBrokerService().getReplicationClients().get(cluster4)));
+    }
+
+    @Test
+    public void testDoNotReplicateSystemTopic() throws Exception {
+        final String namespace = newUniqueName("pulsar/ns");
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        String topic = TopicName.get("persistent", NamespaceName.get(namespace),
+                "testDoesNotReplicateSystemTopic").toString();
+        String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
+                EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME).toString();
+        admin1.topics().createNonPartitionedTopic(topic);
+        Awaitility.await()
+                .until(() -> pulsar1.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        Awaitility.await()
+                .until(() -> pulsar2.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        Awaitility.await()
+                .until(() -> pulsar3.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        admin1.topics().setRetention(topic, new RetentionPolicies(10, 10));
+        admin2.topics().setRetention(topic, new RetentionPolicies(20, 20));
+        admin3.topics().setRetention(topic, new RetentionPolicies(30, 30));
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);
+            Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
+            Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin1.topics().getRetention(topic).getRetentionSizeInMB(), 10);
+            Assert.assertEquals(admin2.topics().getRetention(topic).getRetentionSizeInMB(), 20);
+            Assert.assertEquals(admin3.topics().getRetention(topic).getRetentionSizeInMB(), 30);
+        });
+    }
+
     private void checkListContainExpectedTopic(PulsarAdmin admin, String namespace, List<String> expectedTopicList) {
         // wait non-partitioned topics replicators created finished
         final List<String> list = new ArrayList<>();
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> {
             list.clear();
-            list.addAll(admin.topics().getList(namespace));
+            list.addAll(admin.topics().getList(namespace).stream()
+                    .filter(topic -> !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME))
+                    .collect(Collectors.toList()));
             return list.size() == expectedTopicList.size();
         });
         for (String expectTopic : expectedTopicList) {

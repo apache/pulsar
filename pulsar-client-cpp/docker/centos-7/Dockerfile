@@ -21,10 +21,16 @@
 FROM centos:7.6.1810
 
 RUN yum install -y gcc gcc-c++ make \
-  protobuf-devel.x86_64 protobuf-lite-devel.x86_64 \
+  protobuf-devel.x86_64 \
   libcurl-devel openssl-devel \
   boost boost-devel
 
+RUN curl -O -L https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz && \
+    tar xfz protobuf-cpp-3.17.3.tar.gz && \
+    cd protobuf-3.17.3/ && \
+    CXXFLAGS=-fPIC ./configure && \
+    make -j8 && make install && \
+    cd .. && rm -rf protobuf-3.17.3/ protobuf-cpp-3.17.3.tar.gz
 RUN mkdir -p /opt/cmake
 WORKDIR /opt/cmake
 RUN curl -L -O https://cmake.org/files/v3.4/cmake-3.4.0-Linux-x86_64.tar.gz \

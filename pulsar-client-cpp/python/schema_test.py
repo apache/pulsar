@@ -363,7 +363,7 @@ class SchemaTest(TestCase):
 
         consumer = client.subscribe('my-avro-python-schema-version-topic', 'sub-1',
                                     schema=AvroSchema(Example))
-        
+
         r = Example(a=1, b=2)
         producer.send(r)
 
@@ -372,7 +372,7 @@ class SchemaTest(TestCase):
         self.assertIsNotNone(msg.schema_version())
 
         self.assertEquals(b'\x00\x00\x00\x00\x00\x00\x00\x00', msg.schema_version().encode())
-        
+
         self.assertEqual(r, msg.value())
 
         client.close()
@@ -851,6 +851,117 @@ class SchemaTest(TestCase):
 
         producer.close()
         consumer.close()
+        client.close()
+
+    def test_serialize_schema_complex(self):
+        class NestedObj1(Record):
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        class ComplexRecord(Record):
+            a = Integer()
+            b = Integer()
+            nested = NestedObj2()
+
+        self.assertEqual(ComplexRecord.schema(), {
+            "name": "ComplexRecord",
+            "type": "record",
+            "fields": [
+                {"name": "a", "type": ["null", "int"]},
+                {"name": "b", "type": ["null", "int"]},
+                {"name": "nested", "type": ['null', {'name': 'NestedObj2', 'type': 'record', 'fields': [
+                    {'name': 'na2', 'type': ['null', 'int']},
+                    {'name': 'nb2', 'type': ['null', 'boolean']},
+                    {'name': 'nc2', 'type': ['null', {'name': 'NestedObj1', 'type': 'record', 'fields': [
+                        {'name': 'na1', 'type': ['null', 'string']},
+                        {'name': 'nb1', 'type': ['null', 'double']}
+                    ]}]}
+                ]}]}
+            ]
+        })
+
+        def encode_and_decode(schema_type):
+            data_schema = AvroSchema(ComplexRecord)
+            if schema_type == 'json':
+                data_schema = JsonSchema(ComplexRecord)
+
+            nested_obj1 = NestedObj1(na1='na1 value', nb1=20.5)
+            nested_obj2 = NestedObj2(na2=22, nb2=True, nc2=nested_obj1)
+            r = ComplexRecord(a=1, b=2, nested=nested_obj2)
+            data_encode = data_schema.encode(r)
+
+            data_decode = data_schema.decode(data_encode)
+            self.assertEqual(data_decode.__class__.__name__, 'ComplexRecord')
+            self.assertEqual(data_decode, r)
+            self.assertEqual(data_decode.a, 1)
+            self.assertEqual(data_decode.b, 2)
+            self.assertEqual(data_decode.nested.na2, 22)
+            self.assertEqual(data_decode.nested.nb2, True)
+            self.assertEqual(data_decode.nested.nc2.na1, 'na1 value')
+            self.assertEqual(data_decode.nested.nc2.nb1, 20.5)
+            print('Encode and decode complex schema finish. schema_type: ', schema_type)
+
+        encode_and_decode('avro')
+        encode_and_decode('json')
+
+    def test_produce_and_consume_complex_schema_data(self):
+        class NestedObj1(Record):
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        class ComplexRecord(Record):
+            a = Integer()
+            b = Integer()
+            nested = NestedObj2()
+
+        client = pulsar.Client(self.serviceUrl)
+
+        def produce_consume_test(schema_type):
+            topic = "my-complex-schema-topic-" + schema_type
+
+            data_schema = AvroSchema(ComplexRecord)
+            if schema_type == 'json':
+                data_schema= JsonSchema(ComplexRecord)
+
+            producer = client.create_producer(
+                        topic=topic,
+                        schema=data_schema)
+
+            consumer = client.subscribe(topic, 'test', schema=data_schema)
+
+            nested_obj1 = NestedObj1(na1='na1 value', nb1=20.5)
+            nested_obj2 = NestedObj2(na2=22, nb2=True, nc2=nested_obj1)
+            r = ComplexRecord(a=1, b=2, nested=nested_obj2)
+            producer.send(r)
+
+            msg = consumer.receive()
+            value = msg.value()
+            self.assertEqual(value.__class__.__name__, 'ComplexRecord')
+            self.assertEqual(value, r)
+            self.assertEqual(value.a, 1)
+            self.assertEqual(value.b, 2)
+            self.assertEqual(value.nested.na2, 22)
+            self.assertEqual(value.nested.nb2, True)
+            self.assertEqual(value.nested.nc2.na1, 'na1 value')
+            self.assertEqual(value.nested.nc2.nb1, 20.5)
+
+            producer.close()
+            consumer.close()
+            print('Produce and consume complex schema data finish. schema_type', schema_type)
+
+        produce_consume_test('avro')
+        produce_consume_test('json')
+
         client.close()
 
 if __name__ == '__main__':

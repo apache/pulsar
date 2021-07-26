@@ -27,6 +27,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -175,7 +176,14 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
             queryAllDataSql = String.format("select * from pulsar.\"%s\".\"%s\";", namespace, topic);
         }
 
-        Awaitility.await().untilAsserted(
+        Awaitility.await()
+                // first poll immediately
+                .pollDelay(Duration.ofMillis(0))
+                // use relatively long poll interval so that polling doesn't consume too much resources
+                .pollInterval(Duration.ofSeconds(3))
+                // retry up to 15 seconds from first attempt
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(
                 () -> {
                     ContainerExecResult containerExecResult = execQuery(queryAllDataSql);
                     assertThat(containerExecResult.getExitCode()).isEqualTo(0);
