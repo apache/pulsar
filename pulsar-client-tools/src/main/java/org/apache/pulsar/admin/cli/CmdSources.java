@@ -477,25 +477,6 @@ public class CmdSources extends CmdBase {
            if (isBlank(batchSourceConfig.getDiscoveryTriggererClassName())) {
              throw new IllegalArgumentException("Discovery Triggerer not specified");
            } 
-           
-           boolean isBatchSourceTriggerer = false;
-           
-           try {
-             Class<?>[] interfaces = Class.forName(batchSourceConfig.getDiscoveryTriggererClassName()).getInterfaces();
-             int idx = 0;
-             
-             while (idx < interfaces.length && !isBatchSourceTriggerer) {
-            	 isBatchSourceTriggerer = interfaces[idx++].getName().equals("org.apache.pulsar.io.core.BatchSourceTriggerer");
-             }
-             
-             if (!isBatchSourceTriggerer) {
-            	 throw new IllegalArgumentException("Invalid Discovery Triggerer specified"); 
-             }
-             
-           } catch (ClassNotFoundException e) {
-             throw new IllegalArgumentException("Invalid Discovery Triggerer specified"); 
-           }
-           
         }
 
         protected String validateSourceType(String sourceType) throws IOException {

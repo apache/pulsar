@@ -760,15 +760,6 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
             }
             validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-        for (String clusterId : replicationClusterSet) {
-            if (!clusters.contains(clusterId)) {
-                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
-            }
-            validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-
-        for (String clusterId : replicationClusterSet) {
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
