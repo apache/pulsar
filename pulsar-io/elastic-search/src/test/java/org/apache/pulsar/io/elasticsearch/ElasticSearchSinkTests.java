@@ -22,8 +22,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -32,6 +34,8 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.data.Profile;
 import org.apache.pulsar.io.elasticsearch.data.UserProfile;
 import org.elasticsearch.ElasticsearchStatusException;
+import org.elasticsearch.client.Node;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -91,6 +95,19 @@ public class ElasticSearchSinkTests {
     @AfterMethod(alwaysRun = true)
     public final void tearDown() throws Exception {
         sink.close();
+    }
+
+    @Test
+    public final void multiNodesClientTest() throws Exception {
+        map.put("indexName", "myIndex");
+        map.put("typeName", "doc");
+        map.put("username", "racerX");
+        map.put("password", "go-speedie-go");
+        map.put("elasticSearchUrl", "http://node1:90902,http://node2:90902,http://node3:90902");
+        sink.loadConfig(map);
+        RestHighLevelClient client = sink.getClient();
+        List<Node> nodeList = client.getLowLevelClient().getNodes();
+        assertEquals(nodeList.size(), 3);
     }
     
     @Test(enabled = false, expectedExceptions = ElasticsearchStatusException.class)

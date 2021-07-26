@@ -21,6 +21,7 @@ import _pulsar
 import io
 import enum
 
+from . import Record
 from .schema import Schema
 
 try:
@@ -39,15 +40,23 @@ if HAS_AVRO:
         def _get_serialized_value(self, x):
             if isinstance(x, enum.Enum):
                 return x.name
+            elif isinstance(x, Record):
+                return self.encode_dict(x.__dict__)
             else:
                 return x
 
         def encode(self, obj):
             self._validate_object_type(obj)
             buffer = io.BytesIO()
-            m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
+            m = self.encode_dict(obj.__dict__)
             fastavro.schemaless_writer(buffer, self._schema, m)
             return buffer.getvalue()
+
+        def encode_dict(self, d: dict):
+            obj = {}
+            for k, v in d.items():
+                obj[k] = self._get_serialized_value(v)
+            return obj
 
         def decode(self, data):
             buffer = io.BytesIO(data)

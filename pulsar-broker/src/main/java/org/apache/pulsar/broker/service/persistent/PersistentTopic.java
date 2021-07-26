@@ -1063,7 +1063,7 @@ public class PersistentTopic extends AbstractTopic
                     CompletableFuture<SchemaVersion> deleteSchemaFuture =
                             deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null);
 
-                    deleteSchemaFuture.whenComplete((v, ex) -> {
+                    deleteSchemaFuture.thenAccept(__ -> deleteTopicPolicies()).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();
@@ -1150,6 +1150,9 @@ public class PersistentTopic extends AbstractTopic
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        if (this.resourceGroupPublishLimiter != null) {
+            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        }
 
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
                 ? CompletableFuture.completedFuture(null)
