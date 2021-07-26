@@ -75,7 +75,7 @@ public class PublishRateLimiterTest {
         renewTopicPublishRateLimiterOnByteMethod.setAccessible(true);
 
         // running tryAcquire in order to lazyInit the renewTask
-        assertTrue(precisPublishLimiter.tryAcquire(1, 10));
+        precisPublishLimiter.tryAcquire(1, 10);
 
         Field onMessageRenewTaskField = topicPublishRateLimiterOnMessage.getClass().getDeclaredField("renewTask");
         Field onByteRenewTaskField = topicPublishRateLimiterOnByte.getClass().getDeclaredField("renewTask");
