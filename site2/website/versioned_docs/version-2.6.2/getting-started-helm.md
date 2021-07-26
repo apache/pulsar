@@ -28,7 +28,7 @@ For deploying a Pulsar cluster for production usage, read the documentation on [
 
 Before installing a Pulsar Helm chart, you have to create a Kubernetes cluster. You can follow [the instructions](helm-prepare.md) to prepare a Kubernetes cluster.
 
-We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) in this quick start guide. To prepare a Kubernetes cluster, follow these steps:
+We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start guide. To prepare a Kubernetes cluster, follow these steps:
 
 1. Create a Kubernetes cluster on Minikube.
 

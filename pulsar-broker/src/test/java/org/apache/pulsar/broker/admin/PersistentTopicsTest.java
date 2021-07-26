@@ -203,7 +203,27 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 true);
         verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
 
-        // 8) Delete the partitioned topic
+        // 8) Create a sub of partitioned-topic
+        response = mock(AsyncResponse.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName + "-partition-1", "test", true,
+                (MessageIdImpl) MessageId.earliest, false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        //
+        response = mock(AsyncResponse.class);
+        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-1", true);
+        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList("test"));
+        //
+        response = mock(AsyncResponse.class);
+        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0", true);
+        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
+        //
+        response = mock(AsyncResponse.class);
+        persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName, true);
+        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList("test"));
+
+        // 9) Delete the partitioned topic
         response = mock(AsyncResponse.class);
         persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true, true, false);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
@@ -388,24 +408,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // Already have non partition topic special-topic-partition-10, shouldn't able to update number of partitioned topic to more than 10.
         final String nonPartitionTopicName2 = "special-topic-partition-10";
         final String partitionedTopicName = "special-topic";
-        LocalZooKeeperCacheService mockLocalZooKeeperCacheService = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperManagedLedgerCache mockZooKeeperChildrenCache = mock(ZooKeeperManagedLedgerCache.class);
-        doReturn(mockLocalZooKeeperCacheService).when(pulsar).getLocalZkCacheService();
-        doReturn(mockZooKeeperChildrenCache).when(mockLocalZooKeeperCacheService).managedLedgerListCache();
-        doReturn(ImmutableSet.of(nonPartitionTopicName2)).when(mockZooKeeperChildrenCache).get(anyString());
-        doReturn(CompletableFuture.completedFuture(ImmutableSet.of(nonPartitionTopicName2))).when(mockZooKeeperChildrenCache).getAsync(anyString());
+        pulsar.getBrokerService().getManagedLedgerFactory().open(TopicName.get(nonPartitionTopicName2).getPersistenceNamingEncoding());
         doAnswer(invocation -> {
             persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");
             persistentTopics.topicName = TopicName.get("persistent", "tenant", "cluster", "namespace", "topicname");
             return null;
         }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
+
         doNothing().when(persistentTopics).validateAdminAccessForTenant(anyString());
         AsyncResponse response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5, true);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, true, false, 10);
+        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, false, false, 10);
     }
 
     @Test(timeOut = 10_000)

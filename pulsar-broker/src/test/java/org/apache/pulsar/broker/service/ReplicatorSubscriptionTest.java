@@ -26,7 +26,6 @@ import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -43,6 +42,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -276,9 +276,10 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // Unload topic in r1
         admin1.topics().unload(topicName);
-        Thread.sleep(1000);
-        stats = admin1.topics().getStats(topicName);
-        assertFalse(stats.getSubscriptions().get(subName).isReplicated());
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats stats2 = admin1.topics().getStats(topicName);
+            assertFalse(stats2.getSubscriptions().get(subName).isReplicated());
+        });
 
         // Make sure the replicated subscription is actually disabled
         final int numMessages = 20;
