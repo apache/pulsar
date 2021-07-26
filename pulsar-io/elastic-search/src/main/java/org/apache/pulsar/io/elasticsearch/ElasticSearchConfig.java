@@ -82,7 +82,7 @@ public class ElasticSearchConfig implements Serializable {
             defaultValue = "true",
             help = "Create the index if it does not exist"
     )
-    private boolean createIndexIfNeeded = true;
+    private boolean createIndexIfNeeded = false;
 
     @FieldDoc(
         required = false,
@@ -271,7 +271,7 @@ public class ElasticSearchConfig implements Serializable {
             throw new IllegalArgumentException("elasticSearchUrl not set.");
         }
 
-        if (StringUtils.isNotEmpty(indexName)) {
+        if (StringUtils.isNotEmpty(indexName) && createIndexIfNeeded) {
             // see https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
             if (!indexName.toLowerCase(Locale.ROOT).equals(indexName)) {
                 throw new IllegalArgumentException("indexName should be lowercase only.");

@@ -87,6 +87,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
@@ -196,9 +197,9 @@ public class ElasticSearchClient {
                 TimeUnit.MILLISECONDS
         );
 
-        URL url = new URL(config.getElasticSearchUrl());
-        log.info("ElasticSearch URL {}", url);
-        RestClientBuilder builder = RestClient.builder(new HttpHost(url.getHost(), url.getPort(), url.getProtocol()))
+        log.info("ElasticSearch URL {}", config.getElasticSearchUrl());
+        HttpHost[] hosts = getHttpHosts(config);
+        RestClientBuilder builder = RestClient.builder(hosts)
                 .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
                     @Override
                     public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder builder) {
@@ -569,5 +570,23 @@ public class ElasticSearchClient {
                     new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
             return credentialsProvider;
         }
+    }
+
+
+    private static HttpHost[] getHttpHosts(ElasticSearchConfig elasticSearchConfig) {
+        String url = elasticSearchConfig.getElasticSearchUrl();
+        return Arrays.stream(url.split(",")).map(host -> {
+            try {
+                URL hostUrl = new URL(host);
+                return new HttpHost(hostUrl.getHost(), hostUrl.getPort(),
+                        hostUrl.getProtocol());
+            } catch (MalformedURLException e) {
+                throw new RuntimeException("Invalid elasticSearch url :" + host);
+            }
+        }).toArray(HttpHost[]::new);
+    }
+
+    RestHighLevelClient getClient() {
+        return client;
     }
 }

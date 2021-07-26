@@ -26,9 +26,22 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.data.UserProfile;
+import org.elasticsearch.client.Node;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -38,14 +51,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
 public class ElasticSearchSinkTests {
@@ -96,6 +102,7 @@ public class ElasticSearchSinkTests {
         map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://"+container.getHttpHostAddress());
         map.put("schemaEnable", "true");
+        map.put("createIndexIfNeeded", "true");
         sink = new ElasticSearchSink();
 
         mockRecord = mock(Record.class);
@@ -131,24 +138,39 @@ public class ElasticSearchSinkTests {
 
     @AfterMethod(alwaysRun = true)
     public final void tearDown() throws Exception {
-        if (sink != null)
+        if (sink != null) {
             sink.close();
+        }
     }
 
-    @Test(enabled = true, expectedExceptions = IllegalArgumentException.class)
+    @Test
+    public final void multiNodesClientTest() throws Exception {
+        map.put("indexName", "myindex");
+        map.put("typeName", "doc");
+        map.put("username", "racerX");
+        map.put("password", "go-speedie-go");
+        map.put("elasticSearchUrl", "http://node1:90902,https://node2:90902,http://node3:90902");
+        sink.open(map, mockSinkContext);
+        RestHighLevelClient client = sink.getElasticsearchClient().getClient();
+        List<Node> nodeList = client.getLowLevelClient().getNodes();
+        assertEquals(nodeList.size(), 3);
+    }
+    
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public final void invalidIndexNameTest() throws Exception {
         map.put("indexName", "myIndex");
+        map.put("createIndexIfNeeded", "true");
         sink.open(map, mockSinkContext);
     }
 
-    @Test(enabled = true)
+    @Test
     public final void createIndexTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
         send(1);
     }
 
-    @Test(enabled = true)
+    @Test
     public final void singleRecordTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
@@ -156,7 +178,7 @@ public class ElasticSearchSinkTests {
         verify(mockRecord, times(1)).ack();
     }
 
-    @Test(enabled = true)
+    @Test
     public final void send100Test() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
@@ -164,7 +186,7 @@ public class ElasticSearchSinkTests {
         verify(mockRecord, times(100)).ack();
     }
 
-    @Test(enabled = true)
+    @Test
     public final void sendKeyIgnoreSingleField() throws Exception {
         final String index = "testkeyignore";
         map.put("indexName", index);
@@ -177,7 +199,7 @@ public class ElasticSearchSinkTests {
         assertEquals(sink.getElasticsearchClient().search(index).getHits().getHits()[0].getId(), "bob");
     }
 
-    @Test(enabled = true)
+    @Test
     public final void sendKeyIgnoreMultipleFields() throws Exception {
         final String index = "testkeyignore2";
         map.put("indexName", index);
@@ -223,7 +245,7 @@ public class ElasticSearchSinkTests {
         }
     }
 
-    @Test(enabled = true)
+    @Test
     public void testStripNullNodes() throws Exception {
         map.put("stripNulls", true);
         sink.open(map, mockSinkContext);
@@ -236,7 +258,7 @@ public class ElasticSearchSinkTests {
         assertEquals(json, "{\"userName\":\"boby\"}");
     }
 
-    @Test(enabled = true)
+    @Test
     public void testKeepNullNodes() throws Exception {
         map.put("stripNulls", false);
         sink.open(map, mockSinkContext);
@@ -249,7 +271,7 @@ public class ElasticSearchSinkTests {
         assertEquals(json, "{\"name\":null,\"userName\":\"boby\",\"email\":null}");
     }
 
-    @Test(enabled = true, expectedExceptions = PulsarClientException.InvalidMessageException.class)
+    @Test(expectedExceptions = PulsarClientException.InvalidMessageException.class)
     public void testNullValueFailure() throws Exception {
         String index = "testnullvaluefail";
         map.put("indexName", index);
@@ -260,12 +282,12 @@ public class ElasticSearchSinkTests {
         sink.write(mockRecordNullValue);
     }
 
-    @Test(enabled = true)
+    @Test
     public void testNullValueIgnore() throws Exception {
         testNullValue(ElasticSearchConfig.NullValueAction.IGNORE);
     }
 
-    @Test(enabled = true)
+    @Test
     public void testNullValueDelete() throws Exception {
         testNullValue(ElasticSearchConfig.NullValueAction.DELETE);
     }
