@@ -282,6 +282,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getStoredMessagesLogicalSize() {
+        return managedLedger.getTotalSize();
+    }
+
+    @Override
     public long getNumberOfMessagesInBacklog() {
         long count = 0;
 

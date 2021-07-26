@@ -41,6 +41,7 @@
     5. log4j-slf4j-impl
     6. log4j-api
     7. log4j-core
+    8. AVRO
   -->
 
   <artifactId>pulsar-functions-runtime-all</artifactId>
@@ -63,6 +64,19 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-api</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <!-- avro and its dependencies, with pinned version -->
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.databind.version}</version>
     </dependency>
 
     <!-- logging -->

@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -1030,34 +1031,42 @@ public class PersistentTopicsBase extends AdminResource {
                     false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
                     try {
-                        // get the subscriptions only from the 1st partition
-                        // since all the other partitions will have the same
-                        // subscriptions
-                        pulsar().getAdminClient().topics().getSubscriptionsAsync(topicName.getPartition(0).toString())
-                                .whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
-                                                topicName, ex.getMessage());
-
-                                        if (ex instanceof PulsarAdminException) {
-                                            PulsarAdminException pae = (PulsarAdminException) ex;
-                                            if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                                        "Internal topics have not been generated yet"));
-                                                return;
-                                            } else {
-                                                asyncResponse.resume(new RestException(pae));
-                                                return;
-                                            }
-                                        } else {
-                                            asyncResponse.resume(new RestException(ex));
-                                            return;
-                                        }
+                        final Set<String> subscriptions = Sets.newConcurrentHashSet();
+                        final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
+                        if (topicName.getDomain() == TopicDomain.persistent) {
+                            final Map<Integer, CompletableFuture<Boolean>> existsFutures = Maps.newConcurrentMap();
+                            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                String path = String.format("/managed-ledgers/%s/%s/%s", namespaceName.toString(),
+                                        domain(), topicName.getPartition(i).getEncodedLocalName());
+                                CompletableFuture<Boolean> exists = getLocalPolicies().existsAsync(path);
+                                existsFutures.put(i, exists);
+                            }
+                            FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values())).thenApply(__ ->
+                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join().booleanValue())
+                                            .map(item -> topicName.getPartition(item.getKey()).toString())
+                                            .collect(Collectors.toList())
+                            ).thenAccept(topics -> {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("activeTopics : {}", topics);
+                                }
+                                topics.forEach(topic -> {
+                                    try {
+                                        CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient()
+                                                .topics().getSubscriptionsAsync(topic);
+                                        subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
+                                    } catch (PulsarServerException e) {
+                                        throw new RestException(e);
                                     }
-                                    final List<String> subscriptions = Lists.newArrayList();
-                                    subscriptions.addAll(r);
-                                    asyncResponse.resume(subscriptions);
                                 });
+                            }).thenAccept(__ -> resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures));
+                        } else {
+                            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient().topics()
+                                        .getSubscriptionsAsync(topicName.getPartition(i).toString());
+                                subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
+                            }
+                            resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures);
+                        }
                     } catch (Exception e) {
                         log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
                         asyncResponse.resume(e);
@@ -1071,6 +1080,32 @@ public class PersistentTopicsBase extends AdminResource {
                 return null;
             });
         }
+    }
+
+    private void resumeAsyncResponse(AsyncResponse asyncResponse, Set<String> subscriptions,
+                                     List<CompletableFuture<Object>> subscriptionFutures) {
+        FutureUtil.waitForAll(subscriptionFutures).whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
+                        topicName, ex.getMessage());
+                if (ex instanceof PulsarAdminException) {
+                    PulsarAdminException pae = (PulsarAdminException) ex;
+                    if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Internal topics have not been generated yet"));
+                        return;
+                    } else {
+                        asyncResponse.resume(new RestException(pae));
+                        return;
+                    }
+                } else {
+                    asyncResponse.resume(new RestException(ex));
+                    return;
+                }
+            } else {
+                asyncResponse.resume(new ArrayList<>(subscriptions));
+            }
+        });
     }
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
@@ -2495,6 +2530,7 @@ public class PersistentTopicsBase extends AdminResource {
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
+        long totalSize = metadataAndPayload.readableBytes();
         BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
         MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
 
@@ -2523,7 +2559,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         if (metadata.hasNumMessagesInBatch()) {
             responseBuilder.header("X-Pulsar-num-batch-message", metadata.getNumMessagesInBatch());
-            responseBuilder.header("X-Pulsar-batch-size", metadataAndPayload.readableBytes()
+            responseBuilder.header("X-Pulsar-batch-size", totalSize
                     - metadata.getSerializedSize());
         }
         if (metadata.hasNullValue()) {
