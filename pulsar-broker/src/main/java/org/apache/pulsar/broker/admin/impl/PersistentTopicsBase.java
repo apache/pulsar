@@ -2598,11 +2598,12 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-encryption-algo", metadata.getEncryptionAlgo());
         }
         for (EncryptionKeys encryptionKeys : metadata.getEncryptionKeysList()) {
-            responseBuilder
-                    .header("X-Pulsar-Base64-encryption-keys", Base64.getEncoder().encodeToString(encryptionKeys.toByteArray()));
+            responseBuilder.header("X-Pulsar-Base64-encryption-keys",
+                    Base64.getEncoder().encodeToString(encryptionKeys.toByteArray()));
         }
         if (metadata.hasEncryptionParam()) {
-            responseBuilder.header("X-Pulsar-Base64-encryption-param", Base64.getEncoder().encodeToString(metadata.getEncryptionParam()));
+            responseBuilder.header("X-Pulsar-Base64-encryption-param",
+                    Base64.getEncoder().encodeToString(metadata.getEncryptionParam()));
         }
         if (metadata.hasSchemaVersion()) {
             responseBuilder.header("X-Pulsar-Base64-schema-version",
