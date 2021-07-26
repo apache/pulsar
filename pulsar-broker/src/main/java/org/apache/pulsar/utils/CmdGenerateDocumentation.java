@@ -23,6 +23,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BaseGenerateDocumentation;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 
 @Data
@@ -38,6 +39,9 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
         }
         if (WebSocketProxyConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "WebSocket", sb);
+        }
+        if (ClientConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Client", sb);
         }
         return "Class [" + className + "] not found";
     }
