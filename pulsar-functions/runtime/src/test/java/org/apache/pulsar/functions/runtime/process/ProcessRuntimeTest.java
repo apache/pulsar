@@ -300,7 +300,7 @@ public class ProcessRuntimeTest {
         int metricsPortArg;
         int totalArgCount = 41;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
-            totalArgCount += 2;
+            totalArgCount += 3;
         }
         if (null != depsDir) {
             assertEquals(args.size(), totalArgCount);
@@ -315,12 +315,12 @@ public class ProcessRuntimeTest {
             metricsPortArg = 25;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
-            portArg += 2;
-            metricsPortArg += 2;
+            portArg += 3;
+            metricsPortArg += 3;
         }
 
         String pulsarAdminArg = webServiceUrl != null && config.isExposePulsarAdminClientEnabled() ?
-                " --web_serviceurl " + webServiceUrl : "";
+                " --web_serviceurl " + webServiceUrl + " --expose_pulsaradmin" : "";
 
         String expectedArgs = "java -cp " + classpath
                 + extraDepsEnv
