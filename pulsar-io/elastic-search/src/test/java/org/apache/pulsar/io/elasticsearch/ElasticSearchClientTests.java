@@ -218,15 +218,9 @@ public class ElasticSearchClientTests {
         for(int i = 1; i <= 5; i++) {
             client.bulkIndex(mockRecord, Pair.of(Integer.toString(i), "{\"a\":"+i+"}"));
         }
-        Awaitility.await().untilAsserted( () -> {
-                    assertEquals(mockRecord.acked, 4);
-                    assertEquals(mockRecord.failed, 0);
-                    assertEquals(client.totalHits(index), 4);
-        });
-
         // wait bulk flush interval
-
         Awaitility.await().untilAsserted( () -> {
+            assertEquals(mockRecord.acked, 5);
             assertEquals(mockRecord.failed, 0);
             assertEquals(client.totalHits(index), 5);
         });

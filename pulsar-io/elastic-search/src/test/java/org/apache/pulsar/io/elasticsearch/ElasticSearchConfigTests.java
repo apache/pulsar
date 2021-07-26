@@ -95,7 +95,7 @@ public class ElasticSearchConfigTests {
         assertEquals(config.getMalformedDocAction(), ElasticSearchConfig.MalformedDocAction.FAIL);
         assertEquals(config.getNullValueAction(), ElasticSearchConfig.NullValueAction.IGNORE);
 
-        assertEquals(config.getMaxRetries(), -1);
+        assertEquals(config.getMaxRetries(), 1);
         assertEquals(config.getMaxRetryTimeInSec(), 86400L);
         assertEquals(config.getRetryBackoffInMs(), 100L);
 
