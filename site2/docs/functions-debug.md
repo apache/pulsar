@@ -181,9 +181,9 @@ $ bin/pulsar-admin functions create \
 ```
 
 The message published to log topic contains several properties for better reasoning: 
-- `loglevel` -- level of the log message
-- `fqn` -- fully qualified function name pushes this log message
-- `instance` -- the id of the function instance pushes this log message
+- `loglevel` -- the level of the log message.
+- `fqn` -- fully qualified function name pushes this log message.
+- `instance` -- the ID of the function instance pushes this log message.
 
 ## Use Functions CLI
 
