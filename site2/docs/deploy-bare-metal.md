@@ -75,7 +75,7 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 
 ## Install the Pulsar binary package
 
-> You need to install the Pulsar binary package on each machine in the cluster, including machines running [ZooKeeper](#deploy-a-zookeeper-cluster) and [BookKeeper](#deploy-a-bookkeeper-cluster).
+> You need to install the Pulsar binary package on each machine in the cluster, including machines running ZooKeeper and BookKeeper.
 
 To get started deploying a Pulsar cluster on bare metal, you need to download a binary tarball release in one of the following ways:
 
