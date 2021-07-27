@@ -71,6 +71,7 @@ public class TieredStorageConfiguration {
     public static final long DEFAULT_MIN_SEGMENT_TIME_IN_SECOND = 0;
     public static final String MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES = "maxOffloadSegmentSizeInBytes";
     public static final long DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES = 1024 * 1024 * 1024;
+    public static final long DEFAULT_REFRESH_STATS_INTERVAL = 60L;
 
     protected static final int MB = 1024 * 1024;
 
@@ -79,6 +80,7 @@ public class TieredStorageConfiguration {
     public static final String S3_SECRET_FIELD = "s3ManagedLedgerOffloadCredentialSecret";
     public static final String S3_ROLE_FIELD = "s3ManagedLedgerOffloadRole";
     public static final String S3_ROLE_SESSION_NAME_FIELD = "s3ManagedLedgerOffloadRoleSessionName";
+    public static final String REFRESH_STATS_INTERVAL = "refreshStatsInterval";
 
     public static TieredStorageConfiguration create(Properties props) throws IOException {
         Map<String, String> map = new HashMap<String, String>();
@@ -208,6 +210,14 @@ public class TieredStorageConfiguration {
             return Long.parseLong(configProperties.get(MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES));
         } else {
             return DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES;
+        }
+    }
+
+    public long getRefreshStatsInterval() {
+        if (configProperties.containsKey(REFRESH_STATS_INTERVAL)) {
+            return Long.parseLong(configProperties.get(REFRESH_STATS_INTERVAL));
+        } else {
+            return DEFAULT_REFRESH_STATS_INTERVAL;
         }
     }
 

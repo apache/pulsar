@@ -38,6 +38,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
@@ -56,6 +57,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     private final List<BackedInputStream> inputStreams;
     private final List<DataInputStream> dataStreams;
     private final ExecutorService executor;
+    private final LedgerOffloaderMXBeanImpl mbean;
+    private final String managedLedgerName;
 
     static class GroupedReader {
         @Override
@@ -87,8 +90,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     }
 
     private BlobStoreBackedReadHandleImplV2(long ledgerId, List<OffloadIndexBlockV2> indices,
-                                            List<BackedInputStream> inputStreams,
-                                            ExecutorService executor) {
+                                            List<BackedInputStream> inputStreams, ExecutorService executor,
+                                            LedgerOffloaderMXBeanImpl mbean, String managedLedgerName) {
         this.ledgerId = ledgerId;
         this.indices = indices;
         this.inputStreams = inputStreams;
@@ -97,6 +100,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             dataStreams.add(new DataInputStream(inputStream));
         }
         this.executor = executor;
+        this.mbean = mbean;
+        this.managedLedgerName = managedLedgerName;
     }
 
     @Override
@@ -173,6 +178,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                             }
                             entriesToRead--;
                             nextExpectedId++;
+                            mbean.recordReadOffloadRate(managedLedgerName, length);
                         } else if (entryId > nextExpectedId) {
                             groupedReader.inputStream
                                     .seek(groupedReader.index
@@ -197,6 +203,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                         }
                     }
                 } catch (Throwable t) {
+                    mbean.recordReadOffloadError(managedLedgerName);
                     promise.completeExceptionally(t);
                     entries.forEach(LedgerEntry::close);
                 }
@@ -274,7 +281,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     public static ReadHandle open(ScheduledExecutorService executor,
                                   BlobStore blobStore, String bucket, List<String> keys, List<String> indexKeys,
                                   VersionCheck versionCheck,
-                                  long ledgerId, int readBufferSize)
+                                  long ledgerId, int readBufferSize, LedgerOffloaderMXBeanImpl mbean, String managedLedgerName)
             throws IOException {
         List<BackedInputStream> inputStreams = new LinkedList<>();
         List<OffloadIndexBlockV2> indice = new LinkedList<>();
@@ -298,6 +305,6 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             inputStreams.add(inputStream);
             indice.add(index);
         }
-        return new BlobStoreBackedReadHandleImplV2(ledgerId, indice, inputStreams, executor);
+        return new BlobStoreBackedReadHandleImplV2(ledgerId, indice, inputStreams, executor, mbean, managedLedgerName);
     }
 }

@@ -21,11 +21,14 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import io.netty.util.Recycler;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloaderMXBean;
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemLedgerOffloaderFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,7 +49,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
@@ -66,6 +71,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
     private OffloadPoliciesImpl offloadPolicies;
+    private LedgerOffloaderMXBeanImpl mbean;
 
     public static boolean driverSupported(String driver) {
         return DRIVER_NAMES.equals(driver);
@@ -108,6 +114,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(conf.getManagedLedgerOffloadMaxThreads())
                 .name("offload-assignment").build();
+        this.mbean = new LedgerOffloaderMXBeanImpl(driverName, conf.getRefreshStatsInterval());
     }
 
     @VisibleForTesting
@@ -125,6 +132,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(conf.getManagedLedgerOffloadMaxThreads())
                 .name("offload-assignment").build();
+        this.mbean = new LedgerOffloaderMXBeanImpl(driverName, conf.getRefreshStatsInterval());
     }
 
     @Override
@@ -141,7 +149,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(readHandle.getId()).submit(new LedgerReader(readHandle, uuid, extraMetadata, promise, storageBasePath, configuration, assignmentScheduler, offloadPolicies.getManagedLedgerOffloadPrefetchRounds()));
+        scheduler.chooseThread(readHandle.getId()).submit(new LedgerReader(readHandle, uuid, extraMetadata, promise,
+                storageBasePath, configuration, assignmentScheduler,
+                offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), mbean));
         return promise;
     }
 
@@ -156,9 +166,12 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         volatile Exception fileSystemWriteException = null;
         private OrderedScheduler assignmentScheduler;
         private int managedLedgerOffloadPrefetchRounds = 1;
+        private LedgerOffloaderMXBeanImpl mbean;
+        private long start;
 
         private LedgerReader(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata, CompletableFuture<Void> promise,
-                             String storageBasePath, Configuration configuration, OrderedScheduler assignmentScheduler, int managedLedgerOffloadPrefetchRounds) {
+                             String storageBasePath, Configuration configuration, OrderedScheduler assignmentScheduler,
+                             int managedLedgerOffloadPrefetchRounds, LedgerOffloaderMXBeanImpl mbean) {
             this.readHandle = readHandle;
             this.uuid = uuid;
             this.extraMetadata = extraMetadata;
@@ -167,6 +180,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             this.configuration = configuration;
             this.assignmentScheduler = assignmentScheduler;
             this.managedLedgerOffloadPrefetchRounds = managedLedgerOffloadPrefetchRounds;
+            this.mbean = mbean;
+            this.start = System.nanoTime();
         }
 
         @Override
@@ -211,6 +226,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     throw fileSystemWriteException;
                 }
                 IOUtils.closeStream(dataWriter);
+                mbean.recordOffloadTime(extraMetadata.get(MANAGED_LEDGER_NAME), (System.nanoTime() - start), TimeUnit.NANOSECONDS);
                 promise.complete(null);
             } catch (Exception e) {
                 log.error("Exception when get CompletableFuture<LedgerEntries> : ManagerLedgerName: {}, " +
@@ -218,6 +234,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
+                mbean.recordOffloadError(extraMetadata.get(MANAGED_LEDGER_NAME));
                 promise.completeExceptionally(e);
             }
         }
@@ -259,8 +276,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         }
 
 
-        public static FileSystemWriter create(LedgerEntries ledgerEntriesOnce, MapFile.Writer dataWriter, Semaphore semaphore,
-                                              CountDownLatch countDownLatch, AtomicLong haveOffloadEntryNumber, LedgerReader ledgerReader) {
+        public static FileSystemWriter create(LedgerEntries ledgerEntriesOnce, MapFile.Writer dataWriter,
+                                              Semaphore semaphore, CountDownLatch countDownLatch,
+                                              AtomicLong haveOffloadEntryNumber, LedgerReader ledgerReader) {
             FileSystemWriter writer = RECYCLER.get();
             writer.ledgerReader = ledgerReader;
             writer.dataWriter = dataWriter;
@@ -273,7 +291,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
         @Override
         public void run() {
+            String managedLedgerName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
             if (ledgerReader.fileSystemWriteException == null) {
+                long start = System.nanoTime();
                 Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
                 while (iterator.hasNext()) {
                     LedgerEntry entry = iterator.next();
@@ -284,10 +304,14 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                         dataWriter.append(key, value);
                     } catch (IOException e) {
                         ledgerReader.fileSystemWriteException = e;
+                        ledgerReader.mbean.recordWriteToStorageError(managedLedgerName);
                         break;
                     }
                     haveOffloadEntryNumber.incrementAndGet();
+                    ledgerReader.mbean.recordWriteToStorageRate(managedLedgerName, entry.getEntryBytes().length);
                 }
+                long writeEntryTimeInMs = System.nanoTime() - start;
+                ledgerReader.mbean.recordWriteToStorageLatency(managedLedgerName, writeEntryTimeInMs, TimeUnit.NANOSECONDS);
             }
             countDownLatch.countDown();
             ledgerEntriesOnce.close();
@@ -298,7 +322,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid, Map<String, String> offloadDriverMetadata) {
-
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String storagePath = getStoragePath(storageBasePath, offloadDriverMetadata.get(MANAGED_LEDGER_NAME));
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
@@ -306,7 +329,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             try {
                 MapFile.Reader reader = new MapFile.Reader(new Path(dataFilePath),
                         configuration);
-                promise.complete(FileStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId), reader, ledgerId));
+                promise.complete(FileStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId), reader, ledgerId,
+                        mbean, offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
             } catch (Throwable t) {
                 log.error("Failed to open FileStoreBackedReadHandleImpl: ManagerLedgerName: {}, " +
                         "LegerId: {}, UUID: {}", offloadDriverMetadata.get(MANAGED_LEDGER_NAME), ledgerId, uuid, t);
@@ -342,6 +366,11 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public OffloadPoliciesImpl getOffloadPolicies() {
         return offloadPolicies;
+    }
+
+    @Override
+    public LedgerOffloaderMXBean getStats() {
+        return mbean;
     }
 
     @Override

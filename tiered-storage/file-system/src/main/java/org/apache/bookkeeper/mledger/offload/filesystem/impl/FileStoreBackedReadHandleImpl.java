@@ -29,6 +29,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 
+import org.apache.bookkeeper.mledger.impl.LedgerOffloaderMXBeanImpl;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
@@ -36,11 +37,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
 
@@ -50,11 +53,16 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private final MapFile.Reader reader;
     private final long ledgerId;
     private final LedgerMetadata ledgerMetadata;
+    private final LedgerOffloaderMXBeanImpl mbean;
+    private final String managedLedgerName;
 
-    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
+    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                          LedgerOffloaderMXBeanImpl mbean, String managedLedgerName) throws IOException {
         this.ledgerId = ledgerId;
         this.executor = executor;
         this.reader = reader;
+        this.mbean = mbean;
+        this.managedLedgerName = managedLedgerName;
         LongWritable key = new LongWritable();
         BytesWritable value = new BytesWritable();
         try {
@@ -76,7 +84,6 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public LedgerMetadata getLedgerMetadata() {
         return ledgerMetadata;
-
     }
 
     @Override
@@ -106,7 +113,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 return;
             }
             long entriesToRead = (lastEntry - firstEntry) + 1;
-            List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
+            List<LedgerEntry> entries = new ArrayList<>();
             long nextExpectedId = firstEntry;
             LongWritable key = new LongWritable();
             BytesWritable value = new BytesWritable();
@@ -123,14 +130,16 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                         buf.writeBytes(value.copyBytes());
                         entriesToRead--;
                         nextExpectedId++;
+                        mbean.recordReadOffloadRate(managedLedgerName, length);
                     } else if (entryId > lastEntry) {
                         log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                                 nextExpectedId, entryId, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
-            }
+                }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
+                mbean.recordReadOffloadError(managedLedgerName);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
@@ -177,7 +186,8 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         return promise;
     }
 
-    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
-            return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId);
+    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                  LedgerOffloaderMXBeanImpl mbean, String managedLedgerName) throws IOException {
+        return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId, mbean, managedLedgerName);
     }
 }
