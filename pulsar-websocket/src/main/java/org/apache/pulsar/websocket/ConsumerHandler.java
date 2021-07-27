@@ -283,7 +283,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private void handleNack(ConsumerCommand command) throws IOException {
         MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
             topic.toString());
-        System.out.println(msgId);
         consumer.negativeAcknowledge(msgId);
         checkResumeReceive();
     }
