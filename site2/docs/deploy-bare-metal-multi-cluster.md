@@ -18,16 +18,16 @@ sidebar_label: Bare metal multi-cluster
 > package and install `apache-pulsar-offloaders` under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
 > this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
-A Pulsar *instance* consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
+A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
-* Deploying two separate [ZooKeeper](#deploy-zookeeper) quorums: a [local](#deploy-local-zookeeper) quorum for each cluster in the instance and a [configuration store](#configuration-store) quorum for instance-wide tasks
-* Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
-* Deploying a [BookKeeper cluster](#deploy-bookkeeper) of bookies in each Pulsar cluster
-* Deploying [brokers](#deploy-brokers) in each Pulsar cluster
+* Deploying two separate ZooKeeper quorums: a local quorum for each cluster in the instance and a configuration store quorum for instance-wide tasks
+* Initializing cluster metadata for each cluster
+* Deploying a BookKeeper cluster of bookies in each Pulsar cluster
+* Deploying brokers in each Pulsar cluster
 
 
 > #### Run Pulsar locally or on Kubernetes?
-> This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes.md) guide, which includes sections on running Pulsar on Kubernetes on [Google Kubernetes Engine](deploy-kubernetes#pulsar-on-google-kubernetes-engine) and on [Amazon Web Services](deploy-kubernetes#pulsar-on-amazon-web-services).
+> This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes.md) guide, which includes sections on running Pulsar on Kubernetes on Google Kubernetes Engine and on Amazon Web Services.
 
 ## System requirement
 
@@ -83,8 +83,8 @@ Directory | Contains
 
 Each Pulsar instance relies on two separate ZooKeeper quorums.
 
-* [Local ZooKeeper](#deploy-local-zookeeper) operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
-* [Configuration Store](#deploy-the-configuration-store) operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
+* Local ZooKeeper operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
+* Configuration Store operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
 
 The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
 
@@ -126,13 +126,13 @@ $ bin/pulsar-daemon start zookeeper
 
 The ZooKeeper cluster that is configured and started up in the section above is a local ZooKeeper cluster that you can use to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
 
-If you deploy a [single-cluster](#single-cluster-pulsar-instance) instance, you do not need a separate cluster for the configuration store. If, however, you deploy a [multi-cluster](#multi-cluster-pulsar-instance) instance, you should stand up a separate ZooKeeper cluster for configuration tasks.
+If you deploy a single-cluster instance, you do not need a separate cluster for the configuration store. If, however, you deploy a multi-cluster instance, you should stand up a separate ZooKeeper cluster for configuration tasks.
 
 #### Single-cluster Pulsar instance
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
