@@ -78,6 +78,15 @@ public class TopicStatsImpl implements TopicStats {
     /** Space used to store the offloaded messages for the topic/. */
     public long offloadedStorageSize;
 
+    /** record last successful offloaded ledgerId. If no offload ledger, the value should be 0 */
+    public long lastOffloadLedgerId;
+
+    /** record last successful offloaded timestamp. If no successful offload, the value should be 0 */
+    public long lastOffloadSuccessTimeStamp;
+
+    /** record last failed offloaded timestamp. If no failed offload, the value should be 0 */
+    public long lastOffloadFailureTimeStamp;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     public List<PublisherStatsImpl> publishers;
@@ -143,6 +152,9 @@ public class TopicStatsImpl implements TopicStats {
         this.nonContiguousDeletedMessagesRanges = 0;
         this.nonContiguousDeletedMessagesRangesSerializedSize = 0;
         this.offloadedStorageSize = 0;
+        this.lastOffloadLedgerId = 0;
+        this.lastOffloadFailureTimeStamp = 0;
+        this.lastOffloadSuccessTimeStamp = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
