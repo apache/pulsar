@@ -62,15 +62,25 @@ public class RateLimiter implements AutoCloseable{
     // permitUpdate helps to update permit-rate at runtime
     private Supplier<Long> permitUpdater;
     private RateLimitFunction rateLimitFunction;
-    private boolean isDispatchRateLimiter;
+    private boolean isDispatchOrPrecisePublishRateLimiter;
 
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
         this(null, permits, rateTime, timeUnit, null);
     }
 
+    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit, boolean isDispatchOrPrecisePublishRateLimiter) {
+        this(null, permits, rateTime, timeUnit, null, isDispatchOrPrecisePublishRateLimiter);
+    }
+
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit,
                        RateLimitFunction autoReadResetFunction) {
-        this(null, permits, rateTime, timeUnit, null);
+        this(null, permits, rateTime, timeUnit, null, false);
+        this.rateLimitFunction = autoReadResetFunction;
+    }
+
+    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit,
+                       RateLimitFunction autoReadResetFunction, boolean isDispatchOrPrecisePublishRateLimiter) {
+        this(null, permits, rateTime, timeUnit, null, isDispatchOrPrecisePublishRateLimiter);
         this.rateLimitFunction = autoReadResetFunction;
     }
 
@@ -80,7 +90,7 @@ public class RateLimiter implements AutoCloseable{
     }
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchRateLimiter) {
+            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchOrPrecisePublishRateLimiter) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
@@ -88,7 +98,7 @@ public class RateLimiter implements AutoCloseable{
         this.timeUnit = timeUnit;
         this.permits = permits;
         this.permitUpdater = permitUpdater;
-        this.isDispatchRateLimiter = isDispatchRateLimiter;
+        this.isDispatchOrPrecisePublishRateLimiter = isDispatchOrPrecisePublishRateLimiter;
 
         if (service != null) {
             this.executorService = service;
@@ -182,9 +192,13 @@ public class RateLimiter implements AutoCloseable{
         }
 
         boolean canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
-        if (isDispatchRateLimiter) {
+        if (isDispatchOrPrecisePublishRateLimiter) {
             // for dispatch rate limiter just add acquirePermit
             acquiredPermits += acquirePermit;
+
+            // we want to back-pressure from the current state of the rateLimiter therefore we should check if there
+            // are any available premits again
+            canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
         } else {
             // acquired-permits can't be larger than the rate
             if (acquirePermit > this.permits) {
@@ -259,14 +273,15 @@ public class RateLimiter implements AutoCloseable{
     }
 
     synchronized void renew() {
-        acquiredPermits = isDispatchRateLimiter ? Math.max(0, acquiredPermits - permits) : 0;
+        acquiredPermits = isDispatchOrPrecisePublishRateLimiter ? Math.max(0, acquiredPermits - permits) : 0;
         if (permitUpdater != null) {
             long newPermitRate = permitUpdater.get();
             if (newPermitRate > 0) {
                 setRate(newPermitRate);
             }
         }
-        if (rateLimitFunction != null) {
+        // release the back-pressure by applying the rateLimitFunction only when there are available permits
+        if (rateLimitFunction != null && this.getAvailablePermits() > 0) {
             rateLimitFunction.apply();
         }
         notifyAll();
