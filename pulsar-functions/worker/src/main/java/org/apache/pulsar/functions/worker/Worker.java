@@ -44,6 +44,7 @@ import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 public class Worker {
 
     private final WorkerConfig workerConfig;
+    private final ServiceConfiguration serviceConfiguration;
     private final WorkerService workerService;
     private WorkerServer server;
 
@@ -54,8 +55,15 @@ public class Worker {
     private ConfigurationMetadataCacheService configurationCacheService;
     private final ErrorNotifier errorNotifier;
 
-    public Worker(WorkerConfig workerConfig) {
+    public Worker(WorkerConfig workerConfig, ServiceConfiguration serviceConfiguration) {
+        if (!serviceConfiguration.getClusterName().equals(workerConfig.getPulsarFunctionsCluster())) {
+            throw new IllegalArgumentException(String.format("ServiceConfiguration clusterName [%s] does not match "
+                    + "WorkerConfig pulsarFunctionsCluster [%s]",
+                    serviceConfiguration.getClusterName(),
+                    workerConfig.getPulsarFunctionsCluster()));
+        }
         this.workerConfig = workerConfig;
+        this.serviceConfiguration = serviceConfiguration;
         this.workerService = WorkerServiceLoader.load(workerConfig);
         this.errorNotifier = ErrorNotifier.getDefaultImpl();
     }
@@ -91,13 +99,13 @@ public class Worker {
             pulsarResources = new PulsarResources(null, configMetadataStore);
             this.configurationCacheService = new ConfigurationMetadataCacheService(this.pulsarResources,
                     this.workerConfig.getPulsarFunctionsCluster());
-                return new AuthorizationService(getServiceConfiguration(), this.configurationCacheService);
+            return new AuthorizationService(this.serviceConfiguration, this.configurationCacheService);
             }
         return null;
     }
 
     private AuthenticationService getAuthenticationService() throws PulsarServerException {
-        return new AuthenticationService(getServiceConfiguration());
+        return new AuthenticationService(this.serviceConfiguration);
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
@@ -138,11 +146,5 @@ public class Worker {
 
     public Optional<Integer> getListenPortHTTPS() {
         return this.server.getListenPortHTTPS();
-    }
-
-    private ServiceConfiguration getServiceConfiguration() {
-        ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(workerConfig);
-        serviceConfiguration.setClusterName(workerConfig.getPulsarFunctionsCluster());
-        return serviceConfiguration;
     }
 }

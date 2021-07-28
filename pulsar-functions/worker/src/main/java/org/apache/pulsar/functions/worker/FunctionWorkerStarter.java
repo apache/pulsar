@@ -22,6 +22,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 
 /**
@@ -65,13 +67,17 @@ public class FunctionWorkerStarter {
         }
 
         WorkerConfig workerConfig;
+        ServiceConfiguration serviceConfiguration;
         if (isBlank(workerArguments.configFile)) {
             workerConfig = new WorkerConfig();
+            serviceConfiguration = new ServiceConfiguration();
         } else {
             workerConfig = WorkerConfig.load(workerArguments.configFile);
+            serviceConfiguration = PulsarConfigurationLoader.create(workerArguments.configFile, ServiceConfiguration.class);
+            serviceConfiguration.setClusterName(workerConfig.getPulsarFunctionsCluster());
         }
 
-        final Worker worker = new Worker(workerConfig);
+        final Worker worker = new Worker(workerConfig, serviceConfiguration);
         try {
             worker.start();
         } catch (Throwable th) {
