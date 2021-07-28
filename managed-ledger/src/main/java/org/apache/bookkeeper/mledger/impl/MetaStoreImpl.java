@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletionException;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.CompositeByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -34,6 +37,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundExce
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.util.SafeRunnable;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.ManagedLedgerInfoMetadata;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
@@ -46,6 +53,15 @@ public class MetaStoreImpl implements MetaStore {
 
     private final MetadataStore store;
     private final OrderedExecutor executor;
+
+    public static final short magicManagedLedgerInfoMetadata = 0x0b9c;
+    private final FastThreadLocal<ManagedLedgerInfoMetadata> ML_INFO_METADATA =
+            new FastThreadLocal<ManagedLedgerInfoMetadata>() {
+                @Override
+                protected ManagedLedgerInfoMetadata initialValue() throws Exception {
+                    return new ManagedLedgerInfoMetadata();
+                }
+            };
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
         this.store = store;
@@ -62,7 +78,7 @@ public class MetaStoreImpl implements MetaStore {
                     if (optResult.isPresent()) {
                         ManagedLedgerInfo info;
                         try {
-                            info = ManagedLedgerInfo.parseFrom(optResult.get().getValue());
+                            info = parseManagedLedgerInfo(optResult.get().getValue());
                             info = updateMLInfoTimestamp(info);
                             callback.operationComplete(info, optResult.get().getStat());
                         } catch (InvalidProtocolBufferException e) {
@@ -101,9 +117,8 @@ public class MetaStoreImpl implements MetaStore {
             log.debug("[{}] Updating metadata version={} with content={}", ledgerName, stat, mlInfo);
         }
 
-        byte[] serializedMlInfo = mlInfo.toByteArray(); // Binary format
         String path = PREFIX + ledgerName;
-        store.put(path, serializedMlInfo, Optional.of(stat.getVersion()))
+        store.put(path, compressLedgerInfo(mlInfo, CompressionType.ZSTD), Optional.of(stat.getVersion()))
                 .thenAcceptAsync(newVersion -> callback.operationComplete(null, newVersion), executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
@@ -264,4 +279,59 @@ public class MetaStoreImpl implements MetaStore {
             return new MetaStoreException(t);
         }
     }
+
+    /**
+     * [MAGIC_NUMBER](2) +
+     * [METADATA_SIZE](4) +
+     * [METADATA](METADATA_SIZE) +
+     * [MANAGED_LEDGER_INFO_PAYLOAD](MANAGED_LEDGER_INFO_PAYLOAD_SIZE)
+      */
+    public byte[] compressLedgerInfo(ManagedLedgerInfo managedLedgerInfo, CompressionType compressionType) {
+        byte[] originalBytes = managedLedgerInfo.toByteArray();
+        ManagedLedgerInfoMetadata mlInfoMetadata = ML_INFO_METADATA.get();
+        mlInfoMetadata.setCompressionType(compressionType);
+        mlInfoMetadata.setUnpressedSize(originalBytes.length);
+        ByteBuf metadataByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(
+                mlInfoMetadata.getSerializedSize() + 6, mlInfoMetadata.getSerializedSize() + 6);
+        metadataByteBuf.writeShort(magicManagedLedgerInfoMetadata);
+        metadataByteBuf.writeInt(mlInfoMetadata.getSerializedSize());
+        mlInfoMetadata.writeTo(metadataByteBuf);
+
+        ByteBuf originalByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(originalBytes.length, originalBytes.length);
+        originalByteBuf.writeBytes(originalBytes);
+        ByteBuf encodeByteBuf = CompressionCodecProvider.getCompressionCodec(compressionType).encode(originalByteBuf);
+
+        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+        compositeByteBuf.addComponent(true, metadataByteBuf);
+        compositeByteBuf.addComponent(true, encodeByteBuf);
+
+        byte[] dataBytes = new byte[compositeByteBuf.readableBytes()];
+        compositeByteBuf.readBytes(dataBytes);
+        return dataBytes;
+    }
+
+    public ManagedLedgerInfo parseManagedLedgerInfo(byte[] data) throws InvalidProtocolBufferException {
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length, data.length);
+        byteBuf.writeBytes(data);
+        if (byteBuf.readableBytes() > 0 && byteBuf.readShort() == magicManagedLedgerInfoMetadata) {
+            try {
+                int metadataSize = byteBuf.readInt();
+                ManagedLedgerInfoMetadata metadata = ML_INFO_METADATA.get();
+                metadata.parseFrom(byteBuf, metadataSize);
+
+                long unpressedSize = metadata.getUnpressedSize();
+                ByteBuf decodeByteBuf = CompressionCodecProvider.getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, (int) unpressedSize);
+                return ManagedLedgerInfo.parseFrom(decodeByteBuf.array());
+            } catch (Exception e) {
+                log.error("Failed to parse managedLedgerInfo metadata, "
+                        + "fall back to parse managedLedgerInfo directly.", e);
+                byteBuf.resetReaderIndex();
+                return ManagedLedgerInfo.parseFrom(data);
+            }
+        } else {
+            return ManagedLedgerInfo.parseFrom(data);
+        }
+    }
+
 }
