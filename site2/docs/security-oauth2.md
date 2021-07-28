@@ -74,8 +74,8 @@ You can use the OAuth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
-String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com";
-String credentialsUrl = "file:///path/to/KeyFile.json";
+URL issuerUrl = new URL("https://dev-kt-aa9ne.us.auth0.com");
+URL credentialsUrl = new URL("file:///path/to/KeyFile.json");
 String audience = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
 
 PulsarClient client = PulsarClient.builder()

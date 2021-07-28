@@ -1842,13 +1842,13 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/resourcegroup")
+    @Path("/{tenant}/{namespace}/resourcegroup/{resourcegroup}")
     @ApiOperation(value = "Set resourcegroup for a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid resourcegroup") })
     public void setNamespaceResourceGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-                                          @ApiParam(value = "Name of resourcegroup", required = true) String rgName) {
+                                          @PathParam("resourcegroup") String rgName) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceResourceGroup(rgName);
     }

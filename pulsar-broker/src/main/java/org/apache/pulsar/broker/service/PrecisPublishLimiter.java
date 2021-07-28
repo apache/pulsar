@@ -87,12 +87,12 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
             if (this.publishMaxMessageRate > 0) {
                 topicPublishRateLimiterOnMessage =
                         new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS,
-                                this::tryReleaseConnectionThrottle);
+                                this::tryReleaseConnectionThrottle, true);
             }
             if (this.publishMaxByteRate > 0) {
                 topicPublishRateLimiterOnByte =
                         new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS,
-                                this::tryReleaseConnectionThrottle);
+                                this::tryReleaseConnectionThrottle, true);
             }
         } else {
             this.publishMaxMessageRate = 0;

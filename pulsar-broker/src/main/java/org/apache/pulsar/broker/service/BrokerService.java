@@ -1678,7 +1678,7 @@ public class BrokerService implements Closeable {
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
         for (String topic : topics.keys()) {
             TopicName topicName = TopicName.get(topic);
-            if (getTopicReference(topic).isPresent() && serviceUnit.includes(topicName)) {
+            if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
                 log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
                 pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
             }
@@ -2579,6 +2579,14 @@ public class BrokerService implements Closeable {
             log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
             return Optional.empty();
         }
+    }
+
+    public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
+        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        TopicName cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(cloneTopicName);
     }
 
     private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
