@@ -1678,7 +1678,7 @@ public class BrokerService implements Closeable {
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
         for (String topic : topics.keys()) {
             TopicName topicName = TopicName.get(topic);
-            if (getTopicReference(topic).isPresent() && serviceUnit.includes(topicName)) {
+            if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
                 log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
                 pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
             }
