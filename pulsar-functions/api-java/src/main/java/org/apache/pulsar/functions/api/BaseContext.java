@@ -195,7 +195,10 @@ public interface BaseContext {
     void recordMetric(String metricName, double value);
 
     /**
-     * Get the pulsar client.
+     * Get the pre-configured pulsar client.
+     *
+     * You can use this client to access Pulsar cluster.
+     * The Function will be responsible for disposing this client.
      *
      * @return the instance of pulsar client
      */
@@ -204,7 +207,10 @@ public interface BaseContext {
     }
 
     /**
-     * Get the pulsar client builder.
+     * Get the pre-configured pulsar client builder.
+     *
+     * You can use this Builder to setup client to connect to the Pulsar cluster.
+     * The Function will be responsible for disposing any PulsarClient created by this builder.
      *
      * @return the instance of pulsar client builder.
      */

@@ -37,6 +37,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -71,7 +72,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         .withWidth(Width.LONG)
         .withImportance(Importance.HIGH)
         .withDescription("Pulsar service url")
-        .withValidation(Field::isRequired);
+        .withValidation(Field::isOptional);
 
     public static final Field CLIENT_BUILDER = Field.create(CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.client.builder")
         .withDisplayName("Pulsar client builder")
@@ -79,7 +80,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         .withWidth(Width.LONG)
         .withImportance(Importance.HIGH)
         .withDescription("Pulsar client builder")
-        .withValidation(Field::isRequired);
+        .withValidation(Field::isOptional);
 
     public static Field.Set ALL_FIELDS = Field.setOf(
         TOPIC,
@@ -107,6 +108,9 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         }
         this.topicName = config.getString(TOPIC);
 
+        if (config.getString(CLIENT_BUILDER) == null && config.getString(SERVICE_URL) == null) {
+            throw new IllegalArgumentException("Neither Pulsar Service URL nor ClientBuilder provided.");
+        }
         String clientBuilderBase64Encoded = config.getString(CLIENT_BUILDER);
         if (null == clientBuilderBase64Encoded) {
             this.clientBuilder = PulsarClient.builder()
