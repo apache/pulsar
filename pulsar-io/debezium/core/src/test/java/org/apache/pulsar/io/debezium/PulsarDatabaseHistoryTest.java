@@ -220,7 +220,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
 
     @Test
-    public void testExists() {
+    public void testExists() throws Exception {
         // happy path
         testHistoryTopicContent(true, false);
         assertTrue(history.exists());
