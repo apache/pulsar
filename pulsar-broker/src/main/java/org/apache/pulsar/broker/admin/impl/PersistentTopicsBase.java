@@ -2590,7 +2590,8 @@ public class PersistentTopicsBase extends AdminResource {
         return offlineTopicStats;
     }
 
-    protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(boolean applied) {
+    protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(
+            boolean applied) {
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenApply(op -> {
                 Map<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaMap = op
@@ -2619,8 +2620,8 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
-        BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null ?
-                BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
+        BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
+                ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenCompose(op -> {
@@ -2742,8 +2743,8 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 if (!checkBacklogQuota(backlogQuota, retention)) {
                     log.warn(
-                            "[{}] Failed to update retention quota configuration for topic {}: " +
-                                    "conflicts with retention quota",
+                            "[{}] Failed to update retention quota configuration for topic {}: "
+                                    + "conflicts with retention quota",
                             clientAppId(), topicName);
                     return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                             "Retention Quota must exceed configured backlog quota for topic. "
