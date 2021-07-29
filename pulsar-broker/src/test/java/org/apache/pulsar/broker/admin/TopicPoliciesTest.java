@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Topic;
@@ -1576,5 +1577,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                     PersistentTopicInternalStats iStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
                     Assert.assertTrue(iStats.compactedLedger.ledgerId != previousCompactedLedgerId);
                 });
+    }
+
+    @Test
+    public void testDoNotCreateSystemTopicForHeartbeatNamespace() {
+        assertTrue(pulsar.getBrokerService().getTopics().size() > 0);
+        pulsar.getBrokerService().getTopics().forEach((k, v) -> {
+            TopicName topicName = TopicName.get(k);
+            assertNull(NamespaceService.checkHeartbeatNamespace(topicName.getNamespaceObject()));
+        });
     }
 }
