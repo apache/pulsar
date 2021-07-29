@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -30,13 +31,22 @@ public class ConfigHelper {
 
 
     public static Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap(ServiceConfiguration configuration) {
-        return Collections.singletonMap(BacklogQuota.BacklogQuotaType.destination_storage,
-                backlogQuota(configuration));
+        return ImmutableMap.of(BacklogQuota.BacklogQuotaType.destination_storage,
+                sizeBacklogQuota(configuration),
+                BacklogQuota.BacklogQuotaType.message_age,
+                timeBacklogQuota(configuration));
     }
 
-    public static BacklogQuota backlogQuota(ServiceConfiguration configuration) {
+    public static BacklogQuota sizeBacklogQuota(ServiceConfiguration configuration) {
         return BacklogQuota.builder()
                 .limitSize(configuration.getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024)
+                .retentionPolicy(configuration.getBacklogQuotaDefaultRetentionPolicy())
+                .build();
+    }
+
+    public static BacklogQuota timeBacklogQuota(ServiceConfiguration configuration) {
+        return BacklogQuota.builder()
+                .limitTime(configuration.getBacklogQuotaDefaultLimitSecond())
                 .retentionPolicy(configuration.getBacklogQuotaDefaultRetentionPolicy())
                 .build();
     }

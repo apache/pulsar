@@ -66,11 +66,11 @@ public class BacklogQuotaManager {
         return this.defaultQuota;
     }
 
-    public BacklogQuotaImpl getBacklogQuota(String namespace, String policyPath) {
+    public BacklogQuotaImpl getBacklogQuota(String namespace, String policyPath, BacklogQuotaType backlogQuotaType) {
         try {
             return zkCache.get(policyPath)
                     .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
-                            .getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
+                            .getOrDefault(backlogQuotaType, defaultQuota))
                     .orElse(defaultQuota);
         } catch (Exception e) {
             log.warn("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
@@ -78,32 +78,32 @@ public class BacklogQuotaManager {
         }
     }
 
-    public BacklogQuotaImpl getBacklogQuota(TopicName topicName) {
+    public BacklogQuotaImpl getBacklogQuota(TopicName topicName, BacklogQuotaType backlogQuotaType) {
         String policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
         if (!isTopicLevelPoliciesEnable) {
-            return getBacklogQuota(topicName.getNamespace(), policyPath);
+            return getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType);
         }
 
         try {
             if (pulsar.getTopicPoliciesService().cacheIsInitialized(topicName)) {
                 return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
                         .map(TopicPolicies::getBackLogQuotaMap)
-                        .map(map -> map.get(BacklogQuotaType.destination_storage.name()))
-                        .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath));
+                        .map(map -> map.get(backlogQuotaType.name()))
+                        .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType));
             }
         } catch (Exception e) {
             log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}",
                     topicName, e);
         }
-        return getBacklogQuota(topicName.getNamespace(), policyPath);
+        return getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType);
     }
 
     public long getBacklogQuotaLimitInSize(TopicName topicName) {
-        return getBacklogQuota(topicName).getLimitSize();
+        return getBacklogQuota(topicName, BacklogQuotaType.destination_storage).getLimitSize();
     }
 
     public int getBacklogQuotaLimitInTime(TopicName topicName) {
-        return getBacklogQuota(topicName).getLimitTime();
+        return getBacklogQuota(topicName, BacklogQuotaType.message_age).getLimitTime();
     }
 
     /**
@@ -114,7 +114,7 @@ public class BacklogQuotaManager {
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType,
                                            boolean preciseTimeBasedBacklogQuotaCheck) {
         TopicName topicName = TopicName.get(persistentTopic.getName());
-        BacklogQuota quota = getBacklogQuota(topicName);
+        BacklogQuota quota = getBacklogQuota(topicName, backlogQuotaType);
         log.info("Backlog quota type {} exceeded for topic [{}]. Applying [{}] policy", backlogQuotaType,
                 persistentTopic.getName(), quota.getPolicy());
         switch (quota.getPolicy()) {

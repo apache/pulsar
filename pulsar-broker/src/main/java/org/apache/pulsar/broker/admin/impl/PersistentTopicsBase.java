@@ -2641,11 +2641,12 @@ public class PersistentTopicsBase extends AdminResource {
             quotaMap = getNamespacePolicies(namespaceName).backlog_quota_map;
             if (quotaMap.isEmpty()) {
                 String namespace = namespaceName.toString();
-                quotaMap.put(
-                        BacklogQuota.BacklogQuotaType.destination_storage,
-                        namespaceBacklogQuota(namespace, AdminResource.path(POLICIES, namespace))
-                );
-
+                for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
+                    quotaMap.put(
+                            backlogQuotaType,
+                            namespaceBacklogQuota(namespace, AdminResource.path(POLICIES, namespace), backlogQuotaType)
+                    );
+                }
             }
         }
         return quotaMap;
@@ -2780,19 +2781,21 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
-        BacklogQuota backlogQuota =
-                    topicPolicies.getBackLogQuotaMap().get(BacklogQuota.BacklogQuotaType.destination_storage.name());
-        if (backlogQuota == null) {
-            Policies policies = getNamespacePolicies(topicName.getNamespaceObject());
-            backlogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
-        }
-        if (!checkBacklogQuota(backlogQuota, retention)) {
-            log.warn(
-                    "[{}] Failed to update retention quota configuration for topic {}: conflicts with retention quota",
-                    clientAppId(), topicName);
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Retention Quota must exceed configured backlog quota for topic. "
-                            + "Please increase retention quota and retry"));
+        BacklogQuota backlogQuota;
+        for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
+            backlogQuota = topicPolicies.getBackLogQuotaMap().get(backlogQuotaType.name());
+            if (backlogQuota == null) {
+                Policies policies = getNamespacePolicies(topicName.getNamespaceObject());
+                backlogQuota = policies.backlog_quota_map.get(backlogQuotaType);
+            }
+            if (!checkBacklogQuota(backlogQuota, retention)) {
+                log.warn(
+                        "[{}] Failed to update retention quota configuration for topic {}:"
+                                + " conflicts with retention quota", clientAppId(), topicName);
+                return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                        "Retention Quota must exceed configured backlog quota for topic. "
+                                + "Please increase retention quota and retry"));
+            }
         }
         topicPolicies.setRetentionPolicies(retention);
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
