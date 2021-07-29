@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,6 +93,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -2518,6 +2520,77 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-PROPERTY-CHUNK-ID", Integer.toString(metadata.getChunkId()));
         }
         responseBuilder.header("X-Pulsar-Is-Encrypted", metadata.getEncryptionKeysCount() > 0);
+
+        if (metadata.hasProducerName()) {
+            responseBuilder.header("X-Pulsar-producer-name", metadata.getProducerName());
+        }
+        if (metadata.hasSequenceId()) {
+            responseBuilder.header("X-Pulsar-sequence-id", metadata.getSequenceId());
+        }
+        if (metadata.hasReplicatedFrom()) {
+            responseBuilder.header("X-Pulsar-replicated-from", metadata.getReplicatedFrom());
+        }
+        for (String replicatedTo : metadata.getReplicateTosList()) {
+            responseBuilder.header("X-Pulsar-replicated-to", replicatedTo);
+        }
+        if (metadata.hasPartitionKey()) {
+            responseBuilder.header("X-Pulsar-partition-key", metadata.getPartitionKey());
+        }
+        if (metadata.hasCompression()) {
+            responseBuilder.header("X-Pulsar-compression", metadata.getCompression());
+        }
+        if (metadata.hasUncompressedSize()) {
+            responseBuilder.header("X-Pulsar-uncompressed-size", metadata.getUncompressedSize());
+        }
+        if (metadata.hasEncryptionAlgo()) {
+            responseBuilder.header("X-Pulsar-encryption-algo", metadata.getEncryptionAlgo());
+        }
+        for (EncryptionKeys encryptionKeys : metadata.getEncryptionKeysList()) {
+            responseBuilder.header("X-Pulsar-Base64-encryption-keys",
+                    Base64.getEncoder().encodeToString(encryptionKeys.toByteArray()));
+        }
+        if (metadata.hasEncryptionParam()) {
+            responseBuilder.header("X-Pulsar-Base64-encryption-param",
+                    Base64.getEncoder().encodeToString(metadata.getEncryptionParam()));
+        }
+        if (metadata.hasSchemaVersion()) {
+            responseBuilder.header("X-Pulsar-Base64-schema-version",
+                    Base64.getEncoder().encodeToString(metadata.getSchemaVersion()));
+        }
+        if (metadata.hasPartitionKeyB64Encoded()) {
+            responseBuilder.header("X-Pulsar-partition-key-b64-encoded", metadata.isPartitionKeyB64Encoded());
+        }
+        if (metadata.hasOrderingKey()) {
+            responseBuilder.header("X-Pulsar-Base64-ordering-key",
+                    Base64.getEncoder().encodeToString(metadata.getOrderingKey()));
+        }
+        if (metadata.hasMarkerType()) {
+            responseBuilder.header("X-Pulsar-marker-type", metadata.getMarkerType());
+        }
+        if (metadata.hasTxnidLeastBits()) {
+            responseBuilder.header("X-Pulsar-txnid-least-bits", metadata.getTxnidLeastBits());
+        }
+        if (metadata.hasTxnidMostBits()) {
+            responseBuilder.header("X-Pulsar-txnid-most-bits", metadata.getTxnidMostBits());
+        }
+        if (metadata.hasHighestSequenceId()) {
+            responseBuilder.header("X-Pulsar-highest-sequence-id", metadata.getHighestSequenceId());
+        }
+        if (metadata.hasUuid()) {
+            responseBuilder.header("X-Pulsar-uuid", metadata.getUuid());
+        }
+        if (metadata.hasNumChunksFromMsg()) {
+            responseBuilder.header("X-Pulsar-num-chunks-from-msg", metadata.getNumChunksFromMsg());
+        }
+        if (metadata.hasTotalChunkMsgSize()) {
+            responseBuilder.header("X-Pulsar-total-chunk-msg-size", metadata.getTotalChunkMsgSize());
+        }
+        if (metadata.hasChunkId()) {
+            responseBuilder.header("X-Pulsar-chunk-id", metadata.getChunkId());
+        }
+        if (metadata.hasNullPartitionKey()) {
+            responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
+        }
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());

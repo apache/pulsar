@@ -43,7 +43,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
@@ -54,12 +53,14 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -67,7 +68,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -719,6 +719,48 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 3).getData()), "message3");
         Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 4).getData()), "message2");
         Assert.assertEquals(new String(admin.topics().examineMessage(topicName + "-partition-0", "latest", 5).getData()), "message1");
+    }
+
+    @Test
+    public void testExamineMessageMetadata() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        final String topicName = "persistent://tenant-xyz/ns-abc/topic-testExamineMessageMetadata";
+
+        admin.topics().createPartitionedTopic(topicName, 2);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .producerName("testExamineMessageMetadataProducer")
+                .compressionType(CompressionType.LZ4)
+                .topic(topicName + "-partition-0")
+                .create();
+
+        producer.newMessage()
+                .keyBytes("partition123".getBytes())
+                .orderingKey(new byte[]{0})
+                .replicationClusters(Lists.newArrayList("a", "b"))
+                .sequenceId(112233)
+                .value("data")
+                .send();
+
+        MessageImpl<byte[]> message = (MessageImpl<byte[]>) admin.topics().examineMessage(
+                topicName + "-partition-0", "earliest", 1);
+
+        //test long
+        Assert.assertEquals(112233, message.getSequenceId());
+        //test byte[]
+        Assert.assertEquals(new byte[]{0}, message.getOrderingKey());
+        //test bool and byte[]
+        Assert.assertEquals("partition123".getBytes(), message.getKeyBytes());
+        Assert.assertTrue(message.hasBase64EncodedKey());
+        //test arrays
+        Assert.assertEquals(Lists.newArrayList("a", "b"), message.getReplicateTo());
+        //test string
+        Assert.assertEquals(producer.getProducerName(), message.getProducerName());
+        //test enum
+        Assert.assertEquals(CompressionType.LZ4.ordinal(), message.getMessageBuilder().getCompression().ordinal());
+
+        Assert.assertEquals("data", new String(message.getData()));
     }
 
     @Test
