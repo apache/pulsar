@@ -63,7 +63,14 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     public boolean isPublishRateExceeded() {
         return false;
     }
-
+    // If all rate limiters are not exceeded, re-enable auto read from socket.
+    private void tryReleaseConnectionThrottle() {
+        if ((topicPublishRateLimiterOnMessage != null && topicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
+        || (topicPublishRateLimiterOnByte != null && topicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
+            return;
+        }
+        this.rateLimitFunction.apply();
+    }
 
     @Override
     public void update(Policies policies, String clusterName) {
@@ -80,10 +87,13 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
             this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
             if (this.publishMaxMessageRate > 0) {
                 topicPublishRateLimiterOnMessage =
-                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, rateLimitFunction, true);
+                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS,
+                                this::tryReleaseConnectionThrottle, true);
             }
             if (this.publishMaxByteRate > 0) {
-                topicPublishRateLimiterOnByte = new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS, true);
+                topicPublishRateLimiterOnByte =
+                        new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS,
+                                this::tryReleaseConnectionThrottle, true);
             }
         } else {
             this.publishMaxMessageRate = 0;
