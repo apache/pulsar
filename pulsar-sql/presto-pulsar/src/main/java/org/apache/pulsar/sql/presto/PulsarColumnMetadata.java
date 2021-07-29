@@ -187,7 +187,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
             DecoderExtraInfo that = (DecoderExtraInfo) o;
 
-            if (mapping != that.mapping) {
+            if (!mapping.equals(that.mapping)) {
                 return false;
             }
             if (dataFormat != null ? !dataFormat.equals(that.dataFormat) : that.dataFormat != null) {
