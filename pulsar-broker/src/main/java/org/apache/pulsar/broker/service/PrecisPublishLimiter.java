@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -29,28 +30,36 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     protected volatile long publishMaxByteRate = 0;
     protected volatile boolean publishThrottlingEnabled = false;
     // precise mode for publish rate limiter
-    private RateLimiter topicPublishRateLimiterOnMessage;
-    private RateLimiter topicPublishRateLimiterOnByte;
+    private volatile RateLimiter topicPublishRateLimiterOnMessage;
+    private volatile RateLimiter topicPublishRateLimiterOnByte;
     private final RateLimitFunction rateLimitFunction;
+    private final ScheduledExecutorService scheduledExecutorService;
 
     public PrecisPublishLimiter(Policies policies, String clusterName, RateLimitFunction rateLimitFunction) {
         this.rateLimitFunction = rateLimitFunction;
         update(policies, clusterName);
+        this.scheduledExecutorService = null;
     }
 
     public PrecisPublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction) {
+        this(publishRate, rateLimitFunction, null);
+    }
+
+    public PrecisPublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction,
+                                ScheduledExecutorService scheduledExecutorService) {
         this.rateLimitFunction = rateLimitFunction;
         update(publishRate);
+        this.scheduledExecutorService = scheduledExecutorService;
     }
 
     @Override
     public void checkPublishRate() {
-       // No-op
+        // No-op
     }
 
     @Override
     public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-       // No-op
+        // No-op
     }
 
     @Override
@@ -62,10 +71,15 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     public boolean isPublishRateExceeded() {
         return false;
     }
+
     // If all rate limiters are not exceeded, re-enable auto read from socket.
     private void tryReleaseConnectionThrottle() {
-        if ((topicPublishRateLimiterOnMessage != null && topicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
-        || (topicPublishRateLimiterOnByte != null && topicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
+        RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
+        RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
+        if ((currentTopicPublishRateLimiterOnMessage != null
+                && currentTopicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
+                || (currentTopicPublishRateLimiterOnByte != null
+                && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
             return;
         }
         this.rateLimitFunction.apply();
@@ -78,34 +92,68 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
                 : null;
         this.update(maxPublishRate);
     }
+
     public void update(PublishRate maxPublishRate) {
-        if (maxPublishRate != null
-                && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
-            this.publishThrottlingEnabled = true;
-            this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
-            this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
-            if (this.publishMaxMessageRate > 0) {
-                topicPublishRateLimiterOnMessage =
-                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS,
-                                this::tryReleaseConnectionThrottle, true);
+        replaceLimiters(() -> {
+            if (maxPublishRate != null
+                    && (maxPublishRate.publishThrottlingRateInMsg > 0
+                    || maxPublishRate.publishThrottlingRateInByte > 0)) {
+                this.publishThrottlingEnabled = true;
+                this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
+                this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
+                if (this.publishMaxMessageRate > 0) {
+                    topicPublishRateLimiterOnMessage =
+                            new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS,
+                                    this::tryReleaseConnectionThrottle, true);
+                }
+                if (this.publishMaxByteRate > 0) {
+                    topicPublishRateLimiterOnByte =
+                            new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS,
+                                    this::tryReleaseConnectionThrottle, true);
+                }
+            } else {
+                this.publishMaxMessageRate = 0;
+                this.publishMaxByteRate = 0;
+                this.publishThrottlingEnabled = false;
             }
-            if (this.publishMaxByteRate > 0) {
-                topicPublishRateLimiterOnByte =
-                        new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS,
-                                this::tryReleaseConnectionThrottle, true);
-            }
-        } else {
-            this.publishMaxMessageRate = 0;
-            this.publishMaxByteRate = 0;
-            this.publishThrottlingEnabled = false;
-            topicPublishRateLimiterOnMessage = null;
-            topicPublishRateLimiterOnByte = null;
-        }
+        });
     }
 
     @Override
     public boolean tryAcquire(int numbers, long bytes) {
-        return (topicPublishRateLimiterOnMessage == null || topicPublishRateLimiterOnMessage.tryAcquire(numbers))
-                && (topicPublishRateLimiterOnByte == null || topicPublishRateLimiterOnByte.tryAcquire(bytes));
+        RateLimiter currentTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
+        RateLimiter currentTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
+        return (currentTopicPublishRateLimiterOnMessage == null
+                || currentTopicPublishRateLimiterOnMessage.tryAcquire(numbers))
+                && (currentTopicPublishRateLimiterOnByte == null
+                || currentTopicPublishRateLimiterOnByte.tryAcquire(bytes));
+    }
+
+    @Override
+    public void close() throws Exception {
+        rateLimitFunction.apply();
+        replaceLimiters(null);
+    }
+
+    private void replaceLimiters(Runnable updater) {
+        RateLimiter previousTopicPublishRateLimiterOnMessage = topicPublishRateLimiterOnMessage;
+        topicPublishRateLimiterOnMessage = null;
+        RateLimiter previousTopicPublishRateLimiterOnByte = topicPublishRateLimiterOnByte;
+        topicPublishRateLimiterOnByte = null;
+        try {
+            if (updater != null) {
+                updater.run();
+            }
+        } finally {
+            // Close previous limiters to prevent resource leakages.
+            // Delay closing of previous limiters after new ones are in place so that updating the limiter
+            // doesn't cause unavailability.
+            if (previousTopicPublishRateLimiterOnMessage != null) {
+                previousTopicPublishRateLimiterOnMessage.close();
+            }
+            if (previousTopicPublishRateLimiterOnByte != null) {
+                previousTopicPublishRateLimiterOnByte.close();
+            }
+        }
     }
 }

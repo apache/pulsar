@@ -63,7 +63,7 @@ public class RateLimiter implements AutoCloseable{
     private boolean isDispatchOrPrecisePublishRateLimiter;
 
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
-        this(null, permits, rateTime, timeUnit, null);
+        this(null, permits, rateTime, timeUnit);
     }
 
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit, boolean isDispatchOrPrecisePublishRateLimiter) {
@@ -80,6 +80,11 @@ public class RateLimiter implements AutoCloseable{
                        RateLimitFunction autoReadResetFunction, boolean isDispatchOrPrecisePublishRateLimiter) {
         this(null, permits, rateTime, timeUnit, null, isDispatchOrPrecisePublishRateLimiter);
         this.rateLimitFunction = autoReadResetFunction;
+    }
+
+    public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
+                       final TimeUnit timeUnit) {
+        this(service, permits, rateTime, timeUnit, (Supplier<Long>) null);
     }
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
