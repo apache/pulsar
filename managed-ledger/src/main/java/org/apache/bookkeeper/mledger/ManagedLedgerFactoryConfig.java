@@ -75,4 +75,9 @@ public class ManagedLedgerFactoryConfig {
      * cluster name for prometheus stats
      */
     private String clusterName;
+
+    /**
+     * ManagedLedgerInfo compression type. If the compression type is null or invalid, don't compress data.
+     */
+    private String managedLedgerInfoCompressionType = null;
 }

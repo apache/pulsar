@@ -18,19 +18,22 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * ManagedLedgerInfo metadata test.
@@ -38,8 +41,21 @@ import org.testng.annotations.Test;
 @Slf4j
 public class ManagedLedgerInfoMetadataTest {
 
-    @Test
-    public void testEncodeAndDecode() throws IOException {
+    @DataProvider(name = "compressionTypeProvider")
+    private Object[][] compressionTypeProvider() {
+        return new Object[][] {
+                {null},
+                {"INVALID_TYPE"},
+                {CompressionType.NONE.name()},
+                {CompressionType.LZ4.name()},
+                {CompressionType.ZLIB.name()},
+                {CompressionType.ZSTD.name()},
+                {CompressionType.SNAPPY.name()}
+        };
+    }
+
+    @Test(dataProvider = "compressionTypeProvider")
+    public void testEncodeAndDecode(String compressionType) throws IOException {
         long ledgerId = 10000;
         List<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoList = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
@@ -72,14 +88,26 @@ public class ManagedLedgerInfoMetadataTest {
         MLDataFormats.ManagedLedgerInfo managedLedgerInfo = MLDataFormats.ManagedLedgerInfo.newBuilder()
                 .addAllLedgerInfo(ledgerInfoList)
                 .build();
-        MetaStoreImpl metaStore = new MetaStoreImpl(null, null);
-        byte[] compressionBytes = metaStore.compressLedgerInfo(managedLedgerInfo, CompressionType.ZSTD);
-        log.info("Uncompressed data size: {}, compressed data size: {}",
-                managedLedgerInfo.getSerializedSize(), compressionBytes.length);
+        MetaStoreImpl metaStore = new MetaStoreImpl(null, null, compressionType);
+        byte[] compressionBytes = metaStore.compressLedgerInfo(managedLedgerInfo);
+        log.info("[{}] Uncompressed data size: {}, compressed data size: {}",
+                compressionType, managedLedgerInfo.getSerializedSize(), compressionBytes.length);
+        if (compressionType == null || compressionType.equals(CompressionType.NONE.name())
+                || compressionType.equals("INVALID_TYPE")) {
+            Assert.assertEquals(compressionBytes.length, managedLedgerInfo.getSerializedSize());
+        }
 
+        // parse compression data and unCompression data, check their results.
         MLDataFormats.ManagedLedgerInfo info1 = metaStore.parseManagedLedgerInfo(compressionBytes);
         MLDataFormats.ManagedLedgerInfo info2 = metaStore.parseManagedLedgerInfo(managedLedgerInfo.toByteArray());
         Assert.assertEquals(info1, info2);
+    }
+
+    @Test
+    public void testParseEmptyData() throws InvalidProtocolBufferException {
+        MetaStoreImpl metaStore = new MetaStoreImpl(null, null);
+        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = metaStore.parseManagedLedgerInfo(new byte[0]);
+        Assert.assertEquals(managedLedgerInfo.toString(), "");
     }
 
 }

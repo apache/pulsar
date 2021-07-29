@@ -186,11 +186,6 @@ message BrokerEntryMetadata {
     optional uint64 index = 2;
 }
 
-message ManagedLedgerInfoMetadata {
-    required CompressionType compressionType = 1;
-    required int32 unpressedSize = 2;
-}
-
 enum ServerError {
     UnknownError        = 0;
     MetadataError       = 1; // Error with ZK/metadata

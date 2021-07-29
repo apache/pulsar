@@ -27,19 +27,18 @@ import java.util.concurrent.CompletionException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
-import org.apache.pulsar.common.api.proto.ManagedLedgerInfoMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -54,18 +53,25 @@ public class MetaStoreImpl implements MetaStore {
     private final MetadataStore store;
     private final OrderedExecutor executor;
 
-    public static final short magicManagedLedgerInfoMetadata = 0x0b9c;
-    private final FastThreadLocal<ManagedLedgerInfoMetadata> ML_INFO_METADATA =
-            new FastThreadLocal<ManagedLedgerInfoMetadata>() {
-                @Override
-                protected ManagedLedgerInfoMetadata initialValue() throws Exception {
-                    return new ManagedLedgerInfoMetadata();
-                }
-            };
+    public static final short MAGIC_MANAGED_LEDGER_INFO_METADATA = 0x0b9c;
+    private CompressionType compressionType = null;
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
         this.store = store;
         this.executor = executor;
+    }
+
+    public MetaStoreImpl(MetadataStore store, OrderedExecutor executor, String compressionType) {
+        this.store = store;
+        this.executor = executor;
+        if (compressionType != null) {
+            try {
+                this.compressionType = CompressionType.valueOf(compressionType);
+            } catch (Exception e) {
+                log.warn("Failed to get compression type {}, disable managedLedgerInfo compression, error msg: {}.",
+                        compressionType, e.getMessage());
+            }
+        }
     }
 
     @Override
@@ -118,7 +124,7 @@ public class MetaStoreImpl implements MetaStore {
         }
 
         String path = PREFIX + ledgerName;
-        store.put(path, compressLedgerInfo(mlInfo, CompressionType.ZSTD), Optional.of(stat.getVersion()))
+        store.put(path, compressLedgerInfo(mlInfo), Optional.of(stat.getVersion()))
                 .thenAcceptAsync(newVersion -> callback.operationComplete(null, newVersion), executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
@@ -281,21 +287,25 @@ public class MetaStoreImpl implements MetaStore {
     }
 
     /**
-     * [MAGIC_NUMBER](2) +
-     * [METADATA_SIZE](4) +
-     * [METADATA](METADATA_SIZE) +
-     * [MANAGED_LEDGER_INFO_PAYLOAD](MANAGED_LEDGER_INFO_PAYLOAD_SIZE)
+     * Compress ManagedLedgerInfo data.
+     *
+     * compression data structure
+     * [MAGIC_NUMBER](2) + [METADATA_SIZE](4) + [METADATA_PAYLOAD] + [MANAGED_LEDGER_INFO_PAYLOAD]
       */
-    public byte[] compressLedgerInfo(ManagedLedgerInfo managedLedgerInfo, CompressionType compressionType) {
+    public byte[] compressLedgerInfo(ManagedLedgerInfo managedLedgerInfo) {
+        if (compressionType == null || compressionType.equals(CompressionType.NONE)) {
+            return managedLedgerInfo.toByteArray();
+        }
         byte[] originalBytes = managedLedgerInfo.toByteArray();
-        ManagedLedgerInfoMetadata mlInfoMetadata = ML_INFO_METADATA.get();
-        mlInfoMetadata.setCompressionType(compressionType);
-        mlInfoMetadata.setUnpressedSize(originalBytes.length);
+        MLDataFormats.ManagedLedgerInfoMetadata mlInfoMetadata = MLDataFormats.ManagedLedgerInfoMetadata.newBuilder()
+                .setCompressionType(compressionType.name())
+                .setUnpressedSize(originalBytes.length)
+                .build();
         ByteBuf metadataByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(
                 mlInfoMetadata.getSerializedSize() + 6, mlInfoMetadata.getSerializedSize() + 6);
-        metadataByteBuf.writeShort(magicManagedLedgerInfoMetadata);
+        metadataByteBuf.writeShort(MAGIC_MANAGED_LEDGER_INFO_METADATA);
         metadataByteBuf.writeInt(mlInfoMetadata.getSerializedSize());
-        mlInfoMetadata.writeTo(metadataByteBuf);
+        metadataByteBuf.writeBytes(mlInfoMetadata.toByteArray());
 
         ByteBuf originalByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(originalBytes.length, originalBytes.length);
         originalByteBuf.writeBytes(originalBytes);
@@ -313,24 +323,31 @@ public class MetaStoreImpl implements MetaStore {
     public ManagedLedgerInfo parseManagedLedgerInfo(byte[] data) throws InvalidProtocolBufferException {
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length, data.length);
         byteBuf.writeBytes(data);
-        if (byteBuf.readableBytes() > 0 && byteBuf.readShort() == magicManagedLedgerInfoMetadata) {
+        if (byteBuf.readableBytes() > 0 && byteBuf.readShort() == MAGIC_MANAGED_LEDGER_INFO_METADATA) {
             try {
                 int metadataSize = byteBuf.readInt();
-                ManagedLedgerInfoMetadata metadata = ML_INFO_METADATA.get();
-                metadata.parseFrom(byteBuf, metadataSize);
+                byte[] metadataBytes = new byte[metadataSize];
+                byteBuf.readBytes(metadataBytes);
+                MLDataFormats.ManagedLedgerInfoMetadata metadata =
+                        MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
 
                 long unpressedSize = metadata.getUnpressedSize();
-                ByteBuf decodeByteBuf = CompressionCodecProvider.getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, (int) unpressedSize);
+                ByteBuf decodeByteBuf = CompressionCodecProvider.getCompressionCodec(
+                        CompressionType.valueOf(metadata.getCompressionType())).decode(byteBuf, (int) unpressedSize);
                 return ManagedLedgerInfo.parseFrom(decodeByteBuf.array());
             } catch (Exception e) {
                 log.error("Failed to parse managedLedgerInfo metadata, "
                         + "fall back to parse managedLedgerInfo directly.", e);
-                byteBuf.resetReaderIndex();
                 return ManagedLedgerInfo.parseFrom(data);
+            } finally {
+                byteBuf.release();
             }
         } else {
-            return ManagedLedgerInfo.parseFrom(data);
+            try {
+                return ManagedLedgerInfo.parseFrom(data);
+            } finally {
+                byteBuf.release();
+            }
         }
     }
 

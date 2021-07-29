@@ -124,3 +124,8 @@ message ManagedCursorInfo {
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;
 }
+
+message ManagedLedgerInfoMetadata {
+    required string compressionType = 1;
+    required int32 unpressedSize = 2;
+}
