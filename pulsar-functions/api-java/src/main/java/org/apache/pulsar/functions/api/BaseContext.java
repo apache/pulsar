@@ -210,7 +210,7 @@ public interface BaseContext {
      * Get the pre-configured pulsar client builder.
      *
      * You can use this Builder to setup client to connect to the Pulsar cluster.
-     * The Function will be responsible for disposing any PulsarClient created by this builder.
+     * But you need to close client properly after using it.
      *
      * @return the instance of pulsar client builder.
      */

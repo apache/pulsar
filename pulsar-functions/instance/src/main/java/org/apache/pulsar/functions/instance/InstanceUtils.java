@@ -156,15 +156,9 @@ public class InstanceUtils {
         return properties;
     }
 
-
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
-            throws PulsarClientException {
-        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
-    }
-
-    public static PulsarClient createPulsarClient(String pulsarServiceUrl,
-                                                  AuthenticationConfig authConfig,
-                                                  Optional<Long> memoryLimit) throws PulsarClientException {
+    public static ClientBuilder createPulsarClientBuilder(String pulsarServiceUrl,
+                                                          AuthenticationConfig authConfig,
+                                                          Optional<Long> memoryLimit) throws PulsarClientException {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
             clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
@@ -183,10 +177,20 @@ public class InstanceUtils {
                 clientBuilder.memoryLimit(memoryLimit.get(), SizeUnit.BYTES);
             }
             clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
-            return clientBuilder.build();
+            return clientBuilder;
         }
-        log.warn("pulsarServiceUrl cannot be null");
-        return null;
+        throw new PulsarClientException("pulsarServiceUrl cannot be null");
+    }
+
+    public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
+            throws PulsarClientException {
+        return createPulsarClient(pulsarServiceUrl, authConfig, Optional.empty());
+    }
+
+    public static PulsarClient createPulsarClient(String pulsarServiceUrl,
+                                                  AuthenticationConfig authConfig,
+                                                  Optional<Long> memoryLimit) throws PulsarClientException {
+        return createPulsarClientBuilder(pulsarServiceUrl, authConfig, memoryLimit).build();
     }
 
     public static PulsarAdmin createPulsarAdminClient(String pulsarWebServiceUrl, AuthenticationConfig authConfig)

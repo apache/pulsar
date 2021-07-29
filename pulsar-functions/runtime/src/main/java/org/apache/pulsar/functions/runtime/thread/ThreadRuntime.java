@@ -31,7 +31,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
@@ -62,7 +62,7 @@ public class ThreadRuntime implements Runtime {
     private ThreadGroup threadGroup;
     private FunctionCacheManager fnCache;
     private String jarFile;
-    private PulsarClient pulsarClient;
+    private ClientBuilder clientBuilder;
     private PulsarAdmin pulsarAdmin;
     private String stateStorageServiceUrl;
     private SecretsProvider secretsProvider;
@@ -74,7 +74,7 @@ public class ThreadRuntime implements Runtime {
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
                   String jarFile,
-                  PulsarClient pulsarClient,
+                  ClientBuilder clientBuilder,
                   PulsarAdmin pulsarAdmin,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
@@ -89,7 +89,7 @@ public class ThreadRuntime implements Runtime {
         this.threadGroup = threadGroup;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
-        this.pulsarClient = pulsarClient;
+        this.clientBuilder = clientBuilder;
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
@@ -167,7 +167,7 @@ public class ThreadRuntime implements Runtime {
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig,
-                pulsarClient,
+                clientBuilder,
                 pulsarAdmin,
                 stateStorageServiceUrl,
                 secretsProvider,
