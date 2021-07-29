@@ -305,7 +305,6 @@ class SchemaTest(TestCase):
         except TypeError:
             pass # Expected
 
-
     def test_serialize_json(self):
         class Example(Record):
             a = Integer()
@@ -410,6 +409,31 @@ class SchemaTest(TestCase):
         self.assertEqual(r.b, None)
         self.assertEqual(r.c, 'hello')
 
+    def test_none_value(self):
+        """
+        The objective of the test is to check that if no value is assigned to the attribute, the validation is returning
+        the expect default value as defined in the Field class
+        """
+        class Example(Record):
+            a = Null()
+            b = Boolean()
+            c = Integer()
+            d = Long()
+            e = Float()
+            f = Double()
+            g = Bytes()
+            h = String()
+
+        r = Example()
+
+        self.assertIsNone(r.a)
+        self.assertFalse(r.b)
+        self.assertIsNone(r.c)
+        self.assertIsNone(r.d)
+        self.assertIsNone(r.e)
+        self.assertIsNone(r.f)
+        self.assertIsNone(r.g)
+        self.assertIsNone(r.h)
     ####
 
     def test_json_schema(self):
