@@ -472,7 +472,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         return value((String) object, field);
     }
 
-    public static class OffloadPoliciesImplBuilder implements OffloadPolicies.Builder{
+    public static class OffloadPoliciesImplBuilder implements OffloadPolicies.Builder {
         private OffloadPoliciesImpl impl = new OffloadPoliciesImpl();
 
         public OffloadPoliciesImplBuilder offloadersDirectory(String offloadersDirectory) {
