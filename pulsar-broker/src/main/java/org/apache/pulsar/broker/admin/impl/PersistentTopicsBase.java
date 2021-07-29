@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -93,6 +95,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -1030,34 +1033,42 @@ public class PersistentTopicsBase extends AdminResource {
                     false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions > 0) {
                     try {
-                        // get the subscriptions only from the 1st partition
-                        // since all the other partitions will have the same
-                        // subscriptions
-                        pulsar().getAdminClient().topics().getSubscriptionsAsync(topicName.getPartition(0).toString())
-                                .whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
-                                                topicName, ex.getMessage());
-
-                                        if (ex instanceof PulsarAdminException) {
-                                            PulsarAdminException pae = (PulsarAdminException) ex;
-                                            if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
-                                                asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                                        "Internal topics have not been generated yet"));
-                                                return;
-                                            } else {
-                                                asyncResponse.resume(new RestException(pae));
-                                                return;
-                                            }
-                                        } else {
-                                            asyncResponse.resume(new RestException(ex));
-                                            return;
-                                        }
+                        final Set<String> subscriptions = Sets.newConcurrentHashSet();
+                        final List<CompletableFuture<Object>> subscriptionFutures = Lists.newArrayList();
+                        if (topicName.getDomain() == TopicDomain.persistent) {
+                            final Map<Integer, CompletableFuture<Boolean>> existsFutures = Maps.newConcurrentMap();
+                            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                String path = String.format("/managed-ledgers/%s/%s/%s", namespaceName.toString(),
+                                        domain(), topicName.getPartition(i).getEncodedLocalName());
+                                CompletableFuture<Boolean> exists = getLocalPolicies().existsAsync(path);
+                                existsFutures.put(i, exists);
+                            }
+                            FutureUtil.waitForAll(Lists.newArrayList(existsFutures.values())).thenApply(__ ->
+                                    existsFutures.entrySet().stream().filter(e -> e.getValue().join().booleanValue())
+                                            .map(item -> topicName.getPartition(item.getKey()).toString())
+                                            .collect(Collectors.toList())
+                            ).thenAccept(topics -> {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("activeTopics : {}", topics);
+                                }
+                                topics.forEach(topic -> {
+                                    try {
+                                        CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient()
+                                                .topics().getSubscriptionsAsync(topic);
+                                        subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
+                                    } catch (PulsarServerException e) {
+                                        throw new RestException(e);
                                     }
-                                    final List<String> subscriptions = Lists.newArrayList();
-                                    subscriptions.addAll(r);
-                                    asyncResponse.resume(subscriptions);
                                 });
+                            }).thenAccept(__ -> resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures));
+                        } else {
+                            for (int i = 0; i < partitionMetadata.partitions; i++) {
+                                CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient().topics()
+                                        .getSubscriptionsAsync(topicName.getPartition(i).toString());
+                                subscriptionFutures.add(subscriptionsAsync.thenApply(subscriptions::addAll));
+                            }
+                            resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures);
+                        }
                     } catch (Exception e) {
                         log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
                         asyncResponse.resume(e);
@@ -1071,6 +1082,32 @@ public class PersistentTopicsBase extends AdminResource {
                 return null;
             });
         }
+    }
+
+    private void resumeAsyncResponse(AsyncResponse asyncResponse, Set<String> subscriptions,
+                                     List<CompletableFuture<Object>> subscriptionFutures) {
+        FutureUtil.waitForAll(subscriptionFutures).whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
+                        topicName, ex.getMessage());
+                if (ex instanceof PulsarAdminException) {
+                    PulsarAdminException pae = (PulsarAdminException) ex;
+                    if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Internal topics have not been generated yet"));
+                        return;
+                    } else {
+                        asyncResponse.resume(new RestException(pae));
+                        return;
+                    }
+                } else {
+                    asyncResponse.resume(new RestException(ex));
+                    return;
+                }
+            } else {
+                asyncResponse.resume(new ArrayList<>(subscriptions));
+            }
+        });
     }
 
     private void internalGetSubscriptionsForNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
@@ -2535,6 +2572,77 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-PROPERTY-CHUNK-ID", Integer.toString(metadata.getChunkId()));
         }
         responseBuilder.header("X-Pulsar-Is-Encrypted", metadata.getEncryptionKeysCount() > 0);
+
+        if (metadata.hasProducerName()) {
+            responseBuilder.header("X-Pulsar-producer-name", metadata.getProducerName());
+        }
+        if (metadata.hasSequenceId()) {
+            responseBuilder.header("X-Pulsar-sequence-id", metadata.getSequenceId());
+        }
+        if (metadata.hasReplicatedFrom()) {
+            responseBuilder.header("X-Pulsar-replicated-from", metadata.getReplicatedFrom());
+        }
+        for (String replicatedTo : metadata.getReplicateTosList()) {
+            responseBuilder.header("X-Pulsar-replicated-to", replicatedTo);
+        }
+        if (metadata.hasPartitionKey()) {
+            responseBuilder.header("X-Pulsar-partition-key", metadata.getPartitionKey());
+        }
+        if (metadata.hasCompression()) {
+            responseBuilder.header("X-Pulsar-compression", metadata.getCompression());
+        }
+        if (metadata.hasUncompressedSize()) {
+            responseBuilder.header("X-Pulsar-uncompressed-size", metadata.getUncompressedSize());
+        }
+        if (metadata.hasEncryptionAlgo()) {
+            responseBuilder.header("X-Pulsar-encryption-algo", metadata.getEncryptionAlgo());
+        }
+        for (EncryptionKeys encryptionKeys : metadata.getEncryptionKeysList()) {
+            responseBuilder.header("X-Pulsar-Base64-encryption-keys",
+                    Base64.getEncoder().encodeToString(encryptionKeys.toByteArray()));
+        }
+        if (metadata.hasEncryptionParam()) {
+            responseBuilder.header("X-Pulsar-Base64-encryption-param",
+                    Base64.getEncoder().encodeToString(metadata.getEncryptionParam()));
+        }
+        if (metadata.hasSchemaVersion()) {
+            responseBuilder.header("X-Pulsar-Base64-schema-version",
+                    Base64.getEncoder().encodeToString(metadata.getSchemaVersion()));
+        }
+        if (metadata.hasPartitionKeyB64Encoded()) {
+            responseBuilder.header("X-Pulsar-partition-key-b64-encoded", metadata.isPartitionKeyB64Encoded());
+        }
+        if (metadata.hasOrderingKey()) {
+            responseBuilder.header("X-Pulsar-Base64-ordering-key",
+                    Base64.getEncoder().encodeToString(metadata.getOrderingKey()));
+        }
+        if (metadata.hasMarkerType()) {
+            responseBuilder.header("X-Pulsar-marker-type", metadata.getMarkerType());
+        }
+        if (metadata.hasTxnidLeastBits()) {
+            responseBuilder.header("X-Pulsar-txnid-least-bits", metadata.getTxnidLeastBits());
+        }
+        if (metadata.hasTxnidMostBits()) {
+            responseBuilder.header("X-Pulsar-txnid-most-bits", metadata.getTxnidMostBits());
+        }
+        if (metadata.hasHighestSequenceId()) {
+            responseBuilder.header("X-Pulsar-highest-sequence-id", metadata.getHighestSequenceId());
+        }
+        if (metadata.hasUuid()) {
+            responseBuilder.header("X-Pulsar-uuid", metadata.getUuid());
+        }
+        if (metadata.hasNumChunksFromMsg()) {
+            responseBuilder.header("X-Pulsar-num-chunks-from-msg", metadata.getNumChunksFromMsg());
+        }
+        if (metadata.hasTotalChunkMsgSize()) {
+            responseBuilder.header("X-Pulsar-total-chunk-msg-size", metadata.getTotalChunkMsgSize());
+        }
+        if (metadata.hasChunkId()) {
+            responseBuilder.header("X-Pulsar-chunk-id", metadata.getChunkId());
+        }
+        if (metadata.hasNullPartitionKey()) {
+            responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
+        }
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());

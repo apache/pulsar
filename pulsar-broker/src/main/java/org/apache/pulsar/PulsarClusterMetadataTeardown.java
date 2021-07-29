@@ -33,6 +33,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -66,6 +67,9 @@ public class PulsarClusterMetadataTeardown {
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static String[] localZkNodes = {
@@ -79,6 +83,12 @@ public class PulsarClusterMetadataTeardown {
             jcommander.parse(args);
             if (arguments.help) {
                 jcommander.usage();
+                return;
+            }
+            if (arguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("delete-cluster-metadata", arguments);
+                cmd.run(null);
                 return;
             }
         } catch (Exception e) {

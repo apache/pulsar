@@ -688,6 +688,30 @@ admin.topics().getMessageById(topic, ledgerId, entryId);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
+### Examine messages
+
+You can examine a specific message on a topic by position relative to the earliest or the latest message.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+```shell
+./bin/pulsar-admin topics examine-messages \
+  persistent://public/default/my-topic \
+  -i latest -m 1
+```
+
+<!--REST API-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/examinemessage?initialPosition=:initialPosition&messagePosition=:messagePosition|operation/examineMessage?version=[[pulsar:version_number]]}
+
+<!--Java-->
+```java
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().examineMessage(topic, "latest", 1);
+```
+
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ### Get message ID 
 
 You can get message ID published at or just after the given datetime.

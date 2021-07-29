@@ -351,12 +351,12 @@ public class SourceStatsManager extends ComponentStatsManager {
 
     @Override
     public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
-        return EMPTY_QUEUE;
+        return latestSystemExceptions;
     }
 
     @Override
     public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
-        return EMPTY_QUEUE;
+        return latestSourceExceptions;
     }
 
     @Override

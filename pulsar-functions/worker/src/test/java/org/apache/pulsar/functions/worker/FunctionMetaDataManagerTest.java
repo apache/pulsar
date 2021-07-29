@@ -29,14 +29,15 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -119,6 +120,50 @@ public class FunctionMetaDataManagerTest {
                 "tenant-1", "namespace-2").size());
         Assert.assertTrue(functionMetaDataManager.listFunctions(
                 "tenant-1", "namespace-2").contains(f3));
+    }
+
+    @Test
+    public void testSendMsgFailWithCompaction() throws Exception {
+        testSendMsgFail(true);
+    }
+
+    @Test
+    public void testSendMsgFailWithoutCompaction() throws Exception {
+        testSendMsgFail(false);
+    }
+
+    private void testSendMsgFail(boolean compact) throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setUseCompactedMetadataTopic(compact);
+        FunctionMetaDataManager functionMetaDataManager = spy(
+                new FunctionMetaDataManager(workerConfig,
+                        mock(SchedulerManager.class),
+                        mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
+        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
+                .setVersion(1)
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
+
+        // become leader
+        Producer<byte[]> exclusiveProducer = spy(functionMetaDataManager.acquireExclusiveWrite(() -> true));
+        // make sure send msg fail
+        functionMetaDataManager.acquireLeadership(exclusiveProducer);
+        exclusiveProducer.close();
+        when(exclusiveProducer.newMessage()).thenThrow(new RuntimeException("should failed"));
+        try {
+            functionMetaDataManager.updateFunctionOnLeader(m1, false);
+            fail("should failed");
+        } catch (Exception e) {
+            assertTrue(e.getCause().getMessage().contains("should failed"));
+        }
+        assertEquals(functionMetaDataManager.getAllFunctionMetaData().size(), 0);
+        try {
+            functionMetaDataManager.updateFunctionOnLeader(m1, true);
+            fail("should failed");
+        } catch (Exception e) {
+            assertTrue(e.getCause().getMessage().contains("should failed"));
+        }
+        assertEquals(functionMetaDataManager.getAllFunctionMetaData().size(), 0);
     }
 
     @Test
