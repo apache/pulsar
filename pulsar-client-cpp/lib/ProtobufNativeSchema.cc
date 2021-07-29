@@ -49,7 +49,7 @@ SchemaInfo createProtobufNativeSchema(const google::protobuf::Descriptor* descri
     using base64 = base64_from_binary<transform_width<const char*, 6, 8>>;
 
     std::vector<char> bytes(fileDescriptorSet.ByteSizeLong());
-    fileDescriptorSet.SerializeToArray(bytes.data(), fileDescriptorSet.ByteSizeLong());
+    fileDescriptorSet.SerializeToArray(bytes.data(), bytes.size());
 
     std::string base64String{base64(bytes.data()), base64(bytes.data() + bytes.size())};
     // Pulsar broker only supports decoding Base64 with padding so we need to add padding '=' here
