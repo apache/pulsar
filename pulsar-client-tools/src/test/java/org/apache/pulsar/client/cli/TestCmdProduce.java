@@ -51,7 +51,7 @@ public class TestCmdProduce {
     @Test
     public void testBuildSchema() {
         // default
-        assertEquals(SchemaType.BYTES, CmdProduce.buildSchema("string", "bytes", "none").getSchemaInfo().getType());
+        assertEquals(SchemaType.BYTES, CmdProduce.buildSchema("string", "bytes", CmdProduce.KEY_VALUE_ENCODING_TYPE_NOT_SET).getSchemaInfo().getType());
 
         // simple key value
         assertEquals(SchemaType.KEY_VALUE, CmdProduce.buildSchema("string", "string", "separated").getSchemaInfo().getType());

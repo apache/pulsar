@@ -82,7 +82,7 @@ public class CmdProduce {
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
     private static final int MAX_MESSAGES = 1000;
-    private static final String KEY_VALUE_ENCODING_TYPE_NOT_SET = "";
+    static final String KEY_VALUE_ENCODING_TYPE_NOT_SET = "";
     private static final String KEY_VALUE_ENCODING_TYPE_SEPARATED = "separated";
     private static final String KEY_VALUE_ENCODING_TYPE_INLINE = "inline";
 
