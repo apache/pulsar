@@ -341,8 +341,14 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName) {
-        return pulsar().getTopicPoliciesService()
-                .getTopicPoliciesAsyncWithRetry(topicName, null, pulsar().getExecutor());
+        try {
+            checkTopicLevelPolicyEnable();
+            return pulsar().getTopicPoliciesService()
+                    .getTopicPoliciesAsyncWithRetry(topicName, null, pulsar().getExecutor());
+        } catch (Exception e) {
+            log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
+            return FutureUtil.failedFuture(e);
+        }
     }
 
 
