@@ -191,8 +191,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         TopicName topicName = TopicName.get(topic);
         admin.topics().createPartitionedTopic(topic, 3);
         pulsarClient.newProducer().topic(topic).create().close();
-        Awaitility.await().untilAsserted(()
-                -> systemTopicBasedTopicPoliciesService.cacheIsInitialized(topicName));
         admin.topics().setMaxConsumers(topic, 1000);
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.topics().getMaxConsumers(topic)));

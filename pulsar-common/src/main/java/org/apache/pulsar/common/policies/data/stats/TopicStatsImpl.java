@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
@@ -37,6 +38,7 @@ import java.util.TreeMap;
  */
 @Data
 public class TopicStatsImpl implements TopicStats {
+    @JsonIgnore
     private int count;
 
     /** Total rate of messages published on the topic (msg/s). */

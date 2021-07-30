@@ -80,13 +80,6 @@ public interface TopicPoliciesService {
      */
     void start();
 
-    /**
-     * whether the cache has been initialized.
-     * @param topicName
-     * @return
-     */
-    boolean cacheIsInitialized(TopicName topicName);
-
     void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
 
     void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
@@ -136,11 +129,6 @@ public interface TopicPoliciesService {
         @Override
         public void start() {
             //No-op
-        }
-
-        @Override
-        public boolean cacheIsInitialized(TopicName topicName) {
-            return false;
         }
 
         @Override
