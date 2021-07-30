@@ -27,6 +27,7 @@ import java.util.concurrent.CompletionException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -54,7 +55,7 @@ public class MetaStoreImpl implements MetaStore {
     private final OrderedExecutor executor;
 
     public static final short MAGIC_MANAGED_LEDGER_INFO_METADATA = 0x0b9c;
-    private CompressionType compressionType = null;
+    private CompressionType compressionType = CompressionType.NONE;
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
         this.store = store;
@@ -296,34 +297,43 @@ public class MetaStoreImpl implements MetaStore {
         if (compressionType == null || compressionType.equals(CompressionType.NONE)) {
             return managedLedgerInfo.toByteArray();
         }
-        byte[] originalBytes = managedLedgerInfo.toByteArray();
-        MLDataFormats.ManagedLedgerInfoMetadata mlInfoMetadata = MLDataFormats.ManagedLedgerInfoMetadata.newBuilder()
-                .setCompressionType(compressionType.name())
-                .setUnpressedSize(originalBytes.length)
-                .build();
-        ByteBuf metadataByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(
-                mlInfoMetadata.getSerializedSize() + 6, mlInfoMetadata.getSerializedSize() + 6);
-        metadataByteBuf.writeShort(MAGIC_MANAGED_LEDGER_INFO_METADATA);
-        metadataByteBuf.writeInt(mlInfoMetadata.getSerializedSize());
-        metadataByteBuf.writeBytes(mlInfoMetadata.toByteArray());
+        ByteBuf metadataByteBuf = null;
+        ByteBuf encodeByteBuf = null;
+        try {
+            MLDataFormats.ManagedLedgerInfoMetadata mlInfoMetadata = MLDataFormats.ManagedLedgerInfoMetadata
+                    .newBuilder()
+                    .setCompressionType(compressionType.name())
+                    .setUnpressedSize(managedLedgerInfo.getSerializedSize())
+                    .build();
+            metadataByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(
+                    mlInfoMetadata.getSerializedSize() + 6, mlInfoMetadata.getSerializedSize() + 6);
+            metadataByteBuf.writeShort(MAGIC_MANAGED_LEDGER_INFO_METADATA);
+            metadataByteBuf.writeInt(mlInfoMetadata.getSerializedSize());
+            metadataByteBuf.writeBytes(mlInfoMetadata.toByteArray());
 
-        ByteBuf originalByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(originalBytes.length, originalBytes.length);
-        originalByteBuf.writeBytes(originalBytes);
-        ByteBuf encodeByteBuf = CompressionCodecProvider.getCompressionCodec(compressionType).encode(originalByteBuf);
+            encodeByteBuf = CompressionCodecProvider.getCompressionCodec(compressionType)
+                    .encode(Unpooled.wrappedBuffer(managedLedgerInfo.toByteArray()));
 
-        CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
-        compositeByteBuf.addComponent(true, metadataByteBuf);
-        compositeByteBuf.addComponent(true, encodeByteBuf);
-
-        byte[] dataBytes = new byte[compositeByteBuf.readableBytes()];
-        compositeByteBuf.readBytes(dataBytes);
-        return dataBytes;
+            CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+            compositeByteBuf.addComponent(true, metadataByteBuf);
+            compositeByteBuf.addComponent(true, encodeByteBuf);
+            byte[] dataBytes = new byte[compositeByteBuf.readableBytes()];
+            compositeByteBuf.readBytes(dataBytes);
+            return dataBytes;
+        } finally {
+            if (metadataByteBuf != null) {
+                metadataByteBuf.release();
+            }
+            if (encodeByteBuf != null) {
+                encodeByteBuf.release();
+            }
+        }
     }
 
     public ManagedLedgerInfo parseManagedLedgerInfo(byte[] data) throws InvalidProtocolBufferException {
-        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length, data.length);
-        byteBuf.writeBytes(data);
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(data);
         if (byteBuf.readableBytes() > 0 && byteBuf.readShort() == MAGIC_MANAGED_LEDGER_INFO_METADATA) {
+            ByteBuf decodeByteBuf = null;
             try {
                 int metadataSize = byteBuf.readInt();
                 byte[] metadataBytes = new byte[metadataSize];
@@ -332,22 +342,27 @@ public class MetaStoreImpl implements MetaStore {
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
 
                 long unpressedSize = metadata.getUnpressedSize();
-                ByteBuf decodeByteBuf = CompressionCodecProvider.getCompressionCodec(
+                decodeByteBuf = CompressionCodecProvider.getCompressionCodec(
                         CompressionType.valueOf(metadata.getCompressionType())).decode(byteBuf, (int) unpressedSize);
-                return ManagedLedgerInfo.parseFrom(decodeByteBuf.array());
+                byte[] decodeBytes;
+                if (decodeByteBuf.hasArray() && !metadata.getCompressionType().equals(CompressionType.ZLIB.name())) {
+                    decodeBytes = decodeByteBuf.array();
+                } else {
+                    decodeBytes = new byte[decodeByteBuf.readableBytes() - decodeByteBuf.readerIndex()];
+                    decodeByteBuf.readBytes(decodeBytes);
+                }
+                return ManagedLedgerInfo.parseFrom(decodeBytes);
             } catch (Exception e) {
                 log.error("Failed to parse managedLedgerInfo metadata, "
                         + "fall back to parse managedLedgerInfo directly.", e);
                 return ManagedLedgerInfo.parseFrom(data);
             } finally {
-                byteBuf.release();
+                if (decodeByteBuf != null) {
+                    decodeByteBuf.release();
+                }
             }
         } else {
-            try {
-                return ManagedLedgerInfo.parseFrom(data);
-            } finally {
-                byteBuf.release();
-            }
+            return ManagedLedgerInfo.parseFrom(data);
         }
     }
 

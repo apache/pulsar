@@ -1602,9 +1602,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             .getValue();
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "ManagedLedgerInfo compression type, option values (LZ4, ZLIB, ZSTD, SNAPPY). \n"
-                    + "If not set value or value is invalid, then save the ManagedLedgerInfo bytes data directly.")
-    private String managedLedgerInfoCompressionType = null;
+            doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
+    private String managedLedgerInfoCompressionType = "NONE";
 
     /*** --- Load balancer --- ****/
     @FieldContext(
