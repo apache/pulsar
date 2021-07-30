@@ -55,24 +55,30 @@ public class MetaStoreImpl implements MetaStore {
     private final OrderedExecutor executor;
 
     public static final short MAGIC_MANAGED_LEDGER_INFO_METADATA = 0x0b9c;
-    private CompressionType compressionType = CompressionType.NONE;
+    private final CompressionType compressionType;
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
         this.store = store;
         this.executor = executor;
+        this.compressionType = CompressionType.NONE;
     }
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor, String compressionType) {
         this.store = store;
         this.executor = executor;
+        CompressionType finalCompressionType;
         if (compressionType != null) {
             try {
-                this.compressionType = CompressionType.valueOf(compressionType);
+                finalCompressionType = CompressionType.valueOf(compressionType);
             } catch (Exception e) {
                 log.warn("Failed to get compression type {}, disable managedLedgerInfo compression, error msg: {}.",
                         compressionType, e.getMessage());
+                finalCompressionType = CompressionType.NONE;
             }
+        } else {
+            finalCompressionType = CompressionType.NONE;
         }
+        this.compressionType = finalCompressionType;
     }
 
     @Override
