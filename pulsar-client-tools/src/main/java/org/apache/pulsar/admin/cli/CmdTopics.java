@@ -443,10 +443,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            topics.deletePartitionedTopic(topic, force);
-            if (deleteSchema) {
-                admin.schemas().deleteSchema(topic);
-            }
+            topics.deletePartitionedTopic(topic, force, deleteSchema);
         }
     }
 
@@ -467,10 +464,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            topics.delete(topic, force);
-            if (deleteSchema) {
-                admin.schemas().deleteSchema(topic);
-            }
+            topics.delete(topic, force, deleteSchema);
         }
     }
 
