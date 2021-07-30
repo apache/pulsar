@@ -1956,7 +1956,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/ns1";
         pulsarClient.newProducer().topic(topic).create().close();
         TopicName topicName = TopicName.get(topic);
-        Awaitility.await().until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(topicName));
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         PersistentTopic mockTopic = spy(persistentTopic);
         mockTopic.checkCompaction();

@@ -97,8 +97,6 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                 .statsInterval(0, TimeUnit.SECONDS).build();
         client1.newProducer().topic(topicName).create().close();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
-        Awaitility.await()
-                .until(() -> pulsar1.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
 
         //use broker-level by default
         assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent());

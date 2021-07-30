@@ -192,8 +192,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
         pulsarClient.newProducer().topic(topicName).create().close();
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
         OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
         OffloadPoliciesImpl offload = new OffloadPoliciesImpl();
@@ -215,8 +213,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
         pulsarClient.newProducer().topic(topicName).create().close();
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
         OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) admin.topics().getOffloadPolicies(topicName, true);
         OffloadPoliciesImpl brokerPolicies = OffloadPoliciesImpl
                 .mergeConfiguration(null,null, pulsar.getConfiguration().getProperties());
@@ -277,8 +273,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
             admin.topics().createNonPartitionedTopic(topicName);
         }
         pulsarClient.newProducer().topic(topicName).enableBatching(false).create().close();
-        Awaitility.await()
-                .until(()-> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
         //2 namespace level policy should use NullLedgerOffloader by default
         if (isPartitioned) {
             for (int i = 0; i < partitionNum; i++) {
@@ -305,9 +299,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
         when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
         doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
-
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topicName)));
 
         //4 set topic level offload policies
         admin.topics().setOffloadPolicies(topicName, offloadPolicies);
