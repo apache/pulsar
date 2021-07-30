@@ -106,7 +106,6 @@ class OpReadEntry implements ReadEntriesCallback {
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);
                 cursor.ledger.mbean.recordReadEntriesError();
-                recycle();
                 return;
             }
             updateReadPosition(nexReadPosition);
@@ -124,7 +123,6 @@ class OpReadEntry implements ReadEntriesCallback {
 
             callback.readEntriesFailed(exception, ctx);
             cursor.ledger.mbean.recordReadEntriesError();
-            recycle();
         }
     }
 
