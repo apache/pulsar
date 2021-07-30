@@ -175,8 +175,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
-        if (NamespaceService.checkHeartbeatNamespace(namespace) != null
-                || NamespaceService.checkHeartbeatNamespaceV2(namespace) != null) {
+        if (NamespaceService.checkHeartbeatNamespace(namespace) != null) {
             result.complete(null);
             return result;
         }
@@ -210,8 +209,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @Override
     public CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
-        if (NamespaceService.checkHeartbeatNamespace(namespace) != null
-                || NamespaceService.checkHeartbeatNamespaceV2(namespace) != null) {
+        if (NamespaceService.checkHeartbeatNamespace(namespace) != null) {
             return CompletableFuture.completedFuture(null);
         }
         AtomicInteger bundlesCount = ownedBundlesCountPerNamespace.get(namespace);

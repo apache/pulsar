@@ -2300,7 +2300,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsar.getBrokerService().getTopics().forEach((k, v) -> {
             TopicName topicName = TopicName.get(k);
             assertNull(NamespaceService.checkHeartbeatNamespace(topicName.getNamespaceObject()));
-            assertNull(NamespaceService.checkHeartbeatNamespaceV2(topicName.getNamespaceObject()));
         });
     }
 
