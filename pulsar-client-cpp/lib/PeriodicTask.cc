@@ -43,7 +43,7 @@ void PeriodicTask::stop() {
 }
 
 void PeriodicTask::handleTimeout(const ErrorCode& ec) {
-    if (state_ != Ready) {
+    if (state_ != Ready || ec.value() == boost::system::errc::operation_canceled) {
         return;
     }
 
