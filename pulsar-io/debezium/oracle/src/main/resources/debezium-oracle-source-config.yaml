@@ -26,14 +26,13 @@ archive: "connectors/pulsar-io-debezium-oracle-2.9.0-SNAPSHOT.nar"
 parallelism: 1
 
 configs:
-  ## config for Oracle XE, docker image: hothamandcheese/oracle-18.4.0-xe:18.4.0-xe
-  ## docker run -p 1521:1521 -e ORACLE_PWD='pass' hothamandcheese/oracle-18.4.0-xe
+  ## config for Oracle XE, docker image: https://github.com/MaksymBilenko/docker-oracle-12c
+  ## docker run -d -p 1521:1521 quay.io/maksymbilenko/oracle-12c
   database.hostname: "localhost"
   database.port: "1521"
   database.user: "sysdba"
-  database.password: "pass"
+  database.password: "oracle"
   database.dbname: "XE"
-  database.server.name: "1521/XE"
-  schema.whitelist: "inventory"
+  database.server.name: "XE"
 
   database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"

@@ -89,7 +89,7 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
         log.info("[debezium mysql test] create consumer finish. converterName: {}", converterClassName);
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
+        sourceTester.validateSourceResult(consumer, sourceTester.getNumEntriesExpectAfterStart(), null, converterClassName);
 
         final int numEntriesToInsert = sourceTester.getNumEntriesToInsert();
         Preconditions.checkArgument(numEntriesToInsert >= 1);
