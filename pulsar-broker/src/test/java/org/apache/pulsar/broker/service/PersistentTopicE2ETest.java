@@ -922,6 +922,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         cleanup();
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
+        this.conf.setForceDeleteNamespaceAllowed(true);
         setup();
 
         admin.namespaces().createNamespace(namespaceName);
@@ -1003,7 +1004,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             consumer.close();
             admin.topics().deleteSubscription(topicName, subName);
             admin.topics().delete(topicName);
-            admin.namespaces().deleteNamespace(namespaceName);
+            admin.namespaces().deleteNamespace(namespaceName, true);
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 500);
         }
