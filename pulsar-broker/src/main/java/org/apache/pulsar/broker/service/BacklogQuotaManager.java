@@ -85,12 +85,10 @@ public class BacklogQuotaManager {
         }
 
         try {
-            if (pulsar.getTopicPoliciesService().cacheIsInitialized(topicName)) {
-                return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
-                        .map(TopicPolicies::getBackLogQuotaMap)
-                        .map(map -> map.get(BacklogQuotaType.destination_storage.name()))
-                        .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath));
-            }
+            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
+                    .map(TopicPolicies::getBackLogQuotaMap)
+                    .map(map -> map.get(BacklogQuotaType.destination_storage.name()))
+                    .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath));
         } catch (Exception e) {
             log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}",
                     topicName, e);
