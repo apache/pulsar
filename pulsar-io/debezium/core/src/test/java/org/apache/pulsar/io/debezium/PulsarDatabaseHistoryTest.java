@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-import com.google.api.client.util.Base64;
 import io.debezium.config.Configuration;
 import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
 import io.debezium.relational.Tables;
@@ -34,6 +33,7 @@ import io.debezium.util.Collect;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
+import java.util.Base64;
 import java.util.Map;
 
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -87,7 +87,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
                 oos.writeObject(builder);
                 oos.flush();
                 byte[] data = bao.toByteArray();
-                configBuidler.with(PulsarDatabaseHistory.CLIENT_BUILDER, Base64.encodeBase64String(data));
+                configBuidler.with(PulsarDatabaseHistory.CLIENT_BUILDER, Base64.getEncoder().encodeToString(data));
             }
         } else {
             configBuidler.with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString());
