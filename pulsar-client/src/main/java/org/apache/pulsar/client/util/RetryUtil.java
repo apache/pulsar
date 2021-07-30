@@ -53,7 +53,7 @@ public class RetryUtil {
             long next = backoff.next();
             boolean isMandatoryStop = backoff.isMandatoryStopMade();
             if (isMandatoryStop) {
-                callback.completeExceptionally(e);
+                callback.completeExceptionally(e.getCause());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("execute with retry fail, will retry in {} ms", next, e);
