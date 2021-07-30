@@ -20,6 +20,7 @@ package org.apache.pulsar.sql.presto;
 
 import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.type.Type;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Objects;
 
@@ -187,7 +188,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
             DecoderExtraInfo that = (DecoderExtraInfo) o;
 
-            if (!mapping.equals(that.mapping)) {
+            if (!StringUtils.equals(mapping, that.mapping)) {
                 return false;
             }
             if (dataFormat != null ? !dataFormat.equals(that.dataFormat) : that.dataFormat != null) {

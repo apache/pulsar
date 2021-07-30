@@ -115,7 +115,7 @@ public class ZooKeeperUtil {
         // create a zookeeper client
         LOG.debug("Instantiate ZK Client");
         zkc = ZooKeeperClient.newBuilder().connectString(getZooKeeperConnectString()).build();
-        if (!path.equals("")) {
+        if (!"".equals(path)) {
             zkc.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
         // initialize the zk client with values
