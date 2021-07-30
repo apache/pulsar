@@ -205,10 +205,8 @@ $ export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
 $ export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # Protocol Buffers installation
-$ brew tap homebrew/versions
-$ brew install protobuf260
-$ brew install boost
-$ brew install log4cxx
+$ brew install protobuf boost boost-python log4cxx jsoncpp
+# If you are using python3, you need to install boost-python3 
 
 # Google Test installation
 $ git clone https://github.com/google/googletest.git
