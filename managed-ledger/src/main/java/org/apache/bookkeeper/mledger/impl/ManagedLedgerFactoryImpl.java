@@ -104,6 +104,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     public static final int StatsPeriodSeconds = 60;
 
+    //indicate whether shutdown() is called.
+    private volatile boolean closed;
+
     private static class PendingInitializeManagedLedger {
 
         private final ManagedLedgerImpl ledger;
@@ -187,6 +190,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
 
         cacheEvictionExecutor.execute(this::cacheEvictionTask);
+        closed = false;
     }
 
     static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
@@ -317,6 +321,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void asyncOpen(final String name, final ManagedLedgerConfig config, final OpenLedgerCallback callback,
             Supplier<Boolean> mlOwnershipChecker, final Object ctx) {
+        if (closed) {
+            callback.openLedgerFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+            return;
+        }
 
         // If the ledger state is bad, remove it from the map.
         CompletableFuture<ManagedLedgerImpl> existingFuture = ledgers.get(name);
@@ -441,6 +449,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
             OpenReadOnlyCursorCallback callback, Object ctx) {
+        if (closed) {
+            callback.openReadOnlyCursorFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+            return;
+        }
         checkArgument(startPosition instanceof PositionImpl);
         ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
                 bookkeeperFactory
@@ -473,7 +485,86 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
+    public void shutdownGracefully() throws ManagedLedgerException, InterruptedException {
+        if (closed) {
+            throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
+        }
+        closed = true;
+
+        statsTask.cancel(true);
+        flushCursorsTask.cancel(true);
+
+        int closedLedgerNum = 0;
+
+        while (!ledgers.isEmpty()) { //use while loop for ledgers added during shutdown.
+            List<String> ledgerNames = new ArrayList<>(this.ledgers.keySet());
+            int numLedgers = ledgerNames.size();
+            final CountDownLatch latch = new CountDownLatch(numLedgers);
+            log.info("Closing {} ledgers", numLedgers);
+
+            for (String ledgerName : ledgerNames) {
+                CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.remove(ledgerName);
+                if (ledgerFuture == null) {
+                    latch.countDown();
+                    continue;
+                }
+                ledgerFuture.whenCompleteAsync((managedLedger, throwable) -> {
+                    if (throwable != null || managedLedger == null) {
+                        latch.countDown();
+                        return;
+                    }
+                    managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+                        @Override
+                        public void closeComplete(Object ctx) {
+                            latch.countDown();
+                        }
+
+                        @Override
+                        public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("[{}] Got exception when closing managed ledger: {}", managedLedger.getName(),
+                                    exception);
+                            latch.countDown();
+                        }
+                    }, null);
+
+                }, scheduledExecutor.chooseThread());
+                //close pendingInitializeManagedLedger directly to make sure all callbacks is called.
+                PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(ledgerName);
+                if (pendingLedger != null && !ledgerFuture.isDone()) {
+                    ledgerFuture.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+                }
+            }
+            latch.await();
+            closedLedgerNum += numLedgers;
+        }
+
+        log.info("{} ledgers closed", closedLedgerNum);
+
+        if (isBookkeeperManaged) {
+            try {
+                BookKeeper bookkeeper = bookkeeperFactory.get();
+                if (bookkeeper != null) {
+                    bookkeeper.close();
+                }
+            } catch (BKException e) {
+                throw new ManagedLedgerException(e);
+            }
+        }
+
+        //wait for tasks in scheduledExecutor executed.
+        scheduledExecutor.shutdown();
+        cacheEvictionExecutor.shutdownNow();
+
+        entryCacheManager.clear();
+    }
+
+    @Override
     public void shutdown() throws InterruptedException, ManagedLedgerException {
+        if (closed) {
+            throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
+        }
+        closed = true;
+
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
 

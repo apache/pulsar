@@ -160,4 +160,14 @@ public interface ManagedLedgerFactory {
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
 
+
+    /**
+     * This method tries it's best to releases all the resources maintained by the ManagedLedgerFactory.
+     * It will take longer time to shutdown than shutdown();
+     *
+     * @see #shutdown()
+     * @throws ManagedLedgerException
+     */
+    void shutdownGracefully() throws ManagedLedgerException, InterruptedException;
+
 }
