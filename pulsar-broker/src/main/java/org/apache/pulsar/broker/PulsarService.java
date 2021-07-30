@@ -675,6 +675,9 @@ public class PulsarService implements AutoCloseable {
             this.brokerInterceptor.initialize(this);
             brokerService.start();
 
+            // Load additional servlets
+            this.brokerAdditionalServlets = AdditionalServlets.load(config);
+
             this.webService = new WebService(this);
             this.metricsServlet = new PrometheusMetricsServlet(
                     this, config.isExposeTopicLevelMetricsInPrometheus(),
