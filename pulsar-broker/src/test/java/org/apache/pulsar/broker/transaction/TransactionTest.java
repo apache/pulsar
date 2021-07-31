@@ -22,13 +22,21 @@ import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImp
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -166,5 +174,29 @@ public class TransactionTest extends TransactionTestBase {
         txnID = transaction.getTxnID();
         Assert.assertEquals(txnID.getLeastSigBits(), 1);
         Assert.assertEquals(txnID.getMostSigBits(), 0);
+    }
+
+    @Test
+    public void testSubscriptionRecreateTopic()
+            throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
+    String topic = "persistent://pulsar/system/testReCreateTopisdad";
+    admin.topics().createNonPartitionedTopic(topic);
+    PulsarService pulsarService = super.getPulsarServiceList().get(0);
+    ManagedLedgerFactory managedLedgerFactory =  pulsarService.getBrokerService().getManagedLedgerFactory();
+    Field field  =  ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+    field.setAccessible(true);
+    ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+            (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>)field.get(managedLedgerFactory);
+    ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
+    admin.topics().unload(topic);
+    try {
+        admin.topics().createNonPartitionedTopic(topic);
+        Assert.fail();
+    } catch (PulsarAdminException.ConflictException e){
+        log.info("Cann`t create topic again");
+    }
+    pulsarClient.newConsumer().topic(topic)
+            .subscriptionName("sub_testReCreateTopic")
+            .subscribe();
     }
 }
