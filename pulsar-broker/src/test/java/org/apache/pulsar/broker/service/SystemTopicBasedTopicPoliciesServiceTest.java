@@ -240,7 +240,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         try {
             service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor()).get();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TopicPoliciesCacheNotInitException);
+            assertTrue(e.getCause().getCause() instanceof TopicPoliciesCacheNotInitException);
         }
         long cost = System.currentTimeMillis() - start;
         assertTrue("actual:" + cost, cost >= 5000 - 1000);
