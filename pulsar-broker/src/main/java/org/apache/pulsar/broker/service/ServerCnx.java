@@ -49,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import lombok.val;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -2364,7 +2365,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ackSet);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
         try {
-            getBrokerService().getInterceptor().onPulsarCommand(command, this);
+            val brokerInterceptor = getBrokerService().getInterceptor();
+            if (brokerInterceptor != null) {
+                brokerInterceptor.onPulsarCommand(command, this);
+            } else {
+                log.debug("BrokerInterceptor is not set in newMessageAndIntercept");
+            }
         } catch (Exception e) {
             log.error("Exception occur when intercept messages.", e);
         }
