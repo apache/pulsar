@@ -150,6 +150,7 @@ public class PersistentSubscription implements Subscription {
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(TopicName.get(topicName))) {
+            topic.getManagedLedger().getConfig().setCreateIfMissing(true);
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
