@@ -415,7 +415,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -426,7 +427,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10 * 1024)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -437,7 +439,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10 * 1024 * 1024)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -448,19 +451,21 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10L * 1024 * 1024 * 1024)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
-        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -lt 10000"));
+        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -lt 10000 -t message_age"));
         verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
                 BacklogQuota.builder()
                         .limitSize(10l * 1024 * 1024 * 1024)
                         .limitTime(10000)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.message_age);
 
         namespaces.run(split("set-persistence myprop/clust/ns1 -e 2 -w 1 -a 1 -r 100.0"));
         verify(mockNamespaces).setPersistence("myprop/clust/ns1",
