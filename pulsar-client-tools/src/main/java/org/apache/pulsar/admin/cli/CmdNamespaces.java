@@ -1095,7 +1095,7 @@ public class CmdNamespaces extends CmdBase {
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
 
-        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to get")
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set")
         private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
