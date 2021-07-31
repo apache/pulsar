@@ -30,6 +30,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -71,6 +73,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.core.util.Assert;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -147,6 +150,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
@@ -291,7 +295,8 @@ public class PersistentTopic extends AbstractTopic
         checkReplicatedSubscriptionControllerState();
         TopicName topicName = TopicName.get(topic);
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(topicName)) {
+                && !checkTopicIsEventsNames(topicName)
+                && !checkTopicIsFunctionWorkerService(this)) {
             this.transactionBuffer = brokerService.getPulsar()
                     .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
         } else {
@@ -299,6 +304,22 @@ public class PersistentTopic extends AbstractTopic
             this.transactionBuffer = new TransactionBufferDisable();
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+    }
+    private boolean checkTopicIsFunctionWorkerService(PersistentTopic topic){
+        String fnWorkerConfigFile =
+                Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
+        WorkerConfig workerConfig = null;
+        try {
+            workerConfig = WorkerConfig.load(fnWorkerConfigFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Assert.isNonEmpty(workerConfig);
+        Assert.isNonEmpty(topic);
+        String topicName = topic.getName();
+        return workerConfig.getClusterCoordinationTopic().equals(topicName)
+                || workerConfig.getFunctionAssignmentTopic().equals(topicName)
+                || workerConfig.getFunctionMetadataTopic().equals(topicName);
     }
 
     @Override

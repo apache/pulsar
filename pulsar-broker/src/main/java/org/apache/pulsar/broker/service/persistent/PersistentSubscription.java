@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +49,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.logging.log4j.core.util.Assert;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -77,6 +80,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,12 +153,29 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(TopicName.get(topicName))) {
+                && !checkTopicIsEventsNames(TopicName.get(topicName))
+                && !checkTopicIsFunctionWorkerService(topic)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
         }
         IS_FENCED_UPDATER.set(this, FALSE);
+    }
+    private boolean checkTopicIsFunctionWorkerService(PersistentTopic topic){
+        String fnWorkerConfigFile =
+                Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
+        WorkerConfig workerConfig = null;
+        try {
+            workerConfig = WorkerConfig.load(fnWorkerConfigFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        Assert.isNonEmpty(workerConfig);
+        Assert.isNonEmpty(topic);
+        String topicName = topic.getName();
+        return workerConfig.getClusterCoordinationTopic().equals(topicName)
+                || workerConfig.getFunctionAssignmentTopic().equals(topicName)
+                || workerConfig.getFunctionMetadataTopic().equals(topicName);
     }
 
     public void updateLastMarkDeleteAdvancedTimestamp() {
