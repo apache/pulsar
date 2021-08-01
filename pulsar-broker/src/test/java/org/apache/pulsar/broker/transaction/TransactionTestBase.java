@@ -47,6 +47,9 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -138,8 +141,15 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
             serviceConfigurationList.add(conf);
 
-            PulsarService pulsar = spy(new PulsarService(conf));
-
+            String fnWorkerConfigFile = "/Users/liangyepianzhou/Desktop/streamnative/apache/pulsar/pulsar/" +
+//                Paths.get("").toAbsolutePath().normalize().toString() +
+                    "/conf/functions_worker.yml";
+            WorkerConfig workerConfig = WorkerConfig.load(fnWorkerConfigFile);
+            PulsarService pulsar = spy(new PulsarService(conf,workerConfig,
+                    Optional.ofNullable(WorkerServiceLoader.load(workerConfig)), (exitCode) -> {
+                log.info("Process termination requested with code {}. "
+                        + "Ignoring, as this constructor is intended for tests. ", exitCode);
+            }));
             setupBrokerMocks(pulsar);
             pulsar.start();
             pulsarServiceList.add(pulsar);

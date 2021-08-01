@@ -22,13 +22,24 @@ import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImp
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -42,6 +53,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -167,4 +179,30 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(txnID.getLeastSigBits(), 1);
         Assert.assertEquals(txnID.getMostSigBits(), 0);
     }
+
+    @Test
+    public void testFilterFunctionTopicForTransactionComponent()
+            throws IOException, PulsarAdminException, ExecutionException, InterruptedException, NoSuchFieldException,
+            IllegalAccessException {
+
+        String fnWorkerConfigFile = "/Users/liangyepianzhou/Desktop/streamnative/apache/pulsar/pulsar/" +
+//                Paths.get("").toAbsolutePath().normalize().toString() +
+                "/conf/functions_worker.yml";
+        WorkerConfig workerConfig = WorkerConfig.load(fnWorkerConfigFile);
+        String [] functionTopics = {workerConfig.getFunctionMetadataTopic(),
+                workerConfig.getFunctionAssignmentTopic(),
+                workerConfig.getClusterCoordinationTopic()
+        };
+        admin.transactions().getTransactionBufferStats(functionTopics[0]);
+
+        Thread.sleep(90000);
+        PulsarService pulsarService = getPulsarServiceList().get(0);
+        List<String> subscriptions = admin.topics().getSubscriptions(functionTopics[0]);
+        Topic topic =  pulsarService.getBrokerService().getTopicIfExists(functionTopics[0]).get().get();
+        Subscription subscription =  topic.getSubscription(subscriptions.get(0));
+        Field field =  PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+        field.setAccessible(true);
+        PendingAckHandle pendingAckHandle = (PendingAckHandle) field.get(subscription);
+        Assert.assertTrue(pendingAckHandle instanceof PendingAckHandleDisabled);
+}
 }
