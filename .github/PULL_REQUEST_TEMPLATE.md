@@ -68,7 +68,25 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
-  - Does this pull request introduce a new feature? (yes / no)
-  - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
-  - If a feature is not applicable for documentation, explain why?
-  - If a feature is not documented yet in this PR, please create a followup issue for adding the documentation
+#### For contributor
+
+For this PR, do we need to update docs?
+
+- If yes, please update docs or create a follow-up issue if you need help.
+  
+- If no, please explain why.
+
+#### For committer
+
+For this PR, do we need to update docs?
+
+- If yes,
+  
+  - if you update docs in this PR, label this PR with the `doc` label.
+  
+  - if you plan to update docs later, label this PR with the `doc-required` label.
+
+  - if you need help on updating docs, create a follow-up issue with the `doc-required` label.
+  
+- If no, label this PR with the `no-need-doc` label and explain why.
+

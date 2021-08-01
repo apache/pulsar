@@ -184,6 +184,12 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         testPulsarSourceStats(jarFilePathUrl);
     }
 
+    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "Built-in source is not available")
+    public void testPulsarSourceStatsBuiltinDoesNotExist() throws Exception {
+        String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
+        testPulsarSourceStats(jarFilePathUrl);
+    }
+
     @Test(timeOut = 20000)
     public void testPulsarSourceStatsWithFile() throws Exception {
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();

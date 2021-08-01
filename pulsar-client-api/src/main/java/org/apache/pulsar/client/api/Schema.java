@@ -426,6 +426,18 @@ public interface Schema<T> extends Cloneable{
         return DefaultImplementation.newAutoProduceSchema(schema);
     }
 
+    /**
+     * Create a schema instance that accepts a serialized Avro payload
+     * without validating it against the schema specified. 
+     * It can be useful when migrating data from existing event or message stores.
+     *
+     * @return the auto schema instance
+     * @since 2.9.0
+     */
+    static Schema<byte[]> NATIVE_AVRO(Object schema) {
+        return DefaultImplementation.newAutoProduceValidatedAvroSchema(schema);
+    }
+
     // CHECKSTYLE.ON: MethodName
 
     static Schema<?> getSchema(SchemaInfo schemaInfo) {

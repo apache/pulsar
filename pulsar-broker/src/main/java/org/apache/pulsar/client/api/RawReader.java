@@ -34,7 +34,7 @@ public interface RawReader {
     static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
         RawReader r = new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future);
-        return future.thenCompose((consumer) -> r.seekAsync(MessageId.earliest)).thenApply((ignore) -> r);
+        return future.thenCompose(x -> x.seekAsync(MessageId.earliest)).thenApply(__ -> r);
     }
 
     /**

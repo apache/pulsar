@@ -151,7 +151,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected Map<String, String> propertiesMap;
     protected final MetaStore store;
 
-    private final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache = new ConcurrentLongHashMap<>(
+    final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache = new ConcurrentLongHashMap<>(
             16 /* initial capacity */, 1 /* number of sections */);
     protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
     private volatile Stat ledgersStat;
@@ -2410,7 +2410,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
                     }
-                    break;
+                    invalidateReadHandle(ls.getLedgerId());
                 }
             }
 
@@ -3413,20 +3413,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private ManagedLedgerInfo getManagedLedgerInfo() {
-        ManagedLedgerInfo.Builder mlInfo = ManagedLedgerInfo.newBuilder().addAllLedgerInfo(ledgers.values());
-        if (state == State.Terminated) {
-            mlInfo.setTerminatedPosition(NestedPositionInfo.newBuilder().setLedgerId(lastConfirmedEntry.getLedgerId())
-                    .setEntryId(lastConfirmedEntry.getEntryId()));
-        }
-        if (managedLedgerInterceptor != null) {
-            managedLedgerInterceptor.onUpdateManagedLedgerInfo(propertiesMap);
-        }
-        for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
-            mlInfo.addProperties(MLDataFormats.KeyValue.newBuilder()
-                    .setKey(property.getKey()).setValue(property.getValue()));
-        }
-
-        return mlInfo.build();
+        return buildManagedLedgerInfo(ledgers);
     }
 
     private ManagedLedgerInfo buildManagedLedgerInfo(Map<Long, LedgerInfo> ledgers) {

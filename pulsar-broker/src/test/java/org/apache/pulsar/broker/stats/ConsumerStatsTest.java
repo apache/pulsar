@@ -38,6 +38,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -193,7 +194,10 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "lastAckedTimestamp",
                 "lastConsumedTimestamp",
                 "keyHashRanges",
-                "metadata");
+                "metadata",
+                "address",
+                "connectedSince",
+                "clientVersion");
 
         final String topicName = "persistent://prop/use/ns-abc/testConsumerStatsOutput";
         final String subName = "my-subscription";
@@ -208,9 +212,10 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         ObjectMapper mapper = ObjectMapperFactory.create();
         JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(stats.getSubscriptions()
                 .get(subName).getConsumers().get(0)));
-        if (node.fieldNames().hasNext()) {
-            String field = node.fieldNames().next();
-            Assert.assertTrue(allowedFields.contains(field));
+        Iterator<String> itr = node.fieldNames();
+        while (itr.hasNext()) {
+            String field = itr.next();
+            Assert.assertTrue(allowedFields.contains(field), field + " should not be exposed");
         }
 
         consumer.close();
