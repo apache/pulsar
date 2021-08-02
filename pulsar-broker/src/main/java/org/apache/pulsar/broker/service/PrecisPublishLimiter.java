@@ -27,7 +27,6 @@ import org.apache.pulsar.common.util.RateLimiter;
 public class PrecisPublishLimiter implements PublishRateLimiter {
     protected volatile int publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
-    protected volatile boolean publishThrottlingEnabled = false;
     // precise mode for publish rate limiter
     private volatile RateLimiter topicPublishRateLimiterOnMessage;
     private volatile RateLimiter topicPublishRateLimiterOnByte;
@@ -97,7 +96,6 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
             if (maxPublishRate != null
                     && (maxPublishRate.publishThrottlingRateInMsg > 0
                     || maxPublishRate.publishThrottlingRateInByte > 0)) {
-                this.publishThrottlingEnabled = true;
                 this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
                 this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
                 if (this.publishMaxMessageRate > 0) {
@@ -120,7 +118,6 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
             } else {
                 this.publishMaxMessageRate = 0;
                 this.publishMaxByteRate = 0;
-                this.publishThrottlingEnabled = false;
             }
         });
     }
