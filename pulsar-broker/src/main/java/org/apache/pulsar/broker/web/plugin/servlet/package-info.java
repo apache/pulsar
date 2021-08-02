@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
- * Pulsar additional servlet plugin.
+ * Pulsar broker servlet plugin.
  */
 package org.apache.pulsar.broker.web.plugin.servlet;

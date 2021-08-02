@@ -16,8 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/**
- * Pulsar additional servlet plugin.
- */
 package org.apache.pulsar.broker.web.plugin.servlet;
+
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.eclipse.jetty.servlet.ServletHolder;
+
+public class MockAdditionalServletWithClassLoader implements AdditionalServletWithPulsarService{
+    @Override
+    public void loadConfig(PulsarConfiguration pulsarConfiguration) {
+        // No-op
+    }
+
+    @Override
+    public String getBasePath() {
+        return null;
+    }
+
+    @Override
+    public ServletHolder getServletHolder() {
+        return null;
+    }
+
+    @Override
+    public void close() {
+        // No-op
+    }
+
+    @Override
+    public void setPulsarService(PulsarService pulsarService) {
+        // No-op
+    }
+}
