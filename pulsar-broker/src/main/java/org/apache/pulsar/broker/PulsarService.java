@@ -120,7 +120,9 @@ import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStor
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -851,6 +853,10 @@ public class PulsarService implements AutoCloseable {
                     this.getBrokerAdditionalServlets().getServlets().values();
             for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
+                AdditionalServlet additionalServlet = servletWithClassLoader.getServlet();
+                if (additionalServlet instanceof AdditionalServletWithPulsarService) {
+                    ((AdditionalServletWithPulsarService) additionalServlet).setPulsarService(this);
+                }
                 webService.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
                         config.isAuthenticationEnabled(), attributeMap);
                 LOG.info("Broker add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
