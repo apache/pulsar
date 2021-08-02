@@ -593,7 +593,7 @@ uint64_t ClientImpl::getNumberOfProducers() {
     uint64_t numberOfAliveProducers = 0;
     for (const auto& producer : producers_) {
         if (producer.lock()->isConnected()) {
-           numberOfAliveProducers++;
+            numberOfAliveProducers++;
         }
     }
     return numberOfAliveProducers;
@@ -602,7 +602,7 @@ uint64_t ClientImpl::getNumberOfProducers() {
 uint64_t ClientImpl::getNumberOfConsumers() {
     Lock lock(mutex_);
     uint64_t numberOfAliveConsumers = 0;
-    for (const auto& consumer : consumers_){
+    for (const auto& consumer : consumers_) {
         if (consumer.lock()->isConnected()) {
             numberOfAliveConsumers++;
         }
@@ -610,12 +610,7 @@ uint64_t ClientImpl::getNumberOfConsumers() {
     return numberOfAliveConsumers;
 }
 
-uint64_t ClientImpl::getNumberOfReaders() {
-    
-    return 0;
-}
-
-
+uint64_t ClientImpl::getNumberOfReaders() { return 0; }
 
 const ClientConfiguration& ClientImpl::getClientConfig() const { return clientConfiguration_; }
 

@@ -115,31 +115,31 @@ TEST(ClientTest, testConnectTimeout) {
     clientDefault.close();
 }
 
-TEST(ClientTest, testGetNumberOfReferences){
-   Client client("pulsar://localhost:6650");
-   uint64_t numberOfProducers = 0;
-   
-   Producer producer;
-   client.createProducer("persistent://public/default/testGetNumberOfReferences", producer);
-   numberOfProducers = 1;
-   ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
+TEST(ClientTest, testGetNumberOfReferences) {
+    Client client("pulsar://localhost:6650");
+    uint64_t numberOfProducers = 0;
 
-   producer.close();
-   numberOfProducers = 0;
-   ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
+    Producer producer;
+    client.createProducer("persistent://public/default/testGetNumberOfReferences", producer);
+    numberOfProducers = 1;
+    ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
 
-   uint64_t numberOfConsumers = 0;
+    producer.close();
+    numberOfProducers = 0;
+    ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
 
-   Consumer consumer;
-   client.subscribe("persistent://public/default/testGetNumberOfReferences", "consumer-1", consumer);
-   numberOfConsumers = 1;
-   ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
+    uint64_t numberOfConsumers = 0;
 
-   consumer.close();
-   numberOfConsumers = 0;
-   ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
+    Consumer consumer;
+    client.subscribe("persistent://public/default/testGetNumberOfReferences", "consumer-1", consumer);
+    numberOfConsumers = 1;
+    ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
-   uint64_t numberOfReaders = 0;
-   ASSERT_EQ(numberOfReaders, client.getNumberOfReaders());
-   client.close();
+    consumer.close();
+    numberOfConsumers = 0;
+    ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
+
+    uint64_t numberOfReaders = 0;
+    ASSERT_EQ(numberOfReaders, client.getNumberOfReaders());
+    client.close();
 }
