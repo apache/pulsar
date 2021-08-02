@@ -19,7 +19,7 @@ sidebar_label: Bare metal
 > package and install `apache-pulsar-offloaders` under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
 > this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
-Deploying a Pulsar cluster involves doing the following:
+Deploying a Pulsar cluster consists of the following steps:
 
 1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)  
 2. Initialize [cluster metadata](#initialize-cluster-metadata)  
