@@ -898,7 +898,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
         // thread while the message processing happens
         try {
-            while (executorQueueSize.get() < conf.getReceiverQueueSize()) {
+            // Control executor to call MessageListener one by one.
+            if (executorQueueSize.get() < 1) {
                 Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     final Message<T> finalMsg = msg;
@@ -911,8 +912,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                             callMessageListener(finalMsg);
                         });
                     }
-                } else {
-                    break;
                 }
             }
         } catch (Exception e) {
