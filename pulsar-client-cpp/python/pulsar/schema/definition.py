@@ -67,8 +67,24 @@ class Record(with_metaclass(RecordMeta, object)):
                 if isinstance(value, Record) and isinstance(kwargs[k], dict):
                     # Use dict init Record object
                     copied = copy.copy(value)
-                    copied.__init__(decode=True, **kwargs[k])
+                    copied.__init__(**kwargs[k])
                     self.__setattr__(k, copied)
+                elif isinstance(value, Array) and isinstance(kwargs[k], list) and len(kwargs[k]) > 0 \
+                        and isinstance(value.array_type, Record) and isinstance(kwargs[k][0], dict):
+                    arr = []
+                    for item in kwargs[k]:
+                        copied = copy.copy(value.array_type)
+                        copied.__init__(**item)
+                        arr.append(copied)
+                    self.__setattr__(k, arr)
+                elif isinstance(value, Map) and isinstance(kwargs[k], dict) and len(kwargs[k]) > 0 \
+                    and isinstance(value.value_type, Record) and isinstance(list(kwargs[k].values())[0], dict):
+                    dic = {}
+                    for mapKey, mapValue in kwargs[k].items():
+                        copied = copy.copy(value.value_type)
+                        copied.__init__(**mapValue)
+                        dic[mapKey] = copied
+                    self.__setattr__(k, dic)
                 else:
                     # Value was overridden at constructor
                     self.__setattr__(k, kwargs[k])
@@ -128,6 +144,9 @@ class Record(with_metaclass(RecordMeta, object)):
 
     def type(self):
         return str(self.__class__.__name__)
+
+    def python_type(self):
+        return self.__class__
 
     def validate_type(self, name, val):
         if not isinstance(val, self.__class__):
