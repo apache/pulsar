@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.RateLimitFunction;
@@ -103,13 +102,20 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
                 this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
                 if (this.publishMaxMessageRate > 0) {
                     topicPublishRateLimiterOnMessage =
-                            new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS,
-                                    this::tryReleaseConnectionThrottle, true);
+                            RateLimiter.builder()
+                                    .scheduledExecutorService(scheduledExecutorService)
+                                    .permits(publishMaxMessageRate)
+                                    .rateLimitFunction(this::tryReleaseConnectionThrottle)
+                                    .isDispatchOrPrecisePublishRateLimiter(true)
+                                    .build();
                 }
                 if (this.publishMaxByteRate > 0) {
-                    topicPublishRateLimiterOnByte =
-                            new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS,
-                                    this::tryReleaseConnectionThrottle, true);
+                    topicPublishRateLimiterOnByte = RateLimiter.builder()
+                            .scheduledExecutorService(scheduledExecutorService)
+                            .permits(publishMaxByteRate)
+                            .rateLimitFunction(this::tryReleaseConnectionThrottle)
+                            .isDispatchOrPrecisePublishRateLimiter(true)
+                            .build();
                 }
             } else {
                 this.publishMaxMessageRate = 0;

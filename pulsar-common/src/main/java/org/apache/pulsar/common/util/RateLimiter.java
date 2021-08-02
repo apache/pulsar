@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Builder;
 
 /**
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
@@ -48,7 +49,6 @@ import java.util.function.Supplier;
  * </ul>
  */
 public class RateLimiter implements AutoCloseable{
-
     private final ScheduledExecutorService executorService;
     private long rateTime;
     private TimeUnit timeUnit;
@@ -94,6 +94,14 @@ public class RateLimiter implements AutoCloseable{
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
             final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchOrPrecisePublishRateLimiter) {
+        this(service, permits, rateTime, timeUnit, permitUpdater, isDispatchOrPrecisePublishRateLimiter,
+                null);
+    }
+
+    @Builder
+    RateLimiter(final ScheduledExecutorService scheduledExecutorService, final long permits, final long rateTime,
+            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchOrPrecisePublishRateLimiter,
+                       RateLimitFunction rateLimitFunction) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
@@ -103,8 +111,8 @@ public class RateLimiter implements AutoCloseable{
         this.permitUpdater = permitUpdater;
         this.isDispatchOrPrecisePublishRateLimiter = isDispatchOrPrecisePublishRateLimiter;
 
-        if (service != null) {
-            this.executorService = service;
+        if (scheduledExecutorService != null) {
+            this.executorService = scheduledExecutorService;
             this.externalExecutor = true;
         } else {
             final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
@@ -114,6 +122,14 @@ public class RateLimiter implements AutoCloseable{
             this.externalExecutor = false;
         }
 
+        this.rateLimitFunction = rateLimitFunction;
+
+    }
+
+    // default values for Lombok generated builder class
+    public static class RateLimiterBuilder {
+        private long rateTime = 1;
+        private TimeUnit timeUnit = TimeUnit.SECONDS;
     }
 
     @Override
