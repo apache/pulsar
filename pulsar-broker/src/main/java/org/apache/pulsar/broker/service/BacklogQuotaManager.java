@@ -191,13 +191,13 @@ public class BacklogQuotaManager {
                 }
                 // Skip messages on the slowest consumer
                 if (log.isDebugEnabled()) {
-                    log.debug("Skipping [{}] messages on slowest consumer [{}] having backlog entries : [{}]",
-                            messagesToSkip, slowestConsumer.getName(), entriesInBacklog);
+                    log.debug("[{}] Skipping [{}] messages on slowest consumer [{}] having backlog entries : [{}]",
+                            persistentTopic.getName(), messagesToSkip, slowestConsumer.getName(), entriesInBacklog);
                 }
                 slowestConsumer.skipEntries(messagesToSkip, IndividualDeletedEntries.Include);
             } catch (Exception e) {
-                log.error("Error skipping [{}] messages from slowest consumer : [{}]", messagesToSkip,
-                        slowestConsumer.getName());
+                log.error("[{}] Error skipping [{}] messages from slowest consumer [{}]", persistentTopic.getName(),
+                        messagesToSkip, slowestConsumer.getName(), e);
             }
 
             // Make sure that unconsumed size is updated every time when we skip the messages.
@@ -250,7 +250,7 @@ public class BacklogQuotaManager {
                     ledgerInfo = mLedger.getLedgerInfo(ledgerId).get();
                 }
             } catch (Exception e) {
-                log.error("Error resetting cursor for slowest consumer [{}]: {}",
+                log.error("[{}] Error resetting cursor for slowest consumer [{}]", persistentTopic.getName(),
                         mLedger.getSlowestConsumer().getName(), e);
             }
         }
