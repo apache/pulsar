@@ -460,6 +460,9 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
 
         self.assertEqual(r, msg.value())
+
+        producer.close()
+        consumer.close()
         client.close()
 
     def test_string_schema(self):
@@ -562,6 +565,9 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
 
         self.assertEqual(r, msg.value())
+
+        producer.close()
+        consumer.close()
         client.close()
 
     def test_json_enum(self):
@@ -1013,8 +1019,6 @@ class SchemaTest(TestCase):
             self.assertEqual(value.arrayNested[1].na4, 'value na4 2')
             self.assertEqual(value.arrayNested[1].nb4, 200)
 
-            producer.close()
-            consumer.close()
             print('Produce and consume complex schema data finish. schema_type', schema_type)
 
         produce_consume_test('avro')
