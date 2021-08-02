@@ -355,6 +355,10 @@ class PULSAR_PUBLIC Client {
      */
     void shutdown();
 
+    uint64_t getNumberOfProducers();
+    uint64_t getNumberOfConsumers();
+    uint64_t getNumberOfReaders();
+
    private:
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
            bool poolConnections);

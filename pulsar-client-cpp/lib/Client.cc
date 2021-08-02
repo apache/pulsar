@@ -175,4 +175,8 @@ Result Client::close() {
 void Client::closeAsync(CloseCallback callback) { impl_->closeAsync(callback); }
 
 void Client::shutdown() { impl_->shutdown(); }
+
+uint64_t Client::getNumberOfProducers() { return impl_->getNumberOfProducers(); }
+uint64_t Client::getNumberOfConsumers() { return impl_->getNumberOfConsumers(); }
+uint64_t Client::getNumberOfReaders() { return impl_->getNumberOfReaders(); }
 }  // namespace pulsar
