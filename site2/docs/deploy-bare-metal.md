@@ -11,7 +11,7 @@ sidebar_label: Bare metal
 > Pulsar or using Pulsar in a startup or on a single team, it is simplest to opt for a single cluster. If you need to run a multi-cluster Pulsar instance,
 > see the [guide](deploy-bare-metal-multi-cluster.md).
 >
-> 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
+> 2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`
 > package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
 > have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
 >
