@@ -16,8 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.broker.web.plugin.servlet;
+
+import org.apache.pulsar.broker.PulsarService;
 
 /**
- * Pulsar additional servlet plugin.
+ * The additional servlet with pulsarService interface for support additional servlet to get pulsarService.
  */
-package org.apache.pulsar.broker.web.plugin.servlet;
+public interface AdditionalServletWithPulsarService extends AdditionalServlet {
+    void setPulsarService(PulsarService pulsarService);
+}
