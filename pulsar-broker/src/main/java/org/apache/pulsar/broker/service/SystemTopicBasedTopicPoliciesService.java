@@ -55,14 +55,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private final PulsarService pulsarService;
     private volatile NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
-    private final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
+    @VisibleForTesting
+    final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
 
     private final Map<NamespaceName, AtomicInteger> ownedBundlesCountPerNamespace = new ConcurrentHashMap<>();
 
     private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>
             readerCaches = new ConcurrentHashMap<>();
-
-    private final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
+    @VisibleForTesting
+    final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
 
     private final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
