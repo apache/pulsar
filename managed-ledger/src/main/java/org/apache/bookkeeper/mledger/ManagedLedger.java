@@ -393,6 +393,27 @@ public interface ManagedLedger {
      */
     long getOffloadedSize();
 
+    /**
+     * Get last offloaded ledgerId. If no offloaded yet, it returns 0.
+     *
+     * @return last offloaded ledgerId
+     */
+    long getLastOffloadedLedgerId();
+
+    /**
+    * Get last suceessful offloaded timestamp. If no successful offload, it returns 0.
+     *
+     * @return last successful offloaded timestamp
+     */
+    long getLastOffloadedSuccessTimestamp();
+
+    /**
+     * Get last failed offloaded timestamp. If no failed offload, it returns 0.
+     *
+     * @return last failed offloaded timestamp
+     */
+    long getLastOffloadedFailureTimestamp();
+
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
     /**
