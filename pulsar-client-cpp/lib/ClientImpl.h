@@ -85,7 +85,6 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
 
     uint64_t getNumberOfProducers();
     uint64_t getNumberOfConsumers();
-    uint64_t getNumberOfReaders();
 
     const ClientConfiguration& getClientConfig() const;
 
