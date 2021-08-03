@@ -134,8 +134,9 @@ public class SubscribeRateLimiter {
         // update subscribe-rateLimiter
         if (ratePerConsumer > 0) {
             if (this.subscribeRateLimiter.get(consumerIdentifier) == null) {
-                this.subscribeRateLimiter.put(consumerIdentifier, new RateLimiter(brokerService.pulsar().getExecutor(), ratePerConsumer,
-                        ratePeriod, TimeUnit.SECONDS, null));
+                this.subscribeRateLimiter.put(consumerIdentifier,
+                        new RateLimiter(brokerService.pulsar().getExecutor(), ratePerConsumer,
+                                ratePeriod, TimeUnit.SECONDS));
             } else {
                 this.subscribeRateLimiter.get(consumerIdentifier).setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS,
                         null);

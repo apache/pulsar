@@ -109,4 +109,9 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     public boolean tryAcquire(int numbers, long bytes) {
         return false;
     }
+
+    @Override
+    public void close() throws Exception {
+        // no-op
+    }
 }
