@@ -148,7 +148,6 @@ TEST(ClientTest, testGetNumberOfReferences) {
     numberOfProducers = 0;
     ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
 
-
     // Consumer test
     uint64_t numberOfConsumers = 0;
 
