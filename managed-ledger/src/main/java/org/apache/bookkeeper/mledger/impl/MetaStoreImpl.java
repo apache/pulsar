@@ -55,7 +55,7 @@ public class MetaStoreImpl implements MetaStore {
     private final MetadataStore store;
     private final OrderedExecutor executor;
 
-    private static final short MAGIC_MANAGED_LEDGER_INFO_METADATA = 0x878; // 1000 0111 1000
+    private static final int MAGIC_MANAGED_LEDGER_INFO_METADATA = 0x4778; // 0100 0111 0111 1000
     private final CompressionType compressionType;
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
