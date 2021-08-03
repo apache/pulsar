@@ -52,6 +52,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -185,24 +186,29 @@ public class TransactionTest extends TransactionTestBase {
             throws IOException, PulsarAdminException, ExecutionException, InterruptedException, NoSuchFieldException,
             IllegalAccessException {
 
-        String fnWorkerConfigFile = "/Users/liangyepianzhou/Desktop/streamnative/apache/pulsar/pulsar/" +
-//                Paths.get("").toAbsolutePath().normalize().toString() +
+        admin.tenants().createTenant("public",
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace("public/functions", 10);
+        String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() +
                 "/conf/functions_worker.yml";
         WorkerConfig workerConfig = WorkerConfig.load(fnWorkerConfigFile);
         String [] functionTopics = {workerConfig.getFunctionMetadataTopic(),
                 workerConfig.getFunctionAssignmentTopic(),
                 workerConfig.getClusterCoordinationTopic()
         };
-        admin.transactions().getTransactionBufferStats(functionTopics[0]);
-
-        Thread.sleep(90000);
-        PulsarService pulsarService = getPulsarServiceList().get(0);
-        List<String> subscriptions = admin.topics().getSubscriptions(functionTopics[0]);
-        Topic topic =  pulsarService.getBrokerService().getTopicIfExists(functionTopics[0]).get().get();
-        Subscription subscription =  topic.getSubscription(subscriptions.get(0));
-        Field field =  PersistentSubscription.class.getDeclaredField("pendingAckHandle");
-        field.setAccessible(true);
-        PendingAckHandle pendingAckHandle = (PendingAckHandle) field.get(subscription);
-        Assert.assertTrue(pendingAckHandle instanceof PendingAckHandleDisabled);
+        for (int i = 0; i < 3; i++) {
+            admin.topics().createNonPartitionedTopic(functionTopics[i]);
+            TransactionBufferStats transactionBufferStats = admin.transactions().getTransactionBufferStats(functionTopics[i]);
+            Assert.assertNull(transactionBufferStats);
+            pulsarClient.newConsumer().topic(functionTopics[i]).subscriptionName("myTest-subscription").subscribe();
+            PulsarService pulsarService = getPulsarServiceList().get(0);
+            List<String> subscriptions = admin.topics().getSubscriptions(functionTopics[i]);
+            Topic topic =  pulsarService.getBrokerService().getTopicIfExists(functionTopics[i]).get().get();
+            Subscription subscription =  topic.getSubscription(subscriptions.get(0));
+            Field field =  PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+            field.setAccessible(true);
+            PendingAckHandle pendingAckHandle = (PendingAckHandle) field.get(subscription);
+            Assert.assertTrue(pendingAckHandle instanceof PendingAckHandleDisabled);
+        }
 }
 }
