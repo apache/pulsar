@@ -635,4 +635,17 @@ bool PartitionedConsumerImpl::isConnected() const {
     return true;
 }
 
+uint64_t PartitionedConsumerImpl::getNumberOfConnectedConsumer() {
+    uint64_t numberOfConnectedConsumer = 0;
+    Lock consumersLock(consumersMutex_);
+    const auto consumers = consumers_;
+    consumersLock.unlock();
+    for (const auto& consumer : consumers) {
+        if (consumer->isConnected()) {
+            numberOfConnectedConsumer++;
+        }
+    }
+    return numberOfConnectedConsumer;
+}
+
 }  // namespace pulsar
