@@ -749,3 +749,15 @@ bool MultiTopicsConsumerImpl::isConnected() const {
     }
     return true;
 }
+
+uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
+    Lock lock(mutex_);
+    uint64_t numberOfConnectedConsumer = 0;
+    const auto consumers = consumers_;
+    for (const auto& topicAndConsumer : consumers) {
+        if (topicAndConsumer.second->isConnected()) {
+            numberOfConnectedConsumer++;
+        }
+    }
+    return numberOfConnectedConsumer;
+}

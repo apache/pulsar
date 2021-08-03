@@ -593,8 +593,8 @@ uint64_t ClientImpl::getNumberOfProducers() {
     uint64_t numberOfAliveProducers = 0;
     for (const auto& producer : producers_) {
         const auto& producerImpl = producer.lock();
-        if (producerImpl && producerImpl->isConnected()) {
-            numberOfAliveProducers++;
+        if (producerImpl) {
+            numberOfAliveProducers += producerImpl->getNumberOfConnectedProducer();
         }
     }
     return numberOfAliveProducers;
@@ -605,8 +605,8 @@ uint64_t ClientImpl::getNumberOfConsumers() {
     uint64_t numberOfAliveConsumers = 0;
     for (const auto& consumer : consumers_) {
         const auto consumerImpl = consumer.lock();
-        if (consumerImpl && consumerImpl->isConnected()) {
-            numberOfAliveConsumers++;
+        if (consumerImpl) {
+            numberOfAliveConsumers += consumerImpl->getNumberOfConnectedConsumer();
         }
     }
     return numberOfAliveConsumers;

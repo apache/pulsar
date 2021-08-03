@@ -18,6 +18,8 @@
  */
 #include <gtest/gtest.h>
 
+#include "HttpHelper.h"
+
 #include <future>
 #include <pulsar/Client.h>
 #include "../lib/checksum/ChecksumProvider.h"
@@ -117,10 +119,13 @@ TEST(ClientTest, testConnectTimeout) {
 
 TEST(ClientTest, testGetNumberOfReferences) {
     Client client("pulsar://localhost:6650");
-    uint64_t numberOfProducers = 0;
 
+    // Producer test
+    uint64_t numberOfProducers = 0;
+    const std::string nonPartitionedTopic = "nonPartitionedTopic";
+    const std::string partitionedTopic = "partitionedTopic";
     Producer producer;
-    client.createProducer("persistent://public/default/testGetNumberOfReferences", producer);
+    client.createProducer(nonPartitionedTopic, producer);
     numberOfProducers = 1;
     ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
 
@@ -128,15 +133,32 @@ TEST(ClientTest, testGetNumberOfReferences) {
     numberOfProducers = 0;
     ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
 
+    // PartitionedProducer
+    int res = makePutRequest(
+        "http://localhost:8080/admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "2");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    client.createProducer(partitionedTopic, producer);
+    numberOfProducers = 2;
+    ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
+
+    // Consumer test
     uint64_t numberOfConsumers = 0;
 
     Consumer consumer;
-    client.subscribe("persistent://public/default/testGetNumberOfReferences", "consumer-1", consumer);
+    client.subscribe(nonPartitionedTopic, "consumer-1", consumer);
     numberOfConsumers = 1;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
     consumer.close();
     numberOfConsumers = 0;
+    ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
+
+    client.subscribe(partitionedTopic, "consumer-2", consumer);
+    numberOfConsumers = 2;
+    ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
+    client.subscribe(nonPartitionedTopic, "consumer-3", consumer);
+    numberOfConsumers = 3;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
     client.close();
