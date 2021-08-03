@@ -883,7 +883,7 @@ public abstract class AbstractTopic implements Topic {
                 // create new rateLimiter if rate-limiter is disabled
                 if (preciseTopicPublishRateLimitingEnable) {
                     this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate,
-                            () -> this.enableCnxAutoRead());
+                            () -> this.enableCnxAutoRead(), brokerService.pulsar().getExecutor());
                 } else {
                     this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
                 }
