@@ -82,10 +82,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
             Assert.assertNotNull(message);
             consumer.acknowledge(message);
         }
-    }
 
-    @Test(timeOut = 1000 * 5)
-    public void testInvalidManagedLedgerInfoCompression() throws Exception {
         stopBroker();
         conf.setManagedLedgerInfoCompressionType("INVALID");
         try {
