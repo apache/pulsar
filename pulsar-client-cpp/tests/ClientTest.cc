@@ -139,7 +139,5 @@ TEST(ClientTest, testGetNumberOfReferences) {
     numberOfConsumers = 0;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
-    uint64_t numberOfReaders = 0;
-    ASSERT_EQ(numberOfReaders, client.getNumberOfReaders());
     client.close();
 }

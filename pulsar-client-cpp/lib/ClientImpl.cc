@@ -605,8 +605,8 @@ uint64_t ClientImpl::getNumberOfConsumers() {
     uint64_t numberOfAliveConsumers = 0;
     for (const auto& consumer : consumers_) {
         const auto consumerImpl = consumer.lock();
-        if (consumerImpl) {
-            if (consumerImpl->isConnected()) numberOfAliveConsumers++;
+        if (consumerImpl && consumerImpl->isConnected()) {
+            numberOfAliveConsumers++;
         }
     }
     return numberOfAliveConsumers;
