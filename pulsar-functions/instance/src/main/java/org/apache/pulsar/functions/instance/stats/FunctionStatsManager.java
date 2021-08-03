@@ -68,13 +68,13 @@ public class FunctionStatsManager extends ComponentStatsManager{
     final Counter statTotalSysExceptions;
 
     final Counter statTotalUserExceptions;
-    
+
     final Summary statProcessLatency;
 
     final Gauge statlastInvocation;
 
     final Counter statTotalRecordsReceived;
-    
+
     // windowed metrics
 
     final Counter statTotalProcessedSuccessfully1min;
@@ -82,7 +82,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
     final Counter statTotalSysExceptions1min;
 
     final Counter statTotalUserExceptions1min;
-    
+
     final Summary statProcessLatency1min;
 
     final Counter statTotalRecordsReceived1min;
@@ -262,8 +262,8 @@ public class FunctionStatsManager extends ComponentStatsManager{
                 .help("Exception from sink.")
                 .create());
 
-        userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
-        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
+        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
     }
 
     public void addUserException(Throwable ex) {
@@ -371,7 +371,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
     public double getTotalUserExceptions() {
         return _statTotalUserExceptions.get();
     }
-    
+
     @Override
     public double getLastInvocation() {
         return _statlastInvocation.get();
@@ -417,7 +417,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
     public double getTotalUserExceptions1min() {
         return _statTotalUserExceptions1min.get();
     }
-    
+
     @Override
     public double getAvgProcessLatency1min() {
         return _statProcessLatency1min.get().count <= 0.0
