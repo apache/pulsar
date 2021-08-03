@@ -122,8 +122,11 @@ TEST(ClientTest, testGetNumberOfReferences) {
 
     // Producer test
     uint64_t numberOfProducers = 0;
-    const std::string nonPartitionedTopic = "nonPartitionedTopic";
-    const std::string partitionedTopic = "partitionedTopic";
+    const std::string nonPartitionedTopic =
+        "testGetNumberOfReferencesNonPartitionedTopic" + std::to_string(time(nullptr));
+
+    const std::string partitionedTopic =
+        "testGetNumberOfReferencesPartitionedTopic" + std::to_string(time(nullptr));
     Producer producer;
     client.createProducer(nonPartitionedTopic, producer);
     numberOfProducers = 1;
@@ -141,24 +144,34 @@ TEST(ClientTest, testGetNumberOfReferences) {
     client.createProducer(partitionedTopic, producer);
     numberOfProducers = 2;
     ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
+    producer.close();
+    numberOfProducers = 0;
+    ASSERT_EQ(numberOfProducers, client.getNumberOfProducers());
+
 
     // Consumer test
     uint64_t numberOfConsumers = 0;
 
-    Consumer consumer;
-    client.subscribe(nonPartitionedTopic, "consumer-1", consumer);
+    Consumer consumer1;
+    client.subscribe(nonPartitionedTopic, "consumer-1", consumer1);
     numberOfConsumers = 1;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
-    consumer.close();
+    consumer1.close();
     numberOfConsumers = 0;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
-    client.subscribe(partitionedTopic, "consumer-2", consumer);
+    Consumer consumer2;
+    Consumer consumer3;
+    client.subscribe(partitionedTopic, "consumer-2", consumer2);
     numberOfConsumers = 2;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
-    client.subscribe(nonPartitionedTopic, "consumer-3", consumer);
+    client.subscribe(nonPartitionedTopic, "consumer-3", consumer3);
     numberOfConsumers = 3;
+    ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
+    consumer2.close();
+    consumer3.close();
+    numberOfConsumers = 0;
     ASSERT_EQ(numberOfConsumers, client.getNumberOfConsumers());
 
     client.close();
