@@ -125,7 +125,15 @@ message ManagedCursorInfo {
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;
 }
 
+enum CompressionType {
+    NONE   = 0;
+    LZ4    = 1;
+    ZLIB   = 2;
+    ZSTD   = 3;
+    SNAPPY   = 4;
+}
+
 message ManagedLedgerInfoMetadata {
-    required string compressionType = 1;
-    required int32 unpressedSize = 2;
+    required CompressionType compressionType = 1;
+    required int32 uncompressedSize = 2;
 }

@@ -88,12 +88,29 @@ public class ManagedLedgerInfoMetadataTest {
         MLDataFormats.ManagedLedgerInfo managedLedgerInfo = MLDataFormats.ManagedLedgerInfo.newBuilder()
                 .addAllLedgerInfo(ledgerInfoList)
                 .build();
-        MetaStoreImpl metaStore = new MetaStoreImpl(null, null, compressionType);
+
+        MetaStoreImpl metaStore;
+        try {
+            metaStore = new MetaStoreImpl(null, null, compressionType);
+            if ("INVALID_TYPE".equals(compressionType)) {
+                Assert.fail("The managedLedgerInfo compression type is invalid, should fail.");
+            }
+        } catch (Exception e) {
+            if ("INVALID_TYPE".equals(compressionType)) {
+                Assert.assertEquals(e.getClass(), IllegalArgumentException.class);
+                Assert.assertEquals(
+                        "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType."
+                                + compressionType, e.getMessage());
+                return;
+            } else {
+                throw e;
+            }
+        }
+
         byte[] compressionBytes = metaStore.compressLedgerInfo(managedLedgerInfo);
         log.info("[{}] Uncompressed data size: {}, compressed data size: {}",
                 compressionType, managedLedgerInfo.getSerializedSize(), compressionBytes.length);
-        if (compressionType == null || compressionType.equals(CompressionType.NONE.name())
-                || compressionType.equals("INVALID_TYPE")) {
+        if (compressionType == null || compressionType.equals(CompressionType.NONE.name())) {
             Assert.assertEquals(compressionBytes.length, managedLedgerInfo.getSerializedSize());
         }
 
