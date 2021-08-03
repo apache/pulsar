@@ -356,16 +356,16 @@ class PULSAR_PUBLIC Client {
     void shutdown();
 
     /**
-     * @brief Get the Number Of alive Producers on current client.
+     * @brief Get the number of alive producers on the current client.
      *
-     * @return The number of alive Producers on current client.
+     * @return The number of alive producers on the  current client.
      */
     uint64_t getNumberOfProducers();
 
     /**
-     * @brief Get the Number Of alive Consumers on current client.
+     * @brief Get the number of alive consumers on the current client.
      *
-     * @return The number of alive Consumers on current client.
+     * @return The number of alive consumers on the current client.
      */
     uint64_t getNumberOfConsumers();
 
