@@ -351,7 +351,8 @@ public class MetaStoreImpl implements MetaStore {
                 decodeByteBuf = CompressionCodecProvider.getCompressionCodec(
                         CompressionType.valueOf(metadata.getCompressionType())).decode(byteBuf, (int) unpressedSize);
                 byte[] decodeBytes;
-                if (decodeByteBuf.hasArray() && !metadata.getCompressionType().equals(CompressionType.ZLIB.name())) {
+                // couldn't decode data by ZLIB compression byteBuf array() directly
+                if (decodeByteBuf.hasArray() && !CompressionType.ZLIB.name().equals(metadata.getCompressionType())) {
                     decodeBytes = decodeByteBuf.array();
                 } else {
                     decodeBytes = new byte[decodeByteBuf.readableBytes() - decodeByteBuf.readerIndex()];
