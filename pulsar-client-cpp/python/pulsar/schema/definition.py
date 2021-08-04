@@ -181,6 +181,9 @@ class Field(object):
         pass
 
     def validate_type(self, name, val):
+        if not val and not self._required:
+            return self.default()
+
         if type(val) != self.python_type():
             raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
         return val
@@ -305,6 +308,10 @@ class String(Field):
 
     def validate_type(self, name, val):
         t = type(val)
+
+        if not val and not self._required:
+            return self.default()
+
         if not (t is str or t.__name__ == 'unicode'):
             raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
         return val
@@ -315,9 +322,7 @@ class String(Field):
         else:
             return None
 
-
 # Complex types
-
 
 class _Enum(Field):
     def __init__(self, enum_type):
