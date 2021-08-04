@@ -59,6 +59,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
                 "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
                 ));
+        conf.setEnableExposingBrokerEntryMetadataToClient(true);
         baseSetup();
     }
 
@@ -273,6 +274,32 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName(subscription)
                 .subscribe();
-        consumer.getLastMessageId();
+    }
+
+    @Test(timeOut = 20000)
+    public void testConsumerGetBrokerEntryMetadata() throws Exception {
+        final String topic = newTopicName();
+        final String subscription = "my-sub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subscription)
+                .subscribe();
+
+        long sendTime = System.currentTimeMillis();
+        producer.send("hello".getBytes());
+
+        Message<byte[]> received = consumer.receive();
+        Assert.assertEquals("hello", new String(received.getData()));
+
+        Assert.assertTrue(received.getBrokerPublishTime() >= sendTime);
+        Assert.assertEquals(received.getIndex(), 0);
     }
 }

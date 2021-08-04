@@ -245,4 +245,20 @@ public interface Message<T> {
      * @since 2.8.0
      */
     void release();
+
+    /**
+     * Get broker publish time from broker entry metadata.
+     *
+     * @since 2.9.0
+     * @return broker publish time from broker entry metadata
+     */
+    long getBrokerPublishTime();
+
+    /**
+     * Get index from broker entry metadata.
+     *
+     * @Since 2.9.0
+     * @return index from broker entry metadata
+     */
+    long getIndex();
 }

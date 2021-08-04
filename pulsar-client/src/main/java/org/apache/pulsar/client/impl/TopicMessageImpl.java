@@ -199,4 +199,14 @@ public class TopicMessageImpl<T> implements Message<T> {
     public void release() {
         msg.release();
     }
+
+    @Override
+    public long getBrokerPublishTime() {
+        return msg.getBrokerPublishTime();
+    }
+
+    @Override
+    public long getIndex() {
+        return msg.getIndex();
+    }
 }

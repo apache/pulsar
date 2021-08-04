@@ -294,13 +294,14 @@ public class MessageImpl<T> implements Message<T> {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
 
+        BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
         Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
         msg.payload = headersAndPayloadWithBrokerEntryMetadata;
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;
         msg.properties = Collections.emptyMap();
-        msg.brokerEntryMetadata = null;
+        msg.brokerEntryMetadata = brokerEntryMetadata;
         return msg;
     }
 
@@ -645,6 +646,22 @@ public class MessageImpl<T> implements Message<T> {
             ReferenceCountUtil.safeRelease(payload);
             recycle();
         }
+    }
+
+    @Override
+    public long getBrokerPublishTime() {
+        if (brokerEntryMetadata != null) {
+            return this.brokerEntryMetadata.getBrokerTimestamp();
+        }
+        return -1;
+    }
+
+    @Override
+    public long getIndex() {
+        if (brokerEntryMetadata != null) {
+            return this.brokerEntryMetadata.getIndex();
+        }
+        return -1;
     }
 
     private MessageImpl(Handle<MessageImpl<?>> recyclerHandle) {

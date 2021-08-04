@@ -1006,6 +1006,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable exposing broker entry metadata to client.")
+    private boolean enableExposingBrokerEntryMetadataToClient = false;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Enable namespaceIsolation policy update take effect ontime or not," +
             " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
