@@ -46,10 +46,16 @@ public class SimpleProducerSocket {
     private final CountDownLatch closeLatch;
     private Session session;
     private final ArrayList<String> producerBuffer;
+    private final int messagesToSendWhenConnected;
 
     public SimpleProducerSocket() {
+        this(10);
+    }
+
+    public SimpleProducerSocket(int messagesToSendWhenConnected) {
         this.closeLatch = new CountDownLatch(1);
-        producerBuffer = new ArrayList<>();
+        this.producerBuffer = new ArrayList<>();
+        this.messagesToSendWhenConnected = messagesToSendWhenConnected;
     }
 
     private static String getTestJsonPayload(int index) throws JsonProcessingException {
@@ -74,7 +80,7 @@ public class SimpleProducerSocket {
     public void onConnect(Session session) throws Exception {
         log.info("Got connect: {}", session);
         this.session = session;
-        sendMessage(10);
+        sendMessage(this.messagesToSendWhenConnected);
     }
 
     public void sendMessage(int totalMsgs) throws Exception {
