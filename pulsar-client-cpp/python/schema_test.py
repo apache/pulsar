@@ -452,7 +452,6 @@ class SchemaTest(TestCase):
                         'my-json-python-topic',
                         schema=JsonSchema(Example))
 
-
         # Validate that incompatible schema is rejected
         try:
             client.subscribe('my-json-python-topic', 'sub-1',
@@ -519,13 +518,11 @@ class SchemaTest(TestCase):
         self.assertEqual(b"Hello", msg.data())
         client.close()
 
-
     def test_bytes_schema(self):
         client = pulsar.Client(self.serviceUrl)
         producer = client.create_producer(
                         'my-bytes-python-topic',
                         schema=BytesSchema())
-
 
         # Validate that incompatible schema is rejected
         try:
@@ -853,7 +850,6 @@ class SchemaTest(TestCase):
 
         client.close()
 
-
     def test_default_value(self):
         class MyRecord(Record):
             A = Integer()
@@ -973,6 +969,28 @@ class SchemaTest(TestCase):
 
         encode_and_decode('avro')
         encode_and_decode('json')
+
+    def test_sub_record_set_to_none(self):
+        class NestedObj1(Record):
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        data_schema = AvroSchema(NestedObj2)
+        r = NestedObj2(na2=1, nb2=True)
+
+        data_encode = data_schema.encode(r)
+        data_decode = data_schema.decode(data_encode)
+
+        self.assertEqual(data_decode.__class__.__name__, 'NestedObj2')
+        self.assertEqual(data_decode, r)
+        self.assertEqual(data_decode.na2, 1)
+        self.assertTrue(data_decode.nb2)
+
 
     def test_produce_and_consume_complex_schema_data(self):
         class NestedObj1(Record):
