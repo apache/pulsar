@@ -22,8 +22,6 @@
 #include <gtest/gtest.h>
 #include <thread>
 
-DECLARE_LOG_OBJECT()
-
 using namespace pulsar;
 
 static std::vector<std::string> logLines;
