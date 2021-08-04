@@ -93,6 +93,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_TRANSACTION = "Transaction";
     @Category
     private static final String CATEGORY_PACKAGES_MANAGEMENT = "Packages Management";
+    @Category
+    private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -927,6 +929,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
     )
     private int retentionCheckIntervalInSeconds = 120;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
+    )
+    private int maxMessageSizeCheckIntervalInSeconds = 60;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2238,6 +2246,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String packagesManagementLedgerRootPath = "/ledgers";
 
     /* packages management service configurations (end) */
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate broker additional servlet"
+    )
+    private String additionalServletDirectory = "./brokerAdditionalServlet";
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of broker additional servlet to load, which is a list of broker additional servlet names"
+    )
+    private Set<String> additionalServlets = Sets.newTreeSet();
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

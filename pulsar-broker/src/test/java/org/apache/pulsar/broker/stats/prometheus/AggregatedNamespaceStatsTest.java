@@ -39,6 +39,7 @@ public class AggregatedNamespaceStatsTest {
         topicStats1.throughputIn = 10240.0;
         topicStats1.throughputOut = 20480.0;
         topicStats1.managedLedgerStats.storageSize = 5120;
+        topicStats1.managedLedgerStats.storageLogicalSize = 2048;
         topicStats1.msgBacklog = 30;
         topicStats1.managedLedgerStats.storageWriteRate = 12.0;
         topicStats1.managedLedgerStats.storageReadRate = 6.0;
@@ -70,6 +71,7 @@ public class AggregatedNamespaceStatsTest {
         topicStats2.throughputIn = 512.0;
         topicStats2.throughputOut = 1024.5;
         topicStats2.managedLedgerStats.storageSize = 1024;
+        topicStats2.managedLedgerStats.storageLogicalSize = 512;
         topicStats2.msgBacklog = 7;
         topicStats2.managedLedgerStats.storageWriteRate = 5.0;
         topicStats2.managedLedgerStats.storageReadRate = 2.5;
@@ -108,6 +110,8 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsStats.msgBacklog, 37);
         assertEquals(nsStats.managedLedgerStats.storageWriteRate, 17.0);
         assertEquals(nsStats.managedLedgerStats.storageReadRate, 8.5);
+        assertEquals(nsStats.managedLedgerStats.storageSize, 6144);
+        assertEquals(nsStats.managedLedgerStats.storageLogicalSize, 2560);
 
         AggregatedReplicationStats nsReplStats = nsStats.replicationStats.get(namespace);
         assertNotNull(nsReplStats);

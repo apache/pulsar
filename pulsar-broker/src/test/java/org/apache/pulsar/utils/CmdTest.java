@@ -22,7 +22,6 @@ import static org.testng.Assert.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.testng.annotations.Test;
 
@@ -31,13 +30,28 @@ public class CmdTest {
 
     @Test
     public void cmdParserTest() throws Exception {
+        generateDoc("org.apache.pulsar.broker.ServiceConfiguration");
+    }
+
+    @Test
+    public void cmdParserWebSocketTest() throws Exception {
+        generateDoc("org.apache.pulsar.websocket.service.WebSocketProxyConfiguration");
+    }
+
+    @Test
+    public void cmdParserClientTest() throws Exception {
+        generateDoc("org.apache.pulsar.client.impl.conf.ClientConfigurationData");
+    }
+
+    private void generateDoc(String clazz) throws Exception {
         PrintStream oldStream = System.out;
         try (ByteArrayOutputStream baoStream = new ByteArrayOutputStream(2048);
              PrintStream cacheStream = new PrintStream(baoStream);) {
             System.setOut(cacheStream);
-            CmdGenerateDocumentation.main("-c org.apache.pulsar.broker.ServiceConfiguration".split(" "));
+            CmdGenerateDocumentation.main(("-c " + clazz).split(" "));
             String message = baoStream.toString();
-            Field[] fields = ServiceConfiguration.class.getDeclaredFields();
+            Class cls = Class.forName(clazz);
+            Field[] fields = cls.getDeclaredFields();
             for (Field field : fields) {
                 field.setAccessible(true);
                 FieldContext fieldContext = field.getAnnotation(FieldContext.class);

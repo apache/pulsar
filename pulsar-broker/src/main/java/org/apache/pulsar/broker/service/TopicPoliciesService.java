@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
+import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.BackoffBuilder;
+import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -31,6 +37,14 @@ import org.apache.pulsar.common.util.FutureUtil;
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
+    long DEFAULT_GET_TOPIC_POLICY_TIMEOUT = 30_000;
+
+    /**
+     * Delete policies for a topic async.
+     *
+     * @param topicName topic name
+     */
+    CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
 
     /**
      * Update policies for a topic async.
@@ -46,6 +60,35 @@ public interface TopicPoliciesService {
      * @return future of the topic policies
      */
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
+
+    /**
+     * When getting TopicPolicies, if the initialization has not been completed,
+     * we will go back off and try again until time out.
+     * @param topicName topic name
+     * @param backoff back off policy
+     * @return CompletableFuture<Optional<TopicPolicies>>
+     */
+    default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
+              final Backoff backoff, ScheduledExecutorService scheduledExecutorService) {
+        CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
+        Backoff usedBackoff = backoff == null ? new BackoffBuilder()
+                .setInitialTime(500, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                .setMax(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
+                .create() : backoff;
+        try {
+            RetryUtil.retryAsynchronously(() -> {
+                try {
+                    return Optional.ofNullable(getTopicPolicies(topicName));
+                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
+                    throw new RuntimeException(exception);
+                }
+            }, usedBackoff, scheduledExecutorService, response);
+        } catch (Exception e) {
+            response.completeExceptionally(e);
+        }
+        return response;
+    }
 
     /**
      * Get policies for a topic without cache async.
@@ -73,13 +116,6 @@ public interface TopicPoliciesService {
      */
     void start();
 
-    /**
-     * whether the cache has been initialized.
-     * @param topicName
-     * @return
-     */
-    boolean cacheIsInitialized(TopicName topicName);
-
     void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
 
     void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
@@ -93,6 +129,11 @@ public interface TopicPoliciesService {
     }
 
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
+
+        @Override
+        public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+            return FutureUtil.failedFuture(new UnsupportedOperationException("Topic policies service is disabled."));
+        }
 
         @Override
         public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
@@ -124,11 +165,6 @@ public interface TopicPoliciesService {
         @Override
         public void start() {
             //No-op
-        }
-
-        @Override
-        public boolean cacheIsInitialized(TopicName topicName) {
-            return false;
         }
 
         @Override

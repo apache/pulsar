@@ -377,20 +377,37 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
         }
         state_ = TcpConnected;
         connectTimeoutTask_->stop();
-        socket_->set_option(tcp::no_delay(true));
 
-        socket_->set_option(tcp::socket::keep_alive(true));
+        boost::system::error_code error;
+        socket_->set_option(tcp::no_delay(true), error);
+        if (error) {
+            LOG_WARN(cnxString_ << "Socket failed to set tcp::no_delay: " << error.message());
+        }
+
+        socket_->set_option(tcp::socket::keep_alive(true), error);
+        if (error) {
+            LOG_WARN(cnxString_ << "Socket failed to set tcp::socket::keep_alive: " << error.message());
+        }
 
         // Start TCP keep-alive probes after connection has been idle after 1 minute. Ideally this
         // should never happen, given that we're sending our own keep-alive probes (within the TCP
         // connection) every 30 seconds
-        socket_->set_option(tcp_keep_alive_idle(1 * 60));
+        socket_->set_option(tcp_keep_alive_idle(1 * 60), error);
+        if (error) {
+            LOG_DEBUG(cnxString_ << "Socket failed to set tcp_keep_alive_idle: " << error.message());
+        }
 
         // Send up to 10 probes before declaring the connection broken
-        socket_->set_option(tcp_keep_alive_count(10));
+        socket_->set_option(tcp_keep_alive_count(10), error);
+        if (error) {
+            LOG_DEBUG(cnxString_ << "Socket failed to set tcp_keep_alive_count: " << error.message());
+        }
 
         // Interval between probes: 6 seconds
-        socket_->set_option(tcp_keep_alive_interval(6));
+        socket_->set_option(tcp_keep_alive_interval(6), error);
+        if (error) {
+            LOG_DEBUG(cnxString_ << "Socket failed to set tcp_keep_alive_interval: " << error.message());
+        }
 
         if (tlsSocket_) {
             if (!isTlsAllowInsecureConnection_) {

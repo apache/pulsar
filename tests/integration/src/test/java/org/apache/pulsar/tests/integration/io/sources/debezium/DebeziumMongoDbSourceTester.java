@@ -50,7 +50,7 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
         sourceConfig.put("mongodb.password", "dbz");
         sourceConfig.put("mongodb.task.id","1");
         sourceConfig.put("database.whitelist", "inventory");
-        sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/mongodb");
     }
 

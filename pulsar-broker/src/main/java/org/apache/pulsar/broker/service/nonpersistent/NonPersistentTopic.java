@@ -271,7 +271,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                     name -> new NonPersistentSubscription(this, subscriptionName));
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
-                    cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+                    cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta, MessageId.latest);
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                 if (!cnx.isActive()) {
                     try {
@@ -386,6 +386,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     if (deleteSchema) {
                         futures.add(deleteSchema().thenApply(schemaVersion -> null));
                     }
+                    futures.add(deleteTopicPolicies());
                     FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
@@ -444,7 +445,17 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
+        if (topicPublishRateLimiter != null) {
+            try {
+                topicPublishRateLimiter.close();
+            } catch (Exception e) {
+                log.warn("Error closing topicPublishRateLimiter for topic {}", topic, e);
+            }
+        }
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        if (this.resourceGroupPublishLimiter != null) {
+            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        }
 
         CompletableFuture<Void> clientCloseFuture =
                 closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)

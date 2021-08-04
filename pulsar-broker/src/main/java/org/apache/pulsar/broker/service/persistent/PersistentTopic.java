@@ -731,7 +731,7 @@ public class PersistentTopic extends AbstractTopic
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, initialPosition, keySharedMeta);
+                        readCompacted, initialPosition, keySharedMeta, startMessageId);
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
                     if (!cnx.isActive()) {
@@ -1063,7 +1063,7 @@ public class PersistentTopic extends AbstractTopic
                     CompletableFuture<SchemaVersion> deleteSchemaFuture =
                             deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null);
 
-                    deleteSchemaFuture.whenComplete((v, ex) -> {
+                    deleteSchemaFuture.thenAccept(__ -> deleteTopicPolicies()).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();
@@ -1149,7 +1149,17 @@ public class PersistentTopic extends AbstractTopic
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
+        if (topicPublishRateLimiter != null) {
+            try {
+                topicPublishRateLimiter.close();
+            } catch (Exception e) {
+                log.warn("Error closing topicPublishRateLimiter for topic {}", topic, e);
+            }
+        }
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        if (this.resourceGroupPublishLimiter != null) {
+            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        }
 
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
                 ? CompletableFuture.completedFuture(null)
@@ -1796,6 +1806,9 @@ public class PersistentTopic extends AbstractTopic
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
         stats.offloadedStorageSize = ledger.getOffloadedSize();
+        stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
+        stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
+        stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
         return stats;
     }
 

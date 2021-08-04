@@ -53,7 +53,6 @@ public class LocalZooKeeperCacheService {
     private final ZooKeeperCache cache;
 
     private ZooKeeperManagedLedgerCache managedLedgerListCache;
-    private ResourceQuotaCache resourceQuotaCache;
     private ZooKeeperDataCache<LocalPolicies> policiesCache;
     private ZooKeeperChildrenCache availableBookiesCache;
 
@@ -111,8 +110,6 @@ public class LocalZooKeeperCacheService {
         };
 
         this.managedLedgerListCache = new ZooKeeperManagedLedgerCache(cache, MANAGED_LEDGER_ROOT);
-        this.resourceQuotaCache = new ResourceQuotaCache(cache);
-        this.resourceQuotaCache.initZK();
         this.availableBookiesCache = new ZooKeeperChildrenCache(cache, AVAILABLE_BOOKIES_ROOT);
     }
 
@@ -224,10 +221,6 @@ public class LocalZooKeeperCacheService {
         });
 
         return future;
-    }
-
-    public ResourceQuotaCache getResourceQuotaCache() {
-        return this.resourceQuotaCache;
     }
 
     public ZooKeeperDataCache<LocalPolicies> policiesCache() {
