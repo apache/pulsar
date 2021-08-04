@@ -43,6 +43,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.metrics.CompactorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
@@ -134,17 +135,24 @@ public class PrometheusMetricsGenerator {
         if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
             // generate managedLedger metrics
             parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+                    clusterName, Collector.Type.GAUGE, stream);
         }
 
         if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
             // generate managedCursor metrics
             parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
+                    clusterName, Collector.Type.GAUGE, stream);
+        }
+
+        // TODO
+        if (pulsar.getConfiguration().isExposeCompactedTopicMetricsInPrometheus()) {
+            // generate compacted topic metrics
+            parseMetricsToPrometheusMetrics(new CompactorMetrics(pulsar).generate(),
+                    clusterName, Collector.Type.GAUGE, stream);
         }
 
         parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()
-                .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
+                        .getPulsarStats().getBrokerOperabilityMetrics().generateConnectionMetrics()),
                 clusterName, Collector.Type.GAUGE, stream);
 
         // generate loadBalance metrics

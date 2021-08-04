@@ -1012,6 +1012,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
+    @FieldContext(minValue = 1,
+            category = CATEGORY_SERVER,
+            doc = "How frequently to refresh the compactor metrics. (seconds). Default is 60 seconds")
+    private int compactorMetricsRefreshIntervalSeconds = 60;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -1984,14 +1989,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeManagedCursorMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "If true, export compacted topics metrics"
+    )
+    private boolean exposeCompactedTopicMetricsInPrometheus = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 
     @FieldContext(
-        category = CATEGORY_METRICS,
-        doc = "Enable expose the precise backlog stats.\n" +
-            " Set false to use published counter and consumed counter to calculate,\n" +
-            " this would be more efficient but may be inaccurate. Default is false."
+            category = CATEGORY_METRICS,
+            doc = "Enable expose the precise backlog stats.\n" +
+                    " Set false to use published counter and consumed counter to calculate,\n" +
+                    " this would be more efficient but may be inaccurate. Default is false."
     )
     private boolean exposePreciseBacklogInPrometheus = false;
 

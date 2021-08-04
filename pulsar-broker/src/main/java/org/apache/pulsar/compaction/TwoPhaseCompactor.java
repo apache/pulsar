@@ -124,13 +124,15 @@ public class TwoPhaseCompactor extends Compactor {
             try {
                 MessageId id = m.getMessageId();
                 boolean deletedMessage = false;
+                boolean replaceMessage = false;
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
                         for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
                                 .extractIdsAndKeysAndSize(m)) {
                             if (e != null) {
                                 if (e.getRight() > 0) {
-                                    latestForKey.put(e.getMiddle(), e.getLeft());
+                                    MessageId old = latestForKey.put(e.getMiddle(), e.getLeft());
+                                    replaceMessage = old != null;
                                 } else {
                                     deletedMessage = true;
                                     latestForKey.remove(e.getMiddle());
@@ -145,14 +147,17 @@ public class TwoPhaseCompactor extends Compactor {
                     Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
                     if (keyAndSize != null) {
                         if (keyAndSize.getRight() > 0) {
-                            latestForKey.put(keyAndSize.getLeft(), id);
+                            MessageId old = latestForKey.put(keyAndSize.getLeft(), id);
+                            replaceMessage = old != null;
                         } else {
                             deletedMessage = true;
                             latestForKey.remove(keyAndSize.getLeft());
                         }
                     }
                 }
-
+                if (replaceMessage || deletedMessage) {
+                    mxBean.addCompactRemoved(reader.getTopic());
+                }
                 MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
                 MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                 if (id.compareTo(lastMessageId) == 0) {
@@ -254,6 +259,7 @@ public class TwoPhaseCompactor extends Compactor {
                     RawMessage message = messageToAdd.get();
                     try {
                         outstanding.acquire();
+                        mxBean.addCompactSample(reader.getTopic(), message.getHeadersAndPayload().readableBytes());
                         CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message)
                                 .whenComplete((res, exception2) -> {
                                     outstanding.release();
