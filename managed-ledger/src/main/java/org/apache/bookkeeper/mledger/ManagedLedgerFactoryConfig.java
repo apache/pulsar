@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger;
 import lombok.Data;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
@@ -75,4 +76,9 @@ public class ManagedLedgerFactoryConfig {
      * cluster name for prometheus stats
      */
     private String clusterName;
+
+    /**
+     * ManagedLedgerInfo compression type. If the compression type is null or invalid, don't compress data.
+     */
+    private String managedLedgerInfoCompressionType = CompressionType.NONE.name();
 }

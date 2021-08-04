@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
+import java.util.Random;
+
 /**
  */
 public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
@@ -84,6 +86,12 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             LOG.error("Error running message expiry check", e);
         }
+    }
+
+    private static final Random random = new Random();
+
+    protected String newTopicName() {
+        return "prop/ns-abc/topic-" + Long.toHexString(random.nextLong());
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(BrokerTestBase.class);
