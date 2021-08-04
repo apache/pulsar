@@ -1455,7 +1455,10 @@ void ClientConnection::close() {
     }
 
     if (tlsSocket_) {
-        tlsSocket_->lowest_layer().close();
+        tlsSocket_->lowest_layer().close(err);
+        if (err) {
+            LOG_WARN(cnxString_ << "Failed to close TLS socket: " << err.message());
+        }
     }
 
     if (executor_) {
