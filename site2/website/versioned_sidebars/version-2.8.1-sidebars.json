@@ -59,9 +59,11 @@
       "version-2.8.1-tiered-storage-aliyun"
     ],
     "Transactions": [
-      "version-2.8.1-transactions",
-      "version-2.8.1-transactions-guarantee",
-      "version-2.8.1-transactions-api"
+      "version-2.8.1-txn-why",
+      "version-2.8.1-txn-what",
+      "version-2.8.1-txn-how",
+      "version-2.8.1-txn-use",
+      "version-2.8.1-txn-monitor"
     ],
     "Kubernetes (Helm)": [
       "version-2.8.1-helm-overview",
