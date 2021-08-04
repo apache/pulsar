@@ -149,6 +149,9 @@ class Record(with_metaclass(RecordMeta, object)):
         return self.__class__
 
     def validate_type(self, name, val):
+        if not val and not self._required:
+            return self.default()
+
         if not isinstance(val, self.__class__):
             raise TypeError("Invalid type '%s' for sub-record field '%s'. Expected: %s" % (
                 type(val), name, self.__class__))
