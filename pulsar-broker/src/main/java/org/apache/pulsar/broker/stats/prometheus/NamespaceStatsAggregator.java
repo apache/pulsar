@@ -231,6 +231,7 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, "pulsar_throughput_in", 0);
         metric(stream, cluster, "pulsar_throughput_out", 0);
         metric(stream, cluster, "pulsar_storage_size", 0);
+        metric(stream, cluster, "pulsar_storage_logical_size", 0);
         metric(stream, cluster, "pulsar_storage_write_rate", 0);
         metric(stream, cluster, "pulsar_storage_read_rate", 0);
         metric(stream, cluster, "pulsar_msg_backlog", 0);
