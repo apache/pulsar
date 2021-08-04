@@ -185,13 +185,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testFilterFunctionTopicForTransactionComponent()
             throws IOException, PulsarAdminException, ExecutionException, InterruptedException, NoSuchFieldException,
             IllegalAccessException {
-
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace("public/functions", 10);
-        String fnWorkerConfigFile = System.getenv("user.dir")+
-                "/conf/functions_worker.yml";
-        WorkerConfig workerConfig = WorkerConfig.load(fnWorkerConfigFile);
+        WorkerConfig workerConfig =  getPulsarServiceList().get(0).getWorkerConfig().get();
         String [] functionTopics = {workerConfig.getFunctionMetadataTopic(),
                 workerConfig.getFunctionAssignmentTopic(),
                 workerConfig.getClusterCoordinationTopic()

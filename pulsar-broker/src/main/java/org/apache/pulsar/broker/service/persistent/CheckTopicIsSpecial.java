@@ -31,16 +31,7 @@ public class CheckTopicIsSpecial {
         if (!Assert.isNonEmpty(topic)){
             throw new IllegalArgumentException("topic can`t be null");
         }
-        String fnWorkerConfigFile = System.getenv("user.dir") +  "/conf/functions_worker.yml";
-        WorkerConfig workerConfig;
-        try {
-            workerConfig = WorkerConfig.load(fnWorkerConfigFile);
-        } catch (IOException e) {
-            if (log.isDebugEnabled()){
-                log.error("Failed to get FunctionWorkerConfigFile");
-            }
-            throw new IOError(e);
-        }
+       WorkerConfig workerConfig =  topic.getBrokerService().getPulsar().getWorkerConfig().get();
         String topicName = topic.getName();
         return workerConfig.getClusterCoordinationTopic().equals(topicName)
                 || workerConfig.getFunctionAssignmentTopic().equals(topicName)
