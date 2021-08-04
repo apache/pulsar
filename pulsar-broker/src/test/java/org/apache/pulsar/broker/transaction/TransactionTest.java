@@ -189,7 +189,7 @@ public class TransactionTest extends TransactionTestBase {
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/functions", 10);
-        String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() +
+        String fnWorkerConfigFile = System.getenv("user.dir")+
                 "/conf/functions_worker.yml";
         WorkerConfig workerConfig = WorkerConfig.load(fnWorkerConfigFile);
         String [] functionTopics = {workerConfig.getFunctionMetadataTopic(),

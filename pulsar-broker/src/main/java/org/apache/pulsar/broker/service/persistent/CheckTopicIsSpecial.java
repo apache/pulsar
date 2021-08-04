@@ -31,7 +31,7 @@ public class CheckTopicIsSpecial {
         if (!Assert.isNonEmpty(topic)){
             throw new IllegalArgumentException("topic can`t be null");
         }
-        String fnWorkerConfigFile = System.getenv("PULSAR_WORKER_CONF");
+        String fnWorkerConfigFile = System.getenv("user.dir") +  "/conf/functions_worker.yml";
         WorkerConfig workerConfig;
         try {
             workerConfig = WorkerConfig.load(fnWorkerConfigFile);
