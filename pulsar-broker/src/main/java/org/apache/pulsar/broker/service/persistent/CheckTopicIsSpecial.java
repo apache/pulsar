@@ -18,15 +18,10 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import java.io.IOError;
-import java.io.IOException;
 import org.apache.logging.log4j.core.util.Assert;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class CheckTopicIsSpecial {
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
     public static  boolean checkTopicIsFunctionWorkerService(PersistentTopic topic)  {
         if (!Assert.isNonEmpty(topic)){
             throw new IllegalArgumentException("topic can`t be null");
