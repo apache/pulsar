@@ -36,7 +36,7 @@ public class CheckTopicIsSpecial {
         try {
             workerConfig = WorkerConfig.load(fnWorkerConfigFile);
         } catch (IOException e) {
-            if(log.isDebugEnabled()){
+            if (log.isDebugEnabled()){
                 log.error("Failed to get FunctionWorkerConfigFile");
             }
             throw new IOError(e);
