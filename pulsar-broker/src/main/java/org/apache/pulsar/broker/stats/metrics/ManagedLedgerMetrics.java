@@ -85,6 +85,8 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
 
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate",
                         lStats.getAddEntryBytesRate());
+                populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryWithReplicasBytesRate",
+                        lStats.getAddEntryWithReplicasBytesRate());
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryErrors",
                         (double) lStats.getAddEntryErrors());
 
