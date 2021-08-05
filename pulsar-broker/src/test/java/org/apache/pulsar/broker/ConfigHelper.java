@@ -22,8 +22,8 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 
-import java.util.Collections;
 import java.util.Map;
 
 public class ConfigHelper {
@@ -39,7 +39,7 @@ public class ConfigHelper {
 
     public static BacklogQuota sizeBacklogQuota(ServiceConfiguration configuration) {
         return BacklogQuota.builder()
-                .limitSize(configuration.getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024)
+                .limitSize(configuration.getBacklogQuotaDefaultLimitGB() * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
                 .retentionPolicy(configuration.getBacklogQuotaDefaultRetentionPolicy())
                 .build();
     }
