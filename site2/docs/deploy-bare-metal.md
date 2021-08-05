@@ -51,7 +51,7 @@ As shown in this diagram, connecting clients communicate with the Pulsar cluster
 
 ### Hardware considerations
 
-If you deploy a Pulsar cluster, keep in mind the following basic better choices when you do the capacity planning.
+When deploying a Pulsar cluster, keep in mind that the capacity of your deployment might benefit from the following configuration.
 
 #### ZooKeeper
 
