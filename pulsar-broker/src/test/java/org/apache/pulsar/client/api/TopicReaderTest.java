@@ -844,12 +844,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderReachEndOfTopicOnMessageWithBatches() throws Exception {
+        String topic = "persistent://my-property/my-ns/testReaderReachEndOfTopicOnMessageWithBatches" + UUID.randomUUID();
         Reader<byte[]> reader = pulsarClient.newReader()
-                .topic("persistent://my-property/my-ns/testReaderReachEndOfTopicOnMessageWithBatches")
+                .topic(topic)
                 .startMessageId(MessageId.earliest).create();
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/testReaderReachEndOfTopicOnMessageWithBatches")
+                .topic(topic)
                 .enableBatching(true).batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS).create();
 
         // no data write, should return false
