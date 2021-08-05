@@ -48,7 +48,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 1000 * 10)
+    @Test(timeOut = 1000 * 20)
     public void testRestartBrokerEnableManagedLedgerInfoCompression() throws Exception {
         String topic = newTopicName();
         @Cleanup
@@ -66,6 +66,11 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
 
         stopBroker();
         conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.ZSTD.name());
+        startBroker();
+        produceAndConsume(producer, consumer, messageCnt);
+
+        stopBroker();
+        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.LZ4.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
 
