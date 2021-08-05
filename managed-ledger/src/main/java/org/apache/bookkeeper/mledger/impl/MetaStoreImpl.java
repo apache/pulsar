@@ -317,7 +317,8 @@ public class MetaStoreImpl implements MetaStore {
             metadataByteBuf.writeInt(mlInfoMetadata.getSerializedSize());
             metadataByteBuf.writeBytes(mlInfoMetadata.toByteArray());
 
-            encodeByteBuf = getCompressionCodec().encode(Unpooled.wrappedBuffer(managedLedgerInfo.toByteArray()));
+            encodeByteBuf = getCompressionCodec(compressionType)
+                    .encode(Unpooled.wrappedBuffer(managedLedgerInfo.toByteArray()));
 
             CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponent(true, metadataByteBuf);
@@ -347,7 +348,8 @@ public class MetaStoreImpl implements MetaStore {
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
 
                 long unpressedSize = metadata.getUncompressedSize();
-                decodeByteBuf = getCompressionCodec().decode(byteBuf, (int) unpressedSize);
+                decodeByteBuf = getCompressionCodec(metadata.getCompressionType())
+                        .decode(byteBuf, (int) unpressedSize);
                 byte[] decodeBytes;
                 // couldn't decode data by ZLIB compression byteBuf array() directly
                 if (decodeByteBuf.hasArray() && !CompressionType.ZLIB.equals(metadata.getCompressionType())) {
@@ -371,7 +373,7 @@ public class MetaStoreImpl implements MetaStore {
         }
     }
 
-    private CompressionCodec getCompressionCodec() {
+    private CompressionCodec getCompressionCodec(CompressionType compressionType) {
         return CompressionCodecProvider.getCompressionCodec(
                 org.apache.pulsar.common.api.proto.PulsarApi.CompressionType.valueOf(compressionType.name()));
     }

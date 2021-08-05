@@ -21,8 +21,7 @@ package org.apache.bookkeeper.mledger;
 import lombok.Data;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
  */
@@ -80,5 +79,5 @@ public class ManagedLedgerFactoryConfig {
     /**
      * ManagedLedgerInfo compression type. If the compression type is null or invalid, don't compress data.
      */
-    private String managedLedgerInfoCompressionType = CompressionType.NONE.name();
+    private String managedLedgerInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
 }
