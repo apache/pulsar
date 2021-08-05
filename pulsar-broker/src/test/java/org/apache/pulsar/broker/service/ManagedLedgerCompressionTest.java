@@ -24,6 +24,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -61,27 +62,12 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
                 .subscribe();
 
         int messageCnt = 100;
-        for (int i = 0; i < messageCnt; i++) {
-            producer.newMessage().value("test".getBytes()).send();
-        }
-        for (int i = 0; i < messageCnt; i++) {
-            Message<byte[]> message = consumer.receive(1000, TimeUnit.SECONDS);
-            consumer.acknowledge(message);
-            Assert.assertNotNull(message);
-        }
+        produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
         conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.ZSTD.name());
         startBroker();
-
-        for (int i = 0; i < messageCnt; i++) {
-            producer.newMessage().value("test".getBytes()).send();
-        }
-        for (int i = 0; i < messageCnt; i++) {
-            Message<byte[]> message = consumer.receive(1000, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
-            consumer.acknowledge(message);
-        }
+        produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
         conf.setManagedLedgerInfoCompressionType("INVALID");
@@ -93,6 +79,22 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
             Assert.assertEquals(
                     "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType.INVALID",
                     e.getCause().getMessage());
+        }
+
+        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
+        startBroker();
+        produceAndConsume(producer, consumer, messageCnt);
+    }
+
+    private void produceAndConsume(Producer<byte[]> producer,
+                                   Consumer<byte[]> consumer, int messageCnt) throws PulsarClientException {
+        for (int i = 0; i < messageCnt; i++) {
+            producer.newMessage().value("test".getBytes()).send();
+        }
+        for (int i = 0; i < messageCnt; i++) {
+            Message<byte[]> message = consumer.receive(1000, TimeUnit.SECONDS);
+            consumer.acknowledge(message);
+            Assert.assertNotNull(message);
         }
     }
 
