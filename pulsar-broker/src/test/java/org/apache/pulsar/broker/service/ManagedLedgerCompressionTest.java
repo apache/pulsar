@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.pulsar.client.api.CompressionType;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -37,7 +37,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setManagedLedgerInfoCompressionType(CompressionType.NONE.name());
+        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
         super.baseSetup();
     }
 
@@ -71,7 +71,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         }
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType(CompressionType.ZSTD.name());
+        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.ZSTD.name());
         startBroker();
 
         for (int i = 0; i < messageCnt; i++) {
