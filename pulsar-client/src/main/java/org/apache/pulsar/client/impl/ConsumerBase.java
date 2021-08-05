@@ -900,21 +900,20 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         try {
             // Control executor to call MessageListener one by one.
             if (executorQueueSize.get() < 1) {
-                Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
+                final Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
                 if (msg != null) {
-                    final Message<T> finalMsg = msg;
                     executorQueueSize.incrementAndGet();
                     if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
-                        executorProvider.getExecutor(peekMessageKey(finalMsg)).execute(() ->
-                                callMessageListener(finalMsg));
+                        executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
+                                callMessageListener(msg));
                     } else {
                         getExecutor(msg).execute(() -> {
-                            callMessageListener(finalMsg);
+                            callMessageListener(msg);
                         });
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (PulsarClientException e) {
             log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
             return;
         }
