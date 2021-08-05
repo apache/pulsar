@@ -68,7 +68,7 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 
 > You need to install the Pulsar binary package on each machine in the cluster, including machines running ZooKeeper and BookKeeper.
 
-To get started deploying a Pulsar cluster on bare metal, you need to download a binary tarball release in one of the following ways:
+To deploy a Pulsar cluster on bare metal, you need to first download a binary tarball release by one of the following ways.
 
 * By clicking on the link below directly, which automatically triggers a download:
   * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
