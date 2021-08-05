@@ -164,7 +164,7 @@ public class ManagedLedgerFactoryShutdownTest {
         log.info("Shutdown factory...");
 
 
-        factory.shutdownGracefully();
+        factory.shutdownAsync().get();
         //make zk returned after factory shutdown
         slowZk.countDown();
 
