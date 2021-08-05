@@ -48,6 +48,6 @@ public class EventsTopicNames {
             new HashSet<>(Arrays.asList(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT)));
 
     public static boolean checkTopicIsEventsNames(TopicName topicName) {
-        return EVENTS_TOPIC_NAMES.contains(topicName.getLocalName());
+        return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
     }
 }
