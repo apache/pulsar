@@ -5,7 +5,7 @@ sidebar_label: Bare metal
 ---
 
 
-> ### Tips
+> **Tips**
 >
 > 1. Single-cluster Pulsar installation should be sufficient for most use cases. If you are interested in experimenting withPulsar or using Pulsar in a startup or on a single team, it is simplest to opt for a single cluster. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
 >
@@ -26,6 +26,8 @@ Deploying a Pulsar cluster consists of the following steps:
 
 Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
+>**Tips**
+>
 > You can reuse existing Zookeeper clusters.
 
 To run Pulsar on bare metal, the following configuration is recommended:
@@ -36,10 +38,9 @@ To run Pulsar on bare metal, the following configuration is recommended:
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
 > **Note**
->
+> 
 > * Broker is only supported on 64-bit JVM.
-> * If you do not have enough machines, or to try out Pulsar in cluster mode (and expand the cluster later),
-> you can deploy a full Pulsar configuration on one node, where Zookeeper, the bookie and broker are run on the same machine.
+> * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy pulsar on a node on which zookeeper, bookie and broker run
 > * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
 Each machine in your cluster needs to have [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11) installed.
 
@@ -47,11 +48,11 @@ The following is a diagram showing the basic setup:
 
 ![alt-text](assets/pulsar-basic-setup.png)
 
-As shown in this diagram, connecting clients communicate with the Pulsar cluster using a single URL. More precisely, the URL `pulsar-cluster.acme.com` abstracts over all message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.
+In this diagram, connecting clients need to communicate with the Pulsar cluster using a single URL. In this case, `pulsar-cluster.acme.com` abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.
 
 ### Hardware considerations
 
-When deploying a Pulsar cluster, keep in mind that the capacity of your deployment might benefit from the following configuration.
+If you deploy a Pulsar cluster, keep in mind the following basic better choices when you do the capacity planning.
 
 #### ZooKeeper
 
@@ -68,7 +69,7 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 
 > You need to install the Pulsar binary package on each machine in the cluster, including machines running ZooKeeper and BookKeeper.
 
-To deploy a Pulsar cluster on bare metal, you need to first download a binary tarball release by one of the following ways.
+To get started deploying a Pulsar cluster on bare metal, you need to download a binary tarball release in one of the following ways:
 
 * By clicking on the link below directly, which automatically triggers a download:
   * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
@@ -100,10 +101,9 @@ Directory | Contains
 ## [Install Builtin Connectors (optional)]( https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional)
 
 > Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `builtin` connectors.
-> If you want to enable those `builtin` connectors, you can follow the instructions as below; otherwise you can
-> skip this section now.
+> To enable the `builtin` connectors (optional), you can follow the instructions below.
 
-To get started using builtin connectors, you need to download the connectors tarball release on every broker node in one of the following ways:
+To use `builtin` connectors, you need to download the connectors tarball release on every broker node in one of the following ways :
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
@@ -135,7 +135,7 @@ pulsar-io-aerospike-{{pulsar:version}}.nar
 > If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
 > skip this section for now.
 
-To get started using tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:
+To use tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
@@ -170,7 +170,7 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 > If you already have an exsiting zookeeper cluster and want to use it, you can skip this section.
 
-[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
+[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.
 
 To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) (in the Pulsar directory that you create [above](#install-the-pulsar-binary-package)). The following is an example:
 
