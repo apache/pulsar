@@ -176,7 +176,7 @@ public interface Topic {
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
-    boolean isBacklogQuotaExceeded(String producerName);
+    boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType);
 
     boolean isEncryptionRequired();
 
@@ -184,7 +184,7 @@ public interface Topic {
 
     boolean isReplicated();
 
-    BacklogQuota getBacklogQuota();
+    BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType);
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,

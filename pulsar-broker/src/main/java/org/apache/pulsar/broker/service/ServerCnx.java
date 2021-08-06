@@ -1182,23 +1182,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                         service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
                             // Before creating producer, check if backlog quota exceeded
-                            // on topic
-                            if (topic.isBacklogQuotaExceeded(producerName)) {
-                                IllegalStateException illegalStateException = new IllegalStateException(
-                                        "Cannot create producer on topic with backlog quota exceeded");
-                                BacklogQuota.RetentionPolicy retentionPolicy = topic.getBacklogQuota().getPolicy();
-                                if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
-                                    commandSender.sendErrorResponse(requestId,
-                                            ServerError.ProducerBlockedQuotaExceededError,
-                                            illegalStateException.getMessage());
-                                } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
-                                    commandSender.sendErrorResponse(requestId,
-                                            ServerError.ProducerBlockedQuotaExceededException,
-                                            illegalStateException.getMessage());
+                            // on topic for size based limit and time based limit
+                            for (BacklogQuota.BacklogQuotaType backlogQuotaType :
+                                    BacklogQuota.BacklogQuotaType.values()) {
+                                if (topic.isBacklogQuotaExceeded(producerName, backlogQuotaType)) {
+                                    IllegalStateException illegalStateException = new IllegalStateException(
+                                            "Cannot create producer on topic with backlog quota exceeded");
+                                    BacklogQuota.RetentionPolicy retentionPolicy = topic
+                                            .getBacklogQuota(backlogQuotaType).getPolicy();
+                                    if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold) {
+                                        commandSender.sendErrorResponse(requestId,
+                                                ServerError.ProducerBlockedQuotaExceededError,
+                                                illegalStateException.getMessage());
+                                    } else if (retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception) {
+                                        commandSender.sendErrorResponse(requestId,
+                                                ServerError.ProducerBlockedQuotaExceededException,
+                                                illegalStateException.getMessage());
+                                    }
+                                    producerFuture.completeExceptionally(illegalStateException);
+                                    producers.remove(producerId, producerFuture);
+                                    return;
                                 }
-                                producerFuture.completeExceptionally(illegalStateException);
-                                producers.remove(producerId, producerFuture);
-                                return;
                             }
 
                             // Check whether the producer will publish encrypted messages or not
