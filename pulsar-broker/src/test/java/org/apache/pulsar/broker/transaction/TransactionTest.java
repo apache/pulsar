@@ -182,13 +182,13 @@ public class TransactionTest extends TransactionTestBase {
     String topic = "persistent://pulsar/system/testReCreateTopisdad";
     admin.topics().createNonPartitionedTopic(topic);
     PulsarService pulsarService = super.getPulsarServiceList().get(0);
+    pulsarService.getBrokerService().getTopics().clear();
     ManagedLedgerFactory managedLedgerFactory =  pulsarService.getBrokerService().getManagedLedgerFactory();
     Field field  =  ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
     field.setAccessible(true);
     ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
             (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>)field.get(managedLedgerFactory);
     ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
-    admin.topics().unload(topic);
     try {
         admin.topics().createNonPartitionedTopic(topic);
         Assert.fail();
