@@ -32,7 +32,6 @@ import io.swagger.annotations.ApiResponses;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -269,14 +268,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isOffloadPoliciesSet()) {
-                    asyncResponse.resume(topicPolicies.getOffloadPolicies());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isOffloadPoliciesSet()) {
+                        asyncResponse.resume(topicPolicies.getOffloadPolicies());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getOffloadPolicies", ex, asyncResponse);
                 return null;
@@ -342,14 +342,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
-                    asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnConsumer());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
+                        asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnConsumer());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxUnackedMessagesOnConsumer", ex, asyncResponse);
                 return null;
@@ -414,14 +415,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isDeduplicationSnapshotIntervalSecondsSet()) {
-                    asyncResponse.resume(topicPolicies.getDeduplicationSnapshotIntervalSeconds());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isDeduplicationSnapshotIntervalSecondsSet()) {
+                        asyncResponse.resume(topicPolicies.getDeduplicationSnapshotIntervalSeconds());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getDeduplicationSnapshotInterval", ex, asyncResponse);
                 return null;
@@ -486,14 +488,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isInactiveTopicPoliciesSet()) {
-                    asyncResponse.resume(topicPolicies.getInactiveTopicPolicies());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isInactiveTopicPoliciesSet()) {
+                        asyncResponse.resume(topicPolicies.getInactiveTopicPolicies());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getInactiveTopicPolicies", ex, asyncResponse);
                 return null;
@@ -558,14 +561,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
-                    asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnSubscription());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+                        asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnSubscription());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getInactiveTopicPolicies", ex, asyncResponse);
                 return null;
@@ -633,15 +637,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
-                    asyncResponse.resume(new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
-                            , topicPolicies.getDelayedDeliveryEnabled()));
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
+                        asyncResponse.resume(new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
+                                , topicPolicies.getDelayedDeliveryEnabled()));
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getDelayedDeliveryPolicies", ex, asyncResponse);
                 return null;
@@ -1539,14 +1544,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> asyncResponse.resume(getTopicPolicies(topicName)
-                .map(TopicPolicies::getBackLogQuotaMap)
+             .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+             .thenApply(op -> op.map(TopicPolicies::getBackLogQuotaMap)
                 .map(map -> {
                     HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
                     map.forEach((key,value) -> hashMap.put(BacklogQuota.BacklogQuotaType.valueOf(key),value));
                     return hashMap;
-                })
-                .orElse(Maps.newHashMap())))
+                }).orElse(Maps.newHashMap()))
+              .thenAccept(r -> asyncResponse.resume(r))
             .exceptionally(ex -> {
                 handleTopicPolicyException("getBacklogQuotaMap", ex, asyncResponse);
                 return null;
@@ -1616,9 +1621,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> asyncResponse.resume(getTopicPolicies(topicName)
-                .map(TopicPolicies::getMessageTTLInSeconds)
-                .orElse(0)))
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+            .thenApply(op -> op.map(TopicPolicies::getMessageTTLInSeconds).orElse(0))
+            .thenAccept(r -> asyncResponse.resume(r))
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMessageTTL", ex, asyncResponse);
                 return null;
@@ -1687,14 +1692,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isDeduplicationSet()) {
-                    asyncResponse.resume(topicPolicies.getDeduplicationEnabled());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isDeduplicationSet()) {
+                        asyncResponse.resume(topicPolicies.getDeduplicationEnabled());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getDeduplicationEnabled", ex, asyncResponse);
                 return null;
@@ -1762,17 +1768,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
-                if (topicPolicies.isRetentionSet()) {
-                    asyncResponse.resume(topicPolicies.getRetentionPolicies());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
-            .exceptionally(ex -> {
-                handleTopicPolicyException("getRetention", ex, asyncResponse);
-                return null;
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenApply(op -> op.orElseGet(TopicPolicies::new))
+                .thenAccept(topicPolicies -> {
+                    if (topicPolicies.isRetentionSet()) {
+                        asyncResponse.resume(topicPolicies.getRetentionPolicies());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getRetention", ex, asyncResponse);
+                    return null;
             });
     }
 
@@ -1856,17 +1863,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<PersistencePolicies> persistencePolicies = internalGetPersistence();
-                if (!persistencePolicies.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(persistencePolicies.get());
-                }
-            })
-            .exceptionally(ex -> {
-                handleTopicPolicyException("getPersistence", ex, asyncResponse);
-                return null;
+                .thenCompose(__ -> internalGetPersistence())
+                .thenAccept(persistencePolicies -> {
+                    if (!persistencePolicies.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(persistencePolicies.get());
+                    }
+                })
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getPersistence", ex, asyncResponse);
+                    return null;
             });
     }
 
@@ -1951,14 +1958,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> maxSubscriptionsPerTopic = internalGetMaxSubscriptionsPerTopic();
-                if (!maxSubscriptionsPerTopic.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(maxSubscriptionsPerTopic.get());
-                }
-            })
+            .thenCompose(__ -> internalGetMaxSubscriptionsPerTopic())
+                .thenAccept(maxSubscriptionsPerTopic -> {
+                    if (!maxSubscriptionsPerTopic.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(maxSubscriptionsPerTopic.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxSubscriptionsPerTopic", ex, asyncResponse);
                 return null;
@@ -2039,14 +2046,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> maxProducers = internalGetMaxProducers();
-                if (!maxProducers.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(maxProducers.get());
-                }
-            })
+            .thenCompose(__ -> internalGetMaxProducers())
+                .thenAccept(maxProducers -> {
+                    if (!maxProducers.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(maxProducers.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxProducers", ex, asyncResponse);
                 return null;
@@ -2129,14 +2136,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> maxConsumers = internalGetMaxConsumers();
-                if (!maxConsumers.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(maxConsumers.get());
-                }
-            })
+            .thenCompose(__ -> internalGetMaxConsumers())
+                .thenAccept(maxConsumers -> {
+                    if (!maxConsumers.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(maxConsumers.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxConsumers", ex, asyncResponse);
                 return null;
@@ -2219,14 +2226,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> policies = internalGetMaxMessageSize();
-                if (policies.isPresent()) {
-                    asyncResponse.resume(policies.get());
-                } else {
-                    asyncResponse.resume(Response.noContent().build());
-                }
-            })
+            .thenCompose(__ -> internalGetMaxMessageSize())
+                .thenAccept(policies -> {
+                    if (policies.isPresent()) {
+                        asyncResponse.resume(policies.get());
+                    } else {
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxMessageSize", ex, asyncResponse);
                 return null;
@@ -2512,14 +2519,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<DispatchRate> dispatchRate = internalGetDispatchRate();
-                if (!dispatchRate.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(dispatchRate.get());
-                }
-            })
+            .thenCompose(__ -> internalGetDispatchRate())
+                .thenAccept(dispatchRate -> {
+                    if (!dispatchRate.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(dispatchRate.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getDispatchRate", ex, asyncResponse);
                 return null;
@@ -2606,14 +2613,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<DispatchRate> dispatchRate = internalGetSubscriptionDispatchRate();
-                if (!dispatchRate.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(dispatchRate.get());
-                }
-            })
+            .thenCompose(__ -> internalGetSubscriptionDispatchRate())
+                .thenAccept(dispatchRate -> {
+                    if (!dispatchRate.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(dispatchRate.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getSubscriptionDispatchRate", ex, asyncResponse);
                 return null;
@@ -2700,14 +2707,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Long> compactionThreshold = internalGetCompactionThreshold();
-                if (!compactionThreshold.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(compactionThreshold.get());
-                }
-            })
+            .thenCompose(__ -> internalGetCompactionThreshold())
+                .thenAccept(compactionThreshold -> {
+                    if (!compactionThreshold.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(compactionThreshold.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getCompactionThreshold", ex, asyncResponse);
                 return null;
@@ -2794,14 +2801,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> maxConsumersPerSubscription = internalGetMaxConsumersPerSubscription();
-                if (!maxConsumersPerSubscription.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(maxConsumersPerSubscription.get());
-                }
-            })
+            .thenCompose(__ -> internalGetMaxConsumersPerSubscription())
+                .thenAccept(maxConsumersPerSubscription -> {
+                    if (!maxConsumersPerSubscription.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(maxConsumersPerSubscription.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxConsumersPerSubscription", ex, asyncResponse);
                 return null;
@@ -2889,14 +2896,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<PublishRate> publishRate = internalGetPublishRate();
-                if (!publishRate.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(publishRate.get());
-                }
-            })
+            .thenCompose(__ -> internalGetPublishRate())
+                .thenAccept(publishRate -> {
+                    if (!publishRate.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(publishRate.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getPublishRate", ex, asyncResponse);
                 return null;
@@ -2983,14 +2990,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<SubscribeRate> subscribeRate = internalGetSubscribeRate();
-                if (!subscribeRate.isPresent()) {
-                    asyncResponse.resume(Response.noContent().build());
-                } else {
-                    asyncResponse.resume(subscribeRate.get());
-                }
-            })
+            .thenCompose(__ -> internalGetSubscribeRate())
+                .thenAccept(subscribeRate -> {
+                    if (!subscribeRate.isPresent()) {
+                        asyncResponse.resume(Response.noContent().build());
+                    } else {
+                        asyncResponse.resume(subscribeRate.get());
+                    }
+                })
             .exceptionally(ex -> {
                 handleTopicPolicyException("getSubscribeRate", ex, asyncResponse);
                 return null;
