@@ -972,7 +972,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
      * @return Backlog quota for topic
      */
     @Override
-    public BacklogQuota getBacklogQuota() {
+    public BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType) {
         // No-op
         throw new UnsupportedOperationException("getBacklogQuota method is not supported on non-persistent topic");
     }
@@ -982,7 +982,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
      * @return quota exceeded status for blocking producer creation
      */
     @Override
-    public boolean isBacklogQuotaExceeded(String producerName) {
+    public boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType) {
         // No-op
         return false;
     }
