@@ -248,17 +248,19 @@ public interface Message<T> {
 
     /**
      * Get broker publish time from broker entry metadata.
+     * Note that only if the feature is enabled in the broker then the value is available.
      *
      * @since 2.9.0
-     * @return broker publish time from broker entry metadata
+     * @return broker publish time from broker entry metadata, or empty if the feature is not enabled in the broker.
      */
-    long getBrokerPublishTime();
+    Optional<Long> getBrokerPublishTime();
 
     /**
      * Get index from broker entry metadata.
+     * Note that only if the feature is enabled in the broker then the value is available.
      *
-     * @Since 2.9.0
-     * @return index from broker entry metadata
+     * @since 2.9.0
+     * @return index from broker entry metadata, or empty if the feature is not enabled in the broker.
      */
-    long getIndex();
+    Optional<Long> getIndex();
 }

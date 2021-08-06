@@ -201,12 +201,12 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public long getBrokerPublishTime() {
+    public Optional<Long> getBrokerPublishTime() {
         return msg.getBrokerPublishTime();
     }
 
     @Override
-    public long getIndex() {
+    public Optional<Long> getIndex() {
         return msg.getIndex();
     }
 }

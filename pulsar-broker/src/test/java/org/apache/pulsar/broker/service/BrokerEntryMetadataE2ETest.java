@@ -294,12 +294,17 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .subscribe();
 
         long sendTime = System.currentTimeMillis();
-        producer.send("hello".getBytes());
 
-        Message<byte[]> received = consumer.receive();
-        Assert.assertEquals("hello", new String(received.getData()));
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.send(String.valueOf(i).getBytes());
+        }
 
-        Assert.assertTrue(received.getBrokerPublishTime() >= sendTime);
-        Assert.assertEquals(received.getIndex(), 0);
+        for (int i = 0; i < messages; i++) {
+            Message<byte[]> received = consumer.receive();
+            Assert.assertTrue(
+                    received.getBrokerPublishTime().isPresent() && received.getBrokerPublishTime().get() >= sendTime);
+            Assert.assertTrue(received.getIndex().isPresent() && received.getIndex().get() == i);
+        }
     }
 }

@@ -649,19 +649,19 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public long getBrokerPublishTime() {
-        if (brokerEntryMetadata != null) {
-            return this.brokerEntryMetadata.getBrokerTimestamp();
+    public Optional<Long> getBrokerPublishTime() {
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+            return Optional.of(brokerEntryMetadata.getBrokerTimestamp());
         }
-        return -1;
+        return Optional.empty();
     }
 
     @Override
-    public long getIndex() {
-        if (brokerEntryMetadata != null) {
-            return this.brokerEntryMetadata.getIndex();
+    public Optional<Long> getIndex() {
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+            return Optional.of(brokerEntryMetadata.getIndex());
         }
-        return -1;
+        return Optional.empty();
     }
 
     private MessageImpl(Handle<MessageImpl<?>> recyclerHandle) {
