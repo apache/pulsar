@@ -197,7 +197,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.isBookkeeperManaged = isBookkeeperManaged;
         this.zookeeper = isBookkeeperManaged ? zooKeeper : null;
         this.metadataStore = new ZKMetadataStore(zooKeeper);
-        this.store = new MetaStoreImpl(metadataStore, orderedExecutor);
+        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor, config.getManagedLedgerInfoCompressionType());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
