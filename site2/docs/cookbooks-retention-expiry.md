@@ -179,15 +179,21 @@ You can set a size and/or time threshold and backlog retention policy for all of
 
 #### pulsar-admin
 
-Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand and specify a namespace, a size limit using the `-l`/`--limit` flag, and a retention policy using the `-p`/`--policy` flag.
+Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand and specify a namespace, a size limit using the `-l`/`--limit` , `-lt`/`--limitTime` flag to limit backlog, a retention policy using the `-p`/`--policy` flag and a policy type using `-t`/`--type` (default is destination_storage).
 
 ##### Example
 
 ```shell
 $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
   --limit 2G \
-  --limitTime 36000 \
   --policy producer_request_hold
+```
+
+```shell
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
+--limitTime 3600 \
+--policy producer_request_hold \
+--type message_age
 ```
 
 #### REST API
@@ -236,7 +242,7 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
 
 #### pulsar-admin
 
-Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
+Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace, use `t`/`--type` to specify backlog type to remove(default is destination_storage). Here's an example:
 
 ```shell
 $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns

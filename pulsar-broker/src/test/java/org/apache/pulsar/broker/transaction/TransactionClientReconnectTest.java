@@ -46,7 +46,7 @@ import static org.testng.FileAssert.fail;
 public class TransactionClientReconnectTest extends TransactionTestBase {
 
     private static final String RECONNECT_TOPIC = "persistent://public/txn/txn-client-reconnect-test";
-
+    private static final int NUM_PARTITIONS = 1;
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         setBrokerCount(1);
@@ -63,13 +63,15 @@ public class TransactionClientReconnectTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createNonPartitionedTopic(RECONNECT_TOPIC);
         admin.topics().createSubscription(RECONNECT_TOPIC, "test", MessageId.latest);
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
 
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
+        // wait tc init success to ready state
+        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
     }
 
     @AfterMethod(alwaysRun = true)

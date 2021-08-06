@@ -2321,9 +2321,9 @@ public class PersistentTopic extends AbstractTopic
      * @return Backlog quota for topic
      */
     @Override
-    public BacklogQuota getBacklogQuota() {
+    public BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType) {
         TopicName topicName = TopicName.get(this.getName());
-        return brokerService.getBacklogQuotaManager().getBacklogQuota(topicName);
+        return brokerService.getBacklogQuotaManager().getBacklogQuota(topicName, backlogQuotaType);
     }
 
     /**
@@ -2331,17 +2331,19 @@ public class PersistentTopic extends AbstractTopic
      * @return quota exceeded status for blocking producer creation
      */
     @Override
-    public boolean isBacklogQuotaExceeded(String producerName) {
-        BacklogQuota backlogQuota = getBacklogQuota();
+    public boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType) {
+        BacklogQuota backlogQuota = getBacklogQuota(backlogQuotaType);
 
         if (backlogQuota != null) {
             BacklogQuota.RetentionPolicy retentionPolicy = backlogQuota.getPolicy();
 
             if ((retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold
-                    || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)
-                    && (isSizeBacklogExceeded() || isTimeBacklogExceeded())) {
-                log.info("[{}] Backlog quota exceeded. Cannot create producer [{}]", this.getName(), producerName);
-                return true;
+                    || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)) {
+                if (backlogQuotaType == BacklogQuota.BacklogQuotaType.destination_storage && isSizeBacklogExceeded()
+                || backlogQuotaType == BacklogQuota.BacklogQuotaType.message_age && isTimeBacklogExceeded()){
+                    log.info("[{}] Backlog quota exceeded. Cannot create producer [{}]", this.getName(), producerName);
+                    return true;
+                }
             } else {
                 return false;
             }
