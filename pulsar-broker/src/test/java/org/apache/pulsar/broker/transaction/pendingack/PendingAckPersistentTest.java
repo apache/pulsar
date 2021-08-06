@@ -37,7 +37,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -67,6 +66,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final String NAMESPACE = "public/txn";
 
+    private static final int NUM_PARTITIONS = 16;
+
     @BeforeMethod
     public void setup() throws Exception {
         setBrokerCount(1);
@@ -89,8 +90,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
-
-        Thread.sleep(1000 * 3);
+        // wait tc init success to ready state
+        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
     }
 
     @AfterMethod(alwaysRun = true)

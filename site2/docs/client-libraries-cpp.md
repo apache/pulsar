@@ -20,8 +20,8 @@ You need to install the following components before using the C++ client:
 
 * [CMake](https://cmake.org/)
 * [Boost](http://www.boost.org/)
-* [Protocol Buffers](https://developers.google.com/protocol-buffers/) 2.6
-* [libcurl](https://curl.haxx.se/libcurl/)
+* [Protocol Buffers](https://developers.google.com/protocol-buffers/) >= 3
+* [libcurl](https://curl.se/libcurl/)
 * [Google Test](https://github.com/google/googletest)
 
 ## Linux
@@ -205,10 +205,8 @@ $ export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
 $ export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # Protocol Buffers installation
-$ brew tap homebrew/versions
-$ brew install protobuf260
-$ brew install boost
-$ brew install log4cxx
+$ brew install protobuf boost boost-python log4cxx
+# If you are using python3, you need to install boost-python3 
 
 # Google Test installation
 $ git clone https://github.com/google/googletest.git
@@ -321,32 +319,85 @@ For complete examples, refer to [C++ client examples](https://github.com/apache/
 
 ## Schema
 
-This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started.md).
+This section describes some examples about schema. For more information about
+schema, see [Pulsar schema](schema-get-started.md).
 
-### Create producer with Avro schema
+### Avro schema
 
-The following example shows how to create a producer with an Avro schema.
+- The following example shows how to create a producer with an Avro schema.
 
-```cpp
-static const std::string exampleSchema =
-    "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-    "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-Producer producer;
-ProducerConfiguration producerConf;
-producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-client.createProducer("topic-avro", producerConf, producer);
-```
+    ```cpp
+    static const std::string exampleSchema =
+        "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+        "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+    Producer producer;
+    ProducerConfiguration producerConf;
+    producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+    client.createProducer("topic-avro", producerConf, producer);
+    ```
 
-### Create consumer with Avro schema
+- The following example shows how to create a consumer with an Avro schema.
 
-The following example shows how to create a consumer with an Avro schema.
+    ```cpp
+    static const std::string exampleSchema =
+        "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+        "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+    ConsumerConfiguration consumerConf;
+    Consumer consumer;
+    consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+    client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+    ```
 
-```cpp
-static const std::string exampleSchema =
-    "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-    "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-ConsumerConfiguration consumerConf;
-Consumer consumer;
-consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
-```
+### ProtobufNative schema
+
+The following example shows how to create a producer and a consumer with a ProtobufNative schema.
+​
+1. Generate the `User` class using Protobuf3. 
+
+    > **Note** 
+    >
+    > You need to use Protobuf3 or later versions.
+​
+   ```protobuf
+   syntax = "proto3";
+   
+   message User {
+       string name = 1;
+       int32 age = 2;
+   }
+   ```
+​
+2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
+​
+   ```c++
+   #include <pulsar/ProtobufNativeSchema.h>
+   ```
+​
+3. Create a producer to send a `User` instance.
+​
+   ```c++
+   ProducerConfiguration producerConf;
+   producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
+   Producer producer;
+   client.createProducer("topic-protobuf", producerConf, producer);
+   User user;
+   user.set_name("my-name");
+   user.set_age(10);
+   std::string content;
+   user.SerializeToString(&content);
+   producer.send(MessageBuilder().setContent(content).build());
+   ```
+​
+4. Create a consumer to receive a `User` instance.
+​
+   ```c++
+   ConsumerConfiguration consumerConf;
+   consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
+   consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
+   Consumer consumer;
+   client.subscribe("topic-protobuf", "my-sub", consumerConf, consumer);
+   Message msg;
+   consumer.receive(msg);
+   User user2;
+   user2.ParseFromArray(msg.getData(), msg.getLength());
+   ```

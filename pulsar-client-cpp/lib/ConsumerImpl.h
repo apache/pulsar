@@ -125,6 +125,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void seekAsync(uint64_t timestamp, ResultCallback callback) override;
     void negativeAcknowledge(const MessageId& msgId) override;
     bool isConnected() const override;
+    uint64_t getNumberOfConnectedConsumer() override;
 
     virtual void disconnectConsumer();
     Result fetchSingleMessageFromBroker(Message& msg);

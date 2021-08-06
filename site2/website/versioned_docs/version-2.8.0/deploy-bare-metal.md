@@ -212,14 +212,8 @@ Once you add each server to the `zookeeper.conf` configuration and have the appr
 $ bin/pulsar-daemon start zookeeper
 ```
 
-> If you plan to deploy Zookeeper with the Bookie on the same node, you
-> need to start zookeeper by using different stats port.
-
-Start zookeeper with [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool like:
-
-```bash
-$ PULSAR_EXTRA_OPTS="-Dstats_server_port=8001" bin/pulsar-daemon start zookeeper
-```
+> If you plan to deploy Zookeeper with the Bookie on the same node, you need to start zookeeper by using different stats
+> port by configuring the `metricsProvider.httpPort` in zookeeper.conf.
 
 ## Initialize cluster metadata
 

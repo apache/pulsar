@@ -335,6 +335,13 @@ public class MessageImpl<T> implements Message<T> {
         return 0;
     }
 
+    public long getDeliverAtTime() {
+        if (msgMetadata.hasDeliverAtTime()) {
+            return msgMetadata.getDeliverAtTime();
+        }
+        return 0;
+    }
+
     public boolean isExpired(int messageTTLInSeconds) {
         return messageTTLInSeconds != 0 && (brokerEntryMetadata == null || !brokerEntryMetadata.hasBrokerTimestamp()
                 ? (System.currentTimeMillis() >

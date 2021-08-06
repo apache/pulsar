@@ -26,7 +26,6 @@ The configuration of Debezium source connector has the following properties.
 | `database.history` | true | null | The name of the database history class. |
 | `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br/><br/>**Note: this topic is for internal use only and should not be used by consumers.** |
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
-| `pulsar.service.url` | true | null | Pulsar cluster service URL. |
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
 | `json-with-envelope` | false | false | Present the message only consist of payload.
 
@@ -81,7 +80,6 @@ You can use one of the following methods to create a configuration file.
         "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650",
         "key.converter": "org.apache.kafka.connect.json.JsonConverter",
         "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650",
         "offset.storage.topic": "offset-topic"
     }
     ```
@@ -115,9 +113,6 @@ You can use one of the following methods to create a configuration file.
         ## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG
         key.converter: "org.apache.kafka.connect.json.JsonConverter"
         value.converter: "org.apache.kafka.connect.json.JsonConverter"
-
-        ## PULSAR_SERVICE_URL_CONFIG
-        pulsar.service.url: "pulsar://127.0.0.1:6650"
 
         ## OFFSET_STORAGE_TOPIC_CONFIG
         offset.storage.topic: "offset-topic"
@@ -217,7 +212,7 @@ You can use one of the following methods to create a configuration file.
         "plugin.name": "pgoutput",
         "schema.whitelist": "public",
         "table.whitelist": "public.users",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+        "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
     ```
 
@@ -247,7 +242,7 @@ You can use one of the following methods to create a configuration file.
         table.whitelist: "public.users"
 
         ## PULSAR_SERVICE_URL_CONFIG
-        pulsar.service.url: "pulsar://127.0.0.1:6650"
+        database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
     
 Notice that `pgoutput` is a standard plugin of Postgres introduced in version 10 - [see Postgres architecture docu](https://www.postgresql.org/docs/10/logical-replication-architecture.html). You don't need to install anything, just make sure the WAL level is set to `logical` (see docker command below and [Postgres docu](https://www.postgresql.org/docs/current/runtime-config-wal.html)).
@@ -361,7 +356,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
         "mongodb.password": "dbz",
         "mongodb.task.id": "1",
         "database.whitelist": "inventory",
-        "pulsar.service.url": "pulsar://127.0.0.1:6650"
+        "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
     ```
 
@@ -386,9 +381,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
         mongodb.password: "dbz",
         mongodb.task.id: "1",
         database.whitelist: "inventory",
-
-        ## PULSAR_SERVICE_URL_CONFIG
-        pulsar.service.url: "pulsar://127.0.0.1:6650"
+        database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
 
 ### Usage
@@ -429,7 +422,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
         --destination-topic-name debezium-mongodb-topic \
         --tenant public \
         --namespace default \
-        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
+        --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'
         ```
    
    * Use the **YAML** configuration file as shown previously.

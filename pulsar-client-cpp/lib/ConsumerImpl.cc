@@ -1233,4 +1233,6 @@ bool ConsumerImpl::isConnected() const {
     return !getCnx().expired() && state_ == Ready;
 }
 
+uint64_t ConsumerImpl::getNumberOfConnectedConsumer() { return isConnected() ? 1 : 0; }
+
 } /* namespace pulsar */

@@ -18,94 +18,32 @@
  */
 package org.apache.pulsar.utils;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.broker.BaseGenerateDocumentation;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 
 @Data
 @Parameters(commandDescription = "Generate documentation automatically.")
 @Slf4j
-public class CmdGenerateDocumentation {
+public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
 
-    JCommander jcommander;
-
-    @Parameter(names = {"-c", "--class-names"}, description =
-            "List of class names, generate documentation based on the annotations in the Class")
-    private List<String> classNames = new ArrayList<>();
-
-    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
-    boolean help;
-
-    public CmdGenerateDocumentation() {
-        jcommander = new JCommander();
-        jcommander.setProgramName("pulsar-generateDocumentation");
-        jcommander.addObject(this);
-    }
-
-    public boolean run(String[] args) throws Exception {
-        if (args.length == 0) {
-            jcommander.usage();
-            return false;
-        }
-
-        if (help) {
-            jcommander.usage();
-            return true;
-        }
-
-        try {
-            jcommander.parse(Arrays.copyOfRange(args, 0, args.length));
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            jcommander.usage();
-            return false;
-        }
-        if (!CollectionUtils.isEmpty(classNames)) {
-            for (String className : classNames) {
-                System.out.println(generateDocumentByClassName(className));
-            }
-        }
-        return true;
-    }
-
+    @Override
     public String generateDocumentByClassName(String className) throws Exception {
+        StringBuilder sb = new StringBuilder();
         if (ServiceConfiguration.class.getName().equals(className)) {
-            return generateDocForServiceConfiguration(className, "Broker");
+            return generateDocByFieldContext(className, "Broker", sb);
+        }
+        if (WebSocketProxyConfiguration.class.getName().equals(className)) {
+            return generateDocByFieldContext(className, "WebSocket", sb);
+        }
+        if (ClientConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Client", sb);
         }
         return "Class [" + className + "] not found";
-    }
-
-    protected String generateDocForServiceConfiguration(String className, String type) throws Exception {
-        Class<?> clazz = Class.forName(className);
-        Object obj = clazz.getDeclaredConstructor().newInstance();
-        Field[] fields = clazz.getDeclaredFields();
-        StringBuilder sb = new StringBuilder();
-        sb.append("# ").append(type).append("\n");
-        sb.append("|Name|Description|Default|Dynamic|Category|\n");
-        sb.append("|---|---|---|---|---|\n");
-        for (Field field : fields) {
-            FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-            if (fieldContext == null) {
-                continue;
-            }
-            field.setAccessible(true);
-            sb.append("| ").append(field.getName()).append(" | ");
-            sb.append(fieldContext.doc().replace("\n", "<br>")).append(" | ");
-            sb.append(field.get(obj)).append(" | ");
-            sb.append(fieldContext.dynamic()).append(" | ");
-            sb.append(fieldContext.category()).append(" | ");
-            sb.append("\n");
-        }
-        return sb.toString();
     }
 
     public static void main(String[] args) throws Exception {

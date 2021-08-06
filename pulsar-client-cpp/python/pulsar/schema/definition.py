@@ -17,9 +17,10 @@
 # under the License.
 #
 
-from abc import abstractmethod, ABCMeta
-from enum import Enum, EnumMeta
+import copy
+from abc import abstractmethod
 from collections import OrderedDict
+from enum import Enum, EnumMeta
 from six import with_metaclass
 
 
@@ -63,8 +64,30 @@ class Record(with_metaclass(RecordMeta, object)):
 
         for k, value in self._fields.items():
             if k in kwargs:
-                # Value was overridden at constructor
-                self.__setattr__(k, kwargs[k])
+                if isinstance(value, Record) and isinstance(kwargs[k], dict):
+                    # Use dict init Record object
+                    copied = copy.copy(value)
+                    copied.__init__(**kwargs[k])
+                    self.__setattr__(k, copied)
+                elif isinstance(value, Array) and isinstance(kwargs[k], list) and len(kwargs[k]) > 0 \
+                        and isinstance(value.array_type, Record) and isinstance(kwargs[k][0], dict):
+                    arr = []
+                    for item in kwargs[k]:
+                        copied = copy.copy(value.array_type)
+                        copied.__init__(**item)
+                        arr.append(copied)
+                    self.__setattr__(k, arr)
+                elif isinstance(value, Map) and isinstance(kwargs[k], dict) and len(kwargs[k]) > 0 \
+                    and isinstance(value.value_type, Record) and isinstance(list(kwargs[k].values())[0], dict):
+                    dic = {}
+                    for mapKey, mapValue in kwargs[k].items():
+                        copied = copy.copy(value.value_type)
+                        copied.__init__(**mapValue)
+                        dic[mapKey] = copied
+                    self.__setattr__(k, dic)
+                else:
+                    # Value was overridden at constructor
+                    self.__setattr__(k, kwargs[k])
             elif isinstance(value, Record):
                 # Value is a subrecord
                 self.__setattr__(k, value)
@@ -122,7 +145,13 @@ class Record(with_metaclass(RecordMeta, object)):
     def type(self):
         return str(self.__class__.__name__)
 
+    def python_type(self):
+        return self.__class__
+
     def validate_type(self, name, val):
+        if not val and not self._required:
+            return self.default()
+
         if not isinstance(val, self.__class__):
             raise TypeError("Invalid type '%s' for sub-record field '%s'. Expected: %s" % (
                 type(val), name, self.__class__))
@@ -155,6 +184,9 @@ class Field(object):
         pass
 
     def validate_type(self, name, val):
+        if not val and not self._required:
+            return self.default()
+
         if type(val) != self.python_type():
             raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
         return val
@@ -279,6 +311,10 @@ class String(Field):
 
     def validate_type(self, name, val):
         t = type(val)
+
+        if not val and not self._required:
+            return self.default()
+
         if not (t is str or t.__name__ == 'unicode'):
             raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
         return val
@@ -289,9 +325,7 @@ class String(Field):
         else:
             return None
 
-
 # Complex types
-
 
 class _Enum(Field):
     def __init__(self, enum_type):

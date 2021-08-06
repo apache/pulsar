@@ -358,7 +358,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the subscription expiration time for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public int getSubscriptionExpirationTime(@PathParam("property") String property,
+    public Integer getSubscriptionExpirationTime(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
@@ -379,6 +379,16 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscriptionExpirationTime(expirationTime);
     }
 
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(hidden = true, value = "Remove subscription expiration time for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void removeSubscriptionExpirationTime(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetSubscriptionExpirationTime(null);
+    }
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")

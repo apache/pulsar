@@ -729,12 +729,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function info
         getFunctionInfoNotFound(functionName);
 
-        final String topic = inputTopicName;
-        Awaitility.await().until(() -> {
-            // make sure subscriptions are cleanup
-            checkSubscriptionsCleanup(topic);
-            return true;
-        });
+        // make sure subscriptions are cleanup
+        checkSubscriptionsCleanup(inputTopicName);
 
     }
 

@@ -106,7 +106,6 @@ The output is something like this:
 
 ```json
 {
-    "count": 0,
     "msgRateIn": 0.0,
     "msgThroughputIn": 0.0,
     "msgRateOut": 1.8332950480217471,
@@ -122,22 +121,12 @@ The output is something like this:
     "offloadedStorageSize": 0,
     "publishers": [
         {
-            "count": 0,
             "accessMode": "Shared",
             "msgRateIn": 0.0,
             "msgThroughputIn": 0.0,
             "averageMsgSize": 0.0,
             "chunkedMessageRate": 0.0,
             "producerId": 0,
-            "producerNameOffset": 47,
-            "producerNameLength": 14,
-            "addressOffset": 0,
-            "addressLength": 16,
-            "connectedSinceOffset": 16,
-            "connectedSinceLength": 26,
-            "clientVersionOffset": 42,
-            "clientVersionLength": 5,
-            "stringBuffer": "/127.0.0.1:356042021-07-04T09:05:43.04788Z2.8.0standalone-2-5",
             "metadata": {},
             "address": "/127.0.0.1:35604",
             "connectedSince": "2021-07-04T09:05:43.04788Z",
@@ -182,16 +171,9 @@ The output is something like this:
                     "unackedMessages": 0,
                     "avgMessagesPerEntry": 6,
                     "blockedConsumerOnUnackedMsgs": false,
-                    "addressOffset": 0,
-                    "addressLength": 16,
-                    "connectedSinceOffset": 16,
-                    "connectedSinceLength": 27,
-                    "clientVersionOffset": 43,
-                    "clientVersionLength": 5,
                     "lastAckedTimestamp": 1625389546162,
                     "lastConsumedTimestamp": 1625389546070,
                     "metadata": {},
-                    "stringBuffer": "/127.0.0.1:354722021-07-04T08:58:21.287682Z2.8.0",
                     "address": "/127.0.0.1:35472",
                     "connectedSince": "2021-07-04T08:58:21.287682Z",
                     "clientVersion": "2.8.0"

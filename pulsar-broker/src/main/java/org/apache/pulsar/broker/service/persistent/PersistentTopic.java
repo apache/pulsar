@@ -733,7 +733,7 @@ public class PersistentTopic extends AbstractTopic
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, maxUnackedMessages, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, initialPosition, keySharedMeta);
+                        readCompacted, initialPosition, keySharedMeta, startMessageId);
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
                     if (!cnx.isActive()) {
@@ -944,7 +944,8 @@ public class PersistentTopic extends AbstractTopic
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         getBrokerService().getManagedLedgerFactory().asyncDelete(TopicName.get(MLPendingAckStore
-                .getTransactionPendingAckStoreSuffix(topic, subscriptionName)).getPersistenceNamingEncoding(),
+                .getTransactionPendingAckStoreSuffix(topic,
+                        Codec.encode(subscriptionName))).getPersistenceNamingEncoding(),
                 new AsyncCallbacks.DeleteLedgerCallback() {
             @Override
             public void deleteLedgerComplete(Object ctx) {
@@ -1088,7 +1089,7 @@ public class PersistentTopic extends AbstractTopic
                     CompletableFuture<SchemaVersion> deleteSchemaFuture =
                             deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null);
 
-                    deleteSchemaFuture.whenComplete((v, ex) -> {
+                    deleteSchemaFuture.thenAccept(__ -> deleteTopicPolicies()).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             unfenceTopicToResume();
@@ -1188,7 +1189,17 @@ public class PersistentTopic extends AbstractTopic
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
+        if (topicPublishRateLimiter != null) {
+            try {
+                topicPublishRateLimiter.close();
+            } catch (Exception e) {
+                log.warn("Error closing topicPublishRateLimiter for topic {}", topic, e);
+            }
+        }
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        if (this.resourceGroupPublishLimiter != null) {
+            this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        }
 
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
                 ? CompletableFuture.completedFuture(null)
@@ -1835,6 +1846,9 @@ public class PersistentTopic extends AbstractTopic
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
         stats.offloadedStorageSize = ledger.getOffloadedSize();
+        stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
+        stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
+        stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
         return stats;
     }
 
@@ -2192,10 +2206,9 @@ public class PersistentTopic extends AbstractTopic
                     .orElseThrow(() -> new MetadataStoreException.NotFoundException());
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
                     .getSubscriptionExpirationTimeMinutes();
+            final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
             final long expirationTimeMillis = TimeUnit.MINUTES
-                    .toMillis((policies.subscription_expiration_time_minutes <= 0 && defaultExpirationTime > 0)
-                            ? defaultExpirationTime
-                            : policies.subscription_expiration_time_minutes);
+                    .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
             if (expirationTimeMillis > 0) {
                 subscriptions.forEach((subName, sub) -> {
                     if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected() || sub.isReplicated()) {
