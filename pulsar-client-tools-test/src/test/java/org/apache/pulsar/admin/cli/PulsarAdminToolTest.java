@@ -415,7 +415,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -426,7 +427,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10 * 1024)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -437,7 +439,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10 * 1024 * 1024)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -448,19 +451,21 @@ public class PulsarAdminToolTest {
                 BacklogQuota.builder()
                         .limitSize(10L * 1024 * 1024 * 1024)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
-        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -lt 10000"));
+        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -lt 10000 -t message_age"));
         verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
                 BacklogQuota.builder()
                         .limitSize(10l * 1024 * 1024 * 1024)
                         .limitTime(10000)
                         .retentionPolicy(RetentionPolicy.producer_exception)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.message_age);
 
         namespaces.run(split("set-persistence myprop/clust/ns1 -e 2 -w 1 -a 1 -r 100.0"));
         verify(mockNamespaces).setPersistence("myprop/clust/ns1",
@@ -902,15 +907,31 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-backlog-quotas persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
-        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -lt 1000 -p producer_request_hold"));
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 10 -p producer_request_hold"));
         verify(mockTopics).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
                 BacklogQuota.builder()
                         .limitSize(10)
+                        .retentionPolicy(RetentionPolicy.producer_request_hold)
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.destination_storage);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1000 -p producer_request_hold -t message_age"));
+        verify(mockTopics).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
+                BacklogQuota.builder()
+                        .limitSize(-1)
                         .limitTime(1000)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
-                        .build());
+                        .build(),
+                        BacklogQuota.BacklogQuotaType.message_age);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).removeBacklogQuota("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).removeBacklogQuota("persistent://myprop/clust/ns1/ds1", BacklogQuota.BacklogQuotaType.destination_storage);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1 -t message_age"));
+        verify(mockTopics).removeBacklogQuota("persistent://myprop/clust/ns1/ds1", BacklogQuota.BacklogQuotaType.message_age);
 
         cmdTopics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
