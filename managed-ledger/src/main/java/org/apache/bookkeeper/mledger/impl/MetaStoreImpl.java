@@ -23,6 +23,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -227,6 +228,11 @@ public class MetaStoreImpl implements MetaStore {
         } catch (CompletionException e) {
             throw getException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> exists(String path) {
+        return store.exists(PREFIX + path);
     }
 
     //

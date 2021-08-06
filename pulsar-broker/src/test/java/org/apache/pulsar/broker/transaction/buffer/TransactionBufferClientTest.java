@@ -49,9 +49,7 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -305,5 +303,30 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         });
         tbClient.abortTxnOnTopic(topic + "_abort_topic", 1L, 1L, -1L).get();
         tbClient.commitTxnOnTopic(topic + "_commit_topic", 1L, 1L, -1L).get();
+    }
+
+    @Test
+    public void testEndTopicNotExist() throws Exception {
+        String topic = "persistent://" + namespace + "/testEndTopicNotExist";
+        String sub = "test";
+
+        tbClient.abortTxnOnTopic(topic + "_abort_topic", 1L, 1L, -1L).get();
+        tbClient.commitTxnOnTopic(topic + "_commit_topic", 1L, 1L, -1L).get();
+
+        tbClient.abortTxnOnSubscription(topic + "_abort_topic", sub, 1L, 1L, -1L).get();
+        tbClient.abortTxnOnSubscription(topic + "_commit_topic", sub, 1L, 1L, -1L).get();
+    }
+
+    @Test
+    public void testEndSubNotExist() throws Exception {
+
+        String topic = "persistent://" + namespace + "/testEndTopicNotExist";
+        String sub = "test";
+        admin.topics().createNonPartitionedTopic(topic + "_abort_sub");
+
+        admin.topics().createNonPartitionedTopic(topic + "_commit_sub");
+
+        tbClient.abortTxnOnSubscription(topic + "_abort_topic", sub, 1L, 1L, -1L).get();
+        tbClient.abortTxnOnSubscription(topic + "_commit_topic", sub, 1L, 1L, -1L).get();
     }
 }

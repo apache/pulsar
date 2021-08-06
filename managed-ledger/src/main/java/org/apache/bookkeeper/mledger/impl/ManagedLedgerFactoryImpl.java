@@ -525,6 +525,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
+    public CompletableFuture<Boolean> checkManagedLedgerInitializedBefore(String name) {
+        return store.exists(name);
+    }
+
+    @Override
     public ManagedLedgerInfo getManagedLedgerInfo(String name) throws InterruptedException, ManagedLedgerException {
         class Result {
             ManagedLedgerInfo info = null;
