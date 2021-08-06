@@ -1925,13 +1925,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String topic = command.getTopic();
         final int txnAction = command.getTxnAction().getValue();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final long lowWaterMark = command.getTxnidLeastBitsOfLowWatermark();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] handleEndTxnOnPartition txnId: [{}], txnAction: [{}]", topic,
                     txnID, txnAction);
         }
-
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopics().get(topic);
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
         if (topicFuture != null) {
             topicFuture.whenComplete((optionalTopic, t) -> {
                 if (!optionalTopic.isPresent()) {
@@ -1943,7 +1943,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             txnID.getMostSigBits(), txnID.getLeastSigBits()));
                     return;
                 }
-                optionalTopic.get().endTxn(txnID, txnAction, command.getTxnidLeastBitsOfLowWatermark())
+                optionalTopic.get().endTxn(txnID, txnAction, lowWaterMark)
                         .whenComplete((ignored, throwable) -> {
                             if (throwable != null) {
                                 log.error("handleEndTxnOnPartition fail!, topic {}, txnId: [{}], "
@@ -1995,13 +1995,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String subName = command.getSubscription().getSubscription();
         final int txnAction = command.getTxnAction().getValue();
         final TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+        final long lowWaterMark = command.getTxnidLeastBitsOfLowWatermark();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] handleEndTxnOnSubscription txnId: [{}], txnAction: [{}]", topic, subName,
                     new TxnID(txnidMostBits, txnidLeastBits), txnAction);
         }
 
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopic(topic, true);
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
         if (topicFuture != null) {
             topicFuture.thenAccept(optionalTopic -> {
 
@@ -2027,8 +2028,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
 
                 CompletableFuture<Void> completableFuture =
-                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction,
-                                command.getTxnidLeastBitsOfLowWatermark());
+                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction, lowWaterMark);
                 completableFuture.whenComplete((ignored, e) -> {
                     if (e != null) {
                         log.error("handleEndTxnOnSubscription fail ! topic: {} , subscription: {}"
