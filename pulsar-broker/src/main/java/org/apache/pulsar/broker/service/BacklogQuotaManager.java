@@ -54,8 +54,8 @@ public class BacklogQuotaManager {
     public BacklogQuotaManager(PulsarService pulsar) {
         this.isTopicLevelPoliciesEnable = pulsar.getConfiguration().isTopicLevelPoliciesEnabled();
         this.defaultQuota = BacklogQuotaImpl.builder()
-                .limitSize(pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() *
-                        BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                .limitSize(pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB()
+                        * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
                 .limitTime(pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond())
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
