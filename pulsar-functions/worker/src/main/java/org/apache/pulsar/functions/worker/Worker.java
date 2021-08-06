@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -56,7 +57,7 @@ public class Worker {
     private final ErrorNotifier errorNotifier;
 
     public Worker(WorkerConfig workerConfig, ServiceConfiguration serviceConfiguration) {
-        if (!serviceConfiguration.getClusterName().equals(workerConfig.getPulsarFunctionsCluster())) {
+        if (!Objects.equals(serviceConfiguration.getClusterName(), workerConfig.getPulsarFunctionsCluster())) {
             throw new IllegalArgumentException(String.format("ServiceConfiguration clusterName [%s] does not match "
                     + "WorkerConfig pulsarFunctionsCluster [%s]",
                     serviceConfiguration.getClusterName(),
@@ -100,7 +101,7 @@ public class Worker {
             this.configurationCacheService = new ConfigurationMetadataCacheService(this.pulsarResources,
                     this.workerConfig.getPulsarFunctionsCluster());
             return new AuthorizationService(this.serviceConfiguration, this.configurationCacheService);
-            }
+        }
         return null;
     }
 
@@ -122,7 +123,7 @@ public class Worker {
                 this.server.stop();
             }
             workerService.stop();
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.warn("Failed to gracefully stop worker service ", e);
         }
 
