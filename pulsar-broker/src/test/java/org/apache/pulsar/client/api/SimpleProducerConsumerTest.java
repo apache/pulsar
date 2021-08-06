@@ -4125,6 +4125,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * <p>
      * Test starts consumer with 10 partitions where one of the partition listener gets blocked but that will not impact
      * processing of other 9 partitions and they will be processed successfully.
+     * As of involved #11455(Fix Consumer listener does not respect receiver queue size),
+     * This test has changed the purpose that different thread run the messageListener. Because messageListener has to
+     * be called one by one, it's possible to run by the same one thread.
      *
      * @throws Exception
      */
@@ -4145,20 +4148,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // each partition
         int totalMessages = partitions * 2;
-        CountDownLatch latch = new CountDownLatch(totalMessages - 2);
-        CountDownLatch blockedMessageLatch = new CountDownLatch(1);
+        CountDownLatch latch = new CountDownLatch(1);
         AtomicInteger count = new AtomicInteger();
 
         Set<String> listenerThreads = Sets.newConcurrentHashSet();
         MessageListener<byte[]> messageListener = (c, m) -> {
-            if (count.incrementAndGet() == 1) {
-                try {
-                    // blocking one of the partition's listener thread will not impact other topics
-                    blockedMessageLatch.await();
-                } catch (InterruptedException e) {
-                    // Ok
-                }
-            } else {
+            if (count.incrementAndGet() == totalMessages) {
                 latch.countDown();
             }
             listenerThreads.add(Thread.currentThread().getName());
@@ -4177,9 +4172,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer1.newMessage().value(("one-partitioned-topic-value-producer1-" + i).getBytes(UTF_8)).send();
         }
         latch.await();
-        assertEquals(listenerThreads.size(), partitions - 1);
-        // unblock the listener thread
-        blockedMessageLatch.countDown();
+        assertTrue(listenerThreads.size() >= 1);
         log.info("-- Exiting {} test --", methodName);
     }
 
