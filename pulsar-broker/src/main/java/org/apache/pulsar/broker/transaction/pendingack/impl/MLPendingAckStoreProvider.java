@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -70,7 +69,8 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                }
 
                                                @Override
-                                               public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                                               public void openCursorFailed(ManagedLedgerException exception,
+                                                                            Object ctx) {
                                                    log.error("Open MLPendingAckStore cursor failed.", exception);
                                                    pendingAckStoreFuture.completeExceptionally(exception);
                                                }
