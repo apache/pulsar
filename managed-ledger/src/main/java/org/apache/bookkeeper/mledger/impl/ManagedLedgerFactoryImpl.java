@@ -102,8 +102,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
 
-    public static final int StatsPeriodSeconds = 60;
-
     private static class PendingInitializeManagedLedger {
 
         private final ManagedLedgerImpl ledger;
@@ -177,7 +175,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats,
-                0, StatsPeriodSeconds, TimeUnit.SECONDS);
+                config.getStatsPeriodSeconds(), config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
                 config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
