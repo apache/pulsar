@@ -23,8 +23,7 @@ $ pip install pulsar-client=={{pulsar:version_number}}
 ```
 
 ### Optional dependencies
-
-To support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the  `pulsar-client` library
+If you are installing the client libraries on Linux then in order to support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the  `pulsar-client` library
 
 ```shell
 # avro serialization
