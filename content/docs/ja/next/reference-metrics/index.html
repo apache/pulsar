@@ -239,6 +239,7 @@
 <tr><td>pulsar_throughput_in</td><td>Gauge</td><td>The total throughput of the namespace coming into this broker (bytes/second).</td></tr>
 <tr><td>pulsar_throughput_out</td><td>Gauge</td><td>The total throughput of the namespace going out from this broker (bytes/second).</td></tr>
 <tr><td>pulsar_storage_size</td><td>Gauge</td><td>The total storage size of the topics in this namespace owned by this broker (bytes).</td></tr>
+<tr><td>pulsar_storage_logical_size</td><td>Gauge</td><td>The storage size of topics in the namespace owned by the broker without replicas (in bytes).</td></tr>
 <tr><td>pulsar_storage_backlog_size</td><td>Gauge</td><td>The total backlog size of the topics of this namespace owned by this broker (messages).</td></tr>
 <tr><td>pulsar_storage_offloaded_size</td><td>Gauge</td><td>The total amount of the data in this namespace offloaded to the tiered storage (bytes).</td></tr>
 <tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this namespace (message batches / second).</td></tr>
@@ -313,6 +314,7 @@ All the topic metrics are labelled with the following labels:
 |<span class="hljs-string"> pulsar_throughput_in                 </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The total throughput of the topic coming into this broker (bytes/second).                                           </span>|
 |<span class="hljs-string"> pulsar_throughput_out                </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The total throughput of the topic going out from this broker (bytes/second).                                        </span>|
 |<span class="hljs-string"> pulsar_storage_size                  </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The total storage size of the topics in this topic owned by this broker (bytes).                                    </span>|
+|<span class="hljs-string"> pulsar_storage_logical_size          </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The storage size of topics in the namespace owned by the broker without replicas (in bytes).                        </span>|
 |<span class="hljs-string"> pulsar_storage_backlog_size          </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The total backlog size of the topics of this topic owned by this broker (messages).                                 </span>|
 |<span class="hljs-string"> pulsar_storage_offloaded_size        </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The total amount of the data in this topic offloaded to the tiered storage (bytes).                                 </span>|
 |<span class="hljs-string"> pulsar_storage_backlog_quota_limit </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The total amount of the data in this topic that limit the backlog quota (bytes).                                    </span>|
@@ -397,11 +399,12 @@ All the managedLedger metrics are labelled with the following labels:
 - namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
 - quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
 
-|<span class="hljs-string"> Name                               </span>|<span class="hljs-string"> Type      </span>|<span class="hljs-string"> Description                                                                                </span>|
-|<span class="hljs-string"> ---------------------------------- </span>|<span class="hljs-string"> --------- </span>|<span class="hljs-string"> ------------------------------------------------------------------------------------------ </span>|
-|<span class="hljs-string"> pulsar_ml_AddEntryBytesRate      </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The bytes/s rate of messages added                                                         </span>|
-|<span class="hljs-string"> pulsar_ml_AddEntryErrors         </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The number of addEntry requests that failed                                                </span>|
-|<span class="hljs-string"> pulsar_ml_AddEntryLatencyBuckets </span>|<span class="hljs-string"> Histogram </span>|<span class="hljs-string"> The add entry latency of a ledger with a given quantile (threshold).  
+|<span class="hljs-string"> Name                                      </span>|<span class="hljs-string"> Type      </span>|<span class="hljs-string"> Description                                                                                </span>|
+|<span class="hljs-string"> ----------------------------------------- </span>|<span class="hljs-string"> --------- </span>|<span class="hljs-string"> ------------------------------------------------------------------------------------------ </span>|
+|<span class="hljs-string"> pulsar_ml_AddEntryBytesRate             </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The bytes/s rate of messages added                                                         </span>|
+|<span class="hljs-string"> pulsar_ml_AddEntryWithReplicasBytesRate </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The bytes/s rate of messages added with replicas                                           </span>|
+|<span class="hljs-string"> pulsar_ml_AddEntryErrors                </span>|<span class="hljs-string"> Gauge     </span>|<span class="hljs-string"> The number of addEntry requests that failed                                                </span>|
+|<span class="hljs-string"> pulsar_ml_AddEntryLatencyBuckets        </span>|<span class="hljs-string"> Histogram </span>|<span class="hljs-string"> The add entry latency of a ledger with a given quantile (threshold).  
 Available quantile: </span>|
 
 

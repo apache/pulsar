@@ -43,6 +43,7 @@ org.apache.pulsar.broker.transaction.pendingack.proto
 org.apache.pulsar.broker.transaction.recover
 org.apache.pulsar.broker.transaction.timeout
 org.apache.pulsar.broker.web
+org.apache.pulsar.broker.web.plugin.servlet
 org.apache.pulsar.client.api
 org.apache.pulsar.client.impl
 org.apache.pulsar.common.naming

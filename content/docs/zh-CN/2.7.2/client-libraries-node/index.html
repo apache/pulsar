@@ -226,7 +226,7 @@ In this example, using await operator instead of executor function.</p>
   <span class="hljs-keyword">await</span> client.close();
 })();
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
+<h2><a class="anchor" aria-hidden="true" id="消费者"></a><a href="#消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者</h2>
 <p>Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming messages produced on that topic/those topics. You can <a href="#consumer-configuration">configure</a> Node.js consumers using a consumer configuration object.</p>
 <p>Here is an example:</p>
 <pre><code class="hljs css language-JavaScript"><span class="hljs-keyword">const</span> consumer = <span class="hljs-keyword">await</span> client.subscribe({
@@ -464,7 +464,7 @@ In this example, using await operator instead of executor function.</p>
 <tr><td style="text-align:left"><code>deserialize(Buffer)</code></td><td style="text-align:left">从缓存中反序列化出消息 id。</td><td style="text-align:left"><code>对象</code></td></tr>
 </tbody>
 </table>
-<h2><a class="anchor" aria-hidden="true" id="end-to-end-encryption"></a><a href="#end-to-end-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>End-to-end encryption</h2>
+<h2><a class="anchor" aria-hidden="true" id="端到端加密"></a><a href="#端到端加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>端到端加密</h2>
 <p><a href="https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav">End-to-end encryption</a> allows applications to encrypt messages at producers and decrypt at consumers.</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
 <p>If you want to use the end-to-end encryption feature in the Node.js client, you need to configure <code>publicKeyPath</code> and <code>privateKeyPath</code> for both producer and consumer.</p>
@@ -479,13 +479,13 @@ In this example, using await operator instead of executor function.</p>
 </ul>
 <p><strong>步骤</strong></p>
 <ol>
-<li><p>Create both public and private key pairs.</p>
-<p><strong>Input</strong></p>
+<li><p>创建公钥和私钥密钥对。</p>
+<p><strong>输入</strong></p>
 <pre><code class="hljs css language-shell">openssl genrsa -out private.pem 2048
 openssl rsa -in private.pem -pubout -out public.pem
 </code></pre></li>
-<li><p>Create a producer to send encrypted messages.</p>
-<p><strong>Input</strong></p>
+<li><p>创建一个生产者用来发送加密消息。</p>
+<p><strong>输入</strong></p>
 <pre><code class="hljs css language-nodejs"><span class="hljs-keyword">const</span> Pulsar = <span class="hljs-built_in">require</span>(<span class="hljs-string">'pulsar-client'</span>);
 
 <span class="hljs-function">(<span class="hljs-params"><span class="hljs-keyword">async</span> (<span class="hljs-params"></span>) =&gt; {
@@ -520,8 +520,8 @@ openssl rsa -in private.pem -pubout -out public.pem
   <span class="hljs-keyword">await</span> client.close(<span class="hljs-params"></span>);
 }</span>)<span class="hljs-params">()</span>;
 </span></code></pre></li>
-<li><p>Create a consumer to receive encrypted messages.</p>
-<p><strong>Input</strong></p>
+<li><p>创建消费者接收加密消息。</p>
+<p><strong>输入</strong></p>
 <pre><code class="hljs css language-nodejs"><span class="hljs-keyword">const</span> Pulsar = <span class="hljs-built_in">require</span>(<span class="hljs-string">'pulsar-client'</span>);
 
 <span class="hljs-function">(<span class="hljs-params"><span class="hljs-keyword">async</span> (<span class="hljs-params"></span>) =&gt; {
@@ -553,17 +553,17 @@ openssl rsa -in private.pem -pubout -out public.pem
   <span class="hljs-keyword">await</span> client.close(<span class="hljs-params"></span>);
 }</span>)<span class="hljs-params">()</span>;
 </span></code></pre></li>
-<li><p>Run the consumer to receive encrypted messages.</p>
-<p><strong>Input</strong></p>
+<li><p>运行消费者接收加密消息。</p>
+<p><strong>输入</strong></p>
 <pre><code class="hljs css language-shell">node consumer.js
 </code></pre></li>
-<li><p>In a new terminal tab, run the producer to produce encrypted messages.</p>
-<p><strong>Input</strong></p>
+<li><p>在一个新的终端窗口中，运行生产者来生成加密信息。</p>
+<p><strong>输入</strong></p>
 <pre><code class="hljs css language-shell">node producer.js
 </code></pre>
-<p>Now you can see the producer sends messages and the consumer receives messages successfully.</p>
+<p>现在你可以看到生产者发送消息，消费者成功收到消息。</p>
 <p><strong>输出</strong></p>
-<p>This is from the producer side.</p>
+<p>生产端：</p>
 <pre><code class="hljs">Sent <span class="hljs-keyword">message</span>: my-<span class="hljs-keyword">message</span>-<span class="hljs-number">0</span>
 Sent <span class="hljs-keyword">message</span>: my-<span class="hljs-keyword">message</span>-<span class="hljs-number">1</span>
 Sent <span class="hljs-keyword">message</span>: my-<span class="hljs-keyword">message</span>-<span class="hljs-number">2</span>
@@ -575,7 +575,7 @@ Sent <span class="hljs-keyword">message</span>: my-<span class="hljs-keyword">me
 Sent <span class="hljs-keyword">message</span>: my-<span class="hljs-keyword">message</span>-<span class="hljs-number">8</span>
 Sent <span class="hljs-keyword">message</span>: my-<span class="hljs-keyword">message</span>-<span class="hljs-number">9</span>
 </code></pre>
-<p>This is from the consumer side.</p>
+<p>消费端：</p>
 <pre><code class="hljs">my-message<span class="hljs-number">-0</span>
 my-message<span class="hljs-number">-1</span>
 my-message<span class="hljs-number">-2</span>
@@ -588,7 +588,7 @@ my-message<span class="hljs-number">-8</span>
 my-message<span class="hljs-number">-9</span>
 </code></pre></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.2/client-libraries-cpp"><span class="arrow-prev">← </span><span>C++</span></a><a class="docs-next button" href="/docs/zh-CN/2.7.2/client-libraries-websocket"><span class="function-name-prevnext">WebSocket</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#兼容性">兼容性</a></li><li><a href="#使用-npm-安装">使用 npm 安装</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#创建客户端">创建客户端</a><ul class="toc-headings"><li><a href="#客户端配置">客户端配置</a></li></ul></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-配置">Producer 配置</a></li><li><a href="#生产者示例">生产者示例</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#消费者操作">消费者操作</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li><li><a href="#消费者示例">消费者示例</a></li></ul></li><li><a href="#reader">Reader</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li><li><a href="#reader-示例">Reader 示例</a></li></ul></li><li><a href="#消息">消息</a><ul class="toc-headings"><li><a href="#消息对象操作">消息对象操作</a></li><li><a href="#消息-id-对象操作">消息 ID 对象操作</a></li></ul></li><li><a href="#end-to-end-encryption">End-to-end encryption</a><ul class="toc-headings"><li><a href="#configuration">Configuration</a></li><li><a href="#教程">教程</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.2/client-libraries-cpp"><span class="arrow-prev">← </span><span>C++</span></a><a class="docs-next button" href="/docs/zh-CN/2.7.2/client-libraries-websocket"><span class="function-name-prevnext">WebSocket</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#兼容性">兼容性</a></li><li><a href="#使用-npm-安装">使用 npm 安装</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#创建客户端">创建客户端</a><ul class="toc-headings"><li><a href="#客户端配置">客户端配置</a></li></ul></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-配置">Producer 配置</a></li><li><a href="#生产者示例">生产者示例</a></li></ul></li><li><a href="#消费者">消费者</a><ul class="toc-headings"><li><a href="#消费者操作">消费者操作</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li><li><a href="#消费者示例">消费者示例</a></li></ul></li><li><a href="#reader">Reader</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li><li><a href="#reader-示例">Reader 示例</a></li></ul></li><li><a href="#消息">消息</a><ul class="toc-headings"><li><a href="#消息对象操作">消息对象操作</a></li><li><a href="#消息-id-对象操作">消息 ID 对象操作</a></li></ul></li><li><a href="#端到端加密">端到端加密</a><ul class="toc-headings"><li><a href="#configuration">Configuration</a></li><li><a href="#教程">教程</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -39,7 +39,6 @@
 <tr><td><code>database.history</code></td><td>true</td><td>null</td><td>The name of the database history class.</td></tr>
 <tr><td><code>database.history.pulsar.topic</code></td><td>true</td><td>null</td><td>The name of the database history topic where the connector writes and recovers DDL statements. <br/><br/><strong>Note: this topic is for internal use only and should not be used by consumers.</strong></td></tr>
 <tr><td><code>database.history.pulsar.service.url</code></td><td>true</td><td>null</td><td>Pulsar cluster service URL for history topic.</td></tr>
-<tr><td><code>pulsar.service.url</code></td><td>true</td><td>null</td><td>Pulsar cluster service URL.</td></tr>
 <tr><td><code>offset.storage.topic</code></td><td>true</td><td>null</td><td>Record the last committed offsets that the connector successfully completes.</td></tr>
 <tr><td><code>json-with-envelope</code></td><td>false</td><td>false</td><td>Present the message only consist of payload.</td></tr>
 </tbody>
@@ -86,7 +85,6 @@
     <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
     <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
     <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>,
     <span class="hljs-attr">"offset.storage.topic"</span>: <span class="hljs-string">"offset-topic"</span>
 }
 </code></pre></li>
@@ -116,9 +114,6 @@
     <span class="hljs-comment">## KEY_CONVERTER_CLASS_CONFIG, VALUE_CONVERTER_CLASS_CONFIG</span>
     <span class="hljs-attr">key.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
     <span class="hljs-attr">value.converter:</span> <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>
-
-    <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
-    <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 
     <span class="hljs-comment">## OFFSET_STORAGE_TOPIC_CONFIG</span>
     <span class="hljs-attr">offset.storage.topic:</span> <span class="hljs-string">"offset-topic"</span>
@@ -190,7 +185,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
     <span class="hljs-attr">"plugin.name"</span>: <span class="hljs-string">"pgoutput"</span>,
     <span class="hljs-attr">"schema.whitelist"</span>: <span class="hljs-string">"public"</span>,
     <span class="hljs-attr">"table.whitelist"</span>: <span class="hljs-string">"public.users"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 }
 </code></pre></li>
 <li><p>YAML</p>
@@ -216,7 +211,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
     <span class="hljs-attr">table.whitelist:</span> <span class="hljs-string">"public.users"</span>
 
     <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
-    <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre></li>
 </ul>
 <p>Notice that <code>pgoutput</code> is a standard plugin of Postgres introduced in version 10 - <a href="https://www.postgresql.org/docs/10/logical-replication-architecture.html">see Postgres architecture docu</a>. You don't need to install anything, just make sure the WAL level is set to <code>logical</code> (see docker command below and <a href="https://www.postgresql.org/docs/current/runtime-config-wal.html">Postgres docu</a>).</p>
@@ -301,7 +296,7 @@ UPDATE 1
     <span class="hljs-attr">"mongodb.password"</span>: <span class="hljs-string">"dbz"</span>,
     <span class="hljs-attr">"mongodb.task.id"</span>: <span class="hljs-string">"1"</span>,
     <span class="hljs-attr">"database.whitelist"</span>: <span class="hljs-string">"inventory"</span>,
-    <span class="hljs-attr">"pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 }
 </code></pre></li>
 <li><p>YAML</p>
@@ -322,9 +317,7 @@ UPDATE 1
     <span class="hljs-attr">mongodb.password:</span> <span class="hljs-string">"dbz"</span><span class="hljs-string">,</span>
     <span class="hljs-attr">mongodb.task.id:</span> <span class="hljs-string">"1"</span><span class="hljs-string">,</span>
     <span class="hljs-attr">database.whitelist:</span> <span class="hljs-string">"inventory"</span><span class="hljs-string">,</span>
-
-    <span class="hljs-comment">## PULSAR_SERVICE_URL_CONFIG</span>
-    <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+    <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="usage-2"></a><a href="#usage-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h3>
@@ -353,7 +346,7 @@ $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGOD
 --destination-topic-name debezium-mongodb-topic \
 --tenant public \
 --namespace default \
---<span class="hljs-built_in">source</span>-config <span class="hljs-string">'{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'</span>
+--<span class="hljs-built_in">source</span>-config <span class="hljs-string">'{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'</span>
 </code></pre></li>
 <li><p>Use the <strong>YAML</strong> configuration file as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun  \

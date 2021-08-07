@@ -150,7 +150,6 @@ For details on APIs, refer to <a href="/docs/en/next/admin-api-overview">Admin A
 </code></pre>
 <p>The output is something like this:</p>
 <pre><code class="hljs css language-json">{
-    <span class="hljs-attr">"count"</span>: <span class="hljs-number">0</span>,
     <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">0.0</span>,
     <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">0.0</span>,
     <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">1.8332950480217471</span>,
@@ -166,22 +165,12 @@ For details on APIs, refer to <a href="/docs/en/next/admin-api-overview">Admin A
     <span class="hljs-attr">"offloadedStorageSize"</span>: <span class="hljs-number">0</span>,
     <span class="hljs-attr">"publishers"</span>: [
         {
-            <span class="hljs-attr">"count"</span>: <span class="hljs-number">0</span>,
             <span class="hljs-attr">"accessMode"</span>: <span class="hljs-string">"Shared"</span>,
             <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">0.0</span>,
             <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">0.0</span>,
             <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">0.0</span>,
             <span class="hljs-attr">"chunkedMessageRate"</span>: <span class="hljs-number">0.0</span>,
             <span class="hljs-attr">"producerId"</span>: <span class="hljs-number">0</span>,
-            <span class="hljs-attr">"producerNameOffset"</span>: <span class="hljs-number">47</span>,
-            <span class="hljs-attr">"producerNameLength"</span>: <span class="hljs-number">14</span>,
-            <span class="hljs-attr">"addressOffset"</span>: <span class="hljs-number">0</span>,
-            <span class="hljs-attr">"addressLength"</span>: <span class="hljs-number">16</span>,
-            <span class="hljs-attr">"connectedSinceOffset"</span>: <span class="hljs-number">16</span>,
-            <span class="hljs-attr">"connectedSinceLength"</span>: <span class="hljs-number">26</span>,
-            <span class="hljs-attr">"clientVersionOffset"</span>: <span class="hljs-number">42</span>,
-            <span class="hljs-attr">"clientVersionLength"</span>: <span class="hljs-number">5</span>,
-            <span class="hljs-attr">"stringBuffer"</span>: <span class="hljs-string">"/127.0.0.1:356042021-07-04T09:05:43.04788Z2.8.0standalone-2-5"</span>,
             <span class="hljs-attr">"metadata"</span>: {},
             <span class="hljs-attr">"address"</span>: <span class="hljs-string">"/127.0.0.1:35604"</span>,
             <span class="hljs-attr">"connectedSince"</span>: <span class="hljs-string">"2021-07-04T09:05:43.04788Z"</span>,
@@ -226,16 +215,9 @@ For details on APIs, refer to <a href="/docs/en/next/admin-api-overview">Admin A
                     <span class="hljs-attr">"unackedMessages"</span>: <span class="hljs-number">0</span>,
                     <span class="hljs-attr">"avgMessagesPerEntry"</span>: <span class="hljs-number">6</span>,
                     <span class="hljs-attr">"blockedConsumerOnUnackedMsgs"</span>: <span class="hljs-literal">false</span>,
-                    <span class="hljs-attr">"addressOffset"</span>: <span class="hljs-number">0</span>,
-                    <span class="hljs-attr">"addressLength"</span>: <span class="hljs-number">16</span>,
-                    <span class="hljs-attr">"connectedSinceOffset"</span>: <span class="hljs-number">16</span>,
-                    <span class="hljs-attr">"connectedSinceLength"</span>: <span class="hljs-number">27</span>,
-                    <span class="hljs-attr">"clientVersionOffset"</span>: <span class="hljs-number">43</span>,
-                    <span class="hljs-attr">"clientVersionLength"</span>: <span class="hljs-number">5</span>,
                     <span class="hljs-attr">"lastAckedTimestamp"</span>: <span class="hljs-number">1625389546162</span>,
                     <span class="hljs-attr">"lastConsumedTimestamp"</span>: <span class="hljs-number">1625389546070</span>,
                     <span class="hljs-attr">"metadata"</span>: {},
-                    <span class="hljs-attr">"stringBuffer"</span>: <span class="hljs-string">"/127.0.0.1:354722021-07-04T08:58:21.287682Z2.8.0"</span>,
                     <span class="hljs-attr">"address"</span>: <span class="hljs-string">"/127.0.0.1:35472"</span>,
                     <span class="hljs-attr">"connectedSince"</span>: <span class="hljs-string">"2021-07-04T08:58:21.287682Z"</span>,
                     <span class="hljs-attr">"clientVersion"</span>: <span class="hljs-string">"2.8.0"</span>

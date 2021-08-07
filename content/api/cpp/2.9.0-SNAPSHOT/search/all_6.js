@@ -63,6 +63,8 @@ var searchData=
   ['getmsgthroughputout',['getMsgThroughputOut',['../classpulsar_1_1_broker_consumer_stats.html#a94f8a62b3c43054350e1e43d261aa24a',1,'pulsar::BrokerConsumerStats']]],
   ['getname',['getName',['../classpulsar_1_1_schema_info.html#a4126badb298e741515f59d84932ce716',1,'pulsar::SchemaInfo']]],
   ['getnegativeackredeliverydelayms',['getNegativeAckRedeliveryDelayMs',['../classpulsar_1_1_consumer_configuration.html#a95033f005edf9b42fde4c276f3de4ee4',1,'pulsar::ConsumerConfiguration']]],
+  ['getnumberofconsumers',['getNumberOfConsumers',['../classpulsar_1_1_client.html#a1134874e191f8bf395c020f1ed3b2423',1,'pulsar::Client']]],
+  ['getnumberofproducers',['getNumberOfProducers',['../classpulsar_1_1_client.html#a5225a8d2b121cce6e205ef6e2471cdbc',1,'pulsar::Client']]],
   ['getnumpartitions',['getNumPartitions',['../classpulsar_1_1_topic_metadata.html#a427a1228dd01108f5748ce92516bf5b1',1,'pulsar::TopicMetadata']]],
   ['getoperationtimeoutseconds',['getOperationTimeoutSeconds',['../classpulsar_1_1_client_configuration.html#a6e6728b038a53f89481377e86c9e7da5',1,'pulsar::ClientConfiguration']]],
   ['getorderingkey',['getOrderingKey',['../classpulsar_1_1_message.html#a5bebb0bbe7efea0803f0cb3e2754de6d',1,'pulsar::Message']]],

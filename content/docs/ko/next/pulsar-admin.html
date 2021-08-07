@@ -891,7 +891,9 @@
 </thead>
 <tbody>
 <tr><td><code>-l</code>, <code>--limit</code></td><td>The backlog size limit (for example <code>10M</code> or <code>16G</code>)</td><td></td></tr>
+<tr><td><code>-lt</code>, <code>--limitTime</code></td><td>Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)</td><td></td></tr>
 <tr><td><code>-p</code>, <code>--policy</code></td><td>The retention policy to enforce when the limit is reached. The valid options are: <code>producer_request_hold</code>, <code>producer_exception</code> or <code>consumer_backlog_eviction</code></td><td></td></tr>
+<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to set. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
 </tbody>
 </table>
 <p>Example</p>
@@ -899,8 +901,21 @@
 --<span class="hljs-built_in">limit</span> 2G \
 --policy producer_request_hold
 </code></pre>
+<pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-backlog-quota my-tenant/my-ns \
+--limitTime 3600 \
+--policy producer_request_hold \
+--<span class="hljs-built_in">type</span> message_age
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="remove-backlog-quota"></a><a href="#remove-backlog-quota" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>remove-backlog-quota</code></h3>
 <p>Remove a backlog quota policy from a namespace</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to remove. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
+</tbody>
+</table>
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces remove-backlog-quota tenant/namespace
 </code></pre>
@@ -1880,11 +1895,40 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-backlog-quota-1"></a><a href="#set-backlog-quota-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-backlog-quota</code></h3>
 <p>Set a backlog quota policy for a topic.</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-l</code>, <code>--limit</code></td><td>The backlog size limit (for example <code>10M</code> or <code>16G</code>)</td><td></td></tr>
+<tr><td><code>-lt</code>, <code>--limitTime</code></td><td>Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)</td><td></td></tr>
+<tr><td><code>-p</code>, <code>--policy</code></td><td>The retention policy to enforce when the limit is reached. The valid options are: <code>producer_request_hold</code>, <code>producer_exception</code> or <code>consumer_backlog_eviction</code></td><td></td></tr>
+<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to set. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
+</tbody>
+</table>
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics <span class="hljs-built_in">set</span>-backlog-quota tenant/namespace/topic options
 </code></pre>
+<p>Example</p>
+<pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-backlog-quota my-tenant/my-ns/my-topic \
+--<span class="hljs-built_in">limit</span> 2G \
+--policy producer_request_hold
+</code></pre>
+<pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-backlog-quota my-tenant/my-ns/my-topic \
+--limitTime 3600 \
+--policy producer_request_hold \
+--<span class="hljs-built_in">type</span> message_age
+</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="remove-backlog-quota-1"></a><a href="#remove-backlog-quota-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>remove-backlog-quota</code></h3>
 <p>Remove a backlog quota policy from a topic.</p>
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to remove. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
+</tbody>
+</table>
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics remove-backlog-quota tenant/namespace/topic
 </code></pre>

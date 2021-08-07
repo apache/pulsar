@@ -98,7 +98,7 @@ The <code>--- Service Urls---</code> lines in the following diagrams represent P
 <ul>
 <li><code>numFunctionPackageReplicas</code>：存储 function 包的副本数。 默认值是 <code>1</code>，对独立部署很有用。 对于生产环境部署，为确保其高可用性，需设置为大于 <code>2</code> 。</li>
 <li><code>pulsarFunctionsCluster</code>：设置 Pulsar 集群名称 (与 <code>clusterName</code> 在 broker 配置中的设置相同)。</li>
-<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. If it is set to <code>true</code>, you must ensure that it has been initialized by <code>bin/pulsar initialize-cluster-metadata</code> command.</li>
+<li><code>initializedDlogMetadata</code>: Whether to initialize distributed log metadata in runtime. 如果设置为 <code>true</code>，需要确保通过 <code>bin/pulsar initialize-cluster-metadata</code> 命令对其进行了初始化。</li>
 </ul>
 <p>If authentication is enabled on the BookKeeper cluster, configure the following BookKeeper authentication settings.</p>
 <ul>
@@ -106,23 +106,23 @@ The <code>--- Service Urls---</code> lines in the following diagrams represent P
 <li><code>bookkeeperClientAuthenticationParametersName</code>：BookKeeper 客户端身份验证插件的参数名称。</li>
 <li><code>bookkeeperClientAuthenticationParameters</code>：BookKeeper 客户端身份验证插件的参数。</li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="configure-stateful-functions-to-run-with-broker"></a><a href="#configure-stateful-functions-to-run-with-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure Stateful-Functions to run with broker</h3>
-<p>If you want to use Stateful-Functions related functions (for example,  <code>putState()</code> and <code>queryState()</code> related interfaces), follow steps below.</p>
+<h3><a class="anchor" aria-hidden="true" id="配置和-broker-共同运行的-stateful-functions"></a><a href="#配置和-broker-共同运行的-stateful-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置和 broker 共同运行的 Stateful-Functions</h3>
+<p>如果想使用 Stateful-Functions 相关的函数(例如，<code>putState()</code> 和 <code>queryState()</code> 相关的接口)，参考以下步骤。</p>
 <ol>
 <li><p>Enable the <strong>streamStorage</strong> service in the BookKeeper.</p>
-<p>Currently, the service uses the NAR package, so you need to set the configuration in <code>bookkeeper.conf</code>.</p>
+<p>现在服务使用的是 NAR 包，所以需要在 <code>bookkeeper.conf</code> 中进行配置。</p>
 <pre><code class="hljs css language-text">extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
 </code></pre>
-<p>After starting bookie, use the following methods to check whether the streamStorage service is started correctly.</p>
-<p>Input:</p>
+<p>在启动 bookie 后，使用以下方法检查 streamStorage 服务是否正常启动。</p>
+<p>输入:</p>
 <pre><code class="hljs css language-shell">telnet localhost 4181
 </code></pre>
-<p>Output:</p>
+<p>输出:</p>
 <pre><code class="hljs css language-text">Trying 127.0.0.1...
 Connected to localhost.
 Escape character is '^]'.
 </code></pre></li>
-<li><p>Turn on this function in <code>functions_worker.yml</code>.</p>
+<li><p>在 <code>functions_worker.yml</code> 中打开此功能。</p>
 <pre><code class="hljs css language-text">stateStorageServiceUrl: bk://<bk-service-url>:4181
 </code></pre>
 <p><code>bk-service-url</code> is the service URL pointing to the BookKeeper table service.</p></li>
@@ -172,7 +172,7 @@ In this mode, make sure <code>functionsWorkerEnabled</code> is set to <code>fals
 <li><a href="#enable-tls-transport-encryption">Enable TLS transport encryption</a></li>
 <li><a href="#enable-authentication-provider">启用身份验证提供程序</a></li>
 <li><a href="#enable-authorization-provider">启用授权提供程序</a></li>
-<li><a href="#enable-end-to-end-encryption">Enable End-to-End Encryption</a></li>
+<li><a href="#enable-end-to-end-encryption">启用端到端加密</a></li>
 </ul>
 <h5><a class="anchor" aria-hidden="true" id="enable-tls-transport-encryption"></a><a href="#enable-tls-transport-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable TLS transport encryption</h5>
 <p>To enable TLS transport encryption, configure the following settings.</p>
@@ -228,10 +228,10 @@ authenticationProviders: [<span class="hljs-string">'org.apache.pulsar.broker.au
   <span class="hljs-bullet">-</span> <span class="hljs-string">role2</span>
   <span class="hljs-bullet">-</span> <span class="hljs-string">role3</span>
 </code></pre>
-<h5><a class="anchor" aria-hidden="true" id="enable-end-to-end-encryption"></a><a href="#enable-end-to-end-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable End-to-End Encryption</h5>
+<h5><a class="anchor" aria-hidden="true" id="启用端到端加密"></a><a href="#启用端到端加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用端到端加密</h5>
 <p>你可以使用应用程序配置的公钥私钥对进行加密。 只有拥有有效密钥的消费者可以解密加密过的消息。</p>
-<p>To enable End-to-End encryption on Functions Worker, you can set it by specifying <code>--producer-config</code> in the command line terminal, for more information, please refer to <a href="/docs/zh-CN/2.7.1/security-encryption">here</a>.</p>
-<p>We include the relevant configuration information of <code>CryptoConfig</code> into <code>ProducerConfig</code>. The specific configurable field information about <code>CryptoConfig</code> is as follows:</p>
+<p>要启用 Functions Worker 端到端加密，可以在命令行使用 <code>--producer-config</code> 进行配置，更多信息可以参考 <a href="/docs/zh-CN/2.7.1/security-encryption">here</a>。</p>
+<p>将 <code>CryptoConfig</code> 的相关配置信息包含到 <code>ProducerConfig</code> 中。 关于 <code>CryptoConfig</code> 的具体可配置字段信息如下：</p>
 <pre><code class="hljs css language-text">public class CryptoConfig {
     private String cryptoKeyReaderClassName;
     private Map<String, Object> cryptoKeyReaderConfig;
@@ -243,8 +243,8 @@ authenticationProviders: [<span class="hljs-string">'org.apache.pulsar.broker.au
 }
 </code></pre>
 <ul>
-<li><code>producerCryptoFailureAction</code>: define the action if producer fail to encrypt data one of <code>FAIL</code>, <code>SEND</code>.</li>
-<li><code>consumerCryptoFailureAction</code>: define the action if consumer fail to decrypt data one of <code>FAIL</code>, <code>DISCARD</code>, <code>CONSUME</code>.</li>
+<li><code>producerCryptoFailureAction</code>: 在生产者加密数据失败时，执行 <code>FAIL</code>，<code>SEND</code> 其中之一的操作。</li>
+<li><code>consumerCryptoFailureAction</code>: 在消费者解密数据失败时，执行 <code>FAIL</code>, <code>DISCARD</code>, <code>CONSME</code> 其中之一的操作。</li>
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="bookkeeper-身份验证"></a><a href="#bookkeeper-身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper 身份验证</h4>
 <p>如果要开启 BooKeeper 集群的身份认证，你必须配置以下 Bookeeper 认证选项：</p>
@@ -305,7 +305,7 @@ authenticationProviders: [<span class="hljs-string">'org.apache.pulsar.broker.au
 <li><p>After setting the cluster successfully, enable functions worker by setting <code>functionsWorkerEnabled=true</code>.</p></li>
 <li><p>Set the correct cluster name in <code>pulsarFunctionsCluster</code> in the <code>conf/functions_worker.yml</code> file, and restart brokers.</p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.1/functions-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.7.1/functions-runtime"><span>设置：配置 Pulsar Functions 运行时</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#与-brokers-一起运行-functions-worker">与 brokers 一起运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以与-brokers-一起运行">配置 Functions-Worker 以与 brokers 一起运行</a></li><li><a href="#configure-stateful-functions-to-run-with-broker">Configure Stateful-Functions to run with broker</a></li><li><a href="#同时运行-functions-worker-和-broker">同时运行 Functions-worker 和 broker</a></li></ul></li><li><a href="#单独运行-functions-worker">单独运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以单独运行">配置 Functions-Worker 以单独运行</a></li><li><a href="#启动-functions-worker">启动 Functions-worker</a></li><li><a href="#为-functions-workers-配置-proxies">为 Functions-workers 配置 Proxies</a></li></ul></li><li><a href="#对比与-broker-一起运行和单独运行">对比与 Broker 一起运行和单独运行</a></li><li><a href="#故障排除">故障排除</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.1/functions-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/2.7.1/functions-runtime"><span>设置：配置 Pulsar Functions 运行时</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#与-brokers-一起运行-functions-worker">与 brokers 一起运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以与-brokers-一起运行">配置 Functions-Worker 以与 brokers 一起运行</a></li><li><a href="#配置和-broker-共同运行的-stateful-functions">配置和 broker 共同运行的 Stateful-Functions</a></li><li><a href="#同时运行-functions-worker-和-broker">同时运行 Functions-worker 和 broker</a></li></ul></li><li><a href="#单独运行-functions-worker">单独运行 Functions-worker</a><ul class="toc-headings"><li><a href="#配置-functions-worker-以单独运行">配置 Functions-Worker 以单独运行</a></li><li><a href="#启动-functions-worker">启动 Functions-worker</a></li><li><a href="#为-functions-workers-配置-proxies">为 Functions-workers 配置 Proxies</a></li></ul></li><li><a href="#对比与-broker-一起运行和单独运行">对比与 Broker 一起运行和单独运行</a></li><li><a href="#故障排除">故障排除</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

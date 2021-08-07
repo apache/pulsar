@@ -881,7 +881,7 @@ You can configure parameters if you do not want to use the default configuration
   
   The producer above is equivalent to a `Producer&lt;byte[]&gt;` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](/docs/zh-TW/next/reference-terminology#topic).
   
-  ### Schema example
+  ### AvroBaseStructSchema example
   
   Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
   
@@ -964,6 +964,10 @@ You can configure parameters if you do not want to use the default configuration
           .topic(&quot;some-avro-topic&quot;)
           .create();
       ```
+  
+  ### ProtobufNativeSchema example
+  
+  For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](/docs/zh-TW/next/schema-understand#complex-type).
   
   ## Authentication
   

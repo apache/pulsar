@@ -127,10 +127,10 @@ consumer = client.subscribe(<span class="hljs-string">'my-topic'</span>, <span c
     msg = consumer.receive()
     <span class="hljs-keyword">try</span>:
         print(<span class="hljs-string">"Received message '{}' id='{}'"</span>.format(msg.data(), msg.message_id()))
-        <span class="hljs-comment"># Acknowledge successful processing of the message</span>
+        <span class="hljs-comment"># 确认消息已经成功收到和处理</span>
         consumer.acknowledge(msg)
     <span class="hljs-keyword">except</span>:
-        <span class="hljs-comment"># Message failed to be processed</span>
+        <span class="hljs-comment"># 消息未被成功处理</span>
         consumer.negative_acknowledge(msg)
 
 client.close()

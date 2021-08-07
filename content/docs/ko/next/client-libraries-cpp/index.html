@@ -84,8 +84,8 @@
 <ul>
 <li><a href="https://cmake.org/">CMake</a></li>
 <li><a href="http://www.boost.org/">Boost</a></li>
-<li><a href="https://developers.google.com/protocol-buffers/">Protocol Buffers</a> 2.6</li>
-<li><a href="https://curl.haxx.se/libcurl/">libcurl</a></li>
+<li><a href="https://developers.google.com/protocol-buffers/">Protocol Buffers</a> &gt;= 3</li>
+<li><a href="https://curl.se/libcurl/">libcurl</a></li>
 <li><a href="https://github.com/google/googletest">Google Test</a></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="linux"></a><a href="#linux" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Linux</h2>
@@ -249,10 +249,8 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 <span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">export</span> OPENSSL_ROOT_DIR=/usr/<span class="hljs-built_in">local</span>/opt/openssl/</span>
 <span class="hljs-meta">
 #</span><span class="bash"> Protocol Buffers installation</span>
-<span class="hljs-meta">$</span><span class="bash"> brew tap homebrew/versions</span>
-<span class="hljs-meta">$</span><span class="bash"> brew install protobuf260</span>
-<span class="hljs-meta">$</span><span class="bash"> brew install boost</span>
-<span class="hljs-meta">$</span><span class="bash"> brew install log4cxx</span>
+<span class="hljs-meta">$</span><span class="bash"> brew install protobuf boost boost-python log4cxx</span>
+<span class="hljs-meta">#</span><span class="bash"> If you are using python3, you need to install boost-python3 </span>
 <span class="hljs-meta">
 #</span><span class="bash"> Google Test installation</span>
 <span class="hljs-meta">$</span><span class="bash"> git <span class="hljs-built_in">clone</span> https://github.com/google/googletest.git</span>
@@ -338,8 +336,9 @@ config.setAuth(pulsar::AuthTls::create(
 <p>For complete examples, refer to <a href="https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples">C++ client examples</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="schema"></a><a href="#schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema</h2>
 <p>This section describes some examples about schema. For more information about schema, see <a href="/docs/ko/next/schema-get-started">Pulsar schema</a>.</p>
-<h3><a class="anchor" aria-hidden="true" id="create-producer-with-avro-schema"></a><a href="#create-producer-with-avro-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create producer with Avro schema</h3>
-<p>The following example shows how to create a producer with an Avro schema.</p>
+<h3><a class="anchor" aria-hidden="true" id="avro-schema"></a><a href="#avro-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Avro schema</h3>
+<ul>
+<li><p>The following example shows how to create a producer with an Avro schema.</p>
 <pre><code class="hljs css language-cpp"><span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-built_in">std</span>::<span class="hljs-built_in">string</span> exampleSchema =
     <span class="hljs-string">"{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","</span>
     <span class="hljs-string">"\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}"</span>;
@@ -347,9 +346,8 @@ Producer producer;
 ProducerConfiguration producerConf;
 producerConf.setSchema(SchemaInfo(AVRO, <span class="hljs-string">"Avro"</span>, exampleSchema));
 client.createProducer(<span class="hljs-string">"topic-avro"</span>, producerConf, producer);
-</code></pre>
-<h3><a class="anchor" aria-hidden="true" id="create-consumer-with-avro-schema"></a><a href="#create-consumer-with-avro-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create consumer with Avro schema</h3>
-<p>The following example shows how to create a consumer with an Avro schema.</p>
+</code></pre></li>
+<li><p>The following example shows how to create a consumer with an Avro schema.</p>
 <pre><code class="hljs css language-cpp"><span class="hljs-keyword">static</span> <span class="hljs-keyword">const</span> <span class="hljs-built_in">std</span>::<span class="hljs-built_in">string</span> exampleSchema =
     <span class="hljs-string">"{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","</span>
     <span class="hljs-string">"\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}"</span>;
@@ -357,8 +355,28 @@ ConsumerConfiguration consumerConf;
 Consumer consumer;
 consumerConf.setSchema(SchemaInfo(AVRO, <span class="hljs-string">"Avro"</span>, exampleSchema));
 client.subscribe(<span class="hljs-string">"topic-avro"</span>, <span class="hljs-string">"sub-2"</span>, consumerConf, consumer)
+</code></pre></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="protobufnative-schema"></a><a href="#protobufnative-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ProtobufNative schema</h3>
+<p>The following example shows how to create a producer and a consumer with a ProtobufNative schema. ​ 1. Generate the <code>User</code> class using Protobuf3.</p>
+<pre><code class="hljs">&gt; **Note** 
+&gt;
+&gt; You need to use Protobuf3 or later versions.
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/client-libraries-python"><span class="arrow-prev">← </span><span>Python</span></a><a class="docs-next button" href="/docs/ko/next/client-libraries-node"><span>Node.js</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#supported-platforms">Supported platforms</a></li><li><a href="#system-requirements">System requirements</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#compilation">Compilation</a></li><li><a href="#install-dependencies">Install Dependencies</a></li><li><a href="#install-rpm">Install RPM</a></li><li><a href="#install-debian">Install Debian</a></li><li><a href="#build">Build</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#compilation-1">Compilation</a></li><li><a href="#install-libpulsar">Install <code>libpulsar</code></a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#create-a-consumer">Create a consumer</a></li><li><a href="#create-a-producer">Create a producer</a></li><li><a href="#enable-authentication-in-connection-urls">Enable authentication in connection URLs</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#create-producer-with-avro-schema">Create producer with Avro schema</a></li><li><a href="#create-consumer-with-avro-schema">Create consumer with Avro schema</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<p>​ ```protobuf syntax = &quot;proto3&quot;;</p>
+<p>message User { string name = 1; int32 age = 2; }</p>
+<pre><code class="hljs">​
+2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
+​c++ #include &lt;pulsar/ProtobufNativeSchema.h&gt; 
+
+​
+3. Create a producer to send a `User` instance.
+​c++ ProducerConfiguration producerConf; producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor())); Producer producer; client.createProducer(&quot;topic-protobuf&quot;, producerConf, producer); User user; user.set_name(&quot;my-name&quot;); user.set_age(10); std::string content; user.SerializeToString(&amp;content); producer.send(MessageBuilder().setContent(content).build()); 
+
+​
+4. Create a consumer to receive a `User` instance.
+​c++ ConsumerConfiguration consumerConf; consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor())); consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest); Consumer consumer; client.subscribe(&quot;topic-protobuf&quot;, &quot;my-sub&quot;, consumerConf, consumer); Message msg; consumer.receive(msg); User user2; user2.ParseFromArray(msg.getData(), msg.getLength()); ```</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/client-libraries-python"><span class="arrow-prev">← </span><span>Python</span></a><a class="docs-next button" href="/docs/ko/next/client-libraries-node"><span>Node.js</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#supported-platforms">Supported platforms</a></li><li><a href="#system-requirements">System requirements</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#compilation">Compilation</a></li><li><a href="#install-dependencies">Install Dependencies</a></li><li><a href="#install-rpm">Install RPM</a></li><li><a href="#install-debian">Install Debian</a></li><li><a href="#build">Build</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#compilation-1">Compilation</a></li><li><a href="#install-libpulsar">Install <code>libpulsar</code></a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#create-a-consumer">Create a consumer</a></li><li><a href="#create-a-producer">Create a producer</a></li><li><a href="#enable-authentication-in-connection-urls">Enable authentication in connection URLs</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#avro-schema">Avro schema</a></li><li><a href="#protobufnative-schema">ProtobufNative schema</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

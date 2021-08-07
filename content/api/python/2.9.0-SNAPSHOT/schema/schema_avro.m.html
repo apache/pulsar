@@ -988,6 +988,7 @@ table {
     <li class="mono"><a href="#pulsar.schema.schema_avro.AvroSchema.__init__">__init__</a></li>
     <li class="mono"><a href="#pulsar.schema.schema_avro.AvroSchema.decode">decode</a></li>
     <li class="mono"><a href="#pulsar.schema.schema_avro.AvroSchema.encode">encode</a></li>
+    <li class="mono"><a href="#pulsar.schema.schema_avro.AvroSchema.encode_dict">encode_dict</a></li>
     <li class="mono"><a href="#pulsar.schema.schema_avro.AvroSchema.schema_info">schema_info</a></li>
   </ul>
 
@@ -1034,6 +1035,7 @@ import _pulsar
 import io
 import enum
 
+from . import Record
 from .schema import Schema
 
 try:
@@ -1052,15 +1054,30 @@ if HAS_AVRO:
         def _get_serialized_value(self, x):
             if isinstance(x, enum.Enum):
                 return x.name
+            elif isinstance(x, Record):
+                return self.encode_dict(x.__dict__)
+            elif isinstance(x, list):
+                arr = []
+                for item in x:
+                    arr.append(self._get_serialized_value(item))
+                return arr
+            elif isinstance(x, dict):
+                return self.encode_dict(x)
             else:
                 return x
 
         def encode(self, obj):
             self._validate_object_type(obj)
             buffer = io.BytesIO()
-            m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
+            m = self.encode_dict(obj.__dict__)
             fastavro.schemaless_writer(buffer, self._schema, m)
             return buffer.getvalue()
+
+        def encode_dict(self, d):
+            obj = {}
+            for k, v in d.items():
+                obj[k] = self._get_serialized_value(v)
+            return obj
 
         def decode(self, data):
             buffer = io.BytesIO(data)
@@ -1112,14 +1129,28 @@ else:
     def _get_serialized_value(self, x):
         if isinstance(x, enum.Enum):
             return x.name
+        elif isinstance(x, Record):
+            return self.encode_dict(x.__dict__)
+        elif isinstance(x, list):
+            arr = []
+            for item in x:
+                arr.append(self._get_serialized_value(item))
+            return arr
+        elif isinstance(x, dict):
+            return self.encode_dict(x)
         else:
             return x
     def encode(self, obj):
         self._validate_object_type(obj)
         buffer = io.BytesIO()
-        m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
+        m = self.encode_dict(obj.__dict__)
         fastavro.schemaless_writer(buffer, self._schema, m)
         return buffer.getvalue()
+    def encode_dict(self, d):
+        obj = {}
+        for k, v in d.items():
+            obj[k] = self._get_serialized_value(v)
+        return obj
     def decode(self, data):
         buffer = io.BytesIO(data)
         d = fastavro.schemaless_reader(buffer, self._schema)
@@ -1196,9 +1227,32 @@ else:
     <pre><code>def encode(self, obj):
     self._validate_object_type(obj)
     buffer = io.BytesIO()
-    m = {k: self._get_serialized_value(v) for k, v in obj.__dict__.items()}
+    m = self.encode_dict(obj.__dict__)
     fastavro.schemaless_writer(buffer, self._schema, m)
     return buffer.getvalue()
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.schema_avro.AvroSchema.encode_dict">
+    <p>def <span class="ident">encode_dict</span>(</p><p>self, d)</p>
+    </div>
+    
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema_avro.AvroSchema.encode_dict', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.schema_avro.AvroSchema.encode_dict" class="source">
+    <pre><code>def encode_dict(self, d):
+    obj = {}
+    for k, v in d.items():
+        obj[k] = self._get_serialized_value(v)
+    return obj
 </code></pre>
   </div>
 </div>

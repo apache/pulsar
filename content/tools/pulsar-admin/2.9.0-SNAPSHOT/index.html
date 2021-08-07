@@ -2705,6 +2705,11 @@
 <td>Retention policy to enforce when the limit is reached. Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]</td>
 <td>null</td>
 </tr>
+<tr>
+<td><code>-t, --type</code></td>
+<td>Backlog quota type to set</td>
+<td>destination_storage</td>
+</tr>
 </tbody>
 </table>
 <h2 id="-em-remove-backlog-quota-em-"><em>remove-backlog-quota</em></h2>
@@ -2713,6 +2718,23 @@
 <hr>
 <pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar-admin namespaces remove-backlog-quota <span class="hljs-keyword">options</span>
 </code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-t, --type</code></td>
+<td>Backlog quota type to remove</td>
+<td>destination_storage</td>
+</tr>
+</tbody>
+</table>
 <h2 id="-em-get-persistence-em-"><em>get-persistence</em></h2>
 <p>Get the persistence policies for a namespace</p>
 <h3 id="usage">Usage</h3>
@@ -7116,7 +7138,7 @@
 <tr>
 <td><code>-l, --limit</code></td>
 <td>Size limit (eg: 10M, 16G)</td>
-<td>null</td>
+<td>-1</td>
 </tr>
 <tr>
 <td><code>-p, --policy</code></td>
@@ -7128,6 +7150,11 @@
 <td>Time limit in second, non-positive number for disabling time limit.</td>
 <td>-1</td>
 </tr>
+<tr>
+<td><code>-t, --type</code></td>
+<td>Backlog quota type to set</td>
+<td>destination_storage</td>
+</tr>
 </tbody>
 </table>
 <h2 id="-em-remove-backlog-quota-em--47"><em>remove-backlog-quota</em></h2>
@@ -7136,6 +7163,23 @@
 <hr>
 <pre class="code-block example"><code class="lang-shell"><span class="hljs-symbol">$</span> pulsar-admin topics remove-backlog-quota <span class="hljs-keyword">options</span>
 </code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-t, --type</code></td>
+<td>Backlog quota type to remove</td>
+<td>destination_storage</td>
+</tr>
+</tbody>
+</table>
 <h2 id="-em-get-message-ttl-em--48"><em>get-message-ttl</em></h2>
 <p>Get the message TTL for a topic</p>
 <h3 id="usage">Usage</h3>

@@ -364,7 +364,8 @@ Enumerations</h2></td></tr>
 <a class="el" href="namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a1b1684230ae9c15941cb3fe05bf972f0">DOUBLE</a> = 11, 
 <a class="el" href="namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305ab6fbe0f5b80de2aa67b68572e7a054d3">KEY_VALUE</a> = 15, 
 <br />
-&#160;&#160;<a class="el" href="namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a4dcbdcae67c5f78b7c4fff2c2135cba2">BYTES</a> = -1, 
+&#160;&#160;<a class="el" href="namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a24048f6ae2e1048989e69644edcdc8f6">PROTOBUF_NATIVE</a> = 20, 
+<a class="el" href="namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a4dcbdcae67c5f78b7c4fff2c2135cba2">BYTES</a> = -1, 
 <a class="el" href="namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305a6a9078e01119bddf19aa24dc05390f99">AUTO_CONSUME</a> = -3, 
 <a class="el" href="namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305ad1af93d272614c940d322497eb8e31f0">AUTO_PUBLISH</a> = -4
 <br />
@@ -373,6 +374,8 @@ Enumerations</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
+<tr class="memitem:a7dc480604aefdd4119b2e2ee2b9e7764"><td class="memItemLeft" align="right" valign="top">PULSAR_PUBLIC <a class="el" href="classpulsar_1_1_schema_info.html">SchemaInfo</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#a7dc480604aefdd4119b2e2ee2b9e7764">createProtobufNativeSchema</a> (const google::protobuf::Descriptor *descriptor)</td></tr>
+<tr class="separator:a7dc480604aefdd4119b2e2ee2b9e7764"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a76cef79981f7a9a42f7c7899473b8dad"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a76cef79981f7a9a42f7c7899473b8dad"></a>
 PULSAR_PUBLIC const char *&#160;</td><td class="memItemRight" valign="bottom"><b>strResult</b> (<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> result)</td></tr>
 <tr class="separator:a76cef79981f7a9a42f7c7899473b8dad"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -625,6 +628,9 @@ PULSAR_PUBLIC const char *&#160;</td><td class="memItemRight" valign="bottom"><b
 <tr><td class="fieldname"><a class="anchor" id="abab5b1f233c9cc54c10d28cb5b973305ab6fbe0f5b80de2aa67b68572e7a054d3"></a>KEY_VALUE&#160;</td><td class="fielddoc">
 <p>A Schema that contains Key Schema and Value Schema. </p>
 </td></tr>
+<tr><td class="fieldname"><a class="anchor" id="abab5b1f233c9cc54c10d28cb5b973305a24048f6ae2e1048989e69644edcdc8f6"></a>PROTOBUF_NATIVE&#160;</td><td class="fielddoc">
+<p>Protobuf native schema based on Descriptor. </p>
+</td></tr>
 <tr><td class="fieldname"><a class="anchor" id="abab5b1f233c9cc54c10d28cb5b973305a4dcbdcae67c5f78b7c4fff2c2135cba2"></a>BYTES&#160;</td><td class="fielddoc">
 <p>A bytes array. </p>
 </td></tr>
@@ -635,6 +641,37 @@ PULSAR_PUBLIC const char *&#160;</td><td class="memItemRight" valign="bottom"><b
 <p>Auto Publish Type. </p>
 </td></tr>
 </table>
+
+</div>
+</div>
+<h2 class="groupheader">Function Documentation</h2>
+<a class="anchor" id="a7dc480604aefdd4119b2e2ee2b9e7764"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">PULSAR_PUBLIC <a class="el" href="classpulsar_1_1_schema_info.html">SchemaInfo</a> pulsar::createProtobufNativeSchema </td>
+          <td>(</td>
+          <td class="paramtype">const google::protobuf::Descriptor *&#160;</td>
+          <td class="paramname"><em>descriptor</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Create a protobuf native schema using a descriptor.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">descriptor</td><td>the Descriptor object of the target class </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>the protobuf native schema </dd></dl>
+<dl class="exception"><dt>Exceptions</dt><dd>
+  <table class="exception">
+    <tr><td class="paramname">std::invalid_argument</td><td>if descriptor is nullptr </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

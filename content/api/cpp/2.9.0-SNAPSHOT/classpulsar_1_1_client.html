@@ -149,6 +149,12 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ad2701d78fca53d5261616ca53381241d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aecac8bf91b474339455fe0519f6ba71e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#aecac8bf91b474339455fe0519f6ba71e">shutdown</a> ()</td></tr>
 <tr class="separator:aecac8bf91b474339455fe0519f6ba71e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5225a8d2b121cce6e205ef6e2471cdbc"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#a5225a8d2b121cce6e205ef6e2471cdbc">getNumberOfProducers</a> ()</td></tr>
+<tr class="memdesc:a5225a8d2b121cce6e205ef6e2471cdbc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the number of alive producers on the current client.  <a href="#a5225a8d2b121cce6e205ef6e2471cdbc">More...</a><br /></td></tr>
+<tr class="separator:a5225a8d2b121cce6e205ef6e2471cdbc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1134874e191f8bf395c020f1ed3b2423"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html#a1134874e191f8bf395c020f1ed3b2423">getNumberOfConsumers</a> ()</td></tr>
+<tr class="memdesc:a1134874e191f8bf395c020f1ed3b2423"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the number of alive consumers on the current client.  <a href="#a1134874e191f8bf395c020f1ed3b2423">More...</a><br /></td></tr>
+<tr class="separator:a1134874e191f8bf395c020f1ed3b2423"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -527,6 +533,42 @@ ResultError if there was an error </dd></dl>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>the <a class="el" href="classpulsar_1_1_reader.html">Reader</a> object </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a1134874e191f8bf395c020f1ed3b2423"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t pulsar::Client::getNumberOfConsumers </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Get the number of alive consumers on the current client. </p>
+<dl class="section return"><dt>Returns</dt><dd>The number of alive consumers on the current client. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a5225a8d2b121cce6e205ef6e2471cdbc"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t pulsar::Client::getNumberOfProducers </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Get the number of alive producers on the current client. </p>
+<dl class="section return"><dt>Returns</dt><dd>The number of alive producers on the current client. </dd></dl>
 
 </div>
 </div>

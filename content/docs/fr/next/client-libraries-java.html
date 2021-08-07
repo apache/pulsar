@@ -880,7 +880,7 @@ You can configure parameters if you do not want to use the default configuration
   
   Le producteur ci-dessus est équivalent à un `Producer&lt;byte[]&gt;` (en fait, vous devriez *toujours* spécifier explicitement le type). Si vous souhaitez utiliser un producteur pour un type de données différent, vous devrez spécifier un **schéma** qui informe Pulsar quel type de données sera transmis sur le [topic](/docs/fr/next/reference-terminology#topic).
   
-  ### Exemple de schéma
+  ### AvroBaseStructSchema example
   
   Disons que vous avez une classe `SensorReading` que vous souhaitez transmettre sur un topic Pulsar :
   
@@ -963,6 +963,10 @@ You can configure parameters if you do not want to use the default configuration
           .topic(&quot;some-avro-topic&quot;)
           .create();
       ```
+  
+  ### ProtobufNativeSchema example
+  
+  For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](/docs/fr/next/schema-understand#complex-type).
   
   ## Autentification
   
