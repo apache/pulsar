@@ -139,6 +139,9 @@ class Record(with_metaclass(RecordMeta, object)):
                 return False
         return True
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __str__(self):
         return str(self.__dict__)
 
