@@ -27,9 +27,13 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
+
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
@@ -235,31 +239,24 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     public void testTransactionBufferLookUp() throws Exception {
         String topic = "persistent://" + namespace + "/testTransactionBufferLookUp";
         String subName = "test";
-        admin.topics().createNonPartitionedTopic(topic + "_abort_sub");
-        admin.topics().createSubscription(topic + "_abort_sub", subName, MessageId.earliest);
 
-        admin.topics().createNonPartitionedTopic(topic + "_commit_sub");
-        admin.topics().createSubscription(topic + "_commit_sub", subName, MessageId.earliest);
+        String abortTopic = topic + "_abort_sub";
+        String commitTopic = topic + "_commit_sub";
+        admin.topics().createNonPartitionedTopic(abortTopic);
+        admin.topics().createSubscription(abortTopic, subName, MessageId.earliest);
 
-        Awaitility.await().until(() -> {
-            try {
-                tbClient.abortTxnOnSubscription(topic + "_abort_sub", "test", 1L, 1L, -1L).get();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        });
+        admin.topics().createNonPartitionedTopic(commitTopic);
+        admin.topics().createSubscription(commitTopic, subName, MessageId.earliest);
 
-        Awaitility.await().until(() -> {
-            try {
-                tbClient.commitTxnOnSubscription(topic + "_commit_sub", "test", 1L, 1L, -1L).get();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        });
-        tbClient.abortTxnOnTopic(topic + "_abort_topic", 1L, 1L, -1L).get();
-        tbClient.commitTxnOnTopic(topic + "_commit_topic", 1L, 1L, -1L).get();
+        waitPendingAckInit(abortTopic, subName);
+        waitPendingAckInit(commitTopic, subName);
+
+        tbClient.abortTxnOnSubscription(abortTopic, "test", 1L, 1L, -1L).get();
+
+        tbClient.commitTxnOnSubscription(commitTopic, "test", 1L, 1L, -1L).get();
+
+        tbClient.abortTxnOnTopic(abortTopic, 1L, 1L, -1L).get();
+        tbClient.commitTxnOnTopic(commitTopic, 1L, 1L, -1L).get();
     }
 
     @Test
@@ -277,32 +274,23 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         String topic = "persistent://" + namespace + "/testTransactionBufferHandlerSemaphore";
         String subName = "test";
 
-        admin.topics().createNonPartitionedTopic(topic + "_abort_sub");
-        admin.topics().createSubscription(topic + "_abort_sub", subName, MessageId.earliest);
+        String abortTopic = topic + "_abort_sub";
+        String commitTopic = topic + "_commit_sub";
 
-        admin.topics().createNonPartitionedTopic(topic + "_commit_sub");
-        admin.topics().createSubscription(topic + "_commit_sub", subName, MessageId.earliest);
+        admin.topics().createNonPartitionedTopic(abortTopic);
+        admin.topics().createSubscription(abortTopic, subName, MessageId.earliest);
 
+        admin.topics().createNonPartitionedTopic(commitTopic);
+        admin.topics().createSubscription(commitTopic, subName, MessageId.earliest);
 
-        Awaitility.await().until(() -> {
-            try {
-                tbClient.abortTxnOnSubscription(topic + "_abort_sub", "test", 1L, 1L, -1L).get();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        });
+        waitPendingAckInit(abortTopic, subName);
+        waitPendingAckInit(commitTopic, subName);
+        tbClient.abortTxnOnSubscription(abortTopic, "test", 1L, 1L, -1L).get();
 
-        Awaitility.await().until(() -> {
-            try {
-                tbClient.commitTxnOnSubscription(topic + "_commit_sub", "test", 1L, 1L, -1L).get();
-                return true;
-            } catch (Exception e) {
-                return false;
-            }
-        });
-        tbClient.abortTxnOnTopic(topic + "_abort_topic", 1L, 1L, -1L).get();
-        tbClient.commitTxnOnTopic(topic + "_commit_topic", 1L, 1L, -1L).get();
+        tbClient.commitTxnOnSubscription(commitTopic, "test", 1L, 1L, -1L).get();
+
+        tbClient.abortTxnOnTopic(abortTopic, 1L, 1L, -1L).get();
+        tbClient.commitTxnOnTopic(commitTopic, 1L, 1L, -1L).get();
     }
 
     @Test
@@ -328,5 +316,23 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
         tbClient.abortTxnOnSubscription(topic + "_abort_topic", sub, 1L, 1L, -1L).get();
         tbClient.abortTxnOnSubscription(topic + "_commit_topic", sub, 1L, 1L, -1L).get();
+    }
+
+    public void waitPendingAckInit(String topic, String sub) throws Exception {
+
+        boolean exist = false;
+        for (int i = 0; i < getPulsarServiceList().size(); i++) {
+            CompletableFuture<Optional<Topic>> completableFuture = getPulsarServiceList().get(i)
+                    .getBrokerService().getTopics().get(topic);
+            if (completableFuture != null) {
+                PersistentSubscription persistentSubscription =
+                        (PersistentSubscription) completableFuture.get().get().getSubscription(sub);
+                Awaitility.await().untilAsserted(() ->
+                        assertEquals(persistentSubscription.getTransactionPendingAckStats().state, "Ready"));
+                exist = true;
+            }
+        }
+
+        assertTrue(exist);
     }
 }
