@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -54,14 +55,17 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     @JsonIgnore
     public Map<String, ReplicatorStatsImpl> replication;
 
+    @JsonProperty("publishers")
     public List<NonPersistentPublisherStats> getNonPersistentPublishers() {
         return (List<NonPersistentPublisherStats>) nonPersistentPublishers;
     }
 
+    @JsonProperty("subscriptions")
     public Map<String, NonPersistentSubscriptionStats> getNonPersistentSubscriptions() {
         return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
     }
 
+    @JsonProperty("replication")
     public Map<String, NonPersistentReplicatorStats> getNonPersistentReplicators() {
         return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
     }
