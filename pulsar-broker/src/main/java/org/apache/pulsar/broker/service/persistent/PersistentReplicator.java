@@ -362,7 +362,7 @@ public class PersistentReplicator extends AbstractReplicator
                 headersAndPayload.retain();
 
                 getSchemaInfo(msg).thenAccept(schemaInfo -> {
-                    msg.setSchemaInfo(schemaInfo);
+                    msg.setSchemaInfoForReplicator(schemaInfo);
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                 }).exceptionally(ex -> {
                     log.error("[{}][{} -> {}] Failed to get schema from local cluster", topicName,
