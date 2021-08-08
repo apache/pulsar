@@ -28,8 +28,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -263,9 +265,10 @@ public class OwnershipCache {
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
             try {
                 return future.get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
-            } catch (Exception e) {
-                log.error("Get owned bundle failed ", e);
-                return null;
+            } catch (InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e.getCause());
             }
         } else {
             return null;
