@@ -240,7 +240,7 @@
 此示例展示如何使用 Pulsar Debezium 连接器更改 PostgreSQL 表的数据。
 
 
-1. 以数据库启动一个 PostgreSQL 服务器，Debezium 可以从数据库捕获更改。
+1. 以数据库启动 PostgreSQL 服务器，Debezium 可以捕获更改的数据库。
 
     ```bash
     $ docker pull debezium/example-postgres:0.8
@@ -257,7 +257,7 @@
 
    * 使用上面显示的 **JSON** 配置文件。 
 
-     确保 nar 文件在`connectors/pulsar-io-debezium-postgres-2.8.0.nar` 中可用。
+     确保 nar 文件在`connectors/pulsar-io-debezium-postgres-2.8.0.nar` 中可用
 
         ```bash
         $ bin/pulsar-admin source localrun \
@@ -342,7 +342,7 @@
 
 * YAML 
 
-    You can create a `debezium-mongodb-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml) below to the `debezium-mongodb-source-config.yaml` file.
+    你可以创建一个 `debezium-mongodb-source-config.yaml` 文件，并复制[contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml)的内容到 `debezium-mongodb-source-config.yaml` 文件中。
 
     ```yaml
     tenant: "public"
@@ -366,26 +366,26 @@
         pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
 
-### Usage
+### 用法
 
-This example shows how to change the data of a MongoDB table using the Pulsar Debezium connector.
+此示例展示如何使用 Pulsar Debezium 连接器更改 MongoDB 表的数据。
 
 
-1. Start a MongoDB server with a database from which Debezium can capture changes.
+1. 以数据库启动 MongoDB 服务器，Debezium 可以捕获更改的数据库。
 
     ```bash
     $ docker pull debezium/example-mongodb:0.10
     $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -p 27017:27017  debezium/example-mongodb:0.10
     ```
-     Use the following commands to initialize the data.
+    使用以下命令初始化数据。
 
      ``` bash
      ./usr/local/bin/init-inventory.sh
      ```
-     If the local host cannot access the container network, you can update the file ```/etc/hosts``` and add a rule ```127.0.0.1 6 f114527a95f```. f114527a95f is container id, you can try to get by ```docker ps -a```
+     如果本地主机无法访问容器网络，可以更新```/etc/hosts```文件并添加规则```127.0.0.1 6 f114527a95f```。 f114527a95f 是容器 id，你可以尝试通过 ```docker ps -a``
 
 
-2. 以独立模式启动本地的 Pulsar 服务。
+获取。 以独立模式启动本地的 Pulsar 服务。
 
     ```bash
     $ bin/pulsar standalone
@@ -395,7 +395,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
    * 使用上面显示的 **JSON** 配置文件。 
 
-     Make sure the nar file is available at `connectors/pulsar-io-mongodb-2.8.0.nar`.
+     确保 nar 文件在`connectors/pulsar-io-mongodb-2.8.0.nar`中可用。
 
         ```bash
         $ bin/pulsar-admin source localrun \
@@ -407,7 +407,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
         --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
         ```
 
-   * Use the **YAML** configuration file as shown previously.
+   * 使用上面显示的 **YAML** 配置文件。
 
         ```bash
         $ bin/pulsar-admin source localrun  \
@@ -420,20 +420,20 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
     $ bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
     ```
 
-5. Start a MongoDB client in docker.
+5. 在 docker 中启动 MongoDB 客户端。
 
     ```bash
     $ docker exec -it pulsar-mongodb /bin/bash
     ```
 
-6. A MongoDB client pops out. 
+6. 退出 MongoDB 客户端。 
 
     ```bash
     mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory
     db.products.update({"_id":NumberLong(104)},{$set:{weight:1.25}})
     ```
 
-    In the terminal window of subscribing topic, you can receive the following messages.
+    在订阅主题的终端窗口中，你会收到以下信息。
 
     ```bash
     ----- got message -----
@@ -442,7 +442,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 ## FAQ
 
-### Debezium postgres connector will hang when create snap
+### Debezium postgres 连接器将在创建快照时挂起
 
 ```$xslt
 #18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]

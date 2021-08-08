@@ -199,7 +199,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <h3><a class="anchor" aria-hidden="true" id="用法-1"></a><a href="#用法-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>此示例显示如何使用 Pulsar Debezium 连接器更改 PostgreSQL 表的数据。</p>
 <ol>
-<li><p>以数据库启动一个 PostgreSQL 服务器，Debezium 可以从数据库捕获更改。</p>
+<li><p>以数据库启动 PostgreSQL 服务器，Debezium 可以捕获更改的数据库。</p>
 <pre><code class="hljs css language-bash">$ docker pull debezium/example-postgres:0.8
 $ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example-postgres:0.8
 </code></pre></li>
@@ -298,7 +298,7 @@ UPDATE 1
 <h3><a class="anchor" aria-hidden="true" id="用法-2"></a><a href="#用法-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>This example shows how to change the data of a MongoDB table using the Pulsar Debezium connector.</p>
 <ol>
-<li><p>Start a MongoDB server with a database from which Debezium can capture changes.</p>
+<li><p>以数据库启动 MongoDB 服务器，Debezium 可以捕获更改的数据库。</p>
 <pre><code class="hljs css language-bash">$ docker pull debezium/example-mongodb:0.10
 $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -p 27017:27017  debezium/example-mongodb:0.10
 </code></pre>
@@ -331,10 +331,10 @@ $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGOD
 <li><p>为 <em>sub 产品</em> 订阅表中的主题 <em>子产品</em>。</p>
 <pre><code class="hljs">$ bin/pulsar-<span class="hljs-keyword">client</span> consume -s <span class="hljs-string">"sub-products"</span> <span class="hljs-keyword">public</span>/<span class="hljs-keyword">default</span>/dbserver1.inventory.products -n <span class="hljs-number">0</span>
 </code></pre></li>
-<li><p>Start a MongoDB client in docker.</p>
+<li><p>在 docker 中启动 MongoDB 客户端。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-mongodb /bin/bash
 </code></pre></li>
-<li><p>A MongoDB client pops out.</p>
+<li><p>退出 MongoDB 客户端。</p>
 <pre><code class="hljs css language-bash">mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory
 db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<span class="hljs-variable">$set</span>:{weight:1.25}})
 </code></pre>
