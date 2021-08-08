@@ -304,6 +304,7 @@ public class MetaStoreImpl implements MetaStore {
             return managedLedgerInfo.toByteArray();
         }
         ByteBuf metadataByteBuf = null;
+        ByteBuf uncompressedByteBuf = null;
         ByteBuf encodeByteBuf = null;
         try {
             MLDataFormats.ManagedLedgerInfoMetadata mlInfoMetadata = MLDataFormats.ManagedLedgerInfoMetadata
@@ -316,10 +317,11 @@ public class MetaStoreImpl implements MetaStore {
             metadataByteBuf.writeShort(MAGIC_MANAGED_LEDGER_INFO_METADATA);
             metadataByteBuf.writeInt(mlInfoMetadata.getSerializedSize());
             metadataByteBuf.writeBytes(mlInfoMetadata.toByteArray());
-
+            byte[] byteArray = managedLedgerInfo.toByteArray();
+            uncompressedByteBuf = Unpooled.directBuffer(byteArray.length);
+            uncompressedByteBuf.writeBytes(byteArray);
             encodeByteBuf = getCompressionCodec(compressionType)
-                    .encode(Unpooled.wrappedBuffer(managedLedgerInfo.toByteArray()));
-
+                    .encode(uncompressedByteBuf);
             CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponent(true, metadataByteBuf);
             compositeByteBuf.addComponent(true, encodeByteBuf);
@@ -329,6 +331,9 @@ public class MetaStoreImpl implements MetaStore {
         } finally {
             if (metadataByteBuf != null) {
                 metadataByteBuf.release();
+            }
+            if (uncompressedByteBuf != null) {
+                uncompressedByteBuf.release();
             }
             if (encodeByteBuf != null) {
                 encodeByteBuf.release();
@@ -340,6 +345,7 @@ public class MetaStoreImpl implements MetaStore {
         ByteBuf byteBuf = Unpooled.wrappedBuffer(data);
         if (byteBuf.readableBytes() > 0 && byteBuf.readShort() == MAGIC_MANAGED_LEDGER_INFO_METADATA) {
             ByteBuf decodeByteBuf = null;
+            ByteBuf compressedByteBuf = null;
             try {
                 int metadataSize = byteBuf.readInt();
                 byte[] metadataBytes = new byte[metadataSize];
@@ -348,8 +354,10 @@ public class MetaStoreImpl implements MetaStore {
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
 
                 long unpressedSize = metadata.getUncompressedSize();
+                compressedByteBuf = Unpooled.directBuffer(byteBuf.readableBytes());
+                compressedByteBuf.writeBytes(byteBuf);
                 decodeByteBuf = getCompressionCodec(metadata.getCompressionType())
-                        .decode(byteBuf, (int) unpressedSize);
+                        .decode(compressedByteBuf, (int) unpressedSize);
                 byte[] decodeBytes;
                 // couldn't decode data by ZLIB compression byteBuf array() directly
                 if (decodeByteBuf.hasArray() && !CompressionType.ZLIB.equals(metadata.getCompressionType())) {
@@ -367,6 +375,10 @@ public class MetaStoreImpl implements MetaStore {
                 if (decodeByteBuf != null) {
                     decodeByteBuf.release();
                 }
+                if (compressedByteBuf != null) {
+                    compressedByteBuf.release();
+                }
+                byteBuf.release();
             }
         } else {
             return ManagedLedgerInfo.parseFrom(data);
