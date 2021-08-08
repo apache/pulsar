@@ -318,6 +318,8 @@ public class MetaStoreImpl implements MetaStore {
             metadataByteBuf.writeInt(mlInfoMetadata.getSerializedSize());
             metadataByteBuf.writeBytes(mlInfoMetadata.toByteArray());
             byte[] byteArray = managedLedgerInfo.toByteArray();
+            // The reason for copy the data to a direct buffer here is to ensure the metadata compression feature can
+            // work on JDK1.8, for more details to see: https://github.com/apache/pulsar/issues/11593
             uncompressedByteBuf = Unpooled.directBuffer(byteArray.length);
             uncompressedByteBuf.writeBytes(byteArray);
             encodeByteBuf = getCompressionCodec(compressionType)
@@ -354,6 +356,8 @@ public class MetaStoreImpl implements MetaStore {
                         MLDataFormats.ManagedLedgerInfoMetadata.parseFrom(metadataBytes);
 
                 long unpressedSize = metadata.getUncompressedSize();
+                // The reason for copy the data to a direct buffer here is to ensure the metadata compression feature
+                // can work on JDK1.8, for more details to see: https://github.com/apache/pulsar/issues/11593
                 compressedByteBuf = Unpooled.directBuffer(byteBuf.readableBytes());
                 compressedByteBuf.writeBytes(byteBuf);
                 decodeByteBuf = getCompressionCodec(metadata.getCompressionType())
