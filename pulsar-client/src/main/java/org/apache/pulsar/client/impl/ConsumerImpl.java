@@ -28,6 +28,7 @@ import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
@@ -926,7 +927,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
             cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
-                boolean ignoreException = !cnx.ctx().channel().isActive();
+                final ChannelHandlerContext ctx = cnx.ctx();
+                boolean ignoreException = ctx == null || !ctx.channel().isActive();
                 if (ignoreException && exception != null) {
                     log.debug("Exception ignored in closing consumer", exception);
                 }
@@ -1906,14 +1908,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
                                 .result();
                         if (lastMessageId.getEntryId() < 0) {
-                            booleanFuture.complete(false);
+                            completehasMessageAvailableWithValue(booleanFuture, false);
                         } else {
-                            booleanFuture.complete(resetIncludeHead ? result <= 0 : result < 0);
+                            completehasMessageAvailableWithValue(booleanFuture,
+                                    resetIncludeHead ? result <= 0 : result < 0);
                         }
                     } else if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
-                        booleanFuture.complete(false);
+                        completehasMessageAvailableWithValue(booleanFuture, false);
                     } else {
-                        booleanFuture.complete(resetIncludeHead);
+                        completehasMessageAvailableWithValue(booleanFuture, resetIncludeHead);
                     }
                 }).exceptionally(ex -> {
                     log.error("[{}][{}] Failed getLastMessageId command", topic, subscription, ex);
@@ -1925,16 +1928,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                booleanFuture.complete(true);
+                completehasMessageAvailableWithValue(booleanFuture, true);
                 return booleanFuture;
             }
 
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
                 if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
-                    booleanFuture.complete(true);
+                    completehasMessageAvailableWithValue(booleanFuture, true);
                 } else {
-                    booleanFuture.complete(false);
+                    completehasMessageAvailableWithValue(booleanFuture, false);
                 }
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
@@ -1945,16 +1948,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             // read before, use lastDequeueMessage for comparison
             if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
-                booleanFuture.complete(true);
+                completehasMessageAvailableWithValue(booleanFuture, true);
                 return booleanFuture;
             }
 
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
                 if (hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false)) {
-                    booleanFuture.complete(true);
+                    completehasMessageAvailableWithValue(booleanFuture, true);
                 } else {
-                    booleanFuture.complete(false);
+                    completehasMessageAvailableWithValue(booleanFuture, false);
                 }
             }).exceptionally(e -> {
                 log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
@@ -1964,6 +1967,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         return booleanFuture;
+    }
+
+    private void completehasMessageAvailableWithValue(CompletableFuture<Boolean> future, boolean value) {
+        internalPinnedExecutor.execute(() -> {
+            future.complete(value);
+        });
     }
 
     private boolean hasMoreMessages(MessageId lastMessageIdInBroker, MessageId messageId, boolean inclusive) {

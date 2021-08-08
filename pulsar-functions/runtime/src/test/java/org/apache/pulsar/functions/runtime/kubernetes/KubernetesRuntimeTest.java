@@ -27,7 +27,12 @@ import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.openapi.models.*;
+import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1ResourceRequirements;
+import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1Toleration;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -404,9 +409,9 @@ public class KubernetesRuntimeTest {
             totalArgs += 4;
         }
         if (config.isExposePulsarAdminClientEnabled()) {
-            totalArgs += 2;
-            portArg += 2;
-            metricsPortArg += 2;
+            totalArgs += 3;
+            portArg += 3;
+            metricsPortArg += 3;
         }
 
         if (StringUtils.isNotEmpty(downloadDirectory)){
@@ -419,7 +424,8 @@ public class KubernetesRuntimeTest {
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
 
-        String pulsarAdminArg = config.isExposePulsarAdminClientEnabled() ? " --web_serviceurl " + pulsarAdminUrl : "";
+        String pulsarAdminArg = config.isExposePulsarAdminClientEnabled() ?
+                " --web_serviceurl " + pulsarAdminUrl + " --expose_pulsaradmin": "";
 
         String expectedArgs = "exec java -cp " + classpath
                 + extraDepsEnv
@@ -445,7 +451,6 @@ public class KubernetesRuntimeTest {
         }
         expectedArgs += " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
 
-        assertEquals(String.join(" ", args), expectedArgs);
 
         // check padding and xmx
         long heap = Long.parseLong(args.stream().filter(s -> s.startsWith("-Xmx")).collect(Collectors.toList()).get(0).replace("-Xmx", ""));

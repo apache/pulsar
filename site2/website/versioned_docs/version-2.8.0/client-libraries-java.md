@@ -267,6 +267,25 @@ while (true) {
 }
 ```
 
+If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
+
+```java
+MessageListener myMessageListener = (consumer, msg) -> {
+  try {
+      System.out.println("Message received: " + new String(msg.getData()));
+      consumer.acknowledge(msg);
+  } catch (Exception e) {
+      consumer.negativeAcknowledge(msg);
+  }
+}
+
+Consumer consumer = client.newConsumer()
+     .topic("my-topic")
+     .subscriptionName("my-subscription")
+     .messageListener(myMessageListener)
+     .subscribe();
+```
+
 ### Configure consumer
 
 If you instantiate a `Consumer` object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration. 
@@ -713,7 +732,7 @@ Producer<byte[]> producer = client.newProducer()
 
 The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](reference-terminology.md#topic).
 
-### Schema example
+### AvroBaseStructSchema example
 
 Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
 
@@ -796,6 +815,10 @@ The following schema formats are currently available for Java:
         .topic("some-avro-topic")
         .create();
   ```
+
+### ProtobufNativeSchema example
+
+For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](schema-understand.md#complex-type).
 
 ## Authentication
 

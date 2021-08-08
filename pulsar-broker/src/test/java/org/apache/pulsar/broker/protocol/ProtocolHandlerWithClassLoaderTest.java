@@ -25,8 +25,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.socket.SocketChannel;
+import java.net.InetSocketAddress;
+import java.util.Map;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -68,4 +74,79 @@ public class ProtocolHandlerWithClassLoaderTest {
         verify(h, times(1)).getProtocolDataToAdvertise();
     }
 
+    public void testClassLoaderSwitcher() throws Exception {
+        NarClassLoader loader = mock(NarClassLoader.class);
+
+        String protocol = "test-protocol";
+
+        ProtocolHandler h = new ProtocolHandler() {
+            @Override
+            public String protocolName() {
+                assertEquals(Thread.currentThread().getContextClassLoader(), loader);
+                return protocol;
+            }
+
+            @Override
+            public boolean accept(String protocol) {
+                assertEquals(Thread.currentThread().getContextClassLoader(), loader);
+                return true;
+            }
+
+            @Override
+            public void initialize(ServiceConfiguration conf) throws Exception {
+                assertEquals(Thread.currentThread().getContextClassLoader(), loader);
+                throw new Exception("test exception");
+            }
+
+            @Override
+            public String getProtocolDataToAdvertise() {
+                assertEquals(Thread.currentThread().getContextClassLoader(), loader);
+                return "test-protocol-data";
+            }
+
+            @Override
+            public void start(BrokerService service) {
+                assertEquals(Thread.currentThread().getContextClassLoader(), loader);
+            }
+
+            @Override
+            public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
+                assertEquals(Thread.currentThread().getContextClassLoader(), loader);
+                return null;
+            }
+
+            @Override
+            public void close() {
+                assertEquals(Thread.currentThread().getContextClassLoader(), loader);
+            }
+        };
+        ProtocolHandlerWithClassLoader wrapper = new ProtocolHandlerWithClassLoader(h, loader);
+
+        ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
+
+        assertEquals(wrapper.protocolName(), protocol);
+        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+
+        assertTrue(wrapper.accept(protocol));
+        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        expectThrows(Exception.class, () -> wrapper.initialize(conf));
+        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+
+        assertEquals(wrapper.getProtocolDataToAdvertise(), "test-protocol-data");
+        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+
+        BrokerService service = mock(BrokerService.class);
+        wrapper.start(service);
+        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+
+
+        assertNull(wrapper.newChannelInitializers());
+        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+
+        wrapper.close();
+        assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
+    }
 }

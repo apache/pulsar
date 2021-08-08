@@ -83,6 +83,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setSourceSubscriptionName("test-subscription");
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).receiverQueueSize(532).serdeClassName("test-serde").build());
+        sinkConfig.setInputs(Collections.singleton("test-input"));
         sinkConfig.setInputSpecs(inputSpecs);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 

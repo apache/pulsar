@@ -52,7 +52,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |compactionRateByEntries|The rate at which compaction will read entries, in adds per second.|1000|
 |compactionRateByBytes|Set the rate at which compaction will readd entries. The unit is bytes added per second.|1000000|
 |journalMaxSizeMB|Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.|2048|
-|journalMaxBackups|The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
+|journalMaxBackups|The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
 |journalPreAllocSizeMB|How space to pre-allocate at a time in the journal.|16|
 |journalWriteBufferSizeKB|The of the write buffers used for the journal.|64|
 |journalRemoveFromPageCache|Whether pages should be removed from the page cache after force write.|true|
@@ -180,7 +180,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
 |subscriptionRedeliveryTrackerEnabled| Enable subscription message redelivery tracker |true|
-|subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br/>Setting this configuration to **0** does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
+|subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br/>Setting this configuration to **0** does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
@@ -361,7 +361,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
-|webServicePort|  THe port used by the standalone broker for HTTP requests  |8080|
+|webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
 |advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 |clusterName| The name of the cluster that this broker belongs to. |standalone|

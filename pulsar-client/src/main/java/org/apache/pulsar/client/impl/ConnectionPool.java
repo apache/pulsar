@@ -294,9 +294,13 @@ public class ConnectionPool implements Closeable {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channel -> channelInitializerHandler
                             .initTls(channel, sniHost != null ? sniHost : remoteAddress))
+                    .thenCompose(channel -> channelInitializerHandler
+                            .initSocks5IfConfig(channel))
                     .thenCompose(channel -> toCompletableFuture(channel.connect(remoteAddress)));
         } else {
-            return toCompletableFuture(bootstrap.connect(remoteAddress));
+            return toCompletableFuture(bootstrap.register())
+                    .thenCompose(channel -> channelInitializerHandler.initSocks5IfConfig(channel))
+                    .thenCompose(channel -> toCompletableFuture(channel.connect(remoteAddress)));
         }
     }
 

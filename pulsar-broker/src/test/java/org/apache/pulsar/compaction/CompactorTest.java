@@ -39,15 +39,19 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -218,6 +222,16 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
+    }
+
+    @Test
+    public void testPhaseOneLoopTimeConfiguration() {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setBrokerServiceCompactionPhaseOneLoopTimeInSeconds(60);
+        TwoPhaseCompactor compactor = new TwoPhaseCompactor(configuration, Mockito.mock(PulsarClientImpl.class),
+                Mockito.mock(BookKeeper.class), compactionScheduler);
+        Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
+
     }
 
     public ByteBuf extractPayload(RawMessage m) throws Exception {

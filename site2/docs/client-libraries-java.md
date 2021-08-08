@@ -121,7 +121,9 @@ int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be
 int|`requestTimeoutMs`|Maximum duration for completing a request |60000
 int|`defaultBackoffIntervalNanos`| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100);
 long|`maxBackoffIntervalNanos`|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)
-
+SocketAddress|`socks5ProxyAddress`|SOCKS5 proxy address | None
+String|`socks5ProxyUsername`|SOCKS5 proxy username | None
+String|`socks5ProxyPassword`|SOCKS5 proxy password | None
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
 > In addition to client-level configuration, you can also apply [producer](#configuring-producers) and [consumer](#configuring-consumers) specific configuration as described in sections below.
@@ -264,6 +266,25 @@ while (true) {
       consumer.negativeAcknowledge(msg);
   }
 }
+```
+        
+If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
+
+```java
+MessageListener myMessageListener = (consumer, msg) -> {
+  try {
+      System.out.println("Message received: " + new String(msg.getData()));
+      consumer.acknowledge(msg);
+  } catch (Exception e) {
+      consumer.negativeAcknowledge(msg);
+  }
+}
+
+Consumer consumer = client.newConsumer()
+     .topic("my-topic")
+     .subscriptionName("my-subscription")
+     .messageListener(myMessageListener)
+     .subscribe();
 ```
 
 ### Configure consumer
@@ -712,7 +733,7 @@ Producer<byte[]> producer = client.newProducer()
 
 The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](reference-terminology.md#topic).
 
-### Schema example
+### AvroBaseStructSchema example
 
 Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
 
@@ -795,6 +816,10 @@ The following schema formats are currently available for Java:
         .topic("some-avro-topic")
         .create();
   ```
+
+### ProtobufNativeSchema example
+
+For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](schema-understand.md#complex-type).
 
 ## Authentication
 

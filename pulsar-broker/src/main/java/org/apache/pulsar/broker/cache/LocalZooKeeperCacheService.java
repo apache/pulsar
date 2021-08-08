@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -53,9 +52,7 @@ public class LocalZooKeeperCacheService {
 
     private final ZooKeeperCache cache;
 
-    private ZooKeeperDataCache<NamespaceEphemeralData> ownerInfoCache;
     private ZooKeeperManagedLedgerCache managedLedgerListCache;
-    private ResourceQuotaCache resourceQuotaCache;
     private ZooKeeperDataCache<LocalPolicies> policiesCache;
     private ZooKeeperChildrenCache availableBookiesCache;
 
@@ -67,13 +64,6 @@ public class LocalZooKeeperCacheService {
         this.configurationCacheService = configurationCacheService;
 
         initZK();
-
-        this.ownerInfoCache = new ZooKeeperDataCache<NamespaceEphemeralData>(cache) {
-            @Override
-            public NamespaceEphemeralData deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, NamespaceEphemeralData.class);
-            }
-        };
 
         this.policiesCache = new ZooKeeperDataCache<LocalPolicies>(cache) {
             @Override
@@ -120,8 +110,6 @@ public class LocalZooKeeperCacheService {
         };
 
         this.managedLedgerListCache = new ZooKeeperManagedLedgerCache(cache, MANAGED_LEDGER_ROOT);
-        this.resourceQuotaCache = new ResourceQuotaCache(cache);
-        this.resourceQuotaCache.initZK();
         this.availableBookiesCache = new ZooKeeperChildrenCache(cache, AVAILABLE_BOOKIES_ROOT);
     }
 
@@ -233,14 +221,6 @@ public class LocalZooKeeperCacheService {
         });
 
         return future;
-    }
-
-    public ResourceQuotaCache getResourceQuotaCache() {
-        return this.resourceQuotaCache;
-    }
-
-    public ZooKeeperDataCache<NamespaceEphemeralData> ownerInfoCache() {
-        return this.ownerInfoCache;
     }
 
     public ZooKeeperDataCache<LocalPolicies> policiesCache() {

@@ -206,7 +206,7 @@ public class ThreadRuntime implements Runtime {
                 // kill the thread
                 fnThread.join(THREAD_SHUTDOWN_TIMEOUT_MILLIS, 0);
                 if (fnThread.isAlive()) {
-                    fnThread.stop();
+                    log.warn("The function instance thread is still alive after {} milliseconds. Giving up waiting and moving forward to close function.", THREAD_SHUTDOWN_TIMEOUT_MILLIS);
                 }
             } catch (InterruptedException e) {
                 // ignore this

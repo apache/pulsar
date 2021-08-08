@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -303,7 +304,7 @@ public class LoadBalancerTest {
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - non-bundles assigned so all
      * idle resources are available for new bundle Check the broker rankings are the load percentage of each broker.
      */
-    @Test
+    @Test(timeOut = 30000)
     public void testBrokerRanking() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
@@ -321,8 +322,12 @@ public class LoadBalancerTest {
         }
 
         for (int i = 0; i < BROKER_COUNT; i++) {
-            Method updateRanking = Whitebox.getMethod(SimpleLoadManagerImpl.class, "updateRanking");
-            updateRanking.invoke(pulsarServices[0].getLoadManager().get());
+            Method method = Whitebox.getMethod(SimpleLoadManagerImpl.class, "getUpdateRankingHandle");
+            LoadManager loadManager = pulsarServices[i].getLoadManager().get();
+            Awaitility.await().until(() -> {
+                Object invoke = method.invoke(loadManager);
+                return invoke != null && ((Future) invoke).isDone();
+            });
         }
 
         // check the ranking result
@@ -356,7 +361,7 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(87);
-            pulsarServices[i].getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(defaultQuota);
+            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
 
             LoadReport lr = new LoadReport();
             lr.setName(lookupAddresses[i]);
@@ -497,7 +502,7 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(75);
-            pulsarServices[i].getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(defaultQuota);
+            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
         }
 
         // publish the initial load reports and wait for quotas be updated

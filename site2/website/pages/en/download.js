@@ -12,6 +12,7 @@ const translate = require('../../server/translate.js').translate;
 const siteConfig = require(`${CWD}/siteConfig.js`);
 const releases = require(`${CWD}/releases.json`);
 const pulsarManagerReleases = require(`${CWD}/pulsar-manager-release.json`)
+const pulsarAdaptersReleases = require(`${CWD}/pulsar-adapters-release.json`)
 const connectors = require(`${CWD}/data/connectors.js`);
 
 function getLatestArchiveMirrorUrl(version, type) {
@@ -22,12 +23,20 @@ function getLatestOffloadersMirrorUrl(version) {
     return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-${version}/apache-pulsar-offloaders-${version}-bin.tar.gz`
 }
 
+function getLatestAdaptersMirrorUrl(version) {
+    return `https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-adapters-${version}/apache-pulsar-adapters-${version}-src.tar.gz`
+}
+
 function distUrl(version, type) {
     return `https://www.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-${version}-${type}.tar.gz`
 }
 
 function distOffloadersUrl(version) {
     return `https://www.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-offloaders-${version}-bin.tar.gz`
+}
+
+function distAdaptersUrl(version) {
+    return `https://downloads.apache.org/pulsar/pulsar-adapters-${version}/apache-pulsar-adapters-${version}-src.tar.gz`
 }
 
 function archiveUrl(version, type) {
@@ -62,6 +71,7 @@ class Download extends React.Component {
   render() {
     const latestVersion = releases[0];
     const latestPulsarManagerVersion = pulsarManagerReleases[0];
+    const latestPulsarAdaptersVersion = pulsarAdaptersReleases[0];
     const latestArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'bin');
     const latestSrcArchiveMirrorUrl = getLatestArchiveMirrorUrl(latestVersion, 'src');
     const latestPulsarManagerArchiveMirrorUrl = getLatestPulsarManagerArchiveMirrorUrl(latestPulsarManagerVersion, 'bin');
@@ -283,6 +293,35 @@ class Download extends React.Component {
                 )}
               </tbody>
             </table>
+
+            <header className="postHeader">
+              <h1><translate>Pulsar Adapters</translate></h1>
+              <hr />
+            </header>
+            <h2 id="latest"><translate>Current version (Stable)</translate> {latestPulsarAdaptersVersion}</h2>
+              <table className="versions" style={{width:'100%'}}>
+                <thead>
+                  <tr>
+                    <th><translate>Release</translate></th>
+                    <th><translate>Link</translate></th>
+                    <th><translate>Crypto files</translate></th>
+                  </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <th><translate>Source</translate></th>
+                    <td>
+                      <a href={getLatestAdaptersMirrorUrl(latestPulsarAdaptersVersion)}>apache-pulsar-adapters-{latestPulsarAdaptersVersion}-src.tar.gz</a>
+                    </td>
+                    <td>
+                      <a href={`${distAdaptersUrl(latestPulsarAdaptersVersion)}.asc`}>asc</a>,&nbsp;
+                      <a href={`${distAdaptersUrl(latestPulsarAdaptersVersion)}.sha512`}>sha512</a>
+                    </td>
+                </tr>
+              </tbody>
+            </table>
+            <translate>Pulsar Adapters are available on Maven Central, there is no binary package.</translate>
+
             <header className="postHeader">
               <h1><translate>Apache Pulsar Manager downloads</translate></h1>
               <hr />

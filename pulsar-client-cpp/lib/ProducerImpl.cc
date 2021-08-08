@@ -826,5 +826,7 @@ bool ProducerImpl::isConnected() const {
     return !getCnx().expired() && state_ == Ready;
 }
 
+uint64_t ProducerImpl::getNumberOfConnectedProducer() { return isConnected() ? 1 : 0; }
+
 }  // namespace pulsar
 /* namespace pulsar */

@@ -4,6 +4,10 @@ title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
 ---
 
+> **Important**
+>
+> This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 
 Usage
@@ -1120,7 +1124,9 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`-l`, `--limit`|The backlog size limit (for example `10M` or `16G`)||
+|`-lt`, `--limitTime`|Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)||
 |`-p`, `--policy`|The retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
+|`-t`, `--type`|Backlog quota type to set. The valid options are: `destination_storage`, `message_age` |destination_storage|
 
 Example
 ```bash
@@ -1129,8 +1135,19 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 --policy producer_request_hold
 ```
 
+```bash
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
+--limitTime 3600 \
+--policy producer_request_hold \
+--type message_age
+```
+
 ### `remove-backlog-quota`
 Remove a backlog quota policy from a namespace
+
+|Flag|Description|Default|
+|---|---|---|
+|`-t`, `--type`|Backlog quota type to remove. The valid options are: `destination_storage`, `message_age` |destination_storage|
 
 Usage
 ```bash
@@ -2347,13 +2364,38 @@ $ pulsar-admin topics get-backlog-quotas tenant/namespace/topic
 ### `set-backlog-quota`
 Set a backlog quota policy for a topic.
 
+|Flag|Description|Default|
+|----|---|---|
+|`-l`, `--limit`|The backlog size limit (for example `10M` or `16G`)||
+|`-lt`, `--limitTime`|Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)||
+|`-p`, `--policy`|The retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
+|`-t`, `--type`|Backlog quota type to set. The valid options are: `destination_storage`, `message_age` |destination_storage|
+
 Usage
 ```bash
 $ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
 ```
 
+Example
+```bash
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
+--limit 2G \
+--policy producer_request_hold
+```
+
+```bash
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
+--limitTime 3600 \
+--policy producer_request_hold \
+--type message_age
+```
+
 ### `remove-backlog-quota`
 Remove a backlog quota policy from a topic.
+
+|Flag|Description|Default|
+|---|---|---|
+|`-t`, `--type`|Backlog quota type to remove. The valid options are: `destination_storage`, `message_age` |destination_storage|
 
 Usage
 ```bash
@@ -2448,9 +2490,6 @@ Remove a deduplication policy for a topic.
 Usage
 ```bash
 $ pulsar-admin topics remove-deduplication tenant/namespace/topic
-```
-
-
 ```
 
 ## `tenants`

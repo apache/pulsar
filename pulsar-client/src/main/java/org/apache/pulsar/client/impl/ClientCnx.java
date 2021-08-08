@@ -686,6 +686,10 @@ public class ClientCnx extends PulsarHandler {
             connectionFuture.completeExceptionally(new PulsarClientException.AuthenticationException(error.getMessage()));
             log.error("{} Failed to authenticate the client", ctx.channel());
         }
+        if (error.getError() == ServerError.NotAllowedError) {
+            log.error("Get not allowed error, {}", error.getMessage());
+            connectionFuture.completeExceptionally(new PulsarClientException.NotAllowedException(error.getMessage()));
+        }
         CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
             requestFuture.completeExceptionally(getPulsarClientException(error.getError(), error.getMessage()));

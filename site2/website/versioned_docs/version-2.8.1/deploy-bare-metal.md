@@ -102,7 +102,7 @@ The extracted directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](reference-pulsar-admin.md)
+`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
@@ -212,14 +212,8 @@ Once you add each server to the `zookeeper.conf` configuration and have the appr
 $ bin/pulsar-daemon start zookeeper
 ```
 
-> If you plan to deploy Zookeeper with the Bookie on the same node, you
-> need to start zookeeper by using different stats port.
-
-Start zookeeper with [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool like:
-
-```bash
-$ PULSAR_EXTRA_OPTS="-Dstats_server_port=8001" bin/pulsar-daemon start zookeeper
-```
+> If you plan to deploy Zookeeper with the Bookie on the same node, you need to start zookeeper by using different stats
+> port by configuring the `metricsProvider.httpPort` in zookeeper.conf.
 
 ## Initialize cluster metadata
 

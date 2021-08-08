@@ -18,6 +18,7 @@
  */
 #include <lib/KeySharedPolicyImpl.h>
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace pulsar {

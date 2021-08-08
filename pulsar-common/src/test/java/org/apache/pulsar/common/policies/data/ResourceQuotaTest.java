@@ -31,7 +31,6 @@ public class ResourceQuotaTest {
         Assert.assertEquals(quota.getBandwidthOut(), 0.0);
         Assert.assertEquals(quota.getMemory(), 0.0);
         Assert.assertTrue(quota.getDynamic());
-        Assert.assertFalse(quota.isValid());
 
         quota.setMsgRateIn(10);
         quota.setMsgRateOut(20);

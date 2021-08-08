@@ -181,6 +181,7 @@ body > #wrapper {
 
 .body-content table {
     width: 52%;
+    word-break: break-word;
 }
 
 .body-content table tr td:not(:first-child) {
@@ -267,3 +268,4 @@ body > #wrapper {
 .side-nav a {
     color: black;
 }
+
