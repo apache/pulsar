@@ -30,6 +30,7 @@ import lombok.Cleanup;
 
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -40,6 +41,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Sets;
 
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
@@ -246,5 +248,57 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }, 5, 2000);
         assertEquals(consumer2.getTotalIncomingMessages(), queueSize);
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 30000)
+    public void testMessageRedeliveryAfterUnloadedWithEarliestPosition() throws Exception {
+
+        final String subName = "my-subscriber-name";
+        final String topicName = "testMessageRedeliveryAfterUnloadedWithEarliestPosition" + UUID.randomUUID();
+        final int messages = 100;
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        List<CompletableFuture<MessageId>> sendResults = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            sendResults.add(producer.sendAsync("Hello - " + i));
+        }
+        producer.flush();
+
+        FutureUtil.waitForAll(sendResults).get();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        List<Message<String>> received = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            received.add(consumer.receive());
+        }
+
+        assertEquals(received.size(), messages);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        admin.topics().unload(topicName);
+
+        // The consumer does not ack any messages, so after unloading the topic,
+        // the consumer should get the unacked messages again
+
+        received.clear();
+        for (int i = 0; i < messages; i++) {
+            received.add(consumer.receive());
+        }
+
+        assertEquals(received.size(), messages);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        consumer.close();
+        producer.close();
     }
 }

@@ -70,6 +70,7 @@ class ProducerImpl : public HandlerBase,
     void triggerFlush() override;
     void flushAsync(FlushCallback callback) override;
     bool isConnected() const override;
+    uint64_t getNumberOfConnectedProducer() override;
 
     bool removeCorruptMessage(uint64_t sequenceId);
 

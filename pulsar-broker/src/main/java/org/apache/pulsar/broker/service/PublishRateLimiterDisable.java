@@ -58,8 +58,12 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
 
     @Override
     public boolean tryAcquire(int numbers, long bytes) {
-        // No-op
-        return false;
+        // Always allow
+        return true;
     }
 
+    @Override
+    public void close() throws Exception {
+        // No-op
+    }
 }

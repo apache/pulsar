@@ -38,7 +38,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -337,24 +336,23 @@ public abstract class AdminResource extends PulsarWebResource {
 
     }
 
-    protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath) {
-        return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
+    protected BacklogQuota namespaceBacklogQuota(String namespace, String namespacePath,
+                                                 BacklogQuota.BacklogQuotaType backlogQuotaType) {
+        return pulsar().getBrokerService().getBacklogQuotaManager()
+                .getBacklogQuota(namespace, namespacePath, backlogQuotaType);
     }
 
-    protected Optional<TopicPolicies> getTopicPolicies(TopicName topicName) {
+    protected CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName) {
         try {
             checkTopicLevelPolicyEnable();
-            return Optional.ofNullable(pulsar().getTopicPoliciesService().getTopicPolicies(topicName));
-        } catch (RestException re) {
-            throw re;
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e){
-            log.error("Topic {} policies have not been initialized yet.", topicName);
-            throw new RestException(e);
+            return pulsar().getTopicPoliciesService()
+                    .getTopicPoliciesAsyncWithRetry(topicName, null, pulsar().getExecutor());
         } catch (Exception e) {
             log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
-            throw new RestException(e);
+            return FutureUtil.failedFuture(e);
         }
     }
+
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
         if (retention == null || retention.getRetentionSizeInMB() <= 0 || retention.getRetentionTimeInMinutes() <= 0) {

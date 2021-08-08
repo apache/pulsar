@@ -207,6 +207,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastLedgerCreationFailureTimestamp = 0;
     private long lastLedgerCreationInitiationTimestamp = 0;
 
+    private long lastOffloadLedgerId = 0;
+    private long lastOffloadSuccessTimestamp = 0;
+    private long lastOffloadFailureTimestamp = 0;
+
     private static final Random random = new Random(System.currentTimeMillis());
     private long maximumRolloverTimeMs;
     protected final Supplier<Boolean> mlOwnershipChecker;
@@ -899,7 +903,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, config, this, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
-        cursor.initialize(getLastPosition(), properties, new VoidCallback() {
+        PositionImpl position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
+        cursor.initialize(position, properties, new VoidCallback() {
             @Override
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
@@ -2873,8 +2878,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     })
                 .whenComplete((ignore, exception) -> {
                         if (exception != null) {
-                            log.warn("[{}] Exception occurred during offload", name, exception);
-
+                            lastOffloadFailureTimestamp = System.currentTimeMillis();
+                            log.warn("[{}] Exception occurred for ledgerId {} timestamp {} during offload", name, ledgerId, lastOffloadFailureTimestamp, exception);
                             PositionImpl newFirstUnoffloaded = PositionImpl.get(ledgerId, 0);
                             if (newFirstUnoffloaded.compareTo(firstUnoffloaded) > 0) {
                                 newFirstUnoffloaded = firstUnoffloaded;
@@ -2891,6 +2896,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         newFirstUnoffloaded,
                                         errorToReport);
                         } else {
+                            lastOffloadSuccessTimestamp = System.currentTimeMillis();
+                            log.info("[{}] offload for ledgerId {} timestamp {} succeed", name, ledgerId, lastOffloadSuccessTimestamp);
+                            lastOffloadLedgerId = ledgerId;
                             invalidateReadHandle(ledgerId);
                             offloadLoop(promise, ledgersToOffload, firstUnoffloaded, firstError);
                         }
@@ -3709,6 +3717,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         return offloadedSize;
+    }
+
+    @Override
+    public long getLastOffloadedLedgerId() {
+        return lastOffloadLedgerId;
+    }
+
+    @Override
+    public long getLastOffloadedSuccessTimestamp() {
+        return lastOffloadSuccessTimestamp;
+    }
+
+    @Override
+    public long getLastOffloadedFailureTimestamp() {
+        return lastOffloadFailureTimestamp;
     }
 
     @Override

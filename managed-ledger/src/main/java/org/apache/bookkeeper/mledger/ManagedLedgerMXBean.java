@@ -61,6 +61,11 @@ public interface ManagedLedgerMXBean {
     double getAddEntryBytesRate();
 
     /**
+     * @return the bytes/s rate of messages added with replicas
+     */
+    double getAddEntryWithReplicasBytesRate();
+
+    /**
      * @return the msg/s rate of messages read
      */
     double getReadEntriesRate();

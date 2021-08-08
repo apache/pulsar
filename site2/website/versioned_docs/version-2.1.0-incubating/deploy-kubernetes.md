@@ -92,7 +92,7 @@ Pulsar can be deployed on a custom, non-GKE Kubernetes cluster as well. You can 
 
 The easiest way to run a Kubernetes cluster is to do so locally. To install a mini local cluster for testing purposes, running in local VMs, you can either:
 
-1. Use [minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) to run a single-node Kubernetes cluster
+1. Use [minikube](https://minikube.sigs.k8s.io/docs/start/) to run a single-node Kubernetes cluster
 1. Create a local cluster running on multiple VMs on the same machine
 
 ### Minikube

@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,7 +17,13 @@
 # under the License.
 #
 
-set -x
-
-WHEEL_FILE=$(ls /pulsar/pulsar-client | grep cp37)
-pip3.7 install /pulsar/pulsar-client/${WHEEL_FILE}[all]
+"bootstrapServers": "localhost:6667"
+"topic": "test"
+"acks": "1"
+"securityProtocol": "SASL_PLAINTEXT"
+"saslMechanism" : "PLAIN"
+"saslJaasConfig" : "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";"
+"sslEnabledProtocols" : "TLSv1.2"
+"sslEndpointIdentificationAlgorithm" : ""
+"sslTruststoreLocation" : "/etc/cert.pem"
+"sslTruststorePassword" : "cert_pwd"

@@ -386,8 +386,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.topics().createPartitionedTopic(topicName, 3);
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
         TopicName topic = TopicName.get(topicName);
-        Awaitility.await().until(()
-                -> pulsar.getTopicPoliciesService().cacheIsInitialized(topic));
 
         InactiveTopicPolicies inactiveTopicPolicies = admin.topics().getInactiveTopicPolicies(topicName);
         assertNull(inactiveTopicPolicies);
@@ -431,9 +429,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
             //wait for cache
             pulsarClient.newConsumer().topic(tp).subscriptionName("my-sub").subscribe().close();
             TopicName topicName = TopicName.get(tp);
-            while (!pulsar.getTopicPoliciesService().cacheIsInitialized(topicName)) {
-                Thread.sleep(500);
-            }
         }
 
         InactiveTopicPolicies inactiveTopicPolicies =
@@ -513,9 +508,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
             producer.close();
             Thread.sleep(1);
         }
-        //wait for cache init
-        Awaitility.await().until(()
-                -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic3)));
         // "topic" use delete_when_no_subscriptions, "topic2" use delete_when_subscriptions_caught_up
         // "topic3" use default:delete_when_no_subscriptions
         InactiveTopicPolicies inactiveTopicPolicies =
@@ -555,8 +547,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         final String namespace = "prop/ns-abc";
         final String topic = "persistent://prop/ns-abc/test-" + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         //namespace-level default value is null
         assertNull(admin.namespaces().getInactiveTopicPolicies(namespace));
         //topic-level default value is null
