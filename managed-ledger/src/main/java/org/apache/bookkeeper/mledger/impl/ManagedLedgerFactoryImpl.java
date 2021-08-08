@@ -175,7 +175,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats,
-                config.getStatsPeriodSeconds(), config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
+                0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
                 config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
