@@ -298,6 +298,7 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
     std::string topicName = "testLookupThrottling";
     ClientConfiguration config;
     config.setConcurrentLookupRequest(0);
+    config.setLogger(new ConsoleLoggerFactory(Logger::LEVEL_DEBUG));
     Client client(lookupUrl, config);
 
     Producer producer;
@@ -307,6 +308,8 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
     Consumer consumer1;
     result = client.subscribe(topicName, "my-sub-name", consumer1);
     ASSERT_EQ(ResultTooManyLookupRequestException, result);
+
+    client.close();
 }
 
 TEST(BasicEndToEndTest, testNonExistingTopic) {
