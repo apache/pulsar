@@ -46,7 +46,7 @@ void ConnectionPool::close() {
     if (poolConnections_) {
         for (auto cnxIt = pool_.begin(); cnxIt != pool_.end(); cnxIt++) {
             ClientConnectionPtr cnx = cnxIt->second.lock();
-            if (cnx && !cnx->isClosed()) {
+            if (cnx) {
                 cnx->close();
             }
         }

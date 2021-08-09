@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -769,11 +770,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 20000)
     public void nackMessageTest() throws Exception {
         final String subscription = "my-sub";
-        final String dlqTopic = "my-property/my-ns/my-topic10";
-        final String consumerTopic = "my-property/my-ns/my-topic9";
+        final String dlqTopic = "my-property/my-ns/nack-msg-dlq-" + UUID.randomUUID();
+        final String consumerTopic = "my-property/my-ns/nack-msg-" + UUID.randomUUID();
 
         final String dlqUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
           "/ws/v2/consumer/persistent/" +
@@ -784,7 +785,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
           "/ws/v2/consumer/persistent/" +
           consumerTopic + "/" + subscription +
           "?deadLetterTopic=" + dlqTopic +
-          "&maxRedeliverCount=0&subscriptionType=Shared&ackTimeoutMillis=1000&negativeAckRedeliveryDelay=1000";
+          "&maxRedeliverCount=1&subscriptionType=Shared&negativeAckRedeliveryDelay=1000";
 
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
           "/ws/v2/producer/persistent/" + consumerTopic;
@@ -794,7 +795,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         WebSocketClient consumeClient2 = new WebSocketClient();
         SimpleConsumerSocket consumeSocket2 = new SimpleConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient();
-        SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+        SimpleProducerSocket produceSocket = new SimpleProducerSocket(0);
 
         consumeSocket1.setMessageHandler((id, data) -> {
             JsonObject nack = new JsonObject();
@@ -824,18 +825,70 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             produceSocket.sendMessage(1);
 
-            Thread.sleep(500);
+            // Main topic
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 2));
 
-            //assertEquals(consumeSocket1.getReceivedMessagesCount(), 1);
-            assertTrue(consumeSocket1.getReceivedMessagesCount() > 0);
-
-            Thread.sleep(500);
-
-            //assertEquals(consumeSocket2.getReceivedMessagesCount(), 1);
-            assertTrue(consumeSocket1.getReceivedMessagesCount() > 0);
-
+            // DLQ
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(consumeSocket2.getReceivedMessagesCount(), 1));
         } finally {
             stopWebSocketClient(consumeClient1, consumeClient2, produceClient);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void nackRedeliveryDelayTest() throws Exception {
+        final String uriBase = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2";
+        final String topic = "my-property/my-ns/nack-redelivery-delay-" + UUID.randomUUID();
+        final String sub = "my-sub";
+        final int delayTime = 5000;
+
+        final String consumerUri = String.format("%s/consumer/persistent/%s/%s?negativeAckRedeliveryDelay=%d", uriBase,
+                topic, sub, delayTime);
+
+        final String producerUri = String.format("%s/producer/persistent/%s", uriBase, topic);
+
+        final WebSocketClient consumeClient = new WebSocketClient();
+        final SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+
+        final WebSocketClient produceClient = new WebSocketClient();
+        final SimpleProducerSocket produceSocket = new SimpleProducerSocket(0);
+
+        consumeSocket.setMessageHandler((mid, data) -> {
+            JsonObject nack = new JsonObject();
+            nack.add("type", new JsonPrimitive("negativeAcknowledge"));
+            nack.add("messageId", new JsonPrimitive(mid));
+            return nack.toString();
+        });
+
+        try {
+            consumeClient.start();
+            final ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+            final Future<Session> consumerFuture = consumeClient.connect(consumeSocket, URI.create(consumerUri),
+                    consumeRequest);
+            assertTrue(consumerFuture.get().isOpen());
+
+            produceClient.start();
+            final ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            final Future<Session> producerFuture = produceClient.connect(produceSocket, URI.create(producerUri),
+                    produceRequest);
+            assertTrue(producerFuture.get().isOpen());
+
+            assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
+
+            produceSocket.sendMessage(1);
+
+            Awaitility.await().atMost(delayTime - 1000, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 1));
+
+            // Nacked message should be redelivered after 5 seconds
+            Thread.sleep(delayTime);
+
+            Awaitility.await().atMost(delayTime - 1000, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 2));
+        } finally {
+            stopWebSocketClient(consumeClient, produceClient);
         }
     }
 

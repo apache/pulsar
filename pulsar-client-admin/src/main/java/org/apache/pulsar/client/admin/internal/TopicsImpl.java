@@ -76,6 +76,8 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -707,19 +709,38 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TopicStats>() {
 
-                    @Override
-                    public void completed(TopicStats response) {
-                        future.complete(response);
-                    }
+        InvocationCallback<TopicStats> persistentCB = new InvocationCallback<TopicStats>() {
+            @Override
+            public void completed(TopicStats response) {
+                future.complete(response);
+            }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        InvocationCallback<NonPersistentTopicStats> nonpersistentCB =
+                new InvocationCallback<NonPersistentTopicStats>() {
+            @Override
+            public void completed(NonPersistentTopicStats response) {
+                future.complete(response);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        if (topic.startsWith(TopicDomain.non_persistent.value())) {
+            asyncGetRequest(path, nonpersistentCB);
+        } else {
+            asyncGetRequest(path, persistentCB);
+        }
+
         return future;
     }
 
@@ -829,22 +850,45 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
         final CompletableFuture<PartitionedTopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PartitionedTopicStats>() {
 
-                    @Override
-                    public void completed(PartitionedTopicStats response) {
-                        if (!perPartition) {
-                            response.getPartitions().clear();
-                        }
-                        future.complete(response);
-                    }
+        InvocationCallback<NonPersistentPartitionedTopicStats> nonpersistentCB =
+                new InvocationCallback<NonPersistentPartitionedTopicStats>() {
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+            @Override
+            public void completed(NonPersistentPartitionedTopicStats response) {
+                if (!perPartition) {
+                    response.getPartitions().clear();
+                }
+                future.complete(response);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        InvocationCallback<PartitionedTopicStats> persistentCB = new InvocationCallback<PartitionedTopicStats>() {
+
+            @Override
+            public void completed(PartitionedTopicStats response) {
+                if (!perPartition) {
+                    response.getPartitions().clear();
+                }
+                future.complete(response);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        if (topic.startsWith(TopicDomain.non_persistent.value())) {
+            asyncGetRequest(path, nonpersistentCB);
+        } else {
+            asyncGetRequest(path, persistentCB);
+        }
         return future;
     }
 
@@ -1805,22 +1849,24 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
+    public void setBacklogQuota(String topic, BacklogQuota backlogQuota,
+                                BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuota");
-            request(path).post(Entity.entity(backlogQuota, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path.queryParam("backlogQuotaType", backlogQuotaType.toString()))
+                    .post(Entity.entity(backlogQuota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public void removeBacklogQuota(String topic) throws PulsarAdminException {
+    public void removeBacklogQuota(String topic, BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuota");
-            request(path.queryParam("backlogQuotaType", BacklogQuotaType.destination_storage.toString()))
+            request(path.queryParam("backlogQuotaType", backlogQuotaType.toString()))
                     .delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

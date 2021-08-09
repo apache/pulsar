@@ -305,7 +305,6 @@ class SchemaTest(TestCase):
         except TypeError:
             pass # Expected
 
-
     def test_serialize_json(self):
         class Example(Record):
             a = Integer()
@@ -410,6 +409,31 @@ class SchemaTest(TestCase):
         self.assertEqual(r.b, None)
         self.assertEqual(r.c, 'hello')
 
+    def test_none_value(self):
+        """
+        The objective of the test is to check that if no value is assigned to the attribute, the validation is returning
+        the expect default value as defined in the Field class
+        """
+        class Example(Record):
+            a = Null()
+            b = Boolean()
+            c = Integer()
+            d = Long()
+            e = Float()
+            f = Double()
+            g = Bytes()
+            h = String()
+
+        r = Example()
+
+        self.assertIsNone(r.a)
+        self.assertFalse(r.b)
+        self.assertIsNone(r.c)
+        self.assertIsNone(r.d)
+        self.assertIsNone(r.e)
+        self.assertIsNone(r.f)
+        self.assertIsNone(r.g)
+        self.assertIsNone(r.h)
     ####
 
     def test_json_schema(self):
@@ -427,7 +451,6 @@ class SchemaTest(TestCase):
         producer = client.create_producer(
                         'my-json-python-topic',
                         schema=JsonSchema(Example))
-
 
         # Validate that incompatible schema is rejected
         try:
@@ -495,13 +518,11 @@ class SchemaTest(TestCase):
         self.assertEqual(b"Hello", msg.data())
         client.close()
 
-
     def test_bytes_schema(self):
         client = pulsar.Client(self.serviceUrl)
         producer = client.create_producer(
                         'my-bytes-python-topic',
                         schema=BytesSchema())
-
 
         # Validate that incompatible schema is rejected
         try:
@@ -829,7 +850,6 @@ class SchemaTest(TestCase):
 
         client.close()
 
-
     def test_default_value(self):
         class MyRecord(Record):
             A = Integer()
@@ -949,6 +969,28 @@ class SchemaTest(TestCase):
 
         encode_and_decode('avro')
         encode_and_decode('json')
+
+    def test_sub_record_set_to_none(self):
+        class NestedObj1(Record):
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        data_schema = AvroSchema(NestedObj2)
+        r = NestedObj2(na2=1, nb2=True)
+
+        data_encode = data_schema.encode(r)
+        data_decode = data_schema.decode(data_encode)
+
+        self.assertEqual(data_decode.__class__.__name__, 'NestedObj2')
+        self.assertEqual(data_decode, r)
+        self.assertEqual(data_decode.na2, 1)
+        self.assertTrue(data_decode.nb2)
+
 
     def test_produce_and_consume_complex_schema_data(self):
         class NestedObj1(Record):

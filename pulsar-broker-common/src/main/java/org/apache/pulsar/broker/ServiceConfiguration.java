@@ -1603,6 +1603,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String managedLedgerDataReadPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST
             .getValue();
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
+    private String managedLedgerInfoCompressionType = "NONE";
+
     /*** --- Load balancer --- ****/
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

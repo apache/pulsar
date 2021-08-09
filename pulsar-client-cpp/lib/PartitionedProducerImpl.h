@@ -64,7 +64,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     void triggerFlush() override;
     void flushAsync(FlushCallback callback) override;
     bool isConnected() const override;
-
+    uint64_t getNumberOfConnectedProducer() override;
     void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
 

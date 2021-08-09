@@ -64,6 +64,7 @@ public class MessageImpl<T> implements Message<T> {
     private ByteBuf payload;
 
     private Schema<T> schema;
+    private SchemaInfo schemaInfoForReplicator;
     private SchemaState schemaState = SchemaState.None;
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
@@ -418,12 +419,27 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private SchemaInfo getSchemaInfo() {
+    public SchemaInfo getSchemaInfo() {
+        if (schema == null) {
+            return null;
+        }
         ensureSchemaIsLoaded();
         if (schema instanceof AutoConsumeSchema) {
             return ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion());
         }
         return schema.getSchemaInfo();
+    }
+
+    public void setSchemaInfoForReplicator(SchemaInfo schemaInfo) {
+        if (msgMetadata.hasReplicatedFrom()) {
+            this.schemaInfoForReplicator = schemaInfo;
+        } else {
+            throw new IllegalArgumentException("Only allowed to set schemaInfoForReplicator for a replicated message.");
+        }
+    }
+
+    public SchemaInfo getSchemaInfoForReplicator() {
+        return msgMetadata.hasReplicatedFrom() ? this.schemaInfoForReplicator : null;
     }
 
     @Override
@@ -671,6 +687,10 @@ public class MessageImpl<T> implements Message<T> {
         return msgMetadata.getReplicateTosList();
     }
 
+    public boolean hasReplicateFrom() {
+        return msgMetadata.hasReplicatedFrom();
+    }
+
     void setMessageId(MessageIdImpl messageId) {
         this.messageId = messageId;
     }
@@ -690,6 +710,9 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     SchemaState getSchemaState() {
+        if (getSchemaInfo() == null) {
+            return SchemaState.Ready;
+        }
         return schemaState;
     }
 
