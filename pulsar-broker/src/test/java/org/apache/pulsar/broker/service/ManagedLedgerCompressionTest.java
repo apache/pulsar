@@ -86,6 +86,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
                     e.getCause().getMessage());
         }
 
+        conf.setAuthorizationEnabled(false);
         conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);

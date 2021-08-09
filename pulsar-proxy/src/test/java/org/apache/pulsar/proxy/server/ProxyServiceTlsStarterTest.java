@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import io.prometheus.client.CollectorRegistry;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Producer;
@@ -57,6 +58,8 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        // Report direct memory from Netty counters
+        CollectorRegistry.defaultRegistry.clear();
         serviceStarter = new ProxyServiceStarter(ARGS);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         serviceStarter.getConfig().setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());

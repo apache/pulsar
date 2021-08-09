@@ -108,7 +108,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     protected String methodName;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
         admin1.namespaces().removeBacklogQuota("pulsar/ns");
@@ -117,7 +117,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
+    @BeforeClass(alwaysRun = true, timeOut = 300000)
     void setup() throws Exception {
         super.setup();
     }
@@ -223,7 +223,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ClusterData cluster2Data = new ClusterData();
         String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678", pulsar2.getWebServiceAddress());
         cluster2Data.setServiceUrl(cluster2ServiceUrls);
-        String cluster2 = "activeCLuster2";
+        String cluster2 = "activeCLuster2" + UUID.randomUUID();
         admin2.clusters().createCluster(cluster2, cluster2Data);
         Awaitility.await().atMost(3, TimeUnit.SECONDS).until(()
                 -> admin2.clusters().getCluster(cluster2) != null);
@@ -240,7 +240,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
 
-        final String namespace = "pulsar/concurrent";
+        final String namespace = "pulsar/concurrent" + UUID.randomUUID();
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         final TopicName topicName = TopicName
@@ -510,7 +510,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.replicationBacklog, 0);
     }
 
-    @Test(enabled = true, timeOut = 30000)
+    @Test(timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
@@ -861,7 +861,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic;
+        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic + UUID.randomUUID();
         final String persistentTopicName =
                 "persistent://" + namespace + "/partTopic-" + System.currentTimeMillis() + "-" + isPartitionedTopic;
         final String nonPersistentTopicName =
@@ -1010,7 +1010,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster2 = pulsar2.getConfig().getClusterName();
-        final String namespace = "pulsar/ns-" + System.nanoTime();
+        final String namespace = "pulsar/ns-" + UUID.randomUUID();
         final String topicName = "persistent://" + namespace + "/cleanTopic";
         final String topicMlName = namespace + "/persistent/cleanTopic";
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
