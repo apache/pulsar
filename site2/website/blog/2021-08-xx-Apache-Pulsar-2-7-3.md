@@ -58,7 +58,7 @@ of being a namespace or topic policy).
 
 ### `hasMessageAvailable` can read messages successfully. [10414](https://github.com/apache/pulsar/pull/10414)
 
-- **Issue**:  When `hasMessageAvailableAsync` returned `true`, it could not read messages because messages were filtered by `acknowledgmentsGroupingTracker`. 
+- **Issue**: When `hasMessageAvailableAsync` returned `true`, it could not read messages because messages were filtered by `acknowledgmentsGroupingTracker`. 
 
 - **Resolution**: Fixed the race conditions by modifying `acknowledgmentsGroupingTracker` to filter duplicate messages, and then cleanup the messages when the connection is open.
   
