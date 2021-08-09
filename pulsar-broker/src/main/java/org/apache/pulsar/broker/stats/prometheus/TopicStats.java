@@ -92,6 +92,8 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize);
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.managedLedgerStats.storageSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_logical_size",
+                stats.managedLedgerStats.storageLogicalSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size",
                 stats.managedLedgerStats.backlogSize);
@@ -117,27 +119,27 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_sum",
                 stats.managedLedgerStats.storageWriteLatencyBuckets.getSum());
 
-        long[] ledgerWritelatencyBuckets = stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets();
+        long[] ledgerWriteLatencyBuckets = stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_0_5",
-                ledgerWritelatencyBuckets[0]);
+                ledgerWriteLatencyBuckets[0]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1",
-                ledgerWritelatencyBuckets[1]);
+                ledgerWriteLatencyBuckets[1]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_5",
-                ledgerWritelatencyBuckets[2]);
+                ledgerWriteLatencyBuckets[2]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_10",
-                ledgerWritelatencyBuckets[3]);
+                ledgerWriteLatencyBuckets[3]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_20",
-                ledgerWritelatencyBuckets[4]);
+                ledgerWriteLatencyBuckets[4]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_50",
-                ledgerWritelatencyBuckets[5]);
+                ledgerWriteLatencyBuckets[5]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_100",
-                ledgerWritelatencyBuckets[6]);
+                ledgerWriteLatencyBuckets[6]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_200",
-                ledgerWritelatencyBuckets[7]);
+                ledgerWriteLatencyBuckets[7]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1000",
-                ledgerWritelatencyBuckets[8]);
+                ledgerWriteLatencyBuckets[8]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_overflow",
-                ledgerWritelatencyBuckets[9]);
+                ledgerWriteLatencyBuckets[9]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_count",
                 stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getCount());
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_sum",
@@ -237,6 +239,12 @@ class TopicStats {
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_connected_count",
+                        remoteCluster, replStats.connectedCount);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_rate_expired",
+                        remoteCluster, replStats.msgRateExpired);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_delay_in_seconds",
+                        remoteCluster, replStats.replicationDelayInSeconds);
             });
         }
 

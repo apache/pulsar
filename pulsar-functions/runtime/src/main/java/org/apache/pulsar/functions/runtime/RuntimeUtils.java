@@ -379,6 +379,7 @@ public class RuntimeUtils {
             if (instanceConfig.isExposePulsarAdminClientEnabled() && StringUtils.isNotBlank(pulsarWebServiceUrl)) {
                 args.add("--web_serviceurl");
                 args.add(pulsarWebServiceUrl);
+                args.add("--expose_pulsaradmin");
             }
         }
         if (authConfig != null) {

@@ -74,7 +74,7 @@ public class TopicSchema {
     public Schema<?> getSchema(String topic, Class<?> clazz, Optional<SchemaType> schemaType) {
         return cachedSchemas.computeIfAbsent(topic, key -> {
             // If schema type was not provided, try to get it from schema registry, or fallback to default types
-            SchemaType type = schemaType.orElse(getSchemaTypeOrDefault(topic, clazz));
+            SchemaType type = schemaType.orElseGet(() -> getSchemaTypeOrDefault(topic, clazz));
             return newSchemaInstance(clazz, type);
         });
     }

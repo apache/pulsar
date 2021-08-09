@@ -35,5 +35,4 @@ configs:
   database.server.name: "dbserver1"
   schema.whitelist: "inventory"
 
-
-
+  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"

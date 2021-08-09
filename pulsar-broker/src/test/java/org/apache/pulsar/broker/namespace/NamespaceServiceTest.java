@@ -187,6 +187,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         PersistentTopic topic = new PersistentTopic(topicName.toString(), ledger, pulsar.getBrokerService());
+        topic.initialize().join();
         Method method = pulsar.getBrokerService().getClass().getDeclaredMethod("addTopicToStatsMaps",
                 TopicName.class, Topic.class);
         method.setAccessible(true);

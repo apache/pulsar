@@ -38,12 +38,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -69,11 +71,13 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -106,6 +110,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
     }
 
     // method for resetting state explicitly
@@ -232,6 +237,121 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(stats.getOffloadedStorageSize(), 0);
 
         assertEquals(subStats.getMsgBacklog(), 0);
+    }
+
+    @Test
+    public void testConnectionController() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(3);
+        conf.setBrokerMaxConnectionsPerIp(2);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(2);
+        conf.setBrokerMaxConnectionsPerIp(3);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+    }
+
+    @Test
+    public void testConnectionController2() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        startTime = System.currentTimeMillis();
+        for (int i = 0; i < 10; i++) {
+            clients.add(createNewConnection(topicName, clientBuilder));
+        }
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+    }
+
+    private void createNewConnectionAndCheckFail(String topicName, ClientBuilder builder) throws Exception {
+        try {
+            createNewConnection(topicName, builder);
+            fail("should fail");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
+        }
+    }
+
+    private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder) throws PulsarClientException {
+        PulsarClient client1 = clientBuilder.build();
+        client1.newProducer().topic(topicName).create().close();
+        return client1;
+    }
+
+    private void cleanClient(List<PulsarClient> clients) throws Exception {
+        for (PulsarClient client : clients) {
+            if (client != null) {
+                client.close();
+            }
+        }
     }
 
     @Test

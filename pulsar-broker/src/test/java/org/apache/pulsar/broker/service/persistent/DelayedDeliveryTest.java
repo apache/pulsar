@@ -336,8 +336,6 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         admin.topics().createPartitionedTopic(topicName, 3);
         pulsarClient.newProducer().topic(topicName).create().close();
-        Awaitility.await().untilAsserted(() -> pulsar.getTopicPoliciesService()
-                .cacheIsInitialized(TopicName.get(topicName)));
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                 .tickTime(2000)
@@ -372,8 +370,6 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         admin.topics().createPartitionedTopic(topicName, 3);
         pulsarClient.newProducer().topic(topicName).create().close();
-        Awaitility.await().untilAsserted(() -> pulsar.getTopicPoliciesService()
-                .cacheIsInitialized(TopicName.get(topicName)));
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         //1 Set topic policy
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()

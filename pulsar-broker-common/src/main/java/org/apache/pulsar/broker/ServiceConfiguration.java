@@ -93,6 +93,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_TRANSACTION = "Transaction";
     @Category
     private static final String CATEGORY_PACKAGES_MANAGEMENT = "Packages Management";
+    @Category
+    private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -539,6 +541,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int maxTopicsPerNamespace = 0;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections in the broker. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnections = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnectionsPerIp = 0;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable check for minimum allowed client library version"
@@ -915,6 +929,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
     )
     private int retentionCheckIntervalInSeconds = 120;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
+    )
+    private int maxMessageSizeCheckIntervalInSeconds = 60;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -1583,6 +1603,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String managedLedgerDataReadPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST
             .getValue();
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
+    private String managedLedgerInfoCompressionType = "NONE";
+
     /*** --- Load balancer --- ****/
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -2226,6 +2251,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String packagesManagementLedgerRootPath = "/ledgers";
 
     /* packages management service configurations (end) */
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate broker additional servlet"
+    )
+    private String additionalServletDirectory = "./brokerAdditionalServlet";
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of broker additional servlet to load, which is a list of broker additional servlet names"
+    )
+    private Set<String> additionalServlets = Sets.newTreeSet();
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

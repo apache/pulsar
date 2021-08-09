@@ -350,7 +350,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private void handleNack(ConsumerCommand command) throws IOException {
         MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
             topic.toString());
-        System.out.println(msgId);
         consumer.negativeAcknowledge(msgId);
         checkResumeReceive();
     }
@@ -454,6 +453,11 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             builder.priorityLevel(Integer.parseInt(queryParams.get("priorityLevel")));
         }
 
+        if (queryParams.containsKey("negativeAckRedeliveryDelay")) {
+            builder.negativeAckRedeliveryDelay(Integer.parseInt(queryParams.get("negativeAckRedeliveryDelay")),
+                    TimeUnit.MILLISECONDS);
+        }
+
         if (queryParams.containsKey("maxRedeliverCount") || queryParams.containsKey("deadLetterTopic")) {
             DeadLetterPolicy.DeadLetterPolicyBuilder dlpBuilder = DeadLetterPolicy.builder();
             if (queryParams.containsKey("maxRedeliverCount")) {
@@ -463,9 +467,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             if (queryParams.containsKey("deadLetterTopic")) {
                 dlpBuilder.deadLetterTopic(queryParams.get("deadLetterTopic"));
-            }
-            if (queryParams.containsKey("negativeAckRedeliveryDelay")) {
-                builder.negativeAckRedeliveryDelay(Integer.parseInt(queryParams.get("negativeAckRedeliveryDelay")), TimeUnit.MILLISECONDS);
             }
             builder.deadLetterPolicy(dlpBuilder.build());
         }

@@ -88,6 +88,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 Requirements:
  * Java [JDK 11](https://adoptopenjdk.net/?variant=openjdk11) or [JDK 8](https://adoptopenjdk.net/?variant=openjdk8)
  * Maven 3.6.1+
+ * zip
 
 Compile and install:
 

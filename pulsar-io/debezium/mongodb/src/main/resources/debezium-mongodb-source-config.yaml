@@ -33,3 +33,5 @@ configs:
   mongodb.password: "dbz"
   mongodb.task.id: "1"
   database.whitelist: "inventory"
+
+  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"

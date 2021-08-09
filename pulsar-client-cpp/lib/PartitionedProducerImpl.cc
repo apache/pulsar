@@ -387,4 +387,17 @@ bool PartitionedProducerImpl::isConnected() const {
     return true;
 }
 
+uint64_t PartitionedProducerImpl::getNumberOfConnectedProducer() {
+    uint64_t numberOfConnectedProducer = 0;
+    Lock producersLock(producersMutex_);
+    const auto producers = producers_;
+    producersLock.unlock();
+    for (const auto& producer : producers) {
+        if (producer->isConnected()) {
+            numberOfConnectedProducer++;
+        }
+    }
+    return numberOfConnectedProducer;
+}
+
 }  // namespace pulsar

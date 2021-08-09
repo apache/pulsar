@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -413,12 +414,15 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
         log.info("-- Starting {} test --", methodName);
 
         final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
+        final String subscriptionName = "my-subscriber-name";
 
-        final int byteRate = 100;
+        //
+        final int byteRate = 250;
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
                 .dispatchThrottlingRateInByte(byteRate)
@@ -426,47 +430,31 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
                 .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
         // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        boolean isMessageRateUpdate = false;
-        int retry = 5;
-        for (int i = 0; i < retry; i++) {
-            if (topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0) {
-                isMessageRateUpdate = true;
-                break;
-            } else {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            }
-        }
-        Assert.assertTrue(isMessageRateUpdate);
+        Awaitility.await().until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
         final int numProducedMessages = 20;
-        final CountDownLatch latch = new CountDownLatch(numProducedMessages);
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+        for (int i = 0; i < numProducedMessages; i++) {
+            producer.send(new byte[99]);
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
                     log.debug("Received message [{}] in the listener", receivedMessage);
                     totalReceived.incrementAndGet();
-                    latch.countDown();
                 }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numProducedMessages; i++) {
-            producer.send(new byte[byteRate / 10]);
-        }
-
-        latch.await();
-        Assert.assertEquals(totalReceived.get(), numProducedMessages);
+        Awaitility.await().atLeast(3, TimeUnit.SECONDS)
+                .atMost(5, TimeUnit.SECONDS).until(() -> totalReceived.get() > 6 && totalReceived.get() < 10);
 
         consumer.close();
         producer.close();
