@@ -700,6 +700,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .topic("persistent://my-property/use/my-ns/" + topicName)
                 .subscriptionName(sub2)
                 .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1)
                 .subscribe();
         // Produce messages
         final int moreMessages = 10;
@@ -719,7 +720,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         // produce-consume one more message to trigger : ledger.internalReadFromLedger(..) which updates cursor and
         // EntryCache
         producer.send("message".getBytes());
-        msg = subscriber1.receive(5, TimeUnit.SECONDS);
+        msg = subscriber1.receive(2, TimeUnit.SECONDS);
 
         // Verify: as active-subscriber2 has not consumed messages: EntryCache must have those entries in cache
         retryStrategically((test) -> entryCache.getSize() > 0, 10, 100);
