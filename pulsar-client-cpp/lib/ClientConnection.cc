@@ -1582,7 +1582,7 @@ Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consume
 
     pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendCommand(Commands::newGetLastMessageId(consumerId, requestId));
+    sendRequestWithId(Commands::newGetLastMessageId(consumerId, requestId), requestId);
     return promise.getFuture();
 }
 
