@@ -32,19 +32,19 @@ of being a namespace or topic policy).
 
 - **Resolution**: Fixed the timing of the ledger rollover schedule, so the task runs only after the ledger is created successfully. 
   
-### The topic-level retention policy works correctly when restarting a broker. [11136](https://github.com/apache/pulsar/pull/11136)
+### The topic-level retention policy works correctly when restarting a broker. [PR-11136](https://github.com/apache/pulsar/pull/11136)
 
 - **Issue**: Previously, when setting a topic-level retention policy for a topic and then restarting the broker, the topic-level retention policy did not work.
 
 - **Resolution**: Fixed behavior of the policy so it replays all policy messages after initiating `policyCacheInitMap` and added a retention policy check test when restarting the broker.
 
-### The lastMessageId API call no longer causes a memory leak. [10977](https://github.com/apache/pulsar/pull/10977)
+### The lastMessageId API call no longer causes a memory leak. [PR-10977](https://github.com/apache/pulsar/pull/10977)
 
 - **Issue**: Previously, there was a memory leak when calling the `lastMessageId` API, which caused the broker process to be stopped by Kubernetes. 
 
 - **Resolution**: Added the missing entry.release() call to PersistentTopic.getLastMessageId to ensure the broker does not run out of memory. 
 
-### ZooKeeper reads are cached by brokers. [10594](https://github.com/apache/pulsar/pull/10594)
+### ZooKeeper reads are cached by brokers. [PR-10594](https://github.com/apache/pulsar/pull/10594)
 
 - **Issue**: When performing the admin operation to get the namespace of a tenant, ZooKeeper reads were issued on the ZooKeeper client and not getting cached by the brokers.
 
@@ -56,7 +56,7 @@ of being a namespace or topic policy).
   
 - **Resolution**: Fixed the deadlock condition on the monitoring thread so it is not blocked by `LeaderService.isLeader() by modifying `ClusterServiceCoordinator` and `WorkerStatsManager` to check if it is a leader from `MembershipManager`. 
 
-### `hasMessageAvailable` can read messages successfully. [10414](https://github.com/apache/pulsar/pull/10414)
+### `hasMessageAvailable` can read messages successfully. [PR-10414](https://github.com/apache/pulsar/pull/10414)
 
 - **Issue**: When `hasMessageAvailableAsync` returned `true`, it could not read messages because messages were filtered by `acknowledgmentsGroupingTracker`. 
 
@@ -134,6 +134,6 @@ create a metadata path `/managed-ledgers` on replicated clusters.
 If you are interested in learning more about Pulsar 2.7.3, you can [download 2.7.3](https://pulsar.apache.org/en/versions/) and try it out now! 
 
 Do you have a Pulsar story to share? Join us and speak at Pulsar Virtual Summit
-Europe 2021! [Submit an abstract today](https://streamnative.io/en/blog/community/2021-06-30-announcing-pulsar-virtual-summit-europe-2021-cfp-is-open)!
+Europe 2021! Feel free to [submit an abstract today](https://streamnative.io/en/blog/community/2021-06-30-announcing-pulsar-virtual-summit-europe-2021-cfp-is-open)!
 
 For more information about the Apache Pulsar project and the progress, visit the official website at https://pulsar.apache.org and follow the project on Twitter [@apache_pulsar](https://twitter.com/apache_pulsar).
