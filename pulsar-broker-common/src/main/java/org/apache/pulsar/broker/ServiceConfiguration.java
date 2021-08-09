@@ -1394,6 +1394,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds). Default is 60 seconds")
     private int managedLedgerCursorPositionFlushSeconds = 60;
 
+    @FieldContext(minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "How frequently to refresh the stats. (seconds). Default is 60 seconds")
+    private int managedLedgerStatsPeriodSeconds = 60;
+
     //
     //
     @FieldContext(
@@ -1607,6 +1612,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
     private String managedLedgerDataReadPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST
             .getValue();
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
+    private String managedLedgerInfoCompressionType = "NONE";
 
     /*** --- Load balancer --- ****/
     @FieldContext(

@@ -417,7 +417,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         preValidation(authoritative)
             .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
             .thenAccept(op -> {
-                TopicPolicies topicPolicies = op.orElse(new TopicPolicies());
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 asyncResponse.resume(topicPolicies.getDeduplicationSnapshotIntervalSeconds());
             })
             .exceptionally(ex -> {

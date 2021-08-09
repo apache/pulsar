@@ -514,7 +514,7 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     }
 
     if (*numberOfOpenHandlers == 0 && callback) {
-        callback(ResultOk);
+        handleClose(ResultOk, numberOfOpenHandlers, callback);
     }
 }
 
@@ -586,6 +586,30 @@ uint64_t ClientImpl::newConsumerId() {
 uint64_t ClientImpl::newRequestId() {
     Lock lock(mutex_);
     return requestIdGenerator_++;
+}
+
+uint64_t ClientImpl::getNumberOfProducers() {
+    Lock lock(mutex_);
+    uint64_t numberOfAliveProducers = 0;
+    for (const auto& producer : producers_) {
+        const auto& producerImpl = producer.lock();
+        if (producerImpl) {
+            numberOfAliveProducers += producerImpl->getNumberOfConnectedProducer();
+        }
+    }
+    return numberOfAliveProducers;
+}
+
+uint64_t ClientImpl::getNumberOfConsumers() {
+    Lock lock(mutex_);
+    uint64_t numberOfAliveConsumers = 0;
+    for (const auto& consumer : consumers_) {
+        const auto consumerImpl = consumer.lock();
+        if (consumerImpl) {
+            numberOfAliveConsumers += consumerImpl->getNumberOfConnectedConsumer();
+        }
+    }
+    return numberOfAliveConsumers;
 }
 
 const ClientConfiguration& ClientImpl::getClientConfig() const { return clientConfiguration_; }

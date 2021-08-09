@@ -97,15 +97,23 @@ class Record(with_metaclass(RecordMeta, object)):
 
     @classmethod
     def schema(cls):
+        return cls.schema_info(set())
+
+    @classmethod
+    def schema_info(cls, defined_names):
+        if cls.__name__ in defined_names:
+            return cls.__name__
+
+        defined_names.add(cls.__name__)
         schema = {
             'name': str(cls.__name__),
             'type': 'record',
             'fields': []
         }
-
         for name in sorted(cls._fields.keys()):
             field = cls._fields[name]
-            field_type = field.schema() if field._required else ['null', field.schema()]
+            field_type = field.schema_info(defined_names) \
+                if field._required else ['null', field.schema_info(defined_names)]
             schema['fields'].append({
                 'name': name,
                 'type': field_type,
@@ -139,6 +147,9 @@ class Record(with_metaclass(RecordMeta, object)):
                 return False
         return True
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __str__(self):
         return str(self.__dict__)
 
@@ -149,6 +160,9 @@ class Record(with_metaclass(RecordMeta, object)):
         return self.__class__
 
     def validate_type(self, name, val):
+        if not val and not self._required:
+            return self.default()
+
         if not isinstance(val, self.__class__):
             raise TypeError("Invalid type '%s' for sub-record field '%s'. Expected: %s" % (
                 type(val), name, self.__class__))
@@ -181,12 +195,18 @@ class Field(object):
         pass
 
     def validate_type(self, name, val):
+        if not val and not self._required:
+            return self.default()
+
         if type(val) != self.python_type():
             raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
         return val
 
     def schema(self):
         # For primitive types, the schema would just be the type itself
+        return self.type()
+
+    def schema_info(self, defined_names):
         return self.type()
 
     def default(self):
@@ -305,6 +325,10 @@ class String(Field):
 
     def validate_type(self, name, val):
         t = type(val)
+
+        if not val and not self._required:
+            return self.default()
+
         if not (t is str or t.__name__ == 'unicode'):
             raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
         return val
@@ -315,9 +339,7 @@ class String(Field):
         else:
             return None
 
-
 # Complex types
-
 
 class _Enum(Field):
     def __init__(self, enum_type):
@@ -336,6 +358,9 @@ class _Enum(Field):
         return self.enum_type
 
     def validate_type(self, name, val):
+        if val is None:
+            return None
+
         if type(val) is str:
             # The enum was passed as a string, we need to check it against the possible values
             if val in self.enum_type.__members__:
@@ -356,6 +381,12 @@ class _Enum(Field):
             return val
 
     def schema(self):
+        return self.schema_info(set())
+
+    def schema_info(self, defined_names):
+        if self.enum_type.__name__ in defined_names:
+            return self.enum_type.__name__
+        defined_names.add(self.enum_type.__name__)
         return {
             'type': self.type(),
             'name': self.enum_type.__name__,
@@ -382,6 +413,9 @@ class Array(Field):
         return list
 
     def validate_type(self, name, val):
+        if val is None:
+            return None
+
         super(Array, self).validate_type(name, val)
 
         for x in val:
@@ -391,9 +425,12 @@ class Array(Field):
         return val
 
     def schema(self):
+        return self.schema_info(set())
+
+    def schema_info(self, defined_names):
         return {
             'type': self.type(),
-            'items': self.array_type.schema() if isinstance(self.array_type, (Array, Map, Record))
+            'items': self.array_type.schema_info(defined_names) if isinstance(self.array_type, (Array, Map, Record))
                 else self.array_type.type()
         }
 
@@ -417,6 +454,9 @@ class Map(Field):
         return dict
 
     def validate_type(self, name, val):
+        if val is None:
+            return None
+
         super(Map, self).validate_type(name, val)
 
         for k, v in val.items():
@@ -429,9 +469,12 @@ class Map(Field):
         return val
 
     def schema(self):
+        return self.schema_info(set())
+
+    def schema_info(self, defined_names):
         return {
             'type': self.type(),
-            'values': self.value_type.schema() if isinstance(self.value_type, (Array, Map, Record))
+            'values': self.value_type.schema_info(defined_names) if isinstance(self.value_type, (Array, Map, Record))
                 else self.value_type.type()
         }
 

@@ -23,11 +23,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -41,6 +43,7 @@ public abstract class AbstractReplicator {
     protected final String topicName;
     protected final String localCluster;
     protected final String remoteCluster;
+    protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
 
     protected volatile ProducerImpl producer;
@@ -63,18 +66,19 @@ public abstract class AbstractReplicator {
     }
 
     public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
-                              BrokerService brokerService) throws NamingException {
+                              BrokerService brokerService) throws NamingException, PulsarServerException {
         validatePartitionedTopic(topicName, brokerService);
         this.brokerService = brokerService;
         this.topicName = topicName;
         this.replicatorPrefix = replicatorPrefix;
         this.localCluster = localCluster.intern();
         this.remoteCluster = remoteCluster.intern();
-        this.client = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
+        this.replicationClient = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
+        this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
 
-        this.producerBuilder = client.newProducer() //
+        this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
                 .topic(topicName)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .enableBatching(false)
