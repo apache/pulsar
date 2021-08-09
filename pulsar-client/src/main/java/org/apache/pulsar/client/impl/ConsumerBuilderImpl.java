@@ -133,8 +133,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                         .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
                     deadLetterTopic = oldDeadLetterTopic;
                 }
-            } catch (InterruptedException | TimeoutException | ExecutionException e) {
+            } catch (InterruptedException | TimeoutException e) {
                 return FutureUtil.failedFuture(e);
+            } catch (ExecutionException e) {
+                return FutureUtil.failedFuture(e.getCause());
             }
 
             if(conf.getDeadLetterPolicy() == null) {

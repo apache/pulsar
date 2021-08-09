@@ -421,7 +421,7 @@ public class NonPersistentTopics extends PersistentTopics {
                     .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
         } catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
+            throw new RestException(e.getCause());
         } catch (InterruptedException | TimeoutException e) {
             throw new RestException(e);
         }
