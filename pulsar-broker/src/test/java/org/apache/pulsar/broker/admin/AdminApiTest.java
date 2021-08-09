@@ -921,12 +921,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             fail("getPartitionedTopicMetadata of " + anotherTopic + " should not succeed");
         } catch (NotFoundException expected) {
         }
-        // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
-                admin.topics().getPartitionedStats(partitionedTopicName,false).getMetadata().partitions);
 
-        assertEquals(admin.topics().getPartitionedStats(partitionedTopicName, false).getPartitions().size(),
-                0);
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName,false);
+
+                // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
+                topicStats.getMetadata().partitions);
+
+        assertEquals(topicStats.getPartitions().size(), 0);
 
         List<String> subscriptions = admin.topics().getSubscriptions(partitionedTopicName);
         assertEquals(subscriptions.size(), 0);
@@ -988,7 +990,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                         partitionedTopicName + "-partition-2", partitionedTopicName + "-partition-3"));
 
         // test cumulative stats for partitioned topic
-        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);
+        topicStats = admin.topics().getPartitionedStats(partitionedTopicName,false);
         if (isPersistent) {
             // TODO: for non-persistent topics, the subscription doesn't exist
             assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
@@ -999,7 +1001,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions(), Maps.newHashMap());
 
         // test per partition stats for partitioned topic
-        topicStats = admin.topics().getPartitionedStats(partitionedTopicName, true);
+        topicStats = admin.topics().getPartitionedStats(partitionedTopicName,true);
         assertEquals(topicStats.getMetadata().partitions, 4);
         assertEquals(topicStats.getPartitions().keySet(),
                 Sets.newHashSet(partitionedTopicName + "-partition-0", partitionedTopicName + "-partition-1",
