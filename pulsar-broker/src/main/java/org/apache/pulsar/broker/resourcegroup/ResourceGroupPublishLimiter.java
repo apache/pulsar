@@ -100,7 +100,6 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
                             .permits(publishMaxMessageRate)
                             .rateTime(1L)
                             .timeUnit(TimeUnit.SECONDS)
-                            .isDispatchOrPrecisePublishRateLimiter(false)
                             .rateLimitFunction(this::apply)
                             .build();
                 }
@@ -111,7 +110,6 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
                             .permits(publishMaxByteRate)
                             .rateTime(1L)
                             .timeUnit(TimeUnit.SECONDS)
-                            .isDispatchOrPrecisePublishRateLimiter(false)
                             .rateLimitFunction(this::apply)
                             .build();
                 }
