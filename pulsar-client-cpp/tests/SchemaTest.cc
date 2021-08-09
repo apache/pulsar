@@ -36,6 +36,7 @@ TEST(SchemaTest, testSchema) {
     ProducerConfiguration producerConf;
     producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
     res = client.createProducer("topic-avro", producerConf, producer);
+    ASSERT_EQ(res, ResultOk);
 
     // Check schema version
     ASSERT_FALSE(producer.getSchemaVersion().empty());
@@ -69,4 +70,6 @@ TEST(SchemaTest, testSchema) {
     consumerConf.setSchema(SchemaInfo(JSON, "Json", "{}"));
     res = client.subscribe("topic-avro", "sub-2", consumerConf, consumer);
     ASSERT_EQ(ResultIncompatibleSchema, res);
+
+    client.close();
 }

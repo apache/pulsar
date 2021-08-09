@@ -40,7 +40,7 @@ https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
  * A C++ compiler that supports C++11, like GCC >= 4.8
  * CMake >= 3.4
  * [Boost](http://www.boost.org/)
- * [Protocol Buffer](https://developers.google.com/protocol-buffers/)
+ * [Protocol Buffer](https://developers.google.com/protocol-buffers/) >= 3
  * [libcurl](https://curl.se/libcurl/)
  * [openssl](https://github.com/openssl/openssl)
 
@@ -214,8 +214,10 @@ cmake --build ./build --config Release
 
 Then all artifacts will be built into `build` subdirectory.
 
-> NOTE: For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> **NOTE**
 >
+> 1. For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> 2. For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
 
 #### Install dependencies manually
 

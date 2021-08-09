@@ -21,13 +21,16 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
@@ -43,6 +46,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -276,9 +280,10 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // Unload topic in r1
         admin1.topics().unload(topicName);
-        Thread.sleep(1000);
-        stats = admin1.topics().getStats(topicName);
-        assertFalse(stats.getSubscriptions().get(subName).isReplicated());
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats stats2 = admin1.topics().getStats(topicName);
+            assertFalse(stats2.getSubscriptions().get(subName).isReplicated());
+        });
 
         // Make sure the replicated subscription is actually disabled
         final int numMessages = 20;
@@ -455,6 +460,70 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages1 (%d) should be less than %d", numReceivedMessages1, numMessages));
         assertTrue(numReceivedMessages2 < numMessages,
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
+    }
+
+    /**
+     * Tests replicated subscriptions when replicator producer is closed
+     */
+    @Test
+    public void testReplicatedSubscriptionWhenReplicatorProducerIsClosed() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
+        String topicName = "persistent://" + namespace + "/when-replicator-producer-is-closed";
+        String subscriptionName = "sub";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        // create consumer in r1
+        @Cleanup
+        Consumer<byte[]> consumer1 = client1.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .replicateSubscriptionState(true)
+                .subscribe();
+
+        // waiting to replicate topic/subscription to r1->r2
+        Awaitility.await().until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
+        final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+        Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
+        Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
+
+        // unsubscribe replicated subscription in r2
+        admin2.topics().deleteSubscription(topicName, subscriptionName);
+        assertNull(topic2.getSubscription(subscriptionName));
+
+        // close replicator producer in r2
+        final Method closeReplProducersIfNoBacklog = PersistentTopic.class.getDeclaredMethod("closeReplProducersIfNoBacklog", null);
+        closeReplProducersIfNoBacklog.setAccessible(true);
+        ((CompletableFuture<Void>) closeReplProducersIfNoBacklog.invoke(topic2, null)).join();
+        assertFalse(topic2.getReplicators().get("r1").isConnected());
+
+        // send messages in r1
+        int numMessages = 6;
+        {
+            @Cleanup
+            Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .create();
+            for (int i = 0; i < numMessages; i++) {
+                String body = "message" + i;
+                producer.send(body.getBytes(StandardCharsets.UTF_8));
+            }
+        }
+
+        // consume 6 messages in r1
+        Set<String> receivedMessages = new LinkedHashSet<>();
+        assertEquals(readMessages(consumer1, receivedMessages, numMessages, false), numMessages);
+
+        // wait for subscription to be replicated
+        Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
+        Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
     }
 
     void publishMessages(Producer<byte[]> producer, int startIndex, int numMessages, Set<String> sentMessages)

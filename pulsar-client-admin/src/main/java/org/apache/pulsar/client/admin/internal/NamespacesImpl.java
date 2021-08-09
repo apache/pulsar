@@ -1154,9 +1154,11 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException {
+    public void setBacklogQuota(String namespace, BacklogQuota backlogQuota,
+                                BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
         try {
-            setBacklogQuotaAsync(namespace, backlogQuota).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            setBacklogQuotaAsync(namespace, backlogQuota, backlogQuotaType)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -1168,16 +1170,19 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota) {
+    public CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota,
+                                                        BacklogQuota.BacklogQuotaType backlogQuotaType) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "backlogQuota");
-        return asyncPostRequest(path, Entity.entity(backlogQuota, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path.queryParam("backlogQuotaType", backlogQuotaType.toString()),
+                Entity.entity(backlogQuota, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void removeBacklogQuota(String namespace) throws PulsarAdminException {
+    public void removeBacklogQuota(String namespace, BacklogQuota.BacklogQuotaType backlogQuotaType)
+            throws PulsarAdminException {
         try {
-            removeBacklogQuotaAsync(namespace).
+            removeBacklogQuotaAsync(namespace, backlogQuotaType).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -1212,10 +1217,11 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> removeBacklogQuotaAsync(String namespace) {
+    public CompletableFuture<Void> removeBacklogQuotaAsync(String namespace,
+                                                           BacklogQuota.BacklogQuotaType backlogQuotaType) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "backlogQuota")
-                .queryParam("backlogQuotaType", BacklogQuotaType.destination_storage.toString());
+                .queryParam("backlogQuotaType", backlogQuotaType.toString());
         return asyncDeleteRequest(path);
     }
 
@@ -3588,8 +3594,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> setNamespaceResourceGroupAsync(String namespace, String resourcegroupname) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "resourcegroup");
-        return asyncPostRequest(path, Entity.entity(resourcegroupname, MediaType.APPLICATION_JSON));
+        WebTarget path = namespacePath(ns, "resourcegroup", resourcegroupname);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override

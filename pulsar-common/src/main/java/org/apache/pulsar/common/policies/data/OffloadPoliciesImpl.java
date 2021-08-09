@@ -472,7 +472,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         return value((String) object, field);
     }
 
-    public static class OffloadPoliciesImplBuilder {
+    public static class OffloadPoliciesImplBuilder implements OffloadPolicies.Builder {
         private OffloadPoliciesImpl impl = new OffloadPoliciesImpl();
 
         public OffloadPoliciesImplBuilder offloadersDirectory(String offloadersDirectory) {
@@ -547,6 +547,12 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         public OffloadPoliciesImplBuilder s3ManagedLedgerOffloadRole(String s3ManagedLedgerOffloadRole) {
             impl.s3ManagedLedgerOffloadRole = s3ManagedLedgerOffloadRole;
+            return this;
+        }
+
+        @Override
+        public Builder setS3ManagedLedgerOffloadRoleSessionName(String s3ManagedLedgerOffloadRoleSessionName) {
+            impl.s3ManagedLedgerOffloadRoleSessionName = s3ManagedLedgerOffloadRoleSessionName;
             return this;
         }
 

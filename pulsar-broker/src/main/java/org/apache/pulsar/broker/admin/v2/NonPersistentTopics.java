@@ -46,6 +46,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -57,6 +58,9 @@ import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
@@ -201,6 +205,118 @@ public class NonPersistentTopics extends PersistentTopics {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
+
+
+    @GET
+    @Path("{tenant}/{namespace}/{topic}/partitioned-stats")
+    @ApiOperation(value = "Get the stats for the partitioned topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void getPartitionedStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Get per partition stats")
+            @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "If return precise backlog or imprecise backlog")
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
+            @ApiParam(value = "If return backlog size for each subscription, require locking on ledger so be careful "
+                    + "not to use when there's heavy traffic.")
+            @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
+        try {
+            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isGlobal()) {
+                try {
+                    validateGlobalNamespaceOwnership(namespaceName);
+                } catch (Exception e) {
+                    log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return;
+                }
+            }
+            getPartitionedTopicMetadataAsync(topicName,
+                    authoritative, false).thenAccept(partitionMetadata -> {
+                if (partitionMetadata.partitions == 0) {
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Partitioned Topic not found"));
+                    return;
+                }
+                NonPersistentPartitionedTopicStatsImpl stats =
+                        new NonPersistentPartitionedTopicStatsImpl(partitionMetadata);
+                List<CompletableFuture<TopicStats>> topicStatsFutureList = Lists.newArrayList();
+                for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    try {
+                        topicStatsFutureList
+                                .add(pulsar().getAdminClient().topics().getStatsAsync(
+                                        (topicName.getPartition(i).toString()), getPreciseBacklog,
+                                        subscriptionBacklogSize));
+                    } catch (PulsarServerException e) {
+                        asyncResponse.resume(new RestException(e));
+                        return;
+                    }
+                }
+
+                FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
+                    CompletableFuture<TopicStats> statFuture = null;
+                    for (int i = 0; i < topicStatsFutureList.size(); i++) {
+                        statFuture = topicStatsFutureList.get(i);
+                        if (statFuture.isDone() && !statFuture.isCompletedExceptionally()) {
+                            try {
+                                stats.add((NonPersistentTopicStatsImpl) statFuture.get());
+                                if (perPartition) {
+                                    stats.getPartitions().put(topicName.getPartition(i).toString(),
+                                            (NonPersistentTopicStatsImpl) statFuture.get());
+                                }
+                            } catch (Exception e) {
+                                asyncResponse.resume(new RestException(e));
+                                return null;
+                            }
+                        }
+                    }
+                    if (perPartition && stats.partitions.isEmpty()) {
+                        String path = ZkAdminPaths.partitionedTopicPath(topicName);
+                        try {
+                            boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
+                            if (zkPathExists) {
+                                stats.getPartitions().put(topicName.toString(), new NonPersistentTopicStatsImpl());
+                            } else {
+                                asyncResponse.resume(
+                                        new RestException(Status.NOT_FOUND,
+                                                "Internal topics have not been generated yet"));
+                                return null;
+                            }
+                        } catch (Exception e) {
+                            asyncResponse.resume(new RestException(e));
+                            return null;
+                        }
+                    }
+                    asyncResponse.resume(stats);
+                    return null;
+                });
+            }).exceptionally(ex -> {
+                log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, ex);
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/unload")

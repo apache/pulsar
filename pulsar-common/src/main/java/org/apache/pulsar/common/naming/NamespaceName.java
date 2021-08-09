@@ -24,6 +24,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -71,6 +72,24 @@ public class NamespaceName implements ServiceUnitId {
         } catch (UncheckedExecutionException e) {
             throw (RuntimeException) e.getCause();
         }
+    }
+
+    public static Optional<NamespaceName> getIfValid(String namespace) {
+        NamespaceName ns = cache.getIfPresent(namespace);
+        if (ns != null) {
+            return Optional.of(ns);
+        }
+
+        if (namespace.length() == 0) {
+            return Optional.empty();
+        }
+
+        // Example: my-tenant/my-namespace
+        if (!namespace.contains("/")) {
+            return Optional.empty();
+        }
+
+        return Optional.of(get(namespace));
     }
 
     private NamespaceName(String namespace) {

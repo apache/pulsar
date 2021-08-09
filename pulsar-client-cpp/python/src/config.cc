@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "utils.h"
+#include <pulsar/ConsoleLoggerFactory.h>
 
 template<typename T>
 struct ListenerWrapper {
@@ -90,6 +91,7 @@ static ProducerConfiguration& ProducerConfiguration_setCryptoKeyReader(ProducerC
 
 class LoggerWrapper: public Logger {
     PyObject* _pyLogger;
+    Logger* fallbackLogger;
     int _currentPythonLogLevel = _getLogLevelValue(Logger::LEVEL_INFO);
 
     void _updateCurrentPythonLogLevel() {
@@ -110,26 +112,19 @@ class LoggerWrapper: public Logger {
 
    public:
 
-    LoggerWrapper(const std::string &logger, PyObject* pyLogger) {
+    LoggerWrapper(const std::string &filename, PyObject* pyLogger) {
         _pyLogger = pyLogger;
         Py_XINCREF(_pyLogger);
+
+        std::unique_ptr<LoggerFactory> factory(new ConsoleLoggerFactory());
+        fallbackLogger = factory->getLogger(filename);
 
         _updateCurrentPythonLogLevel();
     }
 
-    LoggerWrapper(const LoggerWrapper& other) {
-        _pyLogger = other._pyLogger;
-        Py_XINCREF(_pyLogger);
-    }
-
-    LoggerWrapper& operator=(const LoggerWrapper& other) {
-        _pyLogger = other._pyLogger;
-        Py_XINCREF(_pyLogger);
-        return *this;
-    }
-
     virtual ~LoggerWrapper() {
         Py_XDECREF(_pyLogger);
+        delete fallbackLogger;
     }
 
     bool isEnabled(Level level) {
@@ -137,34 +132,38 @@ class LoggerWrapper: public Logger {
     }
 
     void log(Level level, int line, const std::string& message) {
-        PyGILState_STATE state = PyGILState_Ensure();
+        if (Py_IsInitialized() != true) {
+            // Python logger is unavailable - fallback to console logger
+            fallbackLogger->log(level, line, message);
+        } else {
+            PyGILState_STATE state = PyGILState_Ensure();
 
-        try {
-            switch (level) {
-                case Logger::LEVEL_DEBUG:
-                    py::call_method<void>(_pyLogger, "debug", message.c_str());
-                    break;
-                case Logger::LEVEL_INFO:
-                    py::call_method<void>(_pyLogger, "info", message.c_str());
-                    break;
-                case Logger::LEVEL_WARN:
-                    py::call_method<void>(_pyLogger, "warning", message.c_str());
-                    break;
-                case Logger::LEVEL_ERROR:
-                    py::call_method<void>(_pyLogger, "error", message.c_str());
-                    break;
+            try {
+                switch (level) {
+                    case Logger::LEVEL_DEBUG:
+                        py::call_method<void>(_pyLogger, "debug", message.c_str());
+                        break;
+                    case Logger::LEVEL_INFO:
+                        py::call_method<void>(_pyLogger, "info", message.c_str());
+                        break;
+                    case Logger::LEVEL_WARN:
+                        py::call_method<void>(_pyLogger, "warning", message.c_str());
+                        break;
+                    case Logger::LEVEL_ERROR:
+                        py::call_method<void>(_pyLogger, "error", message.c_str());
+                        break;
+                }
+
+            } catch (py::error_already_set e) {
+                PyErr_Print();
             }
 
-        } catch (py::error_already_set e) {
-            PyErr_Print();
+            PyGILState_Release(state);
         }
-
-        PyGILState_Release(state);
     }
 };
 
 class LoggerWrapperFactory : public LoggerFactory {
-    static LoggerWrapperFactory* _instance;
     PyObject* _pyLogger;
 
    public:

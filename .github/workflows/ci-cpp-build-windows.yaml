@@ -101,7 +101,7 @@ jobs:
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
             cd pulsar-client-cpp && \
-            cmake --build ./build
+            cmake --build ./build --config Release
           fi
 
       - name: Configure (dynamic library only)
@@ -126,5 +126,5 @@ jobs:
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
             cd pulsar-client-cpp && \
-            cmake --build ./build-1
+            cmake --build ./build-1 --config Release
           fi

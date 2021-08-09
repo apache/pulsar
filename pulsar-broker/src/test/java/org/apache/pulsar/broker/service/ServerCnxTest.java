@@ -192,6 +192,9 @@ public class ServerCnxTest {
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
         doReturn(zkCache).when(pulsar).getLocalZkCacheService();
 
+        doReturn(store).when(pulsar).getLocalMetadataStore();
+        doReturn(store).when(pulsar).getConfigurationMetadataStore();
+
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
@@ -199,7 +202,7 @@ public class ServerCnxTest {
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
         PulsarResources pulsarResources = spy(new PulsarResources(store, store));
-        namespaceResources = spy(new NamespaceResources(store, 30));
+        namespaceResources = spy(new NamespaceResources(store, store, 30));
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
@@ -769,7 +772,7 @@ public class ServerCnxTest {
 
         // Create producer second time
         clientCommand = Commands.newSubscribe(successTopicName, //
-                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                successSubName, 2 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(clientCommand);
 
@@ -777,7 +780,7 @@ public class ServerCnxTest {
             Object response = getResponse();
             assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
             CommandError error = (CommandError) response;
-            assertEquals(error.getError(), ServerError.ServiceNotReady);
+            assertEquals(error.getError(), ServerError.ConsumerBusy);
         });
         channel.finish();
     }
@@ -1122,9 +1125,7 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandError.class);
         assertEquals(((CommandError) response).getRequestId(), 3);
 
-        while (serverCnx.hasConsumer(1)) {
-            Thread.sleep(10);
-        }
+        Awaitility.await().until(() -> !serverCnx.hasConsumer(1));
 
         ByteBuf subscribe3 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 4 /* request id */, SubType.Exclusive, 0,

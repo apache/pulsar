@@ -227,7 +227,8 @@ public abstract class NamespacesBase extends AdminResource {
         boolean isEmpty;
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
             topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
             isEmpty = topics.isEmpty();
@@ -760,15 +761,6 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
             }
             validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-        for (String clusterId : replicationClusterSet) {
-            if (!clusters.contains(clusterId)) {
-                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
-            }
-            validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-
-        for (String clusterId : replicationClusterSet) {
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{

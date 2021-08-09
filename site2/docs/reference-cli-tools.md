@@ -274,6 +274,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-c`, `--conf`|Configuration file for ZooKeeper||
+|`-server`|Configuration zk address, eg: `127.0.0.1:2181`||
 
 
 
@@ -467,6 +468,7 @@ Options
 |`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
+|`-d`, `--delay`|Mark messages with a given delay in seconds|0s|
 |`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.||
 |`--conf-file`|Configuration file||
 |`-k`, `--encryption-key-name`|The public key name to encrypt payload||
