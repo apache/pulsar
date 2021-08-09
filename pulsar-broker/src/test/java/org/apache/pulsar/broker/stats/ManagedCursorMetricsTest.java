@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
@@ -90,4 +91,66 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_nonContiguousDeletedMessagesRange"), 0L);
     }
 
+    @Test
+    public void testCursorReadWriteMetrics() throws Exception {
+        final String subName = "read-write";
+        final String topicName = "persistent://my-namespace/use/my-ns/read-write";
+        final int messageSize = 10;
+
+        ManagedCursorMetrics metrics = new ManagedCursorMetrics(pulsar);
+
+        List<Metrics> metricsList = metrics.generate();
+        Assert.assertTrue(metricsList.isEmpty());
+
+        metricsList = metrics.generate();
+        Assert.assertTrue(metricsList.isEmpty());
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .subscriptionName(subName + "-2")
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+
+        for (PulsarMockLedgerHandle ledgerHandle : mockBookKeeper.getLedgerMap().values()) {
+            ledgerHandle.close();
+        }
+
+        for (int i = 0; i < messageSize; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+            if (i % 2 == 0) {
+                consumer.acknowledge(consumer.receive().getMessageId());
+            } else {
+                consumer2.acknowledge(consumer.receive().getMessageId());
+            }
+        }
+        metricsList = metrics.generate();
+        Assert.assertEquals(metricsList.size(), 3);
+        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 26L);
+        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 13L);
+        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_readLedgerSize"), 0L);
+
+        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 26L);
+        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 13L);
+        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_readLedgerSize"), 0L);
+
+        Assert.assertEquals(metricsList.get(2).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 52L);
+        Assert.assertEquals(metricsList.get(2).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 26L);
+        Assert.assertEquals(metricsList.get(2).getMetrics().get("brk_ml_cursor_readLedgerSize"), 0L);
+    }
 }

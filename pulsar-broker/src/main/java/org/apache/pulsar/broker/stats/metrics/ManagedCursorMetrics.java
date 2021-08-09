@@ -77,6 +77,9 @@ public class ManagedCursorMetrics extends AbstractMetrics {
                 metrics.put("brk_ml_cursor_persistLedgerErrors", cStats.getPersistLedgerErrors());
                 metrics.put("brk_ml_cursor_persistZookeeperSucceed", cStats.getPersistZookeeperSucceed());
                 metrics.put("brk_ml_cursor_persistZookeeperErrors", cStats.getPersistZookeeperErrors());
+                metrics.put("brk_ml_cursor_writeLedgerSize", cStats.getWriteCursorLedgerSize());
+                metrics.put("brk_ml_cursor_writeLedgerLogicalSize", cStats.getWriteCursorLedgerLogicalSize());
+                metrics.put("brk_ml_cursor_readLedgerSize", cStats.getReadCursorLedgerSize());
                 metricsCollection.add(metrics);
             }
         }
