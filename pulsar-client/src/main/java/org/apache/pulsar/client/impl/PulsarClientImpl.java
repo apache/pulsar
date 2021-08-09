@@ -988,7 +988,7 @@ public class PulsarClientImpl implements PulsarClient {
         return new MultiVersionSchemaInfoProvider(TopicName.get(topicName), this);
     }
 
-    protected LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
+    public LoadingCache<String, SchemaInfoProvider> getSchemaProviderLoadingCache() {
         return schemaProviderLoadingCache;
     }
 

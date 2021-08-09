@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTestBase;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException;
@@ -90,9 +91,11 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         pulsarAdmins[0].tenants().createTenant("public", new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
         pulsarAdmins[0].namespaces().createNamespace(namespace, 10);
         pulsarAdmins[0].topics().createPartitionedTopic(partitionedTopicName.getPartitionedTopicName(), partitions);
+        String subName = "test";
+        pulsarAdmins[0].topics().createSubscription(partitionedTopicName.getPartitionedTopicName(), subName, MessageId.latest);
         pulsarClient.newConsumer()
                 .topic(partitionedTopicName.getPartitionedTopicName())
-                .subscriptionName("test").subscribe();
+                .subscriptionName(subName).subscribe();
         tbClient = TransactionBufferClientImpl.create(
                 ((PulsarClientImpl) pulsarClient),
                 new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));

@@ -772,7 +772,7 @@ public class ServerCnxTest {
 
         // Create producer second time
         clientCommand = Commands.newSubscribe(successTopicName, //
-                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                successSubName, 2 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(clientCommand);
 
@@ -780,7 +780,7 @@ public class ServerCnxTest {
             Object response = getResponse();
             assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
             CommandError error = (CommandError) response;
-            assertEquals(error.getError(), ServerError.ServiceNotReady);
+            assertEquals(error.getError(), ServerError.ConsumerBusy);
         });
         channel.finish();
     }

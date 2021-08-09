@@ -23,6 +23,7 @@ import logging
 from unittest import TestCase, main
 import time
 import os
+import pulsar
 import uuid
 from datetime import timedelta
 from pulsar import Client, MessageId, \
@@ -30,7 +31,7 @@ from pulsar import Client, MessageId, \
             AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition, \
             CryptoKeyReader
 
-from _pulsar import ProducerConfiguration, ConsumerConfiguration, ConnectError
+from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
 from schema_test import *
 
@@ -155,6 +156,7 @@ class PulsarTest(TestCase):
         consumer.acknowledge(msg)
         print('receive from {}'.format(msg.message_id()))
         self.assertEqual(msg_id, msg.message_id())
+        client.close()
 
     def test_producer_consumer(self):
         client = Client(self.serviceUrl)
@@ -292,7 +294,7 @@ class PulsarTest(TestCase):
                                     subscription_name='my-subscription',
                                     schema=pulsar.schema.StringSchema())
         producer = client.create_producer(topic=topic,
-                                          schema=StringSchema())
+                                          schema=pulsar.schema.StringSchema())
         producer.send('hello',
                       properties={
                           'a': '1',
@@ -319,10 +321,11 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=AuthenticationTLS(certs_dir + 'client-cert.pem', certs_dir + 'client-key.pem'))
 
-        consumer = client.subscribe('my-python-topic-tls-auth',
+        topic = 'my-python-topic-tls-auth-' + str(time.time())
+        consumer = client.subscribe(topic,
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-tls-auth')
+        producer = client.create_producer(topic)
         producer.send(b'hello')
 
         msg = consumer.receive(TM)
@@ -346,10 +349,11 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
 
-        consumer = client.subscribe('my-python-topic-tls-auth-2',
+        topic = 'my-python-topic-tls-auth-2-' + str(time.time())
+        consumer = client.subscribe(topic,
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-tls-auth-2')
+        producer = client.create_producer(topic)
         producer.send(b'hello')
 
         msg = consumer.receive(TM)
@@ -392,10 +396,11 @@ class PulsarTest(TestCase):
                         tls_allow_insecure_connection=False,
                         authentication=Authentication(authPlugin, authParams))
 
-        consumer = client.subscribe('my-python-topic-tls-auth-3',
+        topic = 'my-python-topic-tls-auth-3-' + str(time.time())
+        consumer = client.subscribe(topic,
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-tls-auth-3')
+        producer = client.create_producer(topic)
         producer.send(b'hello')
 
         msg = consumer.receive(TM)
@@ -583,6 +588,8 @@ class PulsarTest(TestCase):
             producer.send(b'hello-%d' % i)
             self.assertEqual(producer.last_sequence_id(), i)
 
+        client.close()
+
         doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
                    'false')
 
@@ -629,6 +636,8 @@ class PulsarTest(TestCase):
 
         with self.assertRaises(pulsar.Timeout):
             consumer.receive(100)
+
+        client.close()
 
         doHttpPost(self.adminUrl + '/admin/v2/namespaces/public/default/deduplication',
                    'false')
@@ -820,10 +829,11 @@ class PulsarTest(TestCase):
 
     def test_seek(self):
         client = Client(self.serviceUrl)
-        consumer = client.subscribe('my-python-topic-seek',
+        topic = 'my-python-topic-seek-' + str(time.time())
+        consumer = client.subscribe(topic,
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('my-python-topic-seek')
+        producer = client.create_producer(topic)
 
         for i in range(100):
             if i > 0:
@@ -858,7 +868,7 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b'hello-42')
 
         # repeat with reader
-        reader = client.create_reader('my-python-topic-seek', MessageId.latest)
+        reader = client.create_reader(topic, MessageId.latest)
         with self.assertRaises(pulsar.Timeout):
             reader.read_next(100)
 
@@ -1157,7 +1167,7 @@ class PulsarTest(TestCase):
         try:
             producer = client.create_producer('test_connect_timeout')
             self.fail('create_producer should not succeed')
-        except ConnectError as expected:
+        except pulsar.ConnectError as expected:
             print('expected error: {} when create producer'.format(expected))
         t2 = time.time()
         self.assertGreater(t2 - t1, 1.0)

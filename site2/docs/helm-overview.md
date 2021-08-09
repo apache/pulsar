@@ -40,7 +40,7 @@ Moreover, Helm chart supports:
     - Authorization
 - Storage
     - Non-persistence storage
-    - Persistence volume
+    - Persistent volume
     - Local persistent volumes
 - Functions
     - Kubernetes Runtime
@@ -89,11 +89,9 @@ To uninstall the Apache Pulsar Helm chart, run the following command:
 helm delete <pulsar-release-name>
 ```
 
-For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by `helm delete` command.
+For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by `helm delete` command. It is recommended to *conciously* remove these items, as they affect re-deployment.
 
-It is recommended to *conciously* remove these items, as they affect re-deployment.
-
-* PVCs for stateful data: *consciously* remove these items.
+* PVCs for stateful data: remove these items.
     - ZooKeeper: This is your metadata.
     - BookKeeper: This is your data.
     - Prometheus: This is your metrics data, which can be safely removed.
