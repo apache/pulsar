@@ -259,7 +259,7 @@ public class MetaStoreImpl implements MetaStore {
     }
 
     @Override
-    public CompletableFuture<Boolean> exists(String path) {
+    public CompletableFuture<Boolean> asyncExists(String path) {
         return store.exists(PREFIX + path);
     }
 

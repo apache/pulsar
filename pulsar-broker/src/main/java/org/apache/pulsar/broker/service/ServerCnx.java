@@ -2024,7 +2024,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             } else {
                 getBrokerService().getManagedLedgerFactory()
-                        .checkManagedLedgerInitializedBefore(TopicName.get(topic).getPersistenceNamingEncoding())
+                        .asyncExists(TopicName.get(topic).getPersistenceNamingEncoding())
                         .thenAccept((b) -> {
                             if (b) {
                                 log.error("handleEndTxnOnPartition fail ! The topic {} does not exist in broker, "
@@ -2109,7 +2109,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 });
             } else {
                 getBrokerService().getManagedLedgerFactory()
-                        .checkManagedLedgerInitializedBefore(TopicName.get(topic).getPersistenceNamingEncoding())
+                        .asyncExists(TopicName.get(topic).getPersistenceNamingEncoding())
                         .thenAccept((b) -> {
                             if (b) {
                                 log.error("handleEndTxnOnSubscription fail! The topic {} does not exist in broker, "

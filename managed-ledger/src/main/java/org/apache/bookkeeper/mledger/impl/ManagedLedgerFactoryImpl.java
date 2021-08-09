@@ -525,8 +525,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public CompletableFuture<Boolean> checkManagedLedgerInitializedBefore(String name) {
-        return store.exists(name);
+    public CompletableFuture<Boolean> asyncExists(String ledgerName) {
+        return store.asyncExists(ledgerName);
     }
 
     @Override

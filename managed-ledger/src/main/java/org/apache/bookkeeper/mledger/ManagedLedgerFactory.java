@@ -162,13 +162,13 @@ public interface ManagedLedgerFactory {
     void shutdown() throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Check managed ledger store has been initialized before.
+     * Check managed ledger has been initialized before.
      *
-     * @param name {@link String}
+     * @param ledgerName {@link String}
      * @return a future represents the result of the operation.
      *         an instance of {@link Boolean} is returned
      *         if the operation succeeds.
      */
-    CompletableFuture<Boolean> checkManagedLedgerInitializedBefore(String name);
+    CompletableFuture<Boolean> asyncExists(String ledgerName);
 
 }
