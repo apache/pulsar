@@ -74,7 +74,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -588,16 +587,14 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetDelayedDeliveryPolicies(DelayedDeliveryPolicies deliveryPolicies) {
-        TopicPolicies topicPolicies;
-        try {
-            topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-            topicPolicies.setDelayedDeliveryEnabled(deliveryPolicies == null ? null : deliveryPolicies.isActive());
-            topicPolicies.setDelayedDeliveryTickTimeMillis(
-                    deliveryPolicies == null ? null : deliveryPolicies.getTickTime());
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                    .thenCompose(op -> {
+                        TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                        topicPolicies.setDelayedDeliveryEnabled(deliveryPolicies == null ? null : deliveryPolicies.isActive());
+                        topicPolicies.setDelayedDeliveryTickTimeMillis(
+                                deliveryPolicies == null ? null : deliveryPolicies.getTickTime());
+                        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                    });
     }
 
     private CompletableFuture<Void> updatePartitionInOtherCluster(int numPartitions, Set<String> clusters) {
@@ -809,20 +806,12 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setOffloadPolicies(offloadPolicies);
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                .thenCompose((res) -> {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setOffloadPolicies(offloadPolicies);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                }).thenCompose(__ -> {
                     //The policy update is asynchronous. Cache at this step may not be updated yet.
                     //So we need to set the loader by the incoming offloadPolicies instead of topic policies cache.
                     PartitionedTopicMetadata metadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
@@ -835,30 +824,16 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         return internalUpdateOffloadPolicies(offloadPolicies, topicName);
                     }
-                })
-                .whenComplete((result, e) -> {
-                    if (e != null) {
-                        completableFuture.completeExceptionally(e);
-                    } else {
-                        completableFuture.complete(null);
-                    }
-                });
-        return completableFuture;
+            });
     }
 
     protected CompletableFuture<Void> internalSetInactiveTopicPolicies(InactiveTopicPolicies inactiveTopicPolicies) {
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init"));
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setInactiveTopicPolicies(inactiveTopicPolicies);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setInactiveTopicPolicies(inactiveTopicPolicies);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     private CompletableFuture<Void> internalUpdateOffloadPolicies(OffloadPolicies offloadPolicies, TopicName topicName) {
@@ -892,19 +867,12 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxUnackedNum must be 0 or more");
         }
-
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setMaxUnackedMessagesOnSubscription(maxUnackedNum);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMaxUnackedMessagesOnSubscription(maxUnackedNum);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnConsumer(Integer maxUnackedNum) {
@@ -912,29 +880,24 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxUnackedNum must be 0 or more");
         }
-
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init"));
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setMaxUnackedMessagesOnConsumer(maxUnackedNum);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMaxUnackedMessagesOnConsumer(maxUnackedNum);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalSetDeduplicationSnapshotInterval(Integer interval) {
         if (interval != null && interval < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "interval must be 0 or more");
         }
-        TopicPolicies policies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        policies.setDeduplicationSnapshotIntervalSeconds(interval);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, policies);
-
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies policies = op.orElseGet(TopicPolicies::new);
+                    policies.setDeduplicationSnapshotIntervalSeconds(interval);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, policies);
+                });
     }
 
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
@@ -2431,56 +2394,48 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
                                                               BacklogQuota backlogQuota) {
         validatePoliciesReadOnlyAccess();
-        TopicPolicies topicPolicies;
-        if (backlogQuotaType == null) {
-            backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage;
-        }
-        try {
-            topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
+        BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
+                ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
-        RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
-        if (!checkBacklogQuota(backlogQuota, retentionPolicies)) {
-            log.warn(
-                    "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
-                    clientAppId(), topicName);
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Backlog Quota exceeds configured retention quota for topic. "
-                            + "Please increase retention quota and retry"));
-        }
+        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
 
-        if (backlogQuota != null) {
-            topicPolicies.getBackLogQuotaMap().put(backlogQuotaType.name(), backlogQuota);
-        } else {
-            topicPolicies.getBackLogQuotaMap().remove(backlogQuotaType.name());
-        }
-        Map<String, BacklogQuota> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies).thenRun(() -> {
-            try {
-                log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}",
-                        clientAppId(),
-                        namespaceName,
-                        topicName.getLocalName(),
-                        jsonMapper().writeValueAsString(backLogQuotaMap));
-            } catch (JsonProcessingException ignore) { }
+
+            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+            RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
+            if (!checkBacklogQuota(backlogQuota, retentionPolicies)) {
+                log.warn(
+                        "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
+                        clientAppId(), topicName);
+                return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                        "Backlog Quota exceeds configured retention quota for topic. "
+                                + "Please increase retention quota and retry"));
+            }
+
+            if (backlogQuota != null) {
+                topicPolicies.getBackLogQuotaMap().put(finalBacklogQuotaType.name(), backlogQuota);
+            } else {
+                topicPolicies.getBackLogQuotaMap().remove(finalBacklogQuotaType.name());
+            }
+            Map<String, BacklogQuota> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+            return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies).thenRun(() -> {
+                try {
+                    log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}",
+                            clientAppId(),
+                            namespaceName,
+                            topicName.getLocalName(),
+                            jsonMapper().writeValueAsString(backLogQuotaMap));
+                } catch (JsonProcessingException ignore) { }
+            });
         });
     }
 
     protected CompletableFuture<Void> internalSetDeduplicationEnabled(Boolean enabled) {
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies cache have not init.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setDeduplicationEnabled(enabled);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setDeduplicationEnabled(enabled);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalSetMessageTTL(Integer ttlInSecond) {
@@ -2489,20 +2444,15 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Invalid value for message TTL"));
         }
-        TopicPolicies topicPolicies;
-        try {
-            topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-        topicPolicies.setMessageTTLInSeconds(ttlInSecond);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies).thenRun(() -> {
-            log.info("[{}] Successfully set topic message ttl: namespace={}, topic={}, ttl={}",
-                    clientAppId(),
-                    namespaceName,
-                    topicName.getLocalName(),
-                    ttlInSecond);
-        });
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMessageTTLInSeconds(ttlInSecond);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                            .thenRun(() ->
+                                    log.info("[{}] Successfully set topic message ttl: namespace={}, topic={}, ttl={}",
+                                            clientAppId(), namespaceName, topicName.getLocalName(), ttlInSecond));
+                });
     }
 
 
@@ -2520,63 +2470,73 @@ public class PersistentTopicsBase extends AdminResource {
         return retentionPolicies;
     }
 
-    protected RetentionPolicies internalGetRetention(){
-        return getTopicPolicies(topicName)
-                .map(TopicPolicies::getRetentionPolicies).orElse(new RetentionPolicies());
+    protected CompletableFuture<RetentionPolicies> internalGetRetention(){
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies).orElseGet(RetentionPolicies::new));
     }
 
     protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention) {
         if (retention == null) {
             return CompletableFuture.completedFuture(null);
         }
-        TopicPolicies topicPolicies = getTopicPolicies(topicName)
-                .orElseGet(TopicPolicies::new);
-        BacklogQuota backlogQuota =
-                    topicPolicies.getBackLogQuotaMap().get(BacklogQuota.BacklogQuotaType.destination_storage.name());
-        if (backlogQuota == null){
-            Policies policies = getNamespacePolicies(topicName.getNamespaceObject());
-            backlogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
-        }
-        if(!checkBacklogQuota(backlogQuota, retention)){
-            log.warn(
-                    "[{}] Failed to update retention quota configuration for topic {}: conflicts with retention quota",
-                    clientAppId(), topicName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "Retention Quota must exceed configured backlog quota for topic. " +
-                            "Please increase retention quota and retry");
-        }
-        topicPolicies.setRetentionPolicies(retention);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    BacklogQuota backlogQuota =
+                            topicPolicies.getBackLogQuotaMap().get(BacklogQuota.BacklogQuotaType.destination_storage.name());
+                    if (backlogQuota == null){
+                        Policies policies = getNamespacePolicies(topicName.getNamespaceObject());
+                        backlogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+                    }
+                    if(!checkBacklogQuota(backlogQuota, retention)){
+                        log.warn(
+                                "[{}] Failed to update retention quota configuration for topic {}: conflicts with retention quota",
+                                clientAppId(), topicName);
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Retention Quota must exceed configured backlog quota for topic. " +
+                                        "Please increase retention quota and retry");
+                    }
+                    topicPolicies.setRetentionPolicies(retention);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveRetention() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setRetentionPolicies(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setRetentionPolicies(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
-    protected Optional<PersistencePolicies> internalGetPersistence(){
-        return getTopicPolicies(topicName).map(TopicPolicies::getPersistence);
+    protected CompletableFuture<Optional<PersistencePolicies>> internalGetPersistence(){
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getPersistence));
     }
 
     protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies) {
         validatePersistencePolicies(persistencePolicies);
 
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        topicPolicies.setPersistence(persistencePolicies);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setPersistence(persistencePolicies);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemovePersistence() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setPersistence(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setPersistence(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
     protected CompletableFuture<Void> internalSetMaxMessageSize(Integer maxMessageSize) {
@@ -2585,18 +2545,22 @@ public class PersistentTopicsBase extends AdminResource {
                     , "topic-level maxMessageSize must be greater than or equal to 0 " +
                     "and must be smaller than that in the broker-level");
         }
-
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        topicPolicies.setMaxMessageSize(maxMessageSize);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMaxMessageSize(maxMessageSize);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
-    protected Optional<Integer> internalGetMaxMessageSize() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxMessageSize);
+    protected CompletableFuture<Optional<Integer>> internalGetMaxMessageSize() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getMaxMessageSize));
     }
 
-    protected Optional<Integer> internalGetMaxProducers() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxProducerPerTopic);
+    protected CompletableFuture<Optional<Integer>> internalGetMaxProducers() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getMaxProducerPerTopic));
     }
 
     protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers) {
@@ -2604,13 +2568,17 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxProducers must be 0 or more");
         }
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        topicPolicies.setMaxProducerPerTopic(maxProducers);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMaxProducerPerTopic(maxProducers);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
-    protected Optional<Integer> internalGetMaxSubscriptionsPerTopic() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxSubscriptionsPerTopic);
+    protected CompletableFuture<Optional<Integer>> internalGetMaxSubscriptionsPerTopic() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getMaxSubscriptionsPerTopic));
     }
 
     protected CompletableFuture<Void> internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic) {
@@ -2618,10 +2586,12 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxSubscriptionsPerTopic must be 0 or more");
         }
-
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        topicPolicies.setMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> preValidation(boolean authoritative) {
@@ -2651,16 +2621,19 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalRemoveMaxProducers() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setMaxProducerPerTopic(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setMaxProducerPerTopic(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
-    protected Optional<Integer> internalGetMaxConsumers() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxConsumerPerTopic);
+    protected CompletableFuture<Optional<Integer>> internalGetMaxConsumers() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getMaxConsumerPerTopic));
     }
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumers) {
@@ -2668,19 +2641,23 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxConsumers must be 0 or more");
         }
-
-        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
-        topicPolicies.setMaxConsumerPerTopic(maxConsumers);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMaxConsumerPerTopic(maxConsumers);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveMaxConsumers() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setMaxConsumerPerTopic(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setMaxConsumerPerTopic(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
     protected MessageId internalTerminate(boolean authoritative) {
@@ -3478,104 +3455,122 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected Optional<DispatchRate> internalGetDispatchRate() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getDispatchRate);
+    protected CompletableFuture<Optional<DispatchRate>> internalGetDispatchRate() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getDispatchRate));
     }
 
     protected CompletableFuture<Void> internalSetDispatchRate(DispatchRate dispatchRate) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
-        TopicPolicies topicPolicies = getTopicPolicies(topicName)
-            .orElseGet(TopicPolicies::new);
-        topicPolicies.setDispatchRate(dispatchRate);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setDispatchRate(dispatchRate);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveDispatchRate() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setDispatchRate(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
-
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setDispatchRate(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
-    protected Optional<DispatchRate> internalGetSubscriptionDispatchRate() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getSubscriptionDispatchRate);
+    protected CompletableFuture<Optional<DispatchRate>> internalGetSubscriptionDispatchRate() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getSubscriptionDispatchRate));
     }
 
     protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
         if (dispatchRate == null) {
             return CompletableFuture.completedFuture(null);
         }
-        TopicPolicies topicPolicies = getTopicPolicies(topicName)
-            .orElseGet(TopicPolicies::new);
-        topicPolicies.setSubscriptionDispatchRate(dispatchRate);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setSubscriptionDispatchRate(dispatchRate);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveSubscriptionDispatchRate() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setSubscriptionDispatchRate(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setSubscriptionDispatchRate(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
 
-    protected Optional<Integer> internalGetMaxConsumersPerSubscription() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getMaxConsumersPerSubscription);
+    protected CompletableFuture<Optional<Integer>> internalGetMaxConsumersPerSubscription() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getMaxConsumersPerSubscription));
     }
 
     protected CompletableFuture<Void> internalSetMaxConsumersPerSubscription(Integer maxConsumersPerSubscription) {
         if (maxConsumersPerSubscription != null && maxConsumersPerSubscription < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for maxConsumersPerSubscription");
         }
-
-        TopicPolicies topicPolicies = getTopicPolicies(topicName)
-                .orElseGet(TopicPolicies::new);
-        topicPolicies.setMaxConsumersPerSubscription(maxConsumersPerSubscription);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setMaxConsumersPerSubscription(maxConsumersPerSubscription);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveMaxConsumersPerSubscription() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setMaxConsumersPerSubscription(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setMaxConsumersPerSubscription(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
-    protected Optional<Long> internalGetCompactionThreshold() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getCompactionThreshold);
+    protected CompletableFuture<Optional<Long>> internalGetCompactionThreshold() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getCompactionThreshold));
     }
 
     protected CompletableFuture<Void> internalSetCompactionThreshold(Long compactionThreshold) {
         if (compactionThreshold != null && compactionThreshold < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for compactionThreshold");
         }
-
-        TopicPolicies topicPolicies = getTopicPolicies(topicName)
-            .orElseGet(TopicPolicies::new);
-        topicPolicies.setCompactionThreshold(compactionThreshold);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setCompactionThreshold(compactionThreshold);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveCompactionThreshold() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-          return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setCompactionThreshold(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setCompactionThreshold(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
-    protected Optional<PublishRate> internalGetPublishRate() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getPublishRate);
+    protected CompletableFuture<Optional<PublishRate>> internalGetPublishRate() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getPublishRate));
 
     }
 
@@ -3583,42 +3578,51 @@ public class PersistentTopicsBase extends AdminResource {
         if (publishRate == null) {
             return CompletableFuture.completedFuture(null);
         }
-        TopicPolicies topicPolicies = getTopicPolicies(topicName)
-            .orElseGet(TopicPolicies::new);
-        topicPolicies.setPublishRate(publishRate);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setPublishRate(publishRate);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemovePublishRate() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setPublishRate(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setPublishRate(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
-    protected Optional<SubscribeRate> internalGetSubscribeRate() {
-        return getTopicPolicies(topicName).map(TopicPolicies::getSubscribeRate);
+    protected CompletableFuture<Optional<SubscribeRate>> internalGetSubscribeRate() {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getSubscribeRate));
     }
 
     protected CompletableFuture<Void> internalSetSubscribeRate(SubscribeRate subscribeRate) {
         if (subscribeRate == null) {
             return CompletableFuture.completedFuture(null);
         }
-        TopicPolicies topicPolicies = getTopicPolicies(topicName)
-                .orElseGet(TopicPolicies::new);
-        topicPolicies.setSubscribeRate(subscribeRate);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setSubscribeRate(subscribeRate);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveSubscribeRate() {
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
-        if (!topicPolicies.isPresent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        topicPolicies.get().setSubscribeRate(null);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    if (!op.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    op.get().setSubscribeRate(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                });
     }
 
     protected void handleTopicPolicyException(String methodName, Throwable thr, AsyncResponse asyncResponse) {
