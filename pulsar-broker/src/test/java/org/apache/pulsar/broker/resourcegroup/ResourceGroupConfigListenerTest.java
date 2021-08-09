@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import com.google.common.collect.Sets;
 import java.util.Random;
+import java.util.UUID;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -32,22 +33,39 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest {
-
-    ResourceGroup testAddRg = new ResourceGroup();
-    final String rgName = "testRG";
+    ResourceGroup testAddRg;
+    String rgName;
     final int MAX_RGS = 10;
-    final String tenantName = "test-tenant";
-    final String namespaceName = "test-tenant/test-namespace";
-    final String clusterName = "test";
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        prepareData();
+        createCluster();
+    }
+
+    private void createCluster() throws PulsarAdminException {
+        if (!admin.clusters().getClusters().contains(configClusterName)) {
+            admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
+        }
+    }
+
+    @BeforeMethod
+    public void createUniqueResourceGroupName() {
+        rgName = "testRG" + UUID.randomUUID();
+    }
+
+    @BeforeMethod
+    public void createResourceGroupObject() {
+        testAddRg = new ResourceGroup();
+        testAddRg.setPublishRateInBytes(10000);
+        testAddRg.setPublishRateInMsgs(100);
+        testAddRg.setDispatchRateInMsgs(20000);
+        testAddRg.setDispatchRateInBytes(200);
     }
 
     @AfterClass(alwaysRun = true)
@@ -75,7 +93,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     }
 
     public void updateResourceGroup(String rgName, ResourceGroup rg) throws PulsarAdminException {
-        testAddRg.setPublishRateInMsgs(200000);
+        rg.setPublishRateInMsgs(200000);
         admin.resourcegroups().updateResourceGroup(rgName, rg);
         Awaitility.await().untilAsserted(() -> {
             final org.apache.pulsar.broker.resourcegroup.ResourceGroup resourceGroup = pulsar
@@ -115,13 +133,18 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     @Test
     public void testResourceGroupAttachToNamespace() throws Exception {
         createResourceGroup(rgName, testAddRg);
+
+        final String tenantName = "test-tenant" + UUID.randomUUID();
+        final String namespaceName = tenantName + "/test-namespace";
+
         admin.tenants().createTenant(tenantName,
-                new TenantInfoImpl(Sets.newHashSet("fake-admin-role"), Sets.newHashSet(clusterName)));
+                new TenantInfoImpl(Sets.newHashSet("fake-admin-role"), Sets.newHashSet(configClusterName)));
         admin.namespaces().createNamespace(namespaceName);
 
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
+            assertEquals(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)
+                    .resourceGroupName, rgName));
 
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
         Awaitility.await().untilAsserted(() ->
@@ -164,15 +187,5 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
                 assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName));
             }
         });
-    }
-
-    private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-
-        testAddRg.setPublishRateInBytes(10000);
-        testAddRg.setPublishRateInMsgs(100);
-        testAddRg.setDispatchRateInMsgs(20000);
-        testAddRg.setDispatchRateInBytes(200);
-
     }
 }
