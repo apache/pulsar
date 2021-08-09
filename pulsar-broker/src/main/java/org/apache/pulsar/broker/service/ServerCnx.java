@@ -2032,10 +2032,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         txnID, TxnAction.valueOf(txnAction));
                                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
                                         ServerError.ServiceNotReady,
-                                        "The topic " + topic + " is not exist in broker.",
+                                        "The topic " + topic + " does not exist in broker.",
                                         txnID.getMostSigBits(), txnID.getLeastSigBits()));
                             } else {
-                                log.warn("handleEndTxnOnPartition fail ! The topic {} have not been created, "
+                                log.warn("handleEndTxnOnPartition fail ! The topic {} has not been created, "
                                                 + "txnId: [{}], txnAction: [{}]",
                                         topic, txnID, TxnAction.valueOf(txnAction));
                                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
@@ -2084,7 +2084,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 Subscription subscription = optionalTopic.get().getSubscription(subName);
                 if (subscription == null) {
                     log.warn("handleEndTxnOnSubscription fail! "
-                                    + "topic {} subscription {} is not exist. txnId: [{}], txnAction: [{}]",
+                                    + "topic {} subscription {} does not exist. txnId: [{}], txnAction: [{}]",
                             optionalTopic.get().getName(), subName, txnID, TxnAction.valueOf(txnAction));
                     ctx.writeAndFlush(
                             Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
@@ -2118,9 +2118,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                                         requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
                                         ServerError.ServiceNotReady,
-                                        "The topic " + topic + " is not exist in broker."));
+                                        "The topic " + topic + " does not exist in broker."));
                             } else {
-                                log.warn("handleEndTxnOnSubscription fail ! The topic {} have not been created, "
+                                log.warn("handleEndTxnOnSubscription fail ! The topic {} has not been created, "
                                                 + "subscription: {} txnId: [{}], txnAction: [{}]",
                                         topic, subName, txnID, TxnAction.valueOf(txnAction));
                                 ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(requestId,
