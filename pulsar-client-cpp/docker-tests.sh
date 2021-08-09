@@ -65,7 +65,7 @@ DISABLE_COLOR_OUTPUT=""
 if [ "$GTEST_COLOR" = "no" ]; then
   DISABLE_COLOR_OUTPUT="| cat"
 fi
-$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
+$DOCKER_CMD bash -c "set -o pipefail; cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
 RES=$?
 if [ $RES -ne 0 ]; then
   (
