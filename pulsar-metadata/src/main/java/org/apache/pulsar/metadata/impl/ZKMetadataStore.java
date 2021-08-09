@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.util.ZkUtils;
@@ -85,12 +86,14 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @VisibleForTesting
+    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc) {
         this.metadataURL = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
         this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+        zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
     }
 
     @Override

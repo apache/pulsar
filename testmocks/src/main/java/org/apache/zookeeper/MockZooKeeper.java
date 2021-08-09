@@ -949,6 +949,22 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
+    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object ctx) {
+        if (stopped) {
+            cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), basePath, ctx);
+            return;
+        }
+
+        executor.execute(() -> {
+            synchronized (MockZooKeeper.this) {
+                persistentWatchers.add(new PersistentWatcher(basePath, watcher, mode));
+            }
+
+            cb.processResult(KeeperException.Code.OK.intValue(), basePath, ctx);
+        });
+    }
+
+    @Override
     public void close() throws InterruptedException {
     }
 
@@ -1033,7 +1049,7 @@ public class MockZooKeeper extends ZooKeeper {
     private void triggerPersistentWatches(String path, String parent, EventType eventType) {
         persistentWatchers.forEach(w -> {
             if (w.mode == AddWatchMode.PERSISTENT_RECURSIVE) {
-                if (w.getPath().startsWith(path)) {
+                if (path.startsWith(w.getPath())) {
                     w.watcher.process(new WatchedEvent(eventType, KeeperState.SyncConnected, path));
                 }
             } else if (w.mode == AddWatchMode.PERSISTENT) {
