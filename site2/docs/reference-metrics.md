@@ -169,7 +169,7 @@ All the replication metrics are also labelled with `remoteCluster=${pulsar_remot
 | pulsar_replication_rate_expired | Gauge | Total rate of messages expired (messages/second). |
 | pulsar_replication_connected_count | Gauge | The count of replication-subscriber up and running to replicate to remote cluster. |
 | pulsar_replication_delay_in_seconds | Gauge | Time in seconds from the time a message was produced to the time when it is about to be replicated. |
-~~~~
+
 
 ### Topic metrics
 
