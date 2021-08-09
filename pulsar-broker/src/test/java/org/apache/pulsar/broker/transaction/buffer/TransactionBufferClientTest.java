@@ -318,7 +318,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         tbClient.abortTxnOnSubscription(topic + "_commit_topic", sub, 1L, 1L, -1L).get();
     }
 
-    public void waitPendingAckInit(String topic, String sub) throws Exception {
+    private void waitPendingAckInit(String topic, String sub) throws Exception {
 
         boolean exist = false;
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
