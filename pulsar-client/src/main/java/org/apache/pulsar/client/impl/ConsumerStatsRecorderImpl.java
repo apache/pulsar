@@ -111,7 +111,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     private void init(ConsumerConfigurationData<?> conf) {
         ObjectMapper m = new ObjectMapper();
         m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        ObjectWriter w = m.writerWithDefaultPrettyPrinter();
+        ObjectWriter w = m.writer();
 
         try {
             log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
