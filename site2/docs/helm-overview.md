@@ -4,7 +4,7 @@ title: Apache Pulsar Helm Chart
 sidebar_label: Overview
 ---
 
-This is the official supported Helm chart to install Apache Pulsar on a cloud-native environment. It was enhanced based on StreamNative's [Helm Chart](https://github.com/streamnative/charts).
+This is the official supported Helm chart to install Apache Pulsar on a cloud-native environment. It was enhanced based on [StreamNative's Helm Chart](https://github.com/streamnative/charts).
 
 ## Introduction
 
@@ -40,7 +40,7 @@ It includes support for:
     - Authorization
 - Storage
     - Non-persistence storage
-    - Persistence volume
+    - Persistent volume
     - Local persistent volumes
 - Functions
     - Kubernetes Runtime
@@ -53,7 +53,7 @@ It includes support for:
 
 To get up and run with these charts as fast as possible, in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
 
-This guide walks the user through deploying these charts with default values and features, but *does not* meet production ready requirements. To deploy these charts into production under sustained load, follow the complete [Installation Guide](helm-install.md).
+This guide walks you through deploying these charts with default values and features; the default settings do not meet the production ready requirements. To deploy these charts into production under sustained load, follow the [installation guide](helm-install.md).
 
 ## Troubleshooting
 
@@ -90,9 +90,9 @@ helm delete <pulsar-release-name>
 ```
 
 For the purposes of continuity, these charts have some Kubernetes objects that cannot be removed when performing `helm delete`.
-It is recommended to *conciously* remove these items, as they affect re-deployment.
+It is recommended to remove these items, as they affect re-deployment.
 
-* PVCs for stateful data: *consciously* remove these items.
+* PVCs for stateful data: remove these items.
     - ZooKeeper: This is your metadata.
     - BookKeeper: This is your data.
     - Prometheus: This is your metrics data, which can be safely removed.
