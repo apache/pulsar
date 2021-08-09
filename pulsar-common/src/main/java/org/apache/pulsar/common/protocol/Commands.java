@@ -1314,10 +1314,13 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newEndTxnOnPartitionResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newEndTxnOnPartitionResponse(long requestId, ServerError error, String errorMsg,
+                                                       long txnIdLeastBits, long txnIdMostBits) {
         BaseCommand cmd = localCmd(Type.END_TXN_ON_PARTITION_RESPONSE);
         CommandEndTxnOnPartitionResponse response = cmd.setEndTxnOnPartitionResponse()
                 .setRequestId(requestId)
+                .setTxnidMostBits(txnIdMostBits)
+                .setTxnidLeastBits(txnIdLeastBits)
                 .setError(error);
         if (errorMsg != null) {
             response.setMessage(errorMsg);

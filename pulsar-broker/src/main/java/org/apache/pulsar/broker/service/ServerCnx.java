@@ -1981,43 +1981,68 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String topic = command.getTopic();
         final int txnAction = command.getTxnAction().getValue();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final long lowWaterMark = command.getTxnidLeastBitsOfLowWatermark();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] handleEndTxnOnPartition txnId: [{}], txnAction: [{}]", topic,
                     txnID, txnAction);
         }
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopics().get(TopicName.get(topic).toString());
-        if (topicFuture != null) {
-            topicFuture.whenComplete((optionalTopic, t) -> {
-                if (!optionalTopic.isPresent()) {
-                    log.error("handleEndTxnOnPartition fail ! The topic {} does not exist in broker, "
-                            + "txnId: [{}], txnAction: [{}]", topic, txnID, TxnAction.valueOf(txnAction));
-                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                            requestId, ServerError.ServiceNotReady,
-                            "Topic " + topic + " is not found."));
-                    return;
-                }
-                optionalTopic.get().endTxn(txnID, txnAction, command.getTxnidLeastBitsOfLowWatermark())
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
+        topicFuture.thenAccept(optionalTopic -> {
+            if (optionalTopic.isPresent()) {
+                optionalTopic.get().endTxn(txnID, txnAction, lowWaterMark)
                         .whenComplete((ignored, throwable) -> {
                             if (throwable != null) {
-                                log.error("Handle endTxnOnPartition {} failed.", topic, throwable);
+                                log.error("handleEndTxnOnPartition fail!, topic {}, txnId: [{}], "
+                                        + "txnAction: [{}]", topic, txnID, TxnAction.valueOf(txnAction), throwable);
                                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
                                         requestId, BrokerServiceException.getClientErrorCode(throwable),
-                                        throwable.getMessage()));
+                                        throwable.getMessage(),
+                                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
                                 return;
                             }
                             ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
                                     txnID.getLeastSigBits(), txnID.getMostSigBits()));
                         });
-            });
-        } else {
-            log.error("handleEndTxnOnPartition faile ! The topic {} does not exist in broker, "
-                    + "txnId: [{}], txnAction: [{}]", topic, txnID, TxnAction.valueOf(txnAction));
-            ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                    requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
-                    ServerError.ServiceNotReady,
-                    "The topic " + topic + " is not exist in broker."));
-        }
+
+            } else {
+                getBrokerService().getManagedLedgerFactory()
+                        .asyncExists(TopicName.get(topic).getPersistenceNamingEncoding())
+                        .thenAccept((b) -> {
+                            if (b) {
+                                log.error("handleEndTxnOnPartition fail ! The topic {} does not exist in broker, "
+                                                + "txnId: [{}], txnAction: [{}]", topic,
+                                        txnID, TxnAction.valueOf(txnAction));
+                                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                                        ServerError.ServiceNotReady,
+                                        "The topic " + topic + " does not exist in broker.",
+                                        txnID.getMostSigBits(), txnID.getLeastSigBits()));
+                            } else {
+                                log.warn("handleEndTxnOnPartition fail ! The topic {} has not been created, "
+                                                + "txnId: [{}], txnAction: [{}]",
+                                        topic, txnID, TxnAction.valueOf(txnAction));
+                                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                            }
+                        }).exceptionally(e -> {
+                    log.error("handleEndTxnOnPartition fail ! topic {} , "
+                                    + "txnId: [{}], txnAction: [{}]", topic, txnID,
+                            TxnAction.valueOf(txnAction), e.getCause());
+                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                            requestId, ServerError.ServiceNotReady,
+                            e.getMessage(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                    return null;
+                });
+            }
+        }).exceptionally(e -> {
+            log.error("handleEndTxnOnPartition fail ! topic {} , "
+                            + "txnId: [{}], txnAction: [{}]", topic, txnID,
+                    TxnAction.valueOf(txnAction), e.getCause());
+            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                    requestId, ServerError.ServiceNotReady,
+                    e.getMessage(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
+            return null;
+        });
     }
 
     @Override
@@ -2028,70 +2053,82 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String topic = command.getSubscription().getTopic();
         final String subName = command.getSubscription().getSubscription();
         final int txnAction = command.getTxnAction().getValue();
+        final TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+        final long lowWaterMark = command.getTxnidLeastBitsOfLowWatermark();
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] handleEndTxnOnSubscription txnId: [{}], txnAction: [{}]", topic,
+            log.debug("[{}] [{}] handleEndTxnOnSubscription txnId: [{}], txnAction: [{}]", topic, subName,
                     new TxnID(txnidMostBits, txnidLeastBits), txnAction);
         }
 
-        CompletableFuture<Optional<Topic>> topicFuture = service.getTopics().get(TopicName.get(topic).toString());
-        if (topicFuture != null) {
-            topicFuture.thenAccept(optionalTopic -> {
-
-                if (!optionalTopic.isPresent()) {
-                    log.error("handleEndTxnOnSubscription fail! The topic {} does not exist in broker, txnId: "
-                                    + "[{}], txnAction: [{}]", topic,
-                            new TxnID(txnidMostBits, txnidLeastBits), TxnAction.valueOf(txnAction));
-                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                            requestId, txnidLeastBits, txnidMostBits,
-                            ServerError.ServiceNotReady,
-                            "The topic " + topic + " is not exist in broker."));
-                    return;
-                }
-
+        CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
+        topicFuture.thenAccept(optionalTopic -> {
+            if (optionalTopic.isPresent()) {
                 Subscription subscription = optionalTopic.get().getSubscription(subName);
                 if (subscription == null) {
-                    log.error("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
-                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                            requestId, txnidLeastBits, txnidMostBits,
-                            ServerError.ServiceNotReady,
-                            "Topic " + optionalTopic.get().getName()
-                                    + " subscription " + subName + " is not exist."));
+                    log.warn("handleEndTxnOnSubscription fail! "
+                                    + "topic {} subscription {} does not exist. txnId: [{}], txnAction: [{}]",
+                            optionalTopic.get().getName(), subName, txnID, TxnAction.valueOf(txnAction));
+                    ctx.writeAndFlush(
+                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                     return;
                 }
 
                 CompletableFuture<Void> completableFuture =
-                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction,
-                                command.getTxnidLeastBitsOfLowWatermark());
-                completableFuture.whenComplete((ignored, throwable) -> {
-                    if (throwable != null) {
-                        log.error("Handle end txn on subscription failed for request {}", requestId, throwable);
+                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction, lowWaterMark);
+                completableFuture.whenComplete((ignored, e) -> {
+                    if (e != null) {
+                        log.error("handleEndTxnOnSubscription fail ! topic: {} , subscription: {}"
+                                        + "txnId: [{}], txnAction: [{}]", topic, subName,
+                                txnID, TxnAction.valueOf(txnAction), e.getCause());
                         ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                                 requestId, txnidLeastBits, txnidMostBits,
-                                BrokerServiceException.getClientErrorCode(throwable),
+                                BrokerServiceException.getClientErrorCode(e),
                                 "Handle end txn on subscription failed."));
                         return;
                     }
                     ctx.writeAndFlush(
                             Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                 });
-            }).exceptionally(e -> {
-                log.error("Handle end txn on subscription failed for request {}", requestId, e);
-                ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                        requestId, txnidLeastBits, txnidMostBits,
-                        ServerError.ServiceNotReady,
-                        "Handle end txn on subscription failed."));
-                return null;
-            });
-        } else {
-            log.error("handleEndTxnOnSubscription fail! The topic {} does not exist in broker, txnId: "
-                    + "[{}], txnAction: [{}]", topic,
-                    new TxnID(txnidMostBits, txnidLeastBits), TxnAction.valueOf(txnAction));
+            } else {
+                getBrokerService().getManagedLedgerFactory()
+                        .asyncExists(TopicName.get(topic).getPersistenceNamingEncoding())
+                        .thenAccept((b) -> {
+                            if (b) {
+                                log.error("handleEndTxnOnSubscription fail! The topic {} does not exist in broker, "
+                                                + "subscription: {} ,txnId: [{}], txnAction: [{}]", topic, subName,
+                                        new TxnID(txnidMostBits, txnidLeastBits), TxnAction.valueOf(txnAction));
+                                ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                        requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                                        ServerError.ServiceNotReady,
+                                        "The topic " + topic + " does not exist in broker."));
+                            } else {
+                                log.warn("handleEndTxnOnSubscription fail ! The topic {} has not been created, "
+                                                + "subscription: {} txnId: [{}], txnAction: [{}]",
+                                        topic, subName, txnID, TxnAction.valueOf(txnAction));
+                                ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(requestId,
+                                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                            }
+                        }).exceptionally(e -> {
+                    log.error("handleEndTxnOnSubscription fail ! topic {} , subscription: {}"
+                                    + "txnId: [{}], txnAction: [{}]", topic, subName,
+                            txnID, TxnAction.valueOf(txnAction), e.getCause());
+                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                            ServerError.ServiceNotReady, e.getMessage()));
+                    return null;
+                });
+            }
+        }).exceptionally(e -> {
+            log.error("handleEndTxnOnSubscription fail ! topic: {} , subscription: {}"
+                            + "txnId: [{}], txnAction: [{}]", topic, subName,
+                    txnID, TxnAction.valueOf(txnAction), e.getCause());
             ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                     requestId, txnidLeastBits, txnidMostBits,
                     ServerError.ServiceNotReady,
-                    "The topic " + topic + " is not exist in broker."));
-        }
+                    "Handle end txn on subscription failed."));
+            return null;
+        });
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
