@@ -51,9 +51,9 @@ Moreover, Helm chart supports:
 
 ## Quick start
 
-To run with Apache Pulsar Helm charts as fast as possible in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
+To run with Apache Pulsar Helm chart as fast as possible in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
 
-This guide walks you through deploying Helm charts with default values and features, but it is *not* suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete [Installation Guide](helm-install.md).
+This guide walks you through deploying Apache Pulsar Helm chart with default values and features, but it is *not* suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete [Installation Guide](helm-install.md).
 
 ## Troubleshooting
 
@@ -70,7 +70,7 @@ If you deploy a PoC for testing, we strongly suggest you follow this [Quick Star
 
 ## Upgrading
 
-Once the Pulsar Helm chart is installed, you can use `helm upgrade` command to configure and update it.
+Once the Apache Pulsar Helm chart is installed, you can use `helm upgrade` command to configure and update it.
 
 ```bash
 helm repo add apache https://pulsar.apache.org/charts
@@ -83,7 +83,7 @@ For more detailed information, see [Upgrading](helm-upgrade.md).
 
 ## Uninstallation
 
-To uninstall the Pulsar Helm chart, run the following command:
+To uninstall the Apache Pulsar Helm chart, run the following command:
 
 ```bash
 helm delete <pulsar-release-name>
