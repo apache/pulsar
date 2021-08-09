@@ -30,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
-import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -46,7 +45,6 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.zookeeper.AddWatchMode;
-import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -69,7 +67,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             this.metadataURL = metadataURL;
             this.metadataStoreConfig = metadataStoreConfig;
             isZkManaged = true;
-            zkc = ZooKeeperClient.newBuilder().connectString(metadataURL)
+            zkc = PulsarZooKeeperClient.newBuilder().connectString(metadataURL)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
@@ -108,8 +106,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                             sessionWatcher.setSessionInvalid();
                             // On the reconnectable client, mark the session as expired to trigger a new reconnect and 
                             // we will have the chance to set the watch again.
-                            if (zkc instanceof ZooKeeperClient) {
-                                ((ZooKeeperClient) zkc).process(
+                            if (zkc instanceof PulsarZooKeeperClient) {
+                                ((PulsarZooKeeperClient) zkc).process(
                                         new WatchedEvent(Watcher.Event.EventType.None,
                                                 Watcher.Event.KeeperState.Expired,
                                                 null));
@@ -356,13 +354,14 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
 
         String parent = parent(path);
+        Notification childrenChangedNotification = null;
 
         NotificationType type;
         switch (event.getType()) {
         case NodeCreated:
             type = NotificationType.Created;
             if (parent != null) {
-                receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+                childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
             }
             break;
 
@@ -377,7 +376,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         case NodeDeleted:
             type = NotificationType.Deleted;
             if (parent != null) {
-                receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+                childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
             }
             break;
 
@@ -386,6 +385,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
 
         receivedNotification(new Notification(type, event.getPath()));
+        if (childrenChangedNotification != null) {
+            receivedNotification(childrenChangedNotification);
+        }
     }
 
     private static CreateMode getCreateMode(EnumSet<CreateOption> options) {
@@ -418,7 +420,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         if (chrootIndex > 0) {
             String chrootPath = metadataURL.substring(chrootIndex);
             String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex);
-            try (ZooKeeper chrootZk = ZooKeeperClient.newBuilder()
+            try (ZooKeeper chrootZk = PulsarZooKeeperClient.newBuilder()
                     .connectString(zkConnectForChrootCreation)
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .connectRetryPolicy(
