@@ -115,6 +115,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -759,14 +760,16 @@ public class ServerCnxTest {
 
         // Create producer second time
         clientCommand = Commands.newSubscribe(successTopicName, //
-                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                successSubName, 2 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(clientCommand);
 
-        Object response = getResponse();
-        assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
-        CommandError error = (CommandError) response;
-        assertEquals(error.getError(), ServerError.ServiceNotReady);
+        Awaitility.await().untilAsserted(() -> {
+            Object response = getResponse();
+            assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
+            CommandError error = (CommandError) response;
+            assertEquals(error.getError(), ServerError.ConsumerBusy);
+        });
         channel.finish();
     }
 
