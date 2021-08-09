@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +49,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedExc
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
@@ -372,6 +374,21 @@ public abstract class AbstractTopic implements Topic {
         String id = TopicName.get(base).getSchemaName();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
         return schemaRegistryService.getSchema(id)
+                .exceptionally(t -> {
+                    if (t.getCause() != null
+                            && (t.getCause() instanceof SchemaException)
+                            && !((SchemaException) t.getCause()).isRecoverable()) {
+                        // Meeting NoSuchLedgerExistsException or NoSuchEntryException when reading schemas in
+                        // bookkeeper. This also means that the data has already been deleted by other operations
+                        // in deleting schema.
+                        if (log.isDebugEnabled()) {
+                            log.debug("Schema:{}'s data in bookkeeper may be deleted by other operations", id);
+                        }
+                        return null;
+                    }
+                    // rethrow other cases
+                    throw t instanceof CompletionException ? (CompletionException) t : new CompletionException(t);
+                })
                 .thenCompose(schema -> {
                     if (schema != null) {
                         // It's different from `SchemasResource.deleteSchema`

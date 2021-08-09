@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -58,6 +59,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,7 +176,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public CompletableFuture<SchemaVersion> delete(String key, boolean forcefully) {
-        return deleteSchema(key, forcefully).thenApply(LongSchemaVersion::new);
+        return deleteSchema(key, forcefully).thenApply(version -> {
+            if (version == null) {
+                return null;
+            }
+            return new LongSchemaVersion(version);
+        });
     }
 
     @Override
@@ -370,7 +377,21 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NotNull
     private CompletableFuture<Long> deleteSchema(String schemaId, boolean forceFully) {
-        return (forceFully ? CompletableFuture.completedFuture(null) : getSchema(schemaId))
+        return (forceFully ? CompletableFuture.completedFuture(null) : getSchema(schemaId).exceptionally(t -> {
+            if (t.getCause() != null
+                    && (t.getCause() instanceof SchemaException)
+                    && !((SchemaException) t.getCause()).isRecoverable()) {
+                // Meeting NoSuchLedgerExistsException or NoSuchEntryException when reading schemas in
+                // bookkeeper. This also means that the data has already been deleted by other operations
+                // in deleting schema.
+                if (log.isDebugEnabled()) {
+                    log.debug("Schema:{}'s data in bookkeeper may be deleted by other operations", schemaId);
+                }
+                return null;
+            }
+            // rethrow other cases
+            throw t instanceof CompletionException ? (CompletionException) t : new CompletionException(t);
+        }))
                 .thenCompose(schemaAndVersion -> {
             if (!forceFully && isNull(schemaAndVersion)) {
                 return completedFuture(null);
@@ -405,9 +426,20 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                             store.delete(path, Optional.empty())
                                     .thenRun(() -> {
                                         future.complete(version);
-                                    }).exceptionally(ex1 -> {
-                                future.completeExceptionally(ex1);
-                                return null;
+                                    }).exceptionally(zkException -> {
+                                        if (zkException.getCause()
+                                                instanceof MetadataStoreException.NotFoundException) {
+                                            // The znode has been deleted by others.
+                                            // In some cases, the program may enter this logic.
+                                            // Since the znode is gone, we don’t need to deal with it.
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("No node for schema path: {}", path);
+                                            }
+                                            future.complete(null);
+                                        } else {
+                                            future.completeExceptionally(zkException);
+                                        }
+                                        return null;
                             });
                         });
                     }
