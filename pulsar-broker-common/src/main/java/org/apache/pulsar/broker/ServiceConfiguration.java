@@ -1008,7 +1008,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable exposing broker entry metadata to client.")
-    private boolean enableExposingBrokerEntryMetadataToClient = false;
+    private boolean exposingBrokerEntryMetadataToClientEnabled = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,

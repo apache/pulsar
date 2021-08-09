@@ -59,7 +59,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
                 "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
                 ));
-        conf.setEnableExposingBrokerEntryMetadataToClient(true);
+        conf.setExposingBrokerEntryMetadataToClientEnabled(true);
         baseSetup();
     }
 
