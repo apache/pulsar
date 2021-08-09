@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -159,5 +160,15 @@ public interface ManagedLedgerFactory {
      * @throws ManagedLedgerException
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Check managed ledger has been initialized before.
+     *
+     * @param ledgerName {@link String}
+     * @return a future represents the result of the operation.
+     *         an instance of {@link Boolean} is returned
+     *         if the operation succeeds.
+     */
+    CompletableFuture<Boolean> asyncExists(String ledgerName);
 
 }
