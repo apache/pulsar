@@ -74,6 +74,7 @@ import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -84,6 +85,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -123,6 +125,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
@@ -145,6 +148,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
@@ -1255,6 +1259,17 @@ public class BrokerService implements Closeable {
                                             topics.remove(topic, topicFuture);
                                         });
                                     } else {
+                                        ManagedLedgerImpl managedLedger =
+                                                (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+                                        LedgerEntry ledgerEntry = managedLedger.getLastEntry();
+                                        if (ledgerEntry != null) {
+                                            long i = ledgerEntry.getEntryId();
+                                            long i1 = ledgerEntry.getLength();
+                                            BrokerEntryMetadata entryMetadata = Commands.
+                                                    parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
+                                            persistentTopic.incrementPublishCount((int) entryMetadata.getIndex() + 1,
+                                                    persistentTopic.getBytesInCounter());
+                                        }
                                         addTopicToStatsMaps(topicName, persistentTopic);
                                         topicFuture.complete(Optional.of(persistentTopic));
                                     }

@@ -66,15 +66,19 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -91,11 +95,13 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -110,6 +116,10 @@ public class BrokerServiceTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setBrokerEntryMetadataInterceptors(org.assertj.core.util.Sets.newTreeSet(
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
+                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
+        ));
         super.baseSetup();
     }
 
@@ -1274,5 +1284,170 @@ public class BrokerServiceTest extends BrokerTestBase {
             assertNotNull(producer);
             getStatsThread.join();
         }
+    }
+
+
+    @DataProvider(name = "containerBuilder")
+    public Object[][] containerBuilderProvider() {
+        return new Object[][] {
+                { BatcherBuilder.DEFAULT },
+                { BatcherBuilder.KEY_BASED }
+        };
+    }
+
+    @Test
+    public void testPersistentOwnershipChange() throws Exception{
+        resetState();
+        final String topicName = "persistent://prop/ns-abc/reloadTopic";
+        TopicStats  stats;
+        int numMsgsInBatch = 5;
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
+        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        //TopicName topicName1 = TopicName.get(topicName);
+        //assertNotNull(pulsar.getNamespaceService().getBundle(TopicName.get(topicName)));
+
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef);
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats(false, false);
+
+        //msgInCounter stats
+        assertEquals(stats.getMsgInCounter(), 0);
+
+        CompletableFuture<MessageId> messageIdCompletableFuture = new CompletableFuture<>();
+        for (int i = 0; i < 11; i++){
+            String message = "my-message-" + i;
+            //producer.sendAsync(),batch_size
+            messageIdCompletableFuture = producer.sendAsync(message.getBytes());
+        }
+
+        messageIdCompletableFuture.thenAccept(t->{
+            rolloverPerIntervalStats();
+            TopicStats stats2 = topicRef.getStats(false, false);
+
+            //msgInCounter stats
+            assertEquals(stats2.getMsgInCounter(), 11);
+
+            //ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics=pulsar.getBrokerService().getTopics();
+            //long a=topics.size();
+            //restart Broker
+            try {
+                restartBroker();
+            } catch (Exception e) {
+                e.printStackTrace();
+                log.error("fail to restart Broker");
+            }
+
+//            pulsar.getBrokerService().getOrCreateTopic(topicName).thenAccept(s->{
+//                PersistentTopic topicRef1 = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+//                assertNotNull(topicRef1);
+//
+//                rolloverPerIntervalStats();
+//                TopicStats stats1 = topicRef1.getStats(false, false);
+//
+//                //msgInCounter stats
+//                assertEquals(stats1.getMsgInCounter(), 11);
+//            }).exceptionally(Exception->{
+//                log.error("fail to load topic");
+//                return null;
+//            });
+
+
+
+        }).exceptionally(Exception->{
+            log.error("fail to send messages or restartBroker");
+            return null;
+        });
+
+
+
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        //ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics1=pulsar.getBrokerService().getTopics();
+        //long z1=topics1.size();
+        //TopicName topicName2 = TopicName.get(topicName);
+//        CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar.getNamespaceService()
+//                .getBrokerServiceUrlAsync(topicName,
+//                        LookupOptions.builder().advertisedListenerName(null)
+//                                .authoritative(false).loadTopicsInBundle(true).build());
+
+
+
+        //Topic topic1=topic.get();
+        //pulsar.loadNamespaceTopics(pulsar.getNamespaceService().getBundle(TopicName.get(topicName)));
+        //TopicName topicName3 = TopicName.get(topicName);
+        //assertNotNull(pulsar.getNamespaceService().getBundle(TopicName.get(topicName)));
+        //ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics3=pulsar.getBrokerService().getTopics();
+        //long z2=topics3.size();
+
+
+        Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topicRef1 = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef1);
+
+        rolloverPerIntervalStats();
+        TopicStats stats1 = topicRef1.getStats(false, false);
+
+        //msgInCounter stats
+        assertEquals(stats1.getMsgInCounter(), 11);
+
+
+
+    }
+
+    @Test
+    public void testPersistentOwnershipChangeWithoutBatch() throws Exception{
+        resetState();
+        final String topicName = "persistent://prop/ns-abc/reloadTopic";
+        TopicStats  stats;
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .create();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef);
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats(false, false);
+
+        //msgInCounter stats
+        assertEquals(stats.getMsgInCounter(), 0);
+
+        for (int i = 0; i < 11; i++){
+            String message = "my-message-" + i;
+            //producer.sendAsync(),batch_size
+            producer.send(message.getBytes());
+        }
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats(false, false);
+
+        //msgInCounter stats
+        assertEquals(stats.getMsgInCounter(), 11);
+
+        restartBroker();
+
+        //while(pulsar.getState())
+        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+
+        producer = pulsarClient.newProducer().topic(topicName).create();
+
+        //Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef);
+
+        rolloverPerIntervalStats();
+        stats = topicRef.getStats(false, false);
+
+        //msgInCounter stats
+        assertEquals(stats.getMsgInCounter(), 11);
+
     }
 }

@@ -76,6 +76,8 @@ import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -3975,5 +3977,40 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     safeRun(this::rollCurrentLedgerIfFull), this.maximumRolloverTimeMs, TimeUnit.MILLISECONDS);
         }
     }
-
+    public LedgerEntry getLastEntry() {
+        //通过ledgerHandle获得其最后增加的一个entry
+        //Get a ledger handle to read from
+        CompletableFuture<LedgerEntry> entryFuture = getLedgerHandle(lastConfirmedEntry.getLedgerId()).thenApply(ledger -> {
+            try {
+                //没有写入数据时
+                if (lastConfirmedEntry.entryId == -1) {
+                    return null;
+                }
+                LedgerEntries ledgerEntries = ledger.read(lastConfirmedEntry.entryId, lastConfirmedEntry.entryId);
+                return ledgerEntries.getEntry(lastConfirmedEntry.entryId);
+            } catch (org.apache.bookkeeper.client.api.BKException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }).exceptionally(ex -> {
+            log.error("[{}] Error opening ledger for reading at position {} - {}", name, lastConfirmedEntry.entryId,
+                    ex.getMessage());
+            return null;
+        });
+        if (entryFuture == null) {
+            return null;
+        }
+        LedgerEntry ledgerEntry = null;
+        try {
+            ledgerEntry = entryFuture.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        return ledgerEntry;
+    }
+    
 }
