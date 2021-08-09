@@ -232,8 +232,18 @@ public class FunctionStatsManager extends ComponentStatsManager{
                 .help("Exception from sink.")
                 .register(collectorRegistry);
 
-        userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
-        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
+        userExceptionRateLimiter = RateLimiter.builder()
+                .scheduledExecutorService(scheduledExecutorService)
+                .permits(5)
+                .rateTime(1)
+                .timeUnit(TimeUnit.MINUTES)
+                .build();
+        sysExceptionRateLimiter = RateLimiter.builder()
+                .scheduledExecutorService(scheduledExecutorService)
+                .permits(5)
+                .rateTime(1)
+                .timeUnit(TimeUnit.MINUTES)
+                .build();
     }
 
     public void addUserException(Throwable ex) {
