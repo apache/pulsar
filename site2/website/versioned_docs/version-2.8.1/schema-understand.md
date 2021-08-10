@@ -393,7 +393,7 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 
     ```java
     SchemaDefinition<User> schemaDefinition =   SchemaDefinition.builder().withPojo(User.class).build();
-    Producer<User> producer = client.newProducer(schemaDefinition).create();
+    Producer<User> producer = client.newProducer(schema).create();
     producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
     ```
 
@@ -401,7 +401,7 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 
     ```java
     SchemaDefinition<User> schemaDefinition = SchemaDefinition.builder().withPojo(User.class).build();
-    Consumer<User> consumer = client.newConsumer(schemaDefinition).subscribe();
+    Consumer<User> consumer = client.newConsumer(schema).subscribe();
     User user = consumer.receive();
     ```
 
