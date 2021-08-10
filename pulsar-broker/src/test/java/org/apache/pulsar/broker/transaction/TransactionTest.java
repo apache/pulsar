@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -32,7 +32,11 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -44,7 +48,9 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -171,24 +177,69 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testSubscriptionRecreateTopic()
             throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
-    String topic = "persistent://pulsar/system/testReCreateTopisdad";
-    admin.topics().createNonPartitionedTopic(topic);
-    PulsarService pulsarService = super.getPulsarServiceList().get(0);
-    pulsarService.getBrokerService().getTopics().clear();
-    ManagedLedgerFactory managedLedgerFactory =  pulsarService.getBrokerService().getManagedLedgerFactory();
-    Field field  =  ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
-    field.setAccessible(true);
-    ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
-            (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>)field.get(managedLedgerFactory);
-    ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
-    try {
+        String topic = "persistent://pulsar/system/testReCreateTopic";
+        String subName = "sub_testReCreateTopic";
+        int retentionSizeInMbSetTo = 5;
+        int retentionSizeInMinutesSetTo = 5;
+
         admin.topics().createNonPartitionedTopic(topic);
-        Assert.fail();
-    } catch (PulsarAdminException.ConflictException e){
-        log.info("Cann`t create topic again");
+        PulsarService pulsarService = super.getPulsarServiceList().get(0);
+        pulsarService.getBrokerService().getTopics().clear();
+        ManagedLedgerFactory managedLedgerFactory = pulsarService.getBrokerService().getManagedLedgerFactory();
+        Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+        field.setAccessible(true);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field.get(managedLedgerFactory);
+        ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
+        try {
+            admin.topics().createNonPartitionedTopic(topic);
+            Assert.fail();
+        } catch (PulsarAdminException.ConflictException e) {
+            log.info("Cann`t create topic again");
+        }
+        pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        pulsarService.getBrokerService().getTopicIfExists(topic).thenAccept(option -> {
+            if (!option.isPresent()) {
+                log.error("Failed o get Topic named: {}", topic);
+                Assert.fail();
+            }
+            PersistentTopic originPersistentTopic = (PersistentTopic) option.get();
+            String pendingAckTopicName = MLPendingAckStore
+                    .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subName);
+
+            try {
+                admin.topics().setRetention(pendingAckTopicName,
+                        new RetentionPolicies(retentionSizeInMinutesSetTo, retentionSizeInMbSetTo));
+            } catch (PulsarAdminException e) {
+                log.error("Failed to get./setRetention of topic with Exception:" + e);
+                Assert.fail();
+            }
+            PersistentSubscription subscription = originPersistentTopic
+                    .getSubscription(subName);
+            subscription.getPendingAckManageLedger().thenAccept(managedLedger -> {
+                long retentionSize = managedLedger.getConfig().getRetentionSizeInMB();
+                if(!originPersistentTopic.getTopicPolicies().isPresent()){
+                    log.error("Failed to getTopicPolicies of :" + originPersistentTopic);
+                    Assert.fail();
+                }
+                TopicPolicies topicPolicies = originPersistentTopic.getTopicPolicies().get();
+                Assert.assertEquals(topicPolicies.getRetentionPolicies().getRetentionSizeInMB(), retentionSize);
+                MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
+                CompletableFuture<PendingAckStore> future = mlPendingAckStoreProvider.newPendingAckStore(subscription);
+                future.thenAccept(pendingAckStore -> {
+                            ((MLPendingAckStore) pendingAckStore).getManagedLedger().thenAccept(managedLedger1 -> {
+                                Assert.assertEquals(managedLedger1.getConfig().getRetentionSizeInMB(), retentionSizeInMbSetTo);
+                            });
+                        }
+                );
+            });
+
+
+        });
+
+
     }
-    pulsarClient.newConsumer().topic(topic)
-            .subscriptionName("sub_testReCreateTopic")
-            .subscribe();
-    }
+
 }

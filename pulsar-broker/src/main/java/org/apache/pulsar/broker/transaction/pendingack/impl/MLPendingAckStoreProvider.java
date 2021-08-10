@@ -48,14 +48,13 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                     new TransactionPendingAckStoreProviderException("The subscription is null."));
             return pendingAckStoreFuture;
         }
-
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
         String pendingAckTopicName = MLPendingAckStore
                 .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
         originPersistentTopic.getBrokerService().getManagedLedgerFactory()
                 .asyncExists(TopicName.get(pendingAckTopicName)
                         .getPersistenceNamingEncoding()).thenAccept(exist -> {
-            TopicName topicName = null;
+            TopicName topicName;
             if (exist) {
                 topicName = TopicName.get(pendingAckTopicName);
             } else {
@@ -77,12 +76,17 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                         pendingAckStoreFuture
                                                                 .complete(new MLPendingAckStore(ledger, cursor,
                                                                         subscription.getCursor()));
+                                                        log.info("{},{} open MLPendingAckStore cursor success",
+                                                                originPersistentTopic.getName(),
+                                                                subscription.getName());
                                                     }
 
                                                     @Override
                                                     public void openCursorFailed(ManagedLedgerException exception,
                                                                                  Object ctx) {
-                                                        log.error("{} open MLPendingAckStore cursor failed.", originPersistentTopic.getName() , exception);
+                                                        log.error("{},{} open MLPendingAckStore cursor failed."
+                                                                , originPersistentTopic.getName(),
+                                                                subscription.getName(), exception);
                                                         pendingAckStoreFuture.completeExceptionally(exception);
                                                     }
                                                 }, null);
@@ -90,14 +94,19 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
                                     @Override
                                     public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                        log.error("{} open MLPendingAckStore managedLedger failed.", originPersistentTopic.getName(), exception);
+                                        log.error("{}, {} open MLPendingAckStore managedLedger failed."
+                                                , originPersistentTopic.getName(), subscription.getName(), exception);
                                         pendingAckStoreFuture.completeExceptionally(exception);
                                     }
                                 }, () -> true, null);
             });
         }).exceptionally(e -> {
+            String errorLog = "Failed to obtain the existence of ManagerLedger with topic and subscription : "+
+                    originPersistentTopic.getSubscriptions() + "  " +
+                    subscription.getName();
+            log.error(errorLog);
             pendingAckStoreFuture.completeExceptionally(
-                    new MetadataStoreException("Failed to obtain the existence of ManagerLedger "+subscription));
+                    new MetadataStoreException(errorLog));
             return null;
         });
         return pendingAckStoreFuture;
