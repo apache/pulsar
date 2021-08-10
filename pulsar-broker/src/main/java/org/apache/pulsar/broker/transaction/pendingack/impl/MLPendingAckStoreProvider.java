@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStor
 import org.apache.pulsar.broker.transaction.pendingack.exceptions.TransactionPendingAckStoreProviderException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 /**
  * Provider is for MLPendingAckStore.
@@ -55,7 +56,6 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                 .asyncExists(TopicName.get(pendingAckTopicName)
                         .getPersistenceNamingEncoding()).thenAccept(exist -> {
             TopicName topicName = null;
-            String ledgerName = null;
             if (exist) {
                 topicName = TopicName.get(pendingAckTopicName);
             } else {
@@ -82,7 +82,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                     @Override
                                                     public void openCursorFailed(ManagedLedgerException exception,
                                                                                  Object ctx) {
-                                                        log.error("Open MLPendingAckStore cursor failed.", exception);
+                                                        log.error("{} open MLPendingAckStore cursor failed.", originPersistentTopic.getName() , exception);
                                                         pendingAckStoreFuture.completeExceptionally(exception);
                                                     }
                                                 }, null);
@@ -90,12 +90,14 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
                                     @Override
                                     public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                        log.error("Open MLPendingAckStore managedLedger failed.", exception);
+                                        log.error("{} open MLPendingAckStore managedLedger failed.", originPersistentTopic.getName(), exception);
                                         pendingAckStoreFuture.completeExceptionally(exception);
                                     }
                                 }, () -> true, null);
             });
         }).exceptionally(e -> {
+            pendingAckStoreFuture.completeExceptionally(
+                    new MetadataStoreException("Failed to obtain the existence of ManagerLedger "+subscription));
             return null;
         });
         return pendingAckStoreFuture;
