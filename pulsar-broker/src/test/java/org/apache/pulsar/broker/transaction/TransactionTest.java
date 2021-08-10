@@ -180,8 +180,9 @@ public class TransactionTest extends TransactionTestBase {
         String topic = "persistent://pulsar/system/testReCreateTopic";
         String subName = "sub_testReCreateTopic";
         int retentionSizeInMbSetTo = 5;
+        int retentionSizeInMbSetTopic = 6;
         int retentionSizeInMinutesSetTo = 5;
-
+        int retentionSizeInMinutesSetTopic = 6;
         admin.topics().createNonPartitionedTopic(topic);
         PulsarService pulsarService = super.getPulsarServiceList().get(0);
         pulsarService.getBrokerService().getTopics().clear();
@@ -197,6 +198,8 @@ public class TransactionTest extends TransactionTestBase {
         } catch (PulsarAdminException.ConflictException e) {
             log.info("Cann`t create topic again");
         }
+        admin.topics().setRetention(topic,
+                new RetentionPolicies(retentionSizeInMinutesSetTopic, retentionSizeInMbSetTopic));
         pulsarClient.newConsumer().topic(topic)
                 .subscriptionName(subName)
                 .subscribe();
@@ -220,17 +223,18 @@ public class TransactionTest extends TransactionTestBase {
                     .getSubscription(subName);
             subscription.getPendingAckManageLedger().thenAccept(managedLedger -> {
                 long retentionSize = managedLedger.getConfig().getRetentionSizeInMB();
-                if(!originPersistentTopic.getTopicPolicies().isPresent()){
+                if (!originPersistentTopic.getTopicPolicies().isPresent()) {
                     log.error("Failed to getTopicPolicies of :" + originPersistentTopic);
                     Assert.fail();
                 }
                 TopicPolicies topicPolicies = originPersistentTopic.getTopicPolicies().get();
-                Assert.assertEquals(topicPolicies.getRetentionPolicies().getRetentionSizeInMB(), retentionSize);
+                Assert.assertEquals(retentionSizeInMbSetTopic, retentionSize);
                 MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
                 CompletableFuture<PendingAckStore> future = mlPendingAckStoreProvider.newPendingAckStore(subscription);
                 future.thenAccept(pendingAckStore -> {
                             ((MLPendingAckStore) pendingAckStore).getManagedLedger().thenAccept(managedLedger1 -> {
-                                Assert.assertEquals(managedLedger1.getConfig().getRetentionSizeInMB(), retentionSizeInMbSetTo);
+                                Assert.assertEquals(managedLedger1.getConfig().getRetentionSizeInMB(),
+                                        retentionSizeInMbSetTo);
                             });
                         }
                 );
