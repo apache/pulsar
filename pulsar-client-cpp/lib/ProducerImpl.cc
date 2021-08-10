@@ -212,14 +212,9 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
                                                    shared_from_this(), std::placeholders::_1));
         }
 
-        // Initialize the sendTimer only once per producer and only when producer timeout is
-        // configured. Set the timeout as configured value and asynchronously wait for the
-        // timeout to happen.
-        if (!sendTimer_ && conf_.getSendTimeout() > 0) {
-            sendTimer_ = executor_->createDeadlineTimer();
-            sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
-            sendTimer_->async_wait(
-                std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
+        // if the producer is lazy the send timeout timer is already running
+        if (!conf_.getLazyStartPartitionedProducers()) {
+            startSendTimeoutTimer();
         }
 
         producerCreatedPromise_.setValue(shared_from_this());
@@ -684,7 +679,7 @@ uint64_t ProducerImpl::getProducerId() const { return producerId_; }
 
 void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
     Lock lock(mutex_);
-    if (state_ != Ready) {
+    if (state_ != Pending && state_ != Ready) {
         return;
     }
 
@@ -826,7 +821,15 @@ void ProducerImpl::disconnectProducer() {
     scheduleReconnection(shared_from_this());
 }
 
-void ProducerImpl::start() { HandlerBase::start(); }
+void ProducerImpl::start() {
+    HandlerBase::start();
+
+    if (conf_.getLazyStartPartitionedProducers()) {
+        // we need to kick it off now as it is possible that the connection may take
+        // longer than sendTimeout to connect
+        startSendTimeoutTimer();
+    }
+}
 
 void ProducerImpl::shutdown() {
     Lock lock(mutex_);
@@ -871,6 +874,17 @@ uint64_t ProducerImpl::getNumberOfConnectedProducer() { return isConnected() ? 1
 bool ProducerImpl::isStarted() const {
     Lock lock(mutex_);
     return state_ != NotStarted;
+}
+void ProducerImpl::startSendTimeoutTimer() {
+    // Initialize the sendTimer only once per producer and only when producer timeout is
+    // configured. Set the timeout as configured value and asynchronously wait for the
+    // timeout to happen.
+    if (!sendTimer_ && conf_.getSendTimeout() > 0) {
+        sendTimer_ = executor_->createDeadlineTimer();
+        sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
+        sendTimer_->async_wait(
+            std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
+    }
 }
 
 }  // namespace pulsar

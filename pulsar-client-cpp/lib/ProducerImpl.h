@@ -94,6 +94,8 @@ class ProducerImpl : public HandlerBase,
 
     void batchMessageTimeoutHandler(const boost::system::error_code& ec);
 
+    void startSendTimeoutTimer();
+
     friend class PulsarFriend;
 
     friend class Producer;
