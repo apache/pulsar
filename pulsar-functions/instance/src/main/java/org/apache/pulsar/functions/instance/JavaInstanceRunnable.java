@@ -435,17 +435,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             sink = null;
         }
 
-        if (null != client) {
-            try {
-                client.close();
-            } catch (Throwable e) {
-                log.error("Failed to close pulsar client", e);
-            } finally {
-                Thread.currentThread().setContextClassLoader(instanceClassLoader);
-            }
-            client = null;
-        }
-
         if (null != javaInstance) {
             javaInstance.close();
             javaInstance = null;
@@ -466,6 +455,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             removeLogTopicAppender(LoggerContext.getContext(false));
             logAppender.stop();
             logAppender = null;
+        }
+
+        if (null != client) {
+            try {
+                client.close();
+            } catch (Throwable e) {
+                log.error("Failed to close pulsar client", e);
+            } finally {
+                Thread.currentThread().setContextClassLoader(instanceClassLoader);
+            }
+            client = null;
         }
     }
 
