@@ -829,8 +829,18 @@ public class PersistentTopic extends AbstractTopic
                     log.debug("[{}][{}] Opened cursor", topic, subscriptionName);
                 }
 
-                PersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
-                        name -> createPersistentSubscription(subscriptionName, cursor, replicated));
+                PersistentSubscription subscription = subscriptions.get(subscriptionName);
+                if (subscription == null) {
+                    subscription = subscriptions.computeIfAbsent(subscriptionName,
+                                  name -> createPersistentSubscription(subscriptionName, cursor, replicated));
+                } else {
+                    // if subscription exists, check if it's a non-durable subscription
+                    if (subscription.getCursor() != null && !subscription.getCursor().isDurable()) {
+                        subscriptionFuture.completeExceptionally(
+                                new NotAllowedException("NonDurable subscription with the same name already exists."));
+                        return;
+                    }
+                }
 
                 if (replicated && !subscription.isReplicated()) {
                     // Flip the subscription state
@@ -900,6 +910,12 @@ public class PersistentTopic extends AbstractTopic
 
                 subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
                 subscriptions.put(subscriptionName, subscription);
+            } else {
+                // if subscription exists, check if it's a durable subscription
+                if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
+                    return FutureUtil.failedFuture(
+                            new NotAllowedException("Durable subscription with the same name already exists."));
+                }
             }
 
             if (startMessageRollbackDurationSec > 0) {
