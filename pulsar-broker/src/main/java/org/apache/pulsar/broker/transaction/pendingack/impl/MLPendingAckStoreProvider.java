@@ -101,9 +101,9 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                 }, () -> true, null);
             });
         }).exceptionally(e -> {
-            String errorLog = "Failed to obtain the existence of ManagerLedger with topic and subscription : "+
-                    originPersistentTopic.getSubscriptions() + "  " +
-                    subscription.getName();
+            String errorLog = "Failed to obtain the existence of ManagerLedger with topic and subscription : "
+                    + originPersistentTopic.getSubscriptions() + "  "
+                    + subscription.getName();
             log.error(errorLog);
             pendingAckStoreFuture.completeExceptionally(
                     new MetadataStoreException(errorLog));
