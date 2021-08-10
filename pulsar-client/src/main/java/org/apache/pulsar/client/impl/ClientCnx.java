@@ -140,6 +140,8 @@ public class ClientCnx extends PulsarHandler {
     private static final TlsHostnameVerifier HOSTNAME_VERIFIER = new TlsHostnameVerifier();
 
     private ScheduledFuture<?> timeoutTask;
+    private SocketAddress localAddress;
+    private SocketAddress remoteAddress;
 
     // Added for mutual authentication.
     @Getter
@@ -208,6 +210,9 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
+        this.localAddress = ctx.channel().localAddress();
+        this.remoteAddress = ctx.channel().remoteAddress();
+
         this.timeoutTask = this.eventLoopGroup.scheduleAtFixedRate(() -> checkRequestTimeout(), operationTimeoutMs,
                 operationTimeoutMs, TimeUnit.MILLISECONDS);
 
@@ -419,7 +424,8 @@ public class ClientCnx extends PulsarHandler {
                 completableFuture.complete(null);
             } else {
                 completableFuture.completeExceptionally(
-                        getPulsarClientException(ackResponse.getError(), ackResponse.getMessage()));
+                        getPulsarClientException(ackResponse.getError(),
+                                                 buildError(ackResponse.getRequestId(), ackResponse.getMessage())));
             }
         } else {
             log.warn("AckResponse has complete when receive response! requestId : {}, consumerId : {}",
@@ -550,7 +556,8 @@ public class ClientCnx extends PulsarHandler {
                 if (lookupResult.hasError()) {
                     checkServerError(lookupResult.getError(), lookupResult.getMessage());
                     requestFuture.completeExceptionally(
-                            getPulsarClientException(lookupResult.getError(), lookupResult.getMessage()));
+                            getPulsarClientException(lookupResult.getError(),
+                                    buildError(lookupResult.getRequestId(), lookupResult.getMessage())));
                 } else {
                     requestFuture
                             .completeExceptionally(new PulsarClientException.LookupException("Empty lookup response"));
@@ -583,7 +590,8 @@ public class ClientCnx extends PulsarHandler {
             if (!lookupResult.hasResponse()
                     || CommandPartitionedTopicMetadataResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
                 if (lookupResult.hasError()) {
-                    String message = lookupResult.hasMessage() ? lookupResult.getMessage() : null;
+                    String message = buildError(lookupResult.getRequestId(),
+                                                lookupResult.hasMessage() ? lookupResult.getMessage() : null);
                     checkServerError(lookupResult.getError(), message);
                     requestFuture.completeExceptionally(
                             getPulsarClientException(lookupResult.getError(), message));
@@ -692,7 +700,9 @@ public class ClientCnx extends PulsarHandler {
         }
         CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.completeExceptionally(getPulsarClientException(error.getError(), error.getMessage()));
+            requestFuture.completeExceptionally(
+                    getPulsarClientException(error.getError(),
+                                             buildError(error.getRequestId(), error.getMessage())));
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), error.getRequestId());
         }
@@ -889,7 +899,8 @@ public class ClientCnx extends PulsarHandler {
                     return CompletableFuture.completedFuture(Optional.empty());
                 } else {
                     return FutureUtil.failedFuture(
-                        getPulsarClientException(rc, commandGetSchemaResponse.getErrorMessage()));
+                        getPulsarClientException(rc,
+                                buildError(requestId, commandGetSchemaResponse.getErrorMessage())));
                 }
             } else {
                 return CompletableFuture.completedFuture(
@@ -913,7 +924,7 @@ public class ClientCnx extends PulsarHandler {
                     return CompletableFuture.completedFuture(SchemaVersion.Empty.bytes());
                 } else {
                     return FutureUtil.failedFuture(getPulsarClientException(
-                            rc, response.getErrorMessage()));
+                                                           rc, buildError(requestId, response.getErrorMessage())));
                 }
             } else {
                 return CompletableFuture.completedFuture(response.getSchemaVersion());
@@ -1082,6 +1093,14 @@ public class ClientCnx extends PulsarHandler {
         this.remoteHostName = remoteHostName;
     }
 
+    private String buildError(long requestId, String errorMsg) {
+        return new StringBuilder().append("{\"errorMsg\":\"").append(errorMsg)
+            .append("\",\"reqId\":").append(requestId)
+            .append(", \"remote\":\"").append(remoteAddress)
+            .append("\", \"local\":\"").append(localAddress)
+            .append("\"}").toString();
+    }
+
     public static PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
@@ -1144,8 +1163,10 @@ public class ClientCnx extends PulsarHandler {
                     && !requestFuture.hasGotResponse()) {
                 pendingRequests.remove(request.requestId, requestFuture);
                 if (!requestFuture.isDone()) {
-                    String timeoutMessage = String.format("%d %s timedout after ms %d", request.requestId,
-                            request.requestType.getDescription(), operationTimeoutMs);
+                    String timeoutMessage = String.format(
+                            "%s timeout {'durationMs': '%d', 'reqId':'%d', 'remote':'%s', 'local':'%s'}",
+                            request.requestType.getDescription(), operationTimeoutMs,
+                            request.requestId, remoteAddress, localAddress);
                     if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
                         log.warn("{} {}", ctx.channel(), timeoutMessage);
                     }

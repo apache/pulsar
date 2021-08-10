@@ -48,6 +48,7 @@ import java.util.TreeMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -191,6 +192,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final ExecutorService internalPinnedExecutor;
+    private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -243,7 +245,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
-        this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
+        this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.hasParentConsumer = hasParentConsumer;
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
@@ -688,6 +690,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {
+        previousExceptions.clear();
+
         if (getState() == State.Closing || getState() == State.Closed) {
             setState(State.Closed);
             closeConsumerTasks();
@@ -883,16 +887,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public void connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > subscribeTimeout;
-        if ((nonRetriableError || timeout) && subscribeFuture.completeExceptionally(exception)) {
-            setState(State.Failed);
-            if (nonRetriableError) {
-                log.info("[{}] Consumer creation failed for consumer {} with unretriableError {}", topic, consumerId, exception);
-            } else {
-                log.info("[{}] Consumer creation failed for consumer {} after timeout", topic, consumerId);
+        if (nonRetriableError || timeout) {
+            exception.setPreviousExceptions(previousExceptions);
+            if (subscribeFuture.completeExceptionally(exception)) {
+                setState(State.Failed);
+                if (nonRetriableError) {
+                    log.info("[{}] Consumer creation failed for consumer {} with unretriableError {}", topic, consumerId, exception);
+                } else {
+                    log.info("[{}] Consumer creation failed for consumer {} after timeout", topic, consumerId);
+                }
+                closeConsumerTasks();
+                deregisterFromClientCnx();
+                client.cleanupConsumer(this);
             }
-            closeConsumerTasks();
-            deregisterFromClientCnx();
-            client.cleanupConsumer(this);
+        } else {
+            previousExceptions.add(exception);
         }
     }
 
