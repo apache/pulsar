@@ -391,7 +391,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName).join();
+            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
@@ -552,7 +553,8 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             for (String topic : topics) {
                 NamespaceBundle topicBundle = pulsar().getNamespaceService()
                         .getBundle(TopicName.get(topic));
