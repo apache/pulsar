@@ -19,16 +19,13 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -43,8 +40,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -206,6 +203,14 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     if (code == Code.OK) {
                         future.complete(true);
                     } else if (code == Code.NONODE) {
+                        // remove watcher if node does not exist
+                        zkc.removeAllWatches(path, Watcher.WatcherType.Any, true,
+                                (rc0, path0, ctx0) -> {
+                                    Code code0 = Code.get(rc0);
+                                    if (code0 != Code.OK && code0 != Code.NOWATCHER) {
+                                        log.warn("Remove watcher failed. rc: {}, path: {}", code0, path);
+                                    }
+                                }, null);
                         future.complete(false);
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch

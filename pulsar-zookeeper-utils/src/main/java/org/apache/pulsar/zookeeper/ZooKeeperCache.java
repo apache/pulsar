@@ -19,11 +19,9 @@
 package org.apache.pulsar.zookeeper;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Sets;
-
 import java.io.IOException;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collections;
@@ -38,7 +36,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -248,6 +245,14 @@ public abstract class ZooKeeperCache implements Watcher {
                 if (rc == Code.OK.intValue()) {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
+                    // remove watcher if node does not exist
+                    zk.removeAllWatches(path, Watcher.WatcherType.Any, true,
+                            (rc0, path0, ctx0) -> {
+                                Code code0 = Code.get(rc0);
+                                if (code0 != Code.OK && code0 != Code.NOWATCHER) {
+                                    log.warn("Remove watcher failed. rc: {}, path: {}", code0, path);
+                                }
+                            }, null);
                     future.complete(false);
                 } else {
                     future.completeExceptionally(KeeperException.create(rc));
@@ -562,6 +567,14 @@ public abstract class ZooKeeperCache implements Watcher {
                 }
                 return true;
             } else {
+                // remove watcher if node does not exist
+                getZooKeeper().removeAllWatches(regPath, Watcher.WatcherType.Any, true,
+                        (rc0, path0, ctx0) -> {
+                            Code code0 = Code.get(rc0);
+                            if (code0 != Code.OK && code0 != Code.NOWATCHER) {
+                                log.warn("Remove watcher failed. rc: {}, path: {}", code0, regPath);
+                            }
+                        }, null);
                 return false;
             }
         } catch (KeeperException ke) {
