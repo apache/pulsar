@@ -95,7 +95,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private void init(ProducerConfigurationData conf) {
         ObjectMapper m = new ObjectMapper();
         m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        ObjectWriter w = m.writerWithDefaultPrettyPrinter();
+        ObjectWriter w = m.writer();
 
         try {
             log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
