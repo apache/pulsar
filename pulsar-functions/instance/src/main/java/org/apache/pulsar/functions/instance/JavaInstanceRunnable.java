@@ -138,6 +138,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 ClientBuilder clientBuilder,
+                                PulsarClient pulsarClient,
                                 PulsarAdmin pulsarAdmin,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
@@ -145,7 +146,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 ClassLoader functionClassLoader) throws PulsarClientException {
         this.instanceConfig = instanceConfig;
         this.clientBuilder = clientBuilder;
-        this.client = (PulsarClientImpl) clientBuilder.build();
+        this.client = (PulsarClientImpl) pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
@@ -455,17 +456,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             removeLogTopicAppender(LoggerContext.getContext(false));
             logAppender.stop();
             logAppender = null;
-        }
-
-        if (null != client) {
-            try {
-                client.close();
-            } catch (Throwable e) {
-                log.error("Failed to close pulsar client", e);
-            } finally {
-                Thread.currentThread().setContextClassLoader(instanceClassLoader);
-            }
-            client = null;
         }
     }
 

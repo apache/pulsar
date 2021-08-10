@@ -61,6 +61,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private ThreadGroup threadGroup;
     private FunctionCacheManager fnCache;
     private ClientBuilder clientBuilder;
+    private PulsarClient pulsarClient;
     private PulsarAdmin pulsarAdmin;
     private String storageServiceUrl;
     private SecretsProvider defaultSecretsProvider;
@@ -101,6 +102,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarAdmin = exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig) : null;
+        this.pulsarClient = InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
         this.clientBuilder = InstanceUtils.createPulsarClientBuilder(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
@@ -174,6 +176,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             fnCache,
             threadGroup,
             jarFile,
+            pulsarClient,
             clientBuilder,
             pulsarAdmin,
             storageServiceUrl,
@@ -192,7 +195,11 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
         threadGroup.interrupt();
         fnCache.close();
-
+        try {
+            pulsarClient.close();
+        } catch (PulsarClientException e) {
+            log.warn("Failed to close pulsar client when closing function container factory", e);
+        }
         if (pulsarAdmin != null) {
             pulsarAdmin.close();
         }
