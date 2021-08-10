@@ -29,15 +29,10 @@ import io.debezium.relational.history.DatabaseHistoryException;
 import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.relational.history.HistoryRecord;
 import io.debezium.relational.history.HistoryRecordComparator;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
 import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
 import org.apache.kafka.common.config.ConfigDef.Width;
@@ -116,15 +111,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
             this.clientBuilder = PulsarClient.builder()
                 .serviceUrl(config.getString(SERVICE_URL));
         } else {
-            byte[] data = Base64.decodeBase64(clientBuilderBase64Encoded);
-            InputStream bai = new ByteArrayInputStream(data);
-            try (ObjectInputStream ois = new ObjectInputStream(bai)) {
-                this.clientBuilder = (ClientBuilder) ois.readObject();
-            } catch (Exception e) {
-                log.error("Failed initialize the pulsar client to store debezium database history", e);
-                throw new RuntimeException(
-                    "Failed to initialize the pulsar client to store debezium database history", e);
-            }
+            this.clientBuilder = (ClientBuilder) SerDeUtils.deserialize(clientBuilderBase64Encoded);
         }
 
         // Copy the relevant portions of the configuration and add useful defaults ...
