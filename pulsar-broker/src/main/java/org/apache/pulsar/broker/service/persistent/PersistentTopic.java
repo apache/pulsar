@@ -701,8 +701,8 @@ public class PersistentTopic extends AbstractTopic
             if (cnx.clientAddress() != null && cnx.clientAddress().toString().contains(":")) {
                 SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
                         cnx.clientAddress().toString().split(":")[0], consumerName, consumerId);
-                if (subscribeRateLimiter.isPresent() && !subscribeRateLimiter.get().subscribeAvailable(consumer)
-                        || !subscribeRateLimiter.get().tryAcquire(consumer)) {
+                if (subscribeRateLimiter.isPresent() && (!subscribeRateLimiter.get().subscribeAvailable(consumer)
+                        || !subscribeRateLimiter.get().tryAcquire(consumer))) {
                     log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",
                             topic, subscriptionName, consumer, subscribeRateLimiter.get().getSubscribeRate(),
                             subscribeRateLimiter.get().getAvailableSubscribeRateLimit(consumer));
