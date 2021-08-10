@@ -76,9 +76,11 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                         pendingAckStoreFuture
                                                                 .complete(new MLPendingAckStore(ledger, cursor,
                                                                         subscription.getCursor()));
-                                                        log.info("{},{} open MLPendingAckStore cursor success",
-                                                                originPersistentTopic.getName(),
-                                                                subscription.getName());
+                                                        if (log.isDebugEnabled()) {
+                                                            log.debug("{},{} open MLPendingAckStore cursor success",
+                                                                    originPersistentTopic.getName(),
+                                                                    subscription.getName());
+                                                        }
                                                     }
 
                                                     @Override
