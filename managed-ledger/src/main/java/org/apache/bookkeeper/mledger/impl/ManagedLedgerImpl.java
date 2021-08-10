@@ -48,12 +48,12 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -3203,7 +3203,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return PositionImpl.get(position.getLedgerId(), position.getEntryId() - 1);
         }
 
-        final ConcurrentNavigableMap<Long, LedgerInfo> ledgersCopied = new ConcurrentSkipListMap<>(ledgers);
+        final NavigableMap<Long, LedgerInfo> ledgersCopied = new TreeMap<>(ledgers);
         // The previous position will be the last position of an earlier ledgers
         NavigableMap<Long, LedgerInfo> headMap = ledgersCopied.headMap(position.getLedgerId(), false);
 
