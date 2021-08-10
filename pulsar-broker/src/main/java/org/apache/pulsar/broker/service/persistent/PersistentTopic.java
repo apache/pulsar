@@ -900,6 +900,12 @@ public class PersistentTopic extends AbstractTopic
 
                 subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
                 subscriptions.put(subscriptionName, subscription);
+            } else {
+                // if subscription exist, check if it's a durable subscription
+                if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
+                    return FutureUtil.failedFuture(
+                            new NotAllowedException("Durable subscribe with the same name already exist."));
+                }
             }
 
             if (startMessageRollbackDurationSec > 0) {

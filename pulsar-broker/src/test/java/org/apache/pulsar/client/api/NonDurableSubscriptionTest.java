@@ -94,6 +94,53 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
     }
 
+    @Test
+    public void testSameSubscriptionNameForDurableAndNonDurableSubscription() throws Exception {
+        String topicName = "persistent://my-property/my-ns/same-sub-name-topic";
+        // 1 setup producer and consumer
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .readCompacted(true)
+                .subscriptionMode(SubscriptionMode.Durable)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("mix-subscription")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        // 2 send 10 messages
+        int messageNum = 10;
+        for (int i = 0; i < messageNum; i++) {
+            producer.send("message" + i);
+        }
+
+        // 3 receive the first 5 messages
+        for (int i = 0; i < 5; i++) {
+            Message<String> message = consumer.receive();
+            assertNotNull(message);
+            Assert.assertEquals(message.getValue(), "message" + i);
+            consumer.acknowledge(message);
+        }
+        consumer.close();
+
+        // 4 try to setup a reader with the same subscription name
+        try {
+            @Cleanup
+            Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName)
+                    .subscriptionName("mix-subscription")
+                    .startMessageId(MessageId.earliest)
+                    .create();
+            Assert.fail("should fail since partitioned topic was deleted");
+        } catch (PulsarClientException.NotAllowedException exception) {
+            //ignore
+        }
+    }
+
+
+
     @Test(timeOut = 10000)
     public void testDeleteInactiveNonPersistentSubscription() throws Exception {
         final String topic = "non-persistent://my-property/my-ns/topic-" + UUID.randomUUID();
