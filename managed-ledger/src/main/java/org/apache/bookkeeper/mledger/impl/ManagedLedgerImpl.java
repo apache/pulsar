@@ -3218,8 +3218,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
 
-        // in case there are only empty ledgers, we return a position in the first one
-        return PositionImpl.get(headMap.firstEntry().getKey(), -1);
+        Map.Entry<Long, LedgerInfo> firstLedgerEntry = headMap.firstEntry();
+        if(firstLedgerEntry != null) {
+            // in case there are only empty ledgers, we return a position in the first one
+            return PositionImpl.get(firstLedgerEntry.getKey(), -1);
+        } else {
+            return PositionImpl.get(position.getLedgerId(), -1);
+        }
     }
 
     /**
