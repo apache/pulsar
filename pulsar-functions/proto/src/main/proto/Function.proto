@@ -101,6 +101,7 @@ message ConsumerSpec {
     map<string, string> schemaProperties = 5;
     map<string, string> consumerProperties = 6;
     CryptoSpec cryptoSpec = 7;
+    bool poolMessages = 8;
 }
 
 message ProducerSpec {
