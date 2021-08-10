@@ -1696,7 +1696,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
-
+        pulsarClient.newProducer().topic(persistenceTopic).create().close();
         SubscribeRate subscribeRate = new SubscribeRate(2, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, persistenceTopic);
         admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);
