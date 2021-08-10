@@ -18,64 +18,47 @@
  */
 package org.apache.pulsar.broker.cache;
 
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.hash.Hashing;
-
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.zookeeper.MockZooKeeper;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class ResourceQuotaCacheTest {
+public class BundlesQuotasTest {
 
-    private PulsarService pulsar;
-    private ZooKeeperCache zkCache;
-    private LocalZooKeeperCacheService localCache;
+    private MetadataStore store;
     private NamespaceBundleFactory bundleFactory;
-    private OrderedScheduler executor;
-    private MockZooKeeper zkc;
 
     @BeforeMethod
     public void setup() throws Exception {
-        pulsar = mock(PulsarService.class);
-        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
-        zkc = MockZooKeeper.newInstance();
-        zkCache = new LocalZooKeeperCache(zkc, 30, executor);
-        localCache = new LocalZooKeeperCacheService(zkCache, null);
+        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
 
+        PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
         when(pulsar.getConfigurationMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-
-        doReturn(zkCache).when(pulsar).getLocalZkCache();
-        doReturn(localCache).when(pulsar).getLocalZkCacheService();
     }
 
     @AfterMethod(alwaysRun = true)
-    public void teardown() throws Exception{
-        executor.shutdownNow();
-        zkCache.stop();
-        zkc.shutdown();
+    public void teardown() throws Exception {
+        store.close();
     }
 
     @Test
     public void testGetSetDefaultQuota() throws Exception {
-        ResourceQuotaCache cache = new ResourceQuotaCache(zkCache);
-        ResourceQuota quota1 = ResourceQuotaCache.getInitialQuotaValue();
+        BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
         ResourceQuota quota2 = new ResourceQuota();
         quota2.setMsgRateIn(10);
         quota2.setMsgRateOut(20);
@@ -84,16 +67,15 @@ public class ResourceQuotaCacheTest {
         quota2.setMemory(100);
         quota2.setDynamic(false);
 
-        assertEquals(cache.getDefaultQuota(), quota1);
-        cache.setDefaultQuota(quota2);
-        assertEquals(cache.getDefaultQuota(), quota2);
+        assertEquals(bundlesQuotas.getDefaultResourceQuota().join(), BundlesQuotas.INITIAL_QUOTA);
+        bundlesQuotas.setDefaultResourceQuota(quota2).join();
+        assertEquals(bundlesQuotas.getDefaultResourceQuota().join(), quota2);
     }
 
     @Test
     public void testGetSetBundleQuota() throws Exception {
-        ResourceQuotaCache cache = new ResourceQuotaCache(zkCache);
+        BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
         NamespaceBundle testBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-2"));
-        ResourceQuota quota1 = ResourceQuotaCache.getInitialQuotaValue();
         ResourceQuota quota2 = new ResourceQuota();
         quota2.setMsgRateIn(10);
         quota2.setMsgRateOut(20);
@@ -102,10 +84,10 @@ public class ResourceQuotaCacheTest {
         quota2.setMemory(100);
         quota2.setDynamic(false);
 
-        assertEquals(cache.getQuota(testBundle), quota1);
-        cache.setQuota(testBundle, quota2);
-        assertEquals(cache.getQuota(testBundle), quota2);
-        cache.unsetQuota(testBundle);
-        assertEquals(cache.getQuota(testBundle), quota1);
+        assertEquals(bundlesQuotas.getResourceQuota(testBundle).join(), BundlesQuotas.INITIAL_QUOTA);
+        bundlesQuotas.setResourceQuota(testBundle, quota2).join();
+        assertEquals(bundlesQuotas.getResourceQuota(testBundle).join(), quota2);
+        bundlesQuotas.resetResourceQuota(testBundle).join();
+        assertEquals(bundlesQuotas.getResourceQuota(testBundle).join(), BundlesQuotas.INITIAL_QUOTA);
     }
 }

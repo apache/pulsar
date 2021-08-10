@@ -77,7 +77,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         }
 
         try {
-            BookiesRackConfiguration racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).orElse(new BookiesRackConfiguration());
+            BookiesRackConfiguration racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).orElseGet(BookiesRackConfiguration::new);
             updateRacksWithHost(racks);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -185,7 +185,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         try {
             // Trigger load of z-node in case it didn't exist
             Optional<BookiesRackConfiguration> racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH);
-            updateRacksWithHost(racks.orElse(new BookiesRackConfiguration()));
+            updateRacksWithHost(racks.orElseGet(BookiesRackConfiguration::new));
             if (!racks.isPresent()) {
                 // since different placement policy will have different default rack,
                 // don't be smart here and just return null

@@ -32,8 +32,7 @@ public class BackoffBuilder {
     private long mandatoryStop;
     private TimeUnit unitMandatoryStop;
     
-    @VisibleForTesting
-    BackoffBuilder() {
+    public BackoffBuilder() {
         this.initial = 0;
         this.max = 0;
         this.mandatoryStop = 0;

@@ -461,10 +461,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().deletePartitionedTopic(topic, force);
-            if (deleteSchema) {
-                getAdmin().schemas().deleteSchema(topic);
-            }
+            getTopics().deletePartitionedTopic(topic, force, deleteSchema);
         }
     }
 
@@ -485,10 +482,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            getTopics().delete(topic, force);
-            if (deleteSchema) {
-                getAdmin().schemas().deleteSchema(topic);
-            }
+            getTopics().delete(topic, force, deleteSchema);
         }
     }
 
@@ -1192,8 +1186,8 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
-        private String limitStr;
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
+        private String limitStr = "-1";
 
         @Parameter(names = { "-lt", "--limitTime" }, description = "Time limit in second, non-positive number for disabling time limit.")
         private int limitTime = -1;
@@ -1201,6 +1195,9 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
+
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set")
+        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
         void run() throws PulsarAdminException {
@@ -1221,7 +1218,8 @@ public class CmdTopics extends CmdBase {
                     .limitSize(limit)
                     .limitTime(limitTime)
                     .retentionPolicy(policy)
-                    .build());
+                    .build(),
+                    BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
         }
     }
 
@@ -1231,10 +1229,13 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to remove")
+        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().removeBacklogQuota(persistentTopic);
+            getTopics().removeBacklogQuota(persistentTopic, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
         }
     }
 

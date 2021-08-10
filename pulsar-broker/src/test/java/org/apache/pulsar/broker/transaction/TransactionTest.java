@@ -95,6 +95,8 @@ public class TransactionTest extends TransactionTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
+        // wait tc init success to ready state
+        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
     }
 
     @Test
@@ -161,8 +163,6 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testGetTxnID() throws Exception {
-        // wait tc init success to ready state
-        Assert.assertTrue(waitForCoordinatorToBeAvailable(NUM_BROKERS, NUM_PARTITIONS));
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();

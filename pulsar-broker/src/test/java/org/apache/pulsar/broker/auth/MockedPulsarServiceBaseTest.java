@@ -238,6 +238,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected abstract void cleanup() throws Exception;
 
+    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
+        // No-op
+    }
+
     protected void restartBroker() throws Exception {
         stopBroker();
         startBroker();
@@ -284,6 +288,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         conf.setBrokerShutdownTimeoutMs(0L);
         PulsarService pulsar = spy(new PulsarService(conf));
         setupBrokerMocks(pulsar);
+        beforePulsarStartMocks(pulsar);
         pulsar.start();
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());

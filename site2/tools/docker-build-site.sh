@@ -27,7 +27,7 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
-BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04-py2-website}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04-pb3-website}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
