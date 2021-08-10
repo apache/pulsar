@@ -35,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -46,8 +47,10 @@ import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.api.Record;
@@ -266,6 +269,11 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         assertEquals(topicStats.getSubscriptions().get(subscriptionName).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subscriptionName).getConsumers().get(0).getAvailablePermits(), 523);
 
+        // make sure there are no errors in the sink
+        SinkStatus status = admin.sinks().getSinkStatus(tenant, namespacePortion, sinkName);
+        status.getInstances().forEach(sinkInstanceStatus -> assertEquals(sinkInstanceStatus.status.numSinkExceptions, 0));
+        status.getInstances().forEach(sinkInstanceStatus -> assertEquals(sinkInstanceStatus.status.numSystemExceptions, 0));
+
         // validate prometheus metrics empty
         String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheus metrics: {}", prometheusMetrics);
@@ -343,11 +351,21 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         retryStrategically((test) -> {
             try {
                 SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
-                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgOutCounter() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 5, 200);
+
+        SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+        assertEquals(subStats.getUnackedMessages(), 0);
+        assertEquals(subStats.getMsgOutCounter(), totalMsgs);
+        assertEquals(subStats.getMsgBacklog(), 0);
+
+        // make sure there are no errors in the sink after producing
+        status = admin.sinks().getSinkStatus(tenant, namespacePortion, sinkName);
+        status.getInstances().forEach(sinkInstanceStatus -> assertEquals(sinkInstanceStatus.status.numSinkExceptions, 0));
+        status.getInstances().forEach(sinkInstanceStatus -> assertEquals(sinkInstanceStatus.status.numSystemExceptions, 0));
 
         // get stats after producing
         prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
@@ -463,14 +481,13 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
     public void testPulsarSinkPoolMessages() throws Exception {
         String jarFilePathUrl = PulsarSinkE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString();
         testPulsarSinkStats(jarFilePathUrl, sinkConfig -> {
-            sinkConfig.setClassName(StatsNullSink.class.getName());
+            sinkConfig.setClassName(ByteBufferSink.class.getName());
             sinkConfig.getInputSpecs().values().forEach(consumerConfig -> consumerConfig.setPoolMessages(true));
             return sinkConfig;
         });
     }
 
-    public static class StatsNullSink implements Sink<ByteBuffer> {
-        volatile long bytesTotal = 0;
+    public static class ByteBufferSink implements Sink<ByteBuffer> {
 
         @Override
         public void open(Map map, final SinkContext sinkContext) throws Exception {
@@ -479,7 +496,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
         @Override
         public void write(Record<ByteBuffer> record) throws Exception {
-            bytesTotal += record.getValue().capacity();
+            assertTrue(record.getValue().isDirect());
             record.ack();
         }
 

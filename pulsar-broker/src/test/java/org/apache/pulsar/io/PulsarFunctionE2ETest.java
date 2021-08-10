@@ -1093,7 +1093,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         functionConfig.setName(functionName);
         functionConfig.setParallelism(1);
         functionConfig.setSubName(subscriptionName);
-        functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().poolMessages(true).build()));
+        functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().poolMessages(true).build()));
         functionConfig.setAutoAck(true);
         functionConfig.setClassName(ByteBufferFunction.class.getName());
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
@@ -1130,6 +1131,9 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         });
 
         Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+        if (msg == null) {
+            fail("Should have gotten a message");
+        }
         String receivedPropertyValue = msg.getProperty(propertyKey);
         assertEquals(propertyValue, receivedPropertyValue);
 
@@ -1152,6 +1156,8 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
     public static class ByteBufferFunction implements org.apache.pulsar.functions.api.Function<ByteBuffer, ByteBuffer> {
         @Override
         public ByteBuffer process(ByteBuffer input, Context context) throws Exception {
+            // make sure we are using pooled memory
+            assertTrue(input.isDirect());
             return input;
         }
     }
