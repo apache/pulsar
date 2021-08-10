@@ -376,24 +376,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<Long> deleteSchema(String schemaId, boolean forceFully) {
-        return (forceFully ? CompletableFuture.completedFuture(null) : getSchema(schemaId).exceptionally(t -> {
-            if (t.getCause() != null
-                    && (t.getCause() instanceof SchemaException)
-                    && !((SchemaException) t.getCause()).isRecoverable()) {
-                // Meeting NoSuchLedgerExistsException or NoSuchEntryException when reading schemas in
-                // bookkeeper. This also means that the data has already been deleted by other operations
-                // in deleting schema.
-                if (log.isDebugEnabled()) {
-                    log.debug("Schema:{}'s data in bookkeeper may be deleted by other operations", schemaId);
-                }
-                return null;
-            }
-            // rethrow other cases
-            throw t instanceof CompletionException ? (CompletionException) t : new CompletionException(t);
-        }))
-                .thenCompose(schemaAndVersion -> {
-            if (!forceFully && isNull(schemaAndVersion)) {
+    private CompletableFuture<Long> deleteSchema(String schemaId, boolean forcefully) {
+        return (forcefully ? CompletableFuture.completedFuture(null)
+                : ignoreUnrecoverableBKException(getSchema(schemaId))).thenCompose(schemaAndVersion -> {
+            if (!forcefully && isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
                 // The version is only for the compatibility of the current interface
@@ -712,5 +698,23 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         boolean recoverable = rc != BKException.Code.NoSuchLedgerExistsException
                 && rc != BKException.Code.NoSuchEntryException;
         return new SchemaException(recoverable, message);
+    }
+
+    public static <T> CompletableFuture<T> ignoreUnrecoverableBKException(CompletableFuture<T> source) {
+        return source.exceptionally(t -> {
+            if (t.getCause() != null
+                    && (t.getCause() instanceof SchemaException)
+                    && !((SchemaException) t.getCause()).isRecoverable()) {
+                // Meeting NoSuchLedgerExistsException or NoSuchEntryException when reading schemas in
+                // bookkeeper. This also means that the data has already been deleted by other operations
+                // in deleting schema.
+                if (log.isDebugEnabled()) {
+                    log.debug("Schema data in bookkeeper may be deleted by other operations.", t);
+                }
+                return null;
+            }
+            // rethrow other cases
+            throw t instanceof CompletionException ? (CompletionException) t : new CompletionException(t);
+        });
     }
 }
