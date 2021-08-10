@@ -4,26 +4,20 @@ title: Deploying a multi-cluster on bare metal
 sidebar_label: Bare metal multi-cluster
 ---
 
-> ### Tips
+>  **Tips** 
 >
-> 1. Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you are interested in experimenting with
-> Pulsar or using it in a startup or on a single team, you had better opt for a single cluster. For instructions on deploying a single cluster,
-> see the guide [here](deploy-bare-metal.md).
+> 1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
 >
-> 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
-> package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
-> run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+> 2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
 >
-> 3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`
-> package and install `apache-pulsar-offloaders` under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
-> this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
+>3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
-A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
+A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md).Deploying a  multi-cluster Pulsar instance consists of the following steps:
 
-* Deploying two separate ZooKeeper quorums: a local quorum for each cluster in the instance and a configuration store quorum for instance-wide tasks
-* Initializing cluster metadata for each cluster
-* Deploying a BookKeeper cluster of bookies in each Pulsar cluster
-* Deploying brokers in each Pulsar cluster
+1. Deploying two separate ZooKeeper quorums: a local quorum for each cluster in the instance and a configuration store quorum for instance-wide tasks
+2. Initializing cluster metadata for each cluster
+3. Deploying a BookKeeper cluster of bookies in each Pulsar cluster
+4. Deploying brokers in each Pulsar cluster
 
 
 > #### Run Pulsar locally or on Kubernetes?
