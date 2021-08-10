@@ -2305,9 +2305,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && TOTAL_SIZE_UPDATER.get(this) - sizeToDelete >= config.getRetentionSizeInMB() * MegaByte;
     }
 
-    private boolean isOffloadedNeedsDelete(OffloadContext offload, Optional<OffloadPolicies> offloadPolicies) {
+    boolean isOffloadedNeedsDelete(OffloadContext offload, Optional<OffloadPolicies> offloadPolicies) {
         long elapsedMs = clock.millis() - offload.getTimestamp();
         return offloadPolicies.filter(policies -> offload.getComplete() && !offload.getBookkeeperDeleted()
+                && policies.getManagedLedgerOffloadDeletionLagInMillis() != null
                 && elapsedMs > policies.getManagedLedgerOffloadDeletionLagInMillis()).isPresent();
     }
 
