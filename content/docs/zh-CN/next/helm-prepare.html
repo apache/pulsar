@@ -85,24 +85,11 @@
 <li><a href="#create-cluster-with-local-ssds">使用本地SSD创建集群</a></li>
 </ul></li>
 </ul></li>
-<li><a href="#next-steps">后续步骤</a></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="谷歌kubernetes引擎gke"></a><a href="#谷歌kubernetes引擎gke" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>谷歌Kubernetes引擎(GKE)</h2>
 <p>为了更轻松地开始，提供了一个脚本来自动创建集群。 另外，也可以手动创建集群。</p>
-<ul>
-<li><a href="#google-kubernetes-engine">谷歌Kubernetes引擎(GKE)</a>
-<ul>
-<li><a href="#manual-cluster-creation">手动创建集群</a></li>
-<li><a href="#scripted-cluster-creation">脚本创建集群</a>
-<ul>
-<li><a href="#create-cluster-with-local-ssds">使用本地SSD创建集群</a></li>
-</ul></li>
-</ul></li>
-<li><a href="#next-steps">后续步骤</a></li>
-</ul>
 <h3><a class="anchor" aria-hidden="true" id="手动创建集群"></a><a href="#手动创建集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>手动创建集群</h3>
 <p>要手动配置Kubernetes集群，请按照<a href="https://cloud.google.com/kubernetes-engine/docs/how-to/creating-a-cluster">GKE指南</a>进行操作。</p>
-<p>此外，你也可以根据需要使用下面的<a href="#scripted-cluster-creation">说明</a>来配置GKE集群。</p>
 <h3><a class="anchor" aria-hidden="true" id="脚本创建集群"></a><a href="#脚本创建集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>脚本创建集群</h3>
 <p>我们已经创建了一个<a href="https://github.com/streamnative/charts/tree/master/scripts/pulsar/gke_bootstrap_script.sh">引导脚本</a>，为GCP/GKE上的用户自动完成大部分设置过程。</p>
 <p>该脚本可以：</p>
@@ -144,9 +131,7 @@
 <p>要使用本地持久卷安装Pulsar Helm chart，你需要创建一个有本地SSD的GKE集群。 执行如下命令，将<code>USE_LOCAL_SSD</code>指定为<code>true</code>，来创建一个有本地SSD的Pulsar集群。</p>
 <pre><code class="hljs"><span class="hljs-attribute">PROJECT</span>=&lt;gcloud project id&gt; <span class="hljs-attribute">USE_LOCAL_SSD</span>=<span class="hljs-literal">true</span> <span class="hljs-attribute">LOCAL_SSD_COUNT</span>=&lt;local-ssd-count&gt; scripts/pulsar/gke_bootstrap_script.sh up
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="后续步骤"></a><a href="#后续步骤" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>后续步骤</h2>
-<p>一旦你的集群启动并运行，继续<a href="/docs/zh-CN/next/helm-deploy">安装Apache Pulsar Helm chart</a>。</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/helm-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/helm-install"><span>安装</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#谷歌kubernetes引擎gke">谷歌Kubernetes引擎(GKE)</a><ul class="toc-headings"><li><a href="#手动创建集群">手动创建集群</a></li><li><a href="#脚本创建集群">脚本创建集群</a></li></ul></li><li><a href="#后续步骤">后续步骤</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/helm-overview"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/helm-install"><span>安装</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#谷歌kubernetes引擎gke">谷歌Kubernetes引擎(GKE)</a><ul class="toc-headings"><li><a href="#手动创建集群">手动创建集群</a></li><li><a href="#脚本创建集群">脚本创建集群</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
