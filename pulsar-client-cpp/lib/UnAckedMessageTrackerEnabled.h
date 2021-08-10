@@ -46,7 +46,7 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     std::mutex lock_;
     ConsumerImplBase& consumerReference_;
     ClientImplPtr client_;
-    DeadlineTimerPtr timer_; // DO NOT place this before client_!
+    DeadlineTimerPtr timer_;  // DO NOT place this before client_!
     long timeoutMs_;
     long tickDurationInMs_;
 
