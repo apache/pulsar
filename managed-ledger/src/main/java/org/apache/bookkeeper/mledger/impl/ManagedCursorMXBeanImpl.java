@@ -30,6 +30,10 @@ public class ManagedCursorMXBeanImpl implements ManagedCursorMXBean {
     private final LongAdder persistZookeeperSucceed = new LongAdder();
     private final LongAdder persistZookeeperFailed = new LongAdder();
 
+    private final LongAdder writeCursorLedgerSize = new LongAdder();
+    private final LongAdder writeCursorLedgerLogicalSize = new LongAdder();
+    private final LongAdder readCursorLedgerSize = new LongAdder();
+
     private final ManagedCursor managedCursor;
 
     public ManagedCursorMXBeanImpl(ManagedCursor managedCursor) {
@@ -82,5 +86,31 @@ public class ManagedCursorMXBeanImpl implements ManagedCursorMXBean {
     @Override
     public long getPersistZookeeperErrors() {
         return persistZookeeperFailed.longValue();
+    }
+
+    @Override
+    public void addWriteCursorLedgerSize(final long size) {
+        writeCursorLedgerSize.add(size * ((ManagedCursorImpl) managedCursor).config.getWriteQuorumSize());
+        writeCursorLedgerLogicalSize.add(size);
+    }
+
+    @Override
+    public void addReadCursorLedgerSize(final long size) {
+        readCursorLedgerSize.add(size);
+    }
+
+    @Override
+    public long getWriteCursorLedgerSize() {
+        return writeCursorLedgerSize.longValue();
+    }
+
+    @Override
+    public long getWriteCursorLedgerLogicalSize() {
+        return writeCursorLedgerLogicalSize.longValue();
+    }
+
+    @Override
+    public long getReadCursorLedgerSize() {
+        return readCursorLedgerSize.longValue();
     }
 }
