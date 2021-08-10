@@ -53,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -3202,8 +3203,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return PositionImpl.get(position.getLedgerId(), position.getEntryId() - 1);
         }
 
+        final ConcurrentNavigableMap<Long, LedgerInfo> ledgersCopied = new ConcurrentSkipListMap<>(ledgers);
         // The previous position will be the last position of an earlier ledgers
-        NavigableMap<Long, LedgerInfo> headMap = ledgers.headMap(position.getLedgerId(), false);
+        NavigableMap<Long, LedgerInfo> headMap = ledgersCopied.headMap(position.getLedgerId(), false);
 
         if (headMap.isEmpty()) {
             // There is no previous ledger, return an invalid position in the current ledger
@@ -3218,13 +3220,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
 
-        Map.Entry<Long, LedgerInfo> firstLedgerEntry = headMap.firstEntry();
-        if(firstLedgerEntry != null) {
-            // in case there are only empty ledgers, we return a position in the first one
-            return PositionImpl.get(firstLedgerEntry.getKey(), -1);
-        } else {
-            return PositionImpl.get(position.getLedgerId(), -1);
-        }
+        // in case there are only empty ledgers, we return a position in the first one
+        return PositionImpl.get(headMap.firstEntry().getKey(), -1);
     }
 
     /**
