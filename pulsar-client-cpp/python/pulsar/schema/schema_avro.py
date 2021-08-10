@@ -59,7 +59,7 @@ if HAS_AVRO:
             fastavro.schemaless_writer(buffer, self._schema, m)
             return buffer.getvalue()
 
-        def encode_dict(self, d: dict):
+        def encode_dict(self, d):
             obj = {}
             for k, v in d.items():
                 obj[k] = self._get_serialized_value(v)

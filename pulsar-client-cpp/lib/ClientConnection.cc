@@ -187,6 +187,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
       numOfPendingLookupRequest_(0),
       isTlsAllowInsecureConnection_(false) {
+    LOG_INFO(cnxString_ << "Create ClientConnection, timeout=" << clientConfiguration.getConnectionTimeout());
     if (clientConfiguration.isUseTls()) {
 #if BOOST_VERSION >= 105400
         boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
@@ -433,21 +434,28 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             handleHandshake(boost::system::errc::make_error_code(boost::system::errc::success));
         }
     } else if (endpointIterator != tcp::resolver::iterator()) {
+        LOG_WARN(cnxString_ << "Failed to establish connection: " << err.message());
         // The connection failed. Try the next endpoint in the list.
-        boost::system::error_code err;
-        socket_->close(err);  // ignore the error of close
-        if (err) {
+        boost::system::error_code closeError;
+        socket_->close(closeError);  // ignore the error of close
+        if (closeError) {
             LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
         }
         connectTimeoutTask_->stop();
-        connectTimeoutTask_->start();
-        tcp::endpoint endpoint = *endpointIterator;
-        socket_->async_connect(endpoint, std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
-                                                   std::placeholders::_1, ++endpointIterator));
+        ++endpointIterator;
+        if (endpointIterator != tcp::resolver::iterator()) {
+            LOG_DEBUG(cnxString_ << "Connecting to " << endpointIterator->endpoint() << "...");
+            connectTimeoutTask_->start();
+            tcp::endpoint endpoint = *endpointIterator;
+            socket_->async_connect(endpoint,
+                                   std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
+                                             std::placeholders::_1, ++endpointIterator));
+        } else {
+            close();
+        }
     } else {
         LOG_ERROR(cnxString_ << "Failed to establish connection: " << err.message());
         close();
-        return;
     }
 }
 
@@ -512,7 +520,7 @@ void ClientConnection::tcpConnectAsync() {
         return;
     }
 
-    LOG_DEBUG(cnxString_ << "Connecting to " << service_url.host() << ":" << service_url.port());
+    LOG_DEBUG(cnxString_ << "Resolving " << service_url.host() << ":" << service_url.port());
     tcp::resolver::query query(service_url.host(), std::to_string(service_url.port()));
     resolver_->async_resolve(query, std::bind(&ClientConnection::handleResolve, shared_from_this(),
                                               std::placeholders::_1, std::placeholders::_2));
@@ -531,12 +539,16 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
         if (state_ != TcpConnected) {
             LOG_ERROR(cnxString_ << "Connection was not established in " << connectTimeoutTask_->getPeriodMs()
                                  << " ms, close the socket");
-            PeriodicTask::ErrorCode ignoredError;
-            socket_->close(ignoredError);
+            PeriodicTask::ErrorCode err;
+            socket_->close(err);
+            if (err) {
+                LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+            }
         }
         connectTimeoutTask_->stop();
     });
 
+    LOG_DEBUG(cnxString_ << "Connecting to " << endpointIterator->endpoint() << "...");
     connectTimeoutTask_->start();
     if (endpointIterator != tcp::resolver::iterator()) {
         LOG_DEBUG(cnxString_ << "Resolved hostname " << endpointIterator->host_name()  //
@@ -1455,7 +1467,10 @@ void ClientConnection::close() {
     }
 
     if (tlsSocket_) {
-        tlsSocket_->lowest_layer().close();
+        tlsSocket_->lowest_layer().close(err);
+        if (err) {
+            LOG_WARN(cnxString_ << "Failed to close TLS socket: " << err.message());
+        }
     }
 
     if (executor_) {
@@ -1567,7 +1582,7 @@ Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consume
 
     pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendCommand(Commands::newGetLastMessageId(consumerId, requestId));
+    sendRequestWithId(Commands::newGetLastMessageId(consumerId, requestId), requestId);
     return promise.getFuture();
 }
 

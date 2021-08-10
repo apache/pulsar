@@ -106,6 +106,7 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync
                           << '/' << PARTITION_METHOD_NAME;
     }
 
+    completeUrlStream << "?checkAllowAutoCreation=true";
     executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleLookupHTTPRequest,
                                                  shared_from_this(), promise, completeUrlStream.str(),
                                                  PartitionMetaData));
