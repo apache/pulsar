@@ -30,7 +30,6 @@ import java.util.concurrent.CountDownLatch;
 
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
@@ -116,7 +115,7 @@ public class ZooKeeperUtil {
         // create a zookeeper client
         LOG.debug("Instantiate ZK Client");
         zkc = ZooKeeperClient.newBuilder().connectString(getZooKeeperConnectString()).build();
-        if (StringUtils.isNotEmpty(path)) {
+        if (!"".equals(path)) {
             zkc.create(path, new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
         // initialize the zk client with values
