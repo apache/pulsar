@@ -1075,7 +1075,7 @@ public class PulsarClientException extends IOException {
         }
 
         Collection<Throwable> previousExceptions = getPreviousExceptions(t);
-        if (t != null) {
+        if (previousExceptions != null) {
             newException.setPreviousExceptions(previousExceptions);
         }
         return newException;

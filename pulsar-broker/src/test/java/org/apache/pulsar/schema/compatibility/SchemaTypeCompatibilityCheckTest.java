@@ -97,7 +97,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -123,7 +123,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -149,7 +149,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                     .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -178,7 +178,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName + "2");
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type JSON, new schema type AVRO"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
     @Test
@@ -200,7 +200,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test
@@ -226,7 +226,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test
@@ -252,7 +252,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .topic(topicName);
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test
@@ -281,7 +281,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
                 .subscriptionName(subName + "2");
 
         Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, consumerBuilder::subscribe);
-        assertTrue(t.getMessage().endsWith("Incompatible schema: exists schema type INT32, new schema type STRING"));
+        assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
     @Test

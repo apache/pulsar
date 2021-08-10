@@ -18,39 +18,45 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.concurrent.ArrayBlockingQueue;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newPartitionMetadataResponse;
-import org.apache.pulsar.common.api.proto.ServerError;
+
 import com.google.common.collect.Sets;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.PulsarChannelInitializer;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.common.api.proto.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.PulsarChannelInitializer;
-import org.apache.pulsar.common.api.proto.CommandLookupTopic;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
-import org.apache.pulsar.common.naming.TopicName;
 
 public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(LookupRetryTest.class);
-
     private static final String subscription = "reader-sub";
+    private final AtomicInteger connectionsCreated = new AtomicInteger(0);
+    private final ConcurrentHashMap<String, Queue<LookupError>> failureMap = new ConcurrentHashMap<>();
 
     @BeforeMethod
     @Override
@@ -75,7 +81,8 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
                             return new PulsarChannelInitializer(_pulsar, tls) {
                                 @Override
                                 protected ServerCnx newServerCnx(PulsarService pulsar) throws Exception {
-                                    return new ErrorByTopicServerCnx(pulsar);
+                                    connectionsCreated.incrementAndGet();
+                                    return new ErrorByTopicServerCnx(pulsar, failureMap);
                                 }
                             };
                         });
@@ -155,6 +162,67 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testProducerTimeoutOnPMR() throws Exception {
+        try (PulsarClient client = newClient();
+             Producer<byte[]> producer = client.newProducer().topic("TIMEOUT:2,OK:3").create()) {
+        }
+    }
+
+    @Test
+    public void testProducerTooManyOnPMR() throws Exception {
+        try (PulsarClient client = newClient();
+             Producer<byte[]> producer = client.newProducer().topic("TOO_MANY:2,OK:3").create()) {
+        }
+
+    }
+
+    @Test
+    public void testProducerTimeoutOnLookup() throws Exception {
+        try (PulsarClient client = newClient();
+             Producer<byte[]> producer = client.newProducer().topic("OK:1,TIMEOUT:2,OK:3").create()) {
+        }
+    }
+
+    @Test
+    public void testProducerTooManyOnLookup() throws Exception {
+        try (PulsarClient client = newClient();
+             Producer<byte[]> producer = client.newProducer().topic("OK:1,TOO_MANY:2,OK:3").create()) {
+        }
+    }
+
+    /**
+     * <pre>
+     * Verifies: that client-cnx gets closed when server gives TooManyRequestException in certain time frame
+     * Client1: which has set MaxNumberOfRejectedRequestPerConnection=1, should fail on TooManyRequests
+     * Client2: which has set MaxNumberOfRejectedRequestPerConnection=100, should not fail
+     * on TooManyRequests, whether there is 1 or 4 (I don't do more because exponential
+     * backoff would make it take a long time.
+     * </pre>
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testCloseConnectionOnBrokerRejectedRequest() throws Exception {
+        String lookupUrl = pulsar.getBrokerServiceUrl();
+        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
+                .maxNumberOfRejectedRequestPerConnection(1).build()) {
+
+            // need 2 TooManyRequests because it takes the count before incrementing
+            pulsarClient.newProducer().topic("TOO_MANY:2").create().close();
+
+            Assert.assertEquals(connectionsCreated.get(), 2);
+        }
+
+        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
+             .maxNumberOfRejectedRequestPerConnection(100).build()) {
+
+            pulsarClient.newProducer().topic("TOO_MANY:2").create().close();
+            pulsarClient.newProducer().topic("TOO_MANY:4").create().close();
+            Assert.assertEquals(connectionsCreated.get(), 3);
+        }
+    }
+
     enum LookupError {
         UNKNOWN,
         TOO_MANY,
@@ -163,10 +231,11 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     }
 
     private static class ErrorByTopicServerCnx extends ServerCnx {
-        private ConcurrentHashMap<String, Queue<LookupError>> failureMap = new ConcurrentHashMap<>();
+        private final ConcurrentHashMap<String, Queue<LookupError>> failureMap;
 
-        ErrorByTopicServerCnx(PulsarService pulsar) {
+        ErrorByTopicServerCnx(PulsarService pulsar, ConcurrentHashMap<String, Queue<LookupError>> failureMap) {
             super(pulsar);
+            this.failureMap = failureMap;
         }
 
         private Queue<LookupError> errorList(String topicName) {

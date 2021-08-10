@@ -52,6 +52,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -140,6 +141,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private ScheduledFuture<?> batchTimerTask;
 
     private Optional<Long> topicEpoch = Optional.empty();
+    private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
@@ -217,7 +219,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sendTimeout = client.timer().newTimeout(this, conf.getSendTimeoutMs(), TimeUnit.MILLISECONDS);
         }
 
-        this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
+        this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         if (conf.isBatchingEnabled()) {
             BatcherBuilder containerBuilder = conf.getBatcherBuilder();
             if (containerBuilder == null) {
@@ -1282,6 +1284,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {
+        previousExceptions.clear();
+
         // we set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating the
         // producer, it will try to grab a new cnx
         connectionHandler.setClientCnx(cnx);
@@ -1461,14 +1465,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     public void connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean producerTimeout = System.currentTimeMillis() > createProducerTimeout;
-        if ((nonRetriableError || producerTimeout) && producerCreatedFuture.completeExceptionally(exception)) {
-            if (nonRetriableError) {
-                log.info("[{}] Producer creation failed for producer {} with unretriableError = {}", topic, producerId, exception);
-            } else {
-                log.info("[{}] Producer creation failed for producer {} after producerTimeout", topic, producerId);
+        if (nonRetriableError || producerTimeout) {
+            exception.setPreviousExceptions(previousExceptions);
+            if (producerCreatedFuture.completeExceptionally(exception)) {
+                if (nonRetriableError) {
+                    log.info("[{}] Producer creation failed for producer {} with unretriableError = {}", topic, producerId, exception);
+                } else {
+                    log.info("[{}] Producer creation failed for producer {} after producerTimeout", topic, producerId);
+                }
+                setState(State.Failed);
+                client.cleanupProducer(this);
             }
-            setState(State.Failed);
-            client.cleanupProducer(this);
+        } else {
+            previousExceptions.add(exception);
         }
     }
 
