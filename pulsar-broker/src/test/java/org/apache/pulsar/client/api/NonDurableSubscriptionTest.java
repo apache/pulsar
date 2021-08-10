@@ -97,7 +97,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
     @Test
     public void testSameSubscriptionNameForDurableAndNonDurableSubscription() throws Exception {
         String topicName = "persistent://my-property/my-ns/same-sub-name-topic";
-
+        // first test for create Durable subscription and then create NonDurable subscription
         // 1. create a subscription with SubscriptionMode.Durable
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
@@ -121,6 +121,36 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .subscribe();
             Assert.fail("should fail since durable subscription already exist.");
+        } catch (PulsarClientException.NotAllowedException exception) {
+            //ignore
+        }
+
+        // second test for create NonDurable subscription and then create Durable subscription
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .create();
+        // 1. create a subscription with SubscriptionMode.NonDurable
+        @Cleanup
+        Consumer<String> noDurableConsumer =
+                pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                        .subscriptionMode(SubscriptionMode.NonDurable)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .subscriptionName("mix-subscription-01")
+                        .receiverQueueSize(1)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                        .subscribe();
+
+        // 2. create a subscription with SubscriptionMode.Durable
+        try {
+            @Cleanup
+            Consumer<String> durableConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionMode(SubscriptionMode.Durable)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName("mix-subscription-01")
+                    .receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
         } catch (PulsarClientException.NotAllowedException exception) {
             //ignore
         }
