@@ -80,14 +80,14 @@ Each Pulsar instance relies on two separate ZooKeeper quorums.
 * Local ZooKeeper operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs a dedicated ZooKeeper cluster.
 * Configuration Store operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
 
-The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
+You can use an independent cluster of machines or the same machines used by local ZooKeeper to provide the configuration store quorum.
 
 
 ### Deploy local ZooKeeper
 
 ZooKeeper manages a variety of essential coordination-related and configuration-related tasks for Pulsar.
 
-You need to stand up one local ZooKeeper cluster *per Pulsar cluster* for deploying a Pulsar instance. 
+You need to stand up one local ZooKeeper cluster per Pulsar cluster for deploying a Pulsar instance. 
 
 To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example for a three-node cluster:
 
@@ -99,6 +99,8 @@ server.3=zk3.us-west.example.com:2888:3888
 
 On each host, you need to specify the ID of the node in the `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 
+>**Tip**
+>
 > See the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation for detailed information on `myid` and more.
 
 On a ZooKeeper server at `zk1.us-west.example.com`, for example, you could set the `myid` value like this:
@@ -118,7 +120,7 @@ $ bin/pulsar-daemon start zookeeper
 
 ### Deploy the configuration store 
 
-The ZooKeeper cluster that is configured and started up in the section above is a local ZooKeeper cluster that you can use to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
+The ZooKeeper cluster configured and started up in the section above is a local ZooKeeper cluster that you can use to manage a single Pulsar cluster. In addition to a local cluster, however, a full Pulsar instance also requires a configuration store for handling some instance-level configuration and coordination tasks.
 
 If you deploy a single-cluster instance, you do not need a separate cluster for the configuration store. If, however, you deploy a multi-cluster instance, you should stand up a separate ZooKeeper cluster for configuration tasks.
 
@@ -126,7 +128,7 @@ If you deploy a single-cluster instance, you do not need a separate cluster for 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom.You need uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom.You need to use the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -141,7 +143,7 @@ As before, create the `myid` files for each server on `data/global-zookeeper/myi
 
 When you deploy a global Pulsar instance, with clusters distributed across different geographical regions, the configuration store serves as a highly available and strongly consistent metadata store that can tolerate failures and partitions spanning whole regions.
 
-The key here is to make sure the ZK quorum members are spread across at least 3 regions and that other regions run as observers.
+The key here is to make sure the ZK quorum members are spread across at least 3 regions, and other regions run as observers.
 
 Again, given the very low expected load on the configuration store servers, you can
 share the same hosts used for the local ZooKeeper quorum.
