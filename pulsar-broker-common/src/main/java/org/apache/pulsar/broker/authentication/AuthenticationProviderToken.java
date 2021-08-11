@@ -149,7 +149,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.confIsJwkEnabledSettingName = prefix + CONF_JWK_ENABLED;
         this.confJWkUrlSettingName = prefix + CONF_JWK_URL;
 
-        System.out.println("JWKURL: " + this.jwkUrl);
 
         // we need to fetch the algorithm before we fetch the key
         this.publicKeyAlg = getPublicKeyAlgType(config);
@@ -192,13 +191,13 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             String role;
             token = getToken(authData);
             // Parse Token by validating
-            System.out.println("TOKEN: "+ token);
+            
             if(confIsJwkEnabled){
                 role = getPrincipal(authenticateTokenJwk(token));
             } else {
                 role = getPrincipal(authenticateToken(token));
             }
-            System.out.println("Role: " + role);
+            
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
             return role;
         } catch (AuthenticationException exception) {
@@ -320,9 +319,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
 
-
             if(jwt.getExpiresAt() != null){
-                expiringTokenMinutesMetrics.observe((double) (jwt.getExpiresAt().getTime() - new Date().getTime()) / (60 * 1000));
+                long minToExpiration = (jwt.getExpiresAt().getTime() - new Date().getTime()) / (60 * 1000);
+                if(minToExpiration <= 0){
+                    throw new AuthenticationException("Token is expired");
+                }
+                expiringTokenMinutesMetrics.observe((double) minToExpiration / (60 * 1000));
             }
 
             return jwt;
