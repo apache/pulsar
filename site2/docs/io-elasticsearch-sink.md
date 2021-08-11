@@ -54,7 +54,7 @@ The configuration of the ElasticSearch sink connector has the following properti
 | `schemaEnable` | Boolean | false | false | Turn on the Schema Aware mode. |
 | `createIndexIfNeeded` | Boolean | false | false | Manage index if missing. |
 | `maxRetries` | Integer | false | 1 | The maximum number of retries for elasticsearch requests. Use -1 to disable it.  |
-| `retryBackoffInMs` | Integer | false | 100 | The base time in milliseconds to wait when retrying an elasticsearch request. |
+| `retryBackoffInMs` | Integer | false | 100 | The base time to wait when retrying an ElasticSearch request (in milliseconds). |
 | `maxRetryTimeInSec` | Integer| false | 86400 | The maximum retry time interval in seconds for retrying an elasticsearch request.. |
 | `bulkEnabled` | Boolean | false | false | Enable the elasticsearch bulk processor to flush write requests based on the number or size of requests, or after a given period. |
 | `bulkActions` | Integer | false | 1000 | The maximum number of actions per elasticsearch bulk request. Use -1 to disable it. |
