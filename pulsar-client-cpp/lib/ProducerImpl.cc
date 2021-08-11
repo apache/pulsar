@@ -177,19 +177,16 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
     // while waiting for this response if using lazy producers
     Lock lock(mutex_);
     if (state_ != Ready && state_ != Pending) {
-        lock.unlock();
         LOG_DEBUG("Producer created response received but producer already closed");
-        failPendingMessages(ResultAlreadyClosed);
+        failPendingMessages(ResultAlreadyClosed, false);
         return;
     }
-    lock.unlock();
 
     if (result == ResultOk) {
         // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
         // set the cnx pointer so that new messages will be sent immediately
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
 
-        Lock lock(mutex_);
         cnx->registerProducer(producerId_, shared_from_this());
         producerName_ = responseData.producerName;
         schemaVersion_ = responseData.schemaVersion;
@@ -220,6 +217,8 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         producerCreatedPromise_.setValue(shared_from_this());
 
     } else {
+        lock.unlock();
+
         // Producer creation failed
         if (result == ResultTimeout) {
             // Creating the producer has timed out. We need to ensure the broker closes the producer
@@ -232,7 +231,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         if (producerCreatedPromise_.isComplete()) {
             if (result == ResultProducerBlockedQuotaExceededException) {
                 LOG_WARN(getName() << "Backlog is exceeded on topic. Sending exception to producer");
-                failPendingMessages(ResultProducerBlockedQuotaExceededException);
+                failPendingMessages(ResultProducerBlockedQuotaExceededException, true);
             } else if (result == ResultProducerBlockedQuotaExceededError) {
                 LOG_WARN(getName() << "Producer is blocked on creation because backlog is exceeded on topic");
             }
@@ -286,8 +285,12 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
     return getPendingCallbacksWhenFailed();
 }
 
-void ProducerImpl::failPendingMessages(Result result) {
-    getPendingCallbacksWhenFailedWithLock()->complete(result);
+void ProducerImpl::failPendingMessages(Result result, bool withLock) {
+    if (withLock) {
+        getPendingCallbacksWhenFailedWithLock()->complete(result);
+    } else {
+        getPendingCallbacksWhenFailed()->complete(result);
+    }
 }
 
 void ProducerImpl::resendMessages(ClientConnectionPtr cnx) {
@@ -602,6 +605,9 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
 
     cancelTimers();
 
+    // ensure any remaining send callbacks are called before calling the close callback
+    failPendingMessages(ResultAlreadyClosed, false);
+
     if (state_ != Ready && state_ != Pending) {
         state_ = Closed;
         lock.unlock();
@@ -662,9 +668,6 @@ void ProducerImpl::handleClose(Result result, ResultCallback callback, ProducerI
     } else {
         LOG_ERROR(getName() << "Failed to close producer: " << strResult(result));
     }
-
-    // ensure any remaining send callbacks are called before calling the close callback
-    failPendingMessages(ResultAlreadyClosed);
 
     if (callback) {
         callback(result);

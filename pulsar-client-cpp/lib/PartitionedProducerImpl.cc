@@ -170,6 +170,11 @@ void PartitionedProducerImpl::createLazyPartitionProducer(unsigned int partition
 
 // override
 void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
+    if (!assertState(Ready)) {
+        callback(ResultAlreadyClosed, msg.getMessageId());
+        return;
+    }
+
     // get partition for this message from router policy
     Lock producersLock(producersMutex_);
     short partition = (short)(routerPolicy_->getPartition(msg, *topicMetadata_));
@@ -184,13 +189,8 @@ void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callbac
     ProducerImplPtr producer = producers_[partition];
 
     // if the producer is not started (lazy producer), then kick-off the start process
-    // but only if we're still in the Ready state (i.e not closing or closed)
     if (!producer->isStarted()) {
-        if (assertState(Ready)) {
-            producer->start();
-        } else {
-            callback(ResultAlreadyClosed, msg.getMessageId());
-        }
+        producer->start();
     }
 
     producersLock.unlock();

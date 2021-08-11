@@ -162,7 +162,7 @@ class ProducerImpl : public HandlerBase,
     std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailed();
     std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailedWithLock();
 
-    void failPendingMessages(Result result);
+    void failPendingMessages(Result result, bool withLock);
 
     MessageCryptoPtr msgCrypto_;
     DeadlineTimerPtr dataKeyGenTImer_;

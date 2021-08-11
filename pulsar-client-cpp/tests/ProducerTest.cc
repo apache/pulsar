@@ -163,6 +163,7 @@ TEST(ProducerTest, testSendAsyncCloseAsyncConcurrentlyWithLazyProducers) {
     // run sendAsync and closeAsync concurrently and verify that all sendAsync callbacks are called
     // and that messages sent after closeAsync is invoked receive ResultAlreadyClosed.
     for (int run = 0; run < 20; run++) {
+        LOG_INFO("Start of run " << run);
         Client client(serviceUrl);
         const std::string partitionedTopic =
             "testProducerIsConnectedPartitioned-" + std::to_string(time(nullptr));
@@ -237,5 +238,6 @@ TEST(ProducerTest, testSendAsyncCloseAsyncConcurrentlyWithLazyProducers) {
         }
 
         client.close();
+        LOG_INFO("End of run " << run);
     }
 }
