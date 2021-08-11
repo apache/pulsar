@@ -62,7 +62,10 @@ public class FunctionConfigUtilsTest {
         functionConfig.setParallelism(1);
         functionConfig.setClassName(IdentityFunction.class.getName());
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
-        inputSpecs.put("test-input", ConsumerConfig.builder().isRegexPattern(true).serdeClassName("test-serde").build());
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .isRegexPattern(true)
+                .serdeClassName("test-serde")
+                .poolMessages(true).build());
         functionConfig.setInputSpecs(inputSpecs);
         functionConfig.setOutput("test-output");
         functionConfig.setOutputSerdeClassName("test-serde");
@@ -576,5 +579,25 @@ public class FunctionConfigUtilsTest {
         FunctionConfig functionConfig = createFunctionConfig();
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("outputSchemaType", "avro");
         FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+    }
+
+    @Test
+    public void testPoolMessages() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+        assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
+
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .poolMessages(true).build());
+        functionConfig.setInputSpecs(inputSpecs);
+
+        functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+
+        convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+        assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
     }
 }

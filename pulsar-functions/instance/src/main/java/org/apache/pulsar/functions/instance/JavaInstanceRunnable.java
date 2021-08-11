@@ -632,6 +632,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 if (conf.hasCryptoSpec()) {
                     consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
                 }
+                consumerConfig.setPoolMessages(conf.getPoolMessages());
 
                 topicSchema.put(topic, consumerConfig);
             });

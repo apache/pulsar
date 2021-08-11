@@ -127,6 +127,9 @@ $ rpm -ivh apache-pulsar-client*.rpm
 
 After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory.
 
+> **Note**  
+> If you get the error that `libpulsar.so: cannot open shared object file: No such file or directory` when starting Pulsar client, you may need to run `ldconfig` first.
+
 ### Install Debian
 
 1. Download a Debian package from the links in the table. 
@@ -354,8 +357,7 @@ The following example shows how to create a producer and a consumer with a Proto
 ​
 1. Generate the `User` class using Protobuf3. 
 
-    > **Note** 
-    >
+    > **Note**  
     > You need to use Protobuf3 or later versions.
 ​
    ```protobuf
