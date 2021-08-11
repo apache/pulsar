@@ -28,5 +28,7 @@ public interface PartitionedTopicStats extends TopicStats {
 
     PartitionedTopicMetadata getMetadata();
 
-    Map<String, TopicStats> getPartitions();
+    Map<String, ? extends TopicStats> getPartitions();
+
+    TopicStats add(TopicStats ts);
 }

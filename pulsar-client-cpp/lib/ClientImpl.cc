@@ -514,7 +514,7 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     }
 
     if (*numberOfOpenHandlers == 0 && callback) {
-        callback(ResultOk);
+        handleClose(ResultOk, numberOfOpenHandlers, callback);
     }
 }
 

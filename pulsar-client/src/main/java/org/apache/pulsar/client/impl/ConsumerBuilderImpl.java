@@ -24,7 +24,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -122,11 +124,19 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
             String oldRetryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
             String oldDeadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
-            if (client.getPartitionedTopicMetadata(oldRetryLetterTopic).join().partitions > 0) {
-                retryLetterTopic = oldRetryLetterTopic;
-            }
-            if (client.getPartitionedTopicMetadata(oldDeadLetterTopic).join().partitions > 0) {
-                deadLetterTopic = oldDeadLetterTopic;
+            try {
+                if (client.getPartitionedTopicMetadata(oldRetryLetterTopic)
+                        .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
+                    retryLetterTopic = oldRetryLetterTopic;
+                }
+                if (client.getPartitionedTopicMetadata(oldDeadLetterTopic)
+                        .get(client.conf.getOperationTimeoutMs(), TimeUnit.MILLISECONDS).partitions > 0) {
+                    deadLetterTopic = oldDeadLetterTopic;
+                }
+            } catch (InterruptedException | TimeoutException e) {
+                return FutureUtil.failedFuture(e);
+            } catch (ExecutionException e) {
+                return FutureUtil.failedFuture(e.getCause());
             }
 
             if(conf.getDeadLetterPolicy() == null) {

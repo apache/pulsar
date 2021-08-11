@@ -16,39 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+package org.apache.pulsar.common.policies.data;
 
-import java.util.HashMap;
 import java.util.Map;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
-
 
 /**
- * Configuration of a consumer.
+ * Statistics for a non-persistent partitioned topic.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ConsumerConfig {
-    private String schemaType;
-    private String serdeClassName;
-    private boolean isRegexPattern;
-    @Builder.Default
-    private Map<String, String> schemaProperties = new HashMap<>();
-    @Builder.Default
-    private Map<String, String> consumerProperties = new HashMap<>();
-    private Integer receiverQueueSize;
-    private CryptoConfig cryptoConfig;
-    private boolean poolMessages;
+public interface NonPersistentPartitionedTopicStats extends PartitionedTopicStats{
+    Map<String, ? extends NonPersistentTopicStats> getPartitions();
 
-    public ConsumerConfig(String schemaType) {
-        this.schemaType = schemaType;
-    }
-
+    NonPersistentTopicStats add(NonPersistentTopicStats ts);
 }

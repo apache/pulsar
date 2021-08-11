@@ -1071,7 +1071,8 @@ public class PulsarService implements AutoCloseable {
             List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
-            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName).join()) {
+            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)
+                    .get(config.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {

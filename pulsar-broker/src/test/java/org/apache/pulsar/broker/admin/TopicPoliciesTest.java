@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +47,7 @@ import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -1509,6 +1511,44 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testDisableSubscribeRate() throws Exception {
+        assertEquals(pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(), 0);
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        admin.lookups().lookupTopic(persistenceTopic);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(persistenceTopic).get().get();
+        Field field = PersistentTopic.class.getDeclaredField("subscribeRateLimiter");
+        field.setAccessible(true);
+        Optional<SubscribeRateLimiter> limiter = (Optional<SubscribeRateLimiter>) field.get(topic);
+        // sub rate limiter should be null by default
+        assertFalse(limiter.isPresent());
+
+        // Enable / Disable subscribe rate in namespace-level
+        final SubscribeRate subscribeRate = new SubscribeRate(1, 100);
+        admin.namespaces().setSubscribeRate(myNamespace, subscribeRate);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertTrue(limiter1.isPresent());
+        });
+        admin.namespaces().removeSubscribeRate(myNamespace);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertFalse(limiter2.isPresent());
+        });
+
+        // Enable / Disable subscribe rate in topic-level
+        admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertTrue(limiter1.isPresent());
+        });
+        admin.topics().removeSubscribeRate(persistenceTopic);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertFalse(limiter2.isPresent());
+        });
+    }
+
+    @Test
     public void testGetSetSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
 
@@ -1656,7 +1696,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
-
+        pulsarClient.newProducer().topic(persistenceTopic).create().close();
         SubscribeRate subscribeRate = new SubscribeRate(2, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, persistenceTopic);
         admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);

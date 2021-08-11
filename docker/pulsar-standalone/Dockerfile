@@ -26,6 +26,8 @@ FROM apachepulsar/pulsar-dashboard:latest as dashboard
 # Restart from
 FROM ubuntu:20.04
 
+ARG DEBIAN_FRONTEND=noninteractive
+
 # Note that the libpq-dev package is needed here in order to install
 # the required python psycopg2 package (for postgresql) later
 RUN apt-get update \
