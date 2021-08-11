@@ -77,7 +77,7 @@ Directory | Contains
 
 Each Pulsar instance relies on two separate ZooKeeper quorums.
 
-* Local ZooKeeper operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs to have a dedicated ZooKeeper cluster.
+* Local ZooKeeper operates at the cluster level and provides cluster-specific configuration management and coordination. Each Pulsar cluster needs a dedicated ZooKeeper cluster.
 * Configuration Store operates at the instance level and provides configuration management for the entire system (and thus across clusters). An independent cluster of machines or the same machines that local ZooKeeper uses can provide the configuration store quorum.
 
 The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.
