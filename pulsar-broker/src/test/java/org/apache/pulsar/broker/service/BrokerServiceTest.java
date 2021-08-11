@@ -49,6 +49,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -95,6 +96,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -1291,163 +1293,181 @@ public class BrokerServiceTest extends BrokerTestBase {
     public Object[][] containerBuilderProvider() {
         return new Object[][] {
                 { BatcherBuilder.DEFAULT },
-                { BatcherBuilder.KEY_BASED }
+                //{ BatcherBuilder.KEY_BASED }
         };
     }
 
     @Test
-    public void testPersistentOwnershipChange() throws Exception{
-        resetState();
+    public void testPersistentOwnershipChangeWithoutBatch() throws Exception{
+        final String topicName = "persistent://prop/ns-abc/reloadTopic";
+        TopicStats  stats;
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .create();
+        log.info(checkValue(0));
+
+        for (int i = 0; i < 11; i++){
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+        log.info(checkValue(11));
+
+        restartBroker();
+
+        PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        Producer producer1 = pulsarClient1.newProducer().topic(topicName).create();
+
+        //Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        log.info(checkValue(11));
+    }
+
+    @Test
+    public void testPersistentOwnershipChangeWithoutBatchAsync() throws Exception{
+        final String topicName = "persistent://prop/ns-abc/reloadTopic";
+        TopicStats  stats;
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .create();
+
+        log.info(checkValue(0));
+
+        List<CompletableFuture<MessageId>> completableFutureArrayList = new ArrayList<>();
+        for (int i = 0; i < 11; i++){
+            String message = "my-message-" + i;
+            completableFutureArrayList.add(producer.sendAsync(message.getBytes()));
+        }
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        FutureUtil.waitForAll(completableFutureArrayList).whenComplete((v, e)->{
+            if (e != null) {
+                log.error("fail to sendAsync message.");
+            }
+            log.info(checkValue(11));
+
+            try {
+                restartBroker();
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
+
+            try {
+                PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+                Producer producer1 = pulsarClient1.newProducer().topic(topicName).create();
+            } catch (PulsarClientException pulsarClientException) {
+                pulsarClientException.printStackTrace();
+            }
+
+            //Calling New Producer directly will also call this underlying method,
+            //             with a higher latency tolerance and no timeout failure.
+            //Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+
+            log.info(checkValue(11));
+
+            countDownLatch.countDown();
+        });
+        countDownLatch.await();
+    }
+
+    @Test(dataProvider = "containerBuilder")
+    public void testPersistentOwnershipChangeWithBatchAsync(BatcherBuilder builder) throws Exception{
         final String topicName = "persistent://prop/ns-abc/reloadTopic";
         TopicStats  stats;
         int numMsgsInBatch = 5;
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batcherBuilder(builder)
                 .create();
-        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        //TopicName topicName1 = TopicName.get(topicName);
-        //assertNotNull(pulsar.getNamespaceService().getBundle(TopicName.get(topicName)));
 
+        log.info(checkValue(0));
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        assertNotNull(topicRef);
-
-        rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
-
-        //msgInCounter stats
-        assertEquals(stats.getMsgInCounter(), 0);
-
-        CompletableFuture<MessageId> messageIdCompletableFuture = new CompletableFuture<>();
-        for (int i = 0; i < 11; i++){
+        List<CompletableFuture<MessageId>> completableFutureList = new ArrayList<>();
+        for (int i = 0; i < 15; i++){
             String message = "my-message-" + i;
             //producer.sendAsync(),batch_size
-            messageIdCompletableFuture = producer.sendAsync(message.getBytes());
+            completableFutureList.add(producer.sendAsync(message.getBytes()));
         }
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        FutureUtil.waitForAll(completableFutureList).whenComplete((v, e)->{
+            if (e != null) {
+                log.error("fail to sendAsync message.");
+            }
+            log.info(checkValue(15));
 
-        messageIdCompletableFuture.thenAccept(t->{
-            rolloverPerIntervalStats();
-            TopicStats stats2 = topicRef.getStats(false, false);
-
-            //msgInCounter stats
-            assertEquals(stats2.getMsgInCounter(), 11);
-
-            //ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics=pulsar.getBrokerService().getTopics();
-            //long a=topics.size();
-            //restart Broker
             try {
                 restartBroker();
-            } catch (Exception e) {
-                e.printStackTrace();
-                log.error("fail to restart Broker");
+            } catch (Exception exception) {
+                exception.printStackTrace();
             }
 
-//            pulsar.getBrokerService().getOrCreateTopic(topicName).thenAccept(s->{
-//                PersistentTopic topicRef1 = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-//                assertNotNull(topicRef1);
-//
-//                rolloverPerIntervalStats();
-//                TopicStats stats1 = topicRef1.getStats(false, false);
-//
-//                //msgInCounter stats
-//                assertEquals(stats1.getMsgInCounter(), 11);
-//            }).exceptionally(Exception->{
-//                log.error("fail to load topic");
-//                return null;
-//            });
+            try {
+                PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+                Producer producer1 = pulsarClient1.newProducer().topic(topicName).create();
+            } catch (PulsarClientException pulsarClientException) {
+                pulsarClientException.printStackTrace();
+            }
+            log.info(checkValue(15));
 
-
-
-        }).exceptionally(Exception->{
-            log.error("fail to send messages or restartBroker");
-            return null;
+            countDownLatch.countDown();
         });
-
-
-
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        //ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics1=pulsar.getBrokerService().getTopics();
-        //long z1=topics1.size();
-        //TopicName topicName2 = TopicName.get(topicName);
-//        CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar.getNamespaceService()
-//                .getBrokerServiceUrlAsync(topicName,
-//                        LookupOptions.builder().advertisedListenerName(null)
-//                                .authoritative(false).loadTopicsInBundle(true).build());
-
-
-
-        //Topic topic1=topic.get();
-        //pulsar.loadNamespaceTopics(pulsar.getNamespaceService().getBundle(TopicName.get(topicName)));
-        //TopicName topicName3 = TopicName.get(topicName);
-        //assertNotNull(pulsar.getNamespaceService().getBundle(TopicName.get(topicName)));
-        //ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics3=pulsar.getBrokerService().getTopics();
-        //long z2=topics3.size();
-
-
-        Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        PersistentTopic topicRef1 = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        assertNotNull(topicRef1);
-
-        rolloverPerIntervalStats();
-        TopicStats stats1 = topicRef1.getStats(false, false);
-
-        //msgInCounter stats
-        assertEquals(stats1.getMsgInCounter(), 11);
-
-
-
+        countDownLatch.await();
     }
 
-    @Test
-    public void testPersistentOwnershipChangeWithoutBatch() throws Exception{
-        resetState();
+    @Test(dataProvider = "containerBuilder")
+    public void testPersistentOwnershipChangeWithBatchAsyncUnload(BatcherBuilder builder) throws Exception{
         final String topicName = "persistent://prop/ns-abc/reloadTopic";
         TopicStats  stats;
-
+        int numMsgsInBatch = 5;
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(2, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .batcherBuilder(builder)
                 .create();
 
+        log.info(checkValue(0));
+
+        List<CompletableFuture<MessageId>> completableFutureList = new ArrayList<>();
+        for (int i = 0; i < 10; i++){
+            String message = "my-message-" + i;
+            completableFutureList.add(producer.sendAsync(message.getBytes()));
+        }
+
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        FutureUtil.waitForAll(completableFutureList).whenComplete((v, e)->{
+            if (e != null) {
+                log.error("fail to sendAsync message.");
+            }
+
+            log.info(checkValue(10));
+
+            try {
+                //unload topic
+                NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+                pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.MINUTES).get();
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
+            try {
+                PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+                Producer producer1 = pulsarClient1.newProducer().topic(topicName).create();
+            } catch (PulsarClientException pulsarClientException) {
+                pulsarClientException.printStackTrace();
+            }
+            log.info(checkValue(10));
+            countDownLatch.countDown();
+        });
+        countDownLatch.await();
+    }
+
+    private String checkValue(int k){
+        final String topicName = "persistent://prop/ns-abc/reloadTopic";
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
-
+        TopicStats stats = topicRef.getStats(false, false);
         //msgInCounter stats
-        assertEquals(stats.getMsgInCounter(), 0);
-
-        for (int i = 0; i < 11; i++){
-            String message = "my-message-" + i;
-            //producer.sendAsync(),batch_size
-            producer.send(message.getBytes());
-        }
-
-        rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
-
-        //msgInCounter stats
-        assertEquals(stats.getMsgInCounter(), 11);
-
-        restartBroker();
-
-        //while(pulsar.getState())
-        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        //Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-
-        producer = pulsarClient.newProducer().topic(topicName).create();
-
-        //Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        assertNotNull(topicRef);
-
-        rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false);
-
-        //msgInCounter stats
-        assertEquals(stats.getMsgInCounter(), 11);
-
+        assertEquals(stats.getMsgInCounter(), k);
+        return ("testPersistentOwnershipChange success--assertEquals-" + k);
     }
+
+
 }

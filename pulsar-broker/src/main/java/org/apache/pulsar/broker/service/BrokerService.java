@@ -1261,15 +1261,19 @@ public class BrokerService implements Closeable {
                                     } else {
                                         ManagedLedgerImpl managedLedger =
                                                 (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-                                        LedgerEntry ledgerEntry = managedLedger.getLastEntry();
-                                        if (ledgerEntry != null) {
-                                            long i = ledgerEntry.getEntryId();
-                                            long i1 = ledgerEntry.getLength();
-                                            BrokerEntryMetadata entryMetadata = Commands.
-                                                    parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
-                                            persistentTopic.incrementPublishCount((int) entryMetadata.getIndex() + 1,
-                                                    persistentTopic.getBytesInCounter());
-                                        }
+                                        CompletableFuture<LedgerEntry> entryFuture = managedLedger.getLastEntry();
+                                        entryFuture.whenCompleteAsync((ledgerEntry, e)->{
+                                            if (e != null) {
+                                                log.error("fetch lastEntry error---{}", e.getMessage());
+                                            }
+                                            if (ledgerEntry != null) {
+                                                BrokerEntryMetadata entryMetadata = Commands.
+                                                        parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
+                                                persistentTopic.incrementPublishCount
+                                                        ((int) entryMetadata.getIndex() + 1,
+                                                                persistentTopic.getBytesInCounter());
+                                            }
+                                        });
                                         addTopicToStatsMaps(topicName, persistentTopic);
                                         topicFuture.complete(Optional.of(persistentTopic));
                                     }

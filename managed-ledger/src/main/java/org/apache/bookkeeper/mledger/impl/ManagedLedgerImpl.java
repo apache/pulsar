@@ -3977,40 +3977,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     safeRun(this::rollCurrentLedgerIfFull), this.maximumRolloverTimeMs, TimeUnit.MILLISECONDS);
         }
     }
-    public LedgerEntry getLastEntry() {
-        //通过ledgerHandle获得其最后增加的一个entry
-        //Get a ledger handle to read from
-        CompletableFuture<LedgerEntry> entryFuture = getLedgerHandle(lastConfirmedEntry.getLedgerId()).thenApply(ledger -> {
-            try {
-                //没有写入数据时
-                if (lastConfirmedEntry.entryId == -1) {
-                    return null;
-                }
-                LedgerEntries ledgerEntries = ledger.read(lastConfirmedEntry.entryId, lastConfirmedEntry.entryId);
-                return ledgerEntries.getEntry(lastConfirmedEntry.entryId);
-            } catch (org.apache.bookkeeper.client.api.BKException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            return null;
-        }).exceptionally(ex -> {
-            log.error("[{}] Error opening ledger for reading at position {} - {}", name, lastConfirmedEntry.entryId,
-                    ex.getMessage());
-            return null;
+    public CompletableFuture<LedgerEntry> getLastEntry() {
+        if (lastConfirmedEntry.getEntryId() == -1){
+            return new CompletableFuture<>();
+        }
+
+        //Get a ledger handle to read from,and fetch it's lastConfirmedEntry
+        CompletableFuture<LedgerEntries> ledgerEntriesCompletableFuture =
+                getLedgerHandle(lastConfirmedEntry.getLedgerId()).thenCompose(ledger ->{
+            return ledger.readAsync(lastConfirmedEntry.getEntryId(), lastConfirmedEntry.getEntryId());
         });
-        if (entryFuture == null) {
-            return null;
-        }
-        LedgerEntry ledgerEntry = null;
-        try {
-            ledgerEntry = entryFuture.get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
-        return ledgerEntry;
+
+        return ledgerEntriesCompletableFuture.thenApply(entries->{
+            return entries.getEntry(lastConfirmedEntry.getEntryId());
+        });
     }
-    
 }
