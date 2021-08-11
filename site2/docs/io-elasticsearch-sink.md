@@ -6,37 +6,40 @@ sidebar_label: ElasticSearch sink connector
 
 The ElasticSearch sink connector pulls messages from Pulsar topics and persists the messages to indexes.
 
-## Schema Aware vs Raw processing
 
-Since Pulsar 2.9.0 this sink has two main ways of working:
-- Raw processing: the Sink reads from the topic and passes the raw content to ElasticSearch
-- Schema Aware: the Sink uses the Schema and handles AVRO,JSON and KeyValue schema types while mapping the content to the ES document
+## Feature 
 
-The default behavior is 'raw processing', as it was in Pulsar up to 2.8.x.
+### Handle data
+		
+Since Pulsar 2.9.0, the ElasticSearch sink connector has the following ways of
+working. You can choose one of them.
 
-When you configure `schemaEnable` to `true` the Sink interprets the contents of the Message and you can define a **primary key**
-that in turn is used as the special `_id` field on ElasticSearch.
-
-This allows you to perform UPDATE, INSERT and DELETE operations to ElasticSearch driven by the logical primary key of the message.
-This is very useful in a typical Change Data Capture scenario in which you follow the changes on your Database, write them to Pulsar (using the Debezium adapter for instance)
-and then you write to ElasticSearch.
-
-You configure the mapping of the primary key using the `primaryFields` configuration entry.
-
-The DELETE operation can be performed when the primary key is not empty and the remaining value is empty. Use the `nullValueAction`
-to configure this behaviour. The default configuration simply ignores such empty values.
-
-## Mapping multiple indexes
-
-Since 2.9.0 the `indexName` property is no more required and if you omit it the Sink will write to an index named after the Pulsar topic name.
-
-## Enable Bulk Writes
-
-Since 2.9.0 you can use Bulk writes by setting the `bulkEnabled` property to `true`.
-
-## Enable secure connections via TLS
-
-Since 2.9.0 you can use configure secure connections with TLS. Check the documentation below.
+Name | Description
+---|---|
+Raw processing | The sink reads from topics and passes the raw content to ElasticSearch. <br><br> This is the **default** behavior. <br><br> Raw processing is available **up to Pulsar 2.8.x**.
+Schema aware | The sink uses the schema and handles AVRO, JSON, and KeyValue schema types while mapping the content to the ElasticSearch document.<br><br> If you set `schemaEnable` to `true`, the sink interprets the contents of the message and you can define a **primary key** that in turn used as the special `_id` field on ElasticSearch.
+<br><br> This allows you to perform `UPDATE`, `INSERT`, and `DELETE` operations
+to ElasticSearch driven by the logical primary key of the message.<br><br> This
+is very useful in a typical Change Data Capture scenario in which you follow the
+changes on your database, write them to Pulsar (using the Debezium adapter for
+instance), and then you write to ElasticSearch.<br><br> You configure the
+mapping of the primary key using the `primaryFields` configuration
+entry.<br><br>The `DELETE` operation can be performed when the primary key is
+not empty and the remaining value is empty. Use the `nullValueAction` to
+configure this behaviour. The default configuration simply ignores such empty
+values.
+		
+### Map multiple indexes
+		
+Since Pulsar 2.9.0, the `indexName` property is no more required. If you omit it, the sink writes to an index name after the Pulsar topic name.
+		
+### Enable bulk writes
+		
+Since Pulsar 2.9.0, you can use bulk writes by setting the `bulkEnabled` property to `true`.
+		
+### Enable secure connections via TLS
+		
+Since Pulsar 2.9.0, you can enable secure connections with TLS.  
 
 ## Configuration
 
