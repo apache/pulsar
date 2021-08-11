@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>What are transactions? · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Transactions strengthen the message delivery semantics of Apache Pulsar and [processing guarantees of Pulsar Functions](https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees). The Pulsar Transaction API supports atomic writes and acknowledgments across multiple topics."/><meta name="docsearch:version" content="2.8.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="What are transactions? · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Transactions strengthen the message delivery semantics of Apache Pulsar and [processing guarantees of Pulsar Functions](https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees). The Pulsar Transaction API supports atomic writes and acknowledgments across multiple topics."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>What are transactions? · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="事务增强了Apache Pulsar的消息传递语义和 [Pulsar Function的处理保证](https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees)  Pulsar事物API支持跨多个主题的原子写入和确认。"/><meta name="docsearch:version" content="2.8.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="What are transactions? · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="事务增强了Apache Pulsar的消息传递语义和 [Pulsar Function的处理保证](https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees)  Pulsar事物API支持跨多个主题的原子写入和确认。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,46 +74,46 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">What are transactions?</h1></header><article><div><span><p>Transactions strengthen the message delivery semantics of Apache Pulsar and <a href="https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees">processing guarantees of Pulsar Functions</a>. The Pulsar Transaction API supports atomic writes and acknowledgments across multiple topics.</p>
-<p>Transactions allow:</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">What are transactions?</h1></header><article><div><span><p>事务增强了Apache Pulsar的消息传递语义和 <a href="https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees">Pulsar Function的处理保证</a>  Pulsar事物API支持跨多个主题的原子写入和确认。</p>
+<p>事物允许：</p>
 <ul>
-<li><p>A producer to send a batch of messages to multiple topics where all messages in the batch are eventually visible to any consumer, or none are ever visible to consumers.</p></li>
-<li><p>End-to-end exactly-once semantics (execute a <code>consume-process-produce</code> operation exactly once).</p></li>
+<li><p>一个生产者将一批消息发送到多个主题，其中一批中的所有消息最终对任何消费者都可见，或者消费者永远不可见。</p></li>
+<li><p>端到端恰好一次语义（只执行一次 <code>consume-process-produce</code> 操作）。</p></li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="transaction-semantics"></a><a href="#transaction-semantics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transaction semantics</h2>
-<p>Pulsar transactions have the following semantics:</p>
+<h2><a class="anchor" aria-hidden="true" id="事物语义"></a><a href="#事物语义" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事物语义</h2>
+<p>Pulsar事务具有以下语义：</p>
 <ul>
-<li><p>All operations within a transaction are committed as a single unit.</p>
+<li><p>事务中的所有操作都作为一个单元提交。</p>
 <ul>
-<li><p>Either all messages are committed, or none of them are.</p></li>
-<li><p>Each message is written or processed exactly once, without data loss or duplicates (even in the event of failures).</p></li>
+<li><p>要么提交所有消息，要么都不提交。</p></li>
+<li><p>每条消息只写入或处理一次，不会丢失数据或重复（即使发生故障）。</p></li>
 <li><p>If a transaction is aborted, all the writes and acknowledgments in this transaction rollback.</p></li>
 </ul></li>
-<li><p>A group of messages in a transaction can be received from, produced to, and acknowledged by multiple partitions.</p>
+<li><p>事务中的一组消息可以从多个分区接收、生成和确认。</p>
 <ul>
-<li><p>Consumers are only allowed to read committed (acked) messages. In other words, the broker does not deliver transactional messages which are part of an open transaction or messages which are part of an aborted transaction.</p></li>
-<li><p>Message writes across multiple partitions are atomic.</p></li>
-<li><p>Message acks across multiple subscriptions are atomic. A message is acked successfully only once by a consumer under the subscription when acknowledging the message with the transaction ID.</p></li>
+<li><p>消费者只能读取已提交（确认）的消息。 换句话说，代理不传递属于打开事务的事务消息或属于中止事务的消息。</p></li>
+<li><p>跨多个分区的消息写入是原子的。</p></li>
+<li><p>跨多个订阅的消息确认是原子的。 订阅下的消费者在确认带有事务ID的消息时，只会成功确认一次消息。</p></li>
 </ul></li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="transactions-and-stream-processing"></a><a href="#transactions-and-stream-processing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Transactions and stream processing</h2>
-<p>Stream processing on Pulsar is a <code>consume-process-produce</code> operation on Pulsar topics:</p>
+<h2><a class="anchor" aria-hidden="true" id="事务和流处理"></a><a href="#事务和流处理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事务和流处理</h2>
+<p>Pulsar 上的流处理是对 Pulsar 主题的 <code>consume-process-produce</code> 操作：</p>
 <ul>
-<li><p><code>Consume</code>: a source operator that runs a Pulsar consumer reads messages from one or multiple Pulsar topics.</p></li>
-<li><p><code>Process</code>: a processing operator transforms the messages.</p></li>
-<li><p><code>Produce</code>: a sink operator that runs a Pulsar producer writes the resulting messages to one or multiple Pulsar topics.</p></li>
+<li><p><code>Consume</code>：运行Pulsar消费者的源操作符从一个或多个Pulsar主题读取消息。</p></li>
+<li><p><code>Process</code>：处理操作符转换消息。</p></li>
+<li><p><code>Produce</code>：运行Pulsar生产者的接收器操作符将结果消息写入一个或多个Pulsar主题。</p></li>
 </ul>
 <p><img src="/docs/assets/txn-2.png" alt=""></p>
-<p>Pulsar transactions support end-to-end exactly-once stream processing, which means messages are not lost from a source operator and messages are not duplicated to a sink operator.</p>
-<h2><a class="anchor" aria-hidden="true" id="use-case"></a><a href="#use-case" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use case</h2>
-<p>Prior to Pulsar 2.8.0, there was no easy way to build stream processing applications with Pulsar to achieve exactly-once processing guarantees. With the transaction introduced in Pulsar 2.8.0, the following services support exactly-once semantics:</p>
+<p>Pulsar事务支持端到端的一次性流处理，这意味着消息不会从源操作符丢失，并且消息不会复制到接收器操作符。</p>
+<h2><a class="anchor" aria-hidden="true" id="使用场景"></a><a href="#使用场景" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用场景</h2>
+<p>在Pulsar 2.8.0之前，没有简单的方法可以使用Pulsar构建流处理应用程序来实现一次性处理保证。 随着Pulsar 2.8.0中引入的事务，以下服务支持仅一次语义：</p>
 <ul>
-<li><p><a href="https://flink.apache.org/2021/01/07/pulsar-flink-connector-270.html">Pulsar Flink connector</a></p>
-<p>Prior to Pulsar 2.8.0, if you want to build stream applications using Pulsar and Flink, the Pulsar Flink connector only supported exactly-once source connector and at-least-once sink connector, which means the highest processing guarantee for end-to-end was at-least-once, there was possibility that the resulting messages from streaming applications produce duplicated messages to the resulting topics in Pulsar.</p>
-<p>With the transaction introduced in Pulsar 2.8.0, the Pulsar Flink sink connector can support exactly-once semantics by implementing the designated <code>TwoPhaseCommitSinkFunction</code> and hooking up the Flink sink message lifecycle with Pulsar transaction API.</p></li>
-<li><p>Support for Pulsar Functions and other connectors will be added in the future releases.</p></li>
+<li><p><a href="https://flink.apache.org/2021/01/07/pulsar-flink-connector-270.html">Pulsar Flink连接器</a></p>
+<p>在Pulsar2.8.0之前，如果要使用Pulsar和Flink构建流应用，Pulsar Flink连接器仅支持恰好一次源连接器和至少一次接收器连接器，这意味着端到端的最高处理保证至少一次，来自流应用程序的结果消息可能会产生重复的消息到Pulsar topic。</p>
+<p>随着Pulsar 2.8.0中引入的事务，Pulsar Flink接收器连接器可以通过实现指定的 <code>TwoPhaseCommitSinkFunction</code> 并使用Pulsar事务 API 连接 Flink 接收器消息生命周期来支持恰好一次语义。</p></li>
+<li><p>未来版本中将添加对Pulsar Function和其他连接器的支持。</p></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/txn-why"><span class="arrow-prev">← </span><span>Why transactions?</span></a><a class="docs-next button" href="/docs/zh-CN/txn-how"><span>事务运行原理</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#transaction-semantics">Transaction semantics</a></li><li><a href="#transactions-and-stream-processing">Transactions and stream processing</a></li><li><a href="#use-case">Use case</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/txn-why"><span class="arrow-prev">← </span><span>为什么要事物？</span></a><a class="docs-next button" href="/docs/zh-CN/txn-how"><span>事务运行原理</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#事物语义">事物语义</a></li><li><a href="#事务和流处理">事务和流处理</a></li><li><a href="#使用场景">使用场景</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
