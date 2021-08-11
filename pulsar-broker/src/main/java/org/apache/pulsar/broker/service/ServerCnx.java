@@ -53,6 +53,8 @@ import javax.net.ssl.SSLSession;
 import lombok.val;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -96,10 +98,13 @@ import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConsumerStats;
+import org.apache.pulsar.common.api.proto.CommandCreateCursor;
+import org.apache.pulsar.common.api.proto.CommandDeleteCursor;
 import org.apache.pulsar.common.api.proto.CommandEndTxn;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscription;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetCursor;
 import org.apache.pulsar.common.api.proto.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
@@ -116,10 +121,13 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.CommandUpdateCursor;
+import org.apache.pulsar.common.api.proto.CursorPosition;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.LongProperty;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
@@ -143,6 +151,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ToStringUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -2340,6 +2349,246 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
                 }));
+    }
+
+    @Override
+    protected void handleGetCursor(CommandGetCursor command) {
+        checkArgument(state == State.Connected);
+        long requestId = command.getRequestId();
+        String topicName = command.getTopic();
+        String subscription = command.getSubscription();
+        if (log.isDebugEnabled()) {
+            log.debug("Receive GetCursorInfo request {} from {} with topic={},sub={}", requestId,
+                    remoteAddress, topicName, subscription);
+        }
+
+        if (validateTopicName(topicName, requestId, command) == null) {
+            return;
+        }
+
+        getBrokerService().checkTopicNsOwnership(topicName).thenCompose(__ ->
+                service.getOrCreateTopic(topicName)
+        ).thenAccept(topic -> {
+            if (!(topic instanceof PersistentTopic)) {
+                commandSender.sendError(requestId, ServerError.NotAllowedError,
+                        "Only Persistent subscription is allowed.");
+                return;
+            }
+            PersistentTopic persistentTopic = (PersistentTopic) topic;
+            ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+            ManagedCursor managedCursor = managedLedger.getCursor(subscription);
+            if (managedCursor == null) {
+                commandSender.sendError(requestId, ServerError.SubscriptionNotFound, "Cursor not found.");
+                return;
+            }
+
+            CursorPosition position = managedCursor.getCursorPosition();
+            Long version = managedLedger.getVersion();
+            Position lastConfirmedEntry = managedLedger.getLastConfirmedEntry();
+            if (version == null || lastConfirmedEntry == null) {
+                log.error("[{}] [{}] Get cursor complete, but version={} and lastConfirmedEntry={} is not valid. ",
+                        topicName, subscription, version, lastConfirmedEntry);
+                commandSender.sendError(requestId, ServerError.ServiceNotReady,
+                        String.format("ManagedLedger %s is not proper init. version=%s, lac=%s",
+                                topicName, version, lastConfirmedEntry));
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] CreateCursor success. version={}, lastConfirmedEntry={}, position={}",
+                            topicName, subscription, version, lastConfirmedEntry,
+                            ToStringUtil.pbObjectToString(position));
+                }
+                commandSender.sendGetCursorResponse(requestId, version, lastConfirmedEntry, position);
+            }
+        }).exceptionally(throwable -> {
+            log.error("[{}] [{}] Get cursor failed. ", topicName, subscription, throwable);
+            commandSender.sendError(requestId, BrokerServiceException.getClientErrorCode(throwable),
+                    throwable.getMessage());
+            return null;
+        });
+    }
+
+    @Override
+    protected void handleCreateCursor(CommandCreateCursor command) {
+        checkArgument(state == State.Connected);
+        long requestId = command.getRequestId();
+        String topicName = command.getTopic();
+        String subscription = command.getSubscription();
+        if (log.isDebugEnabled()) {
+            log.debug("Receive CreateCursor request {} from {} with topic={},sub={}", requestId,
+                    remoteAddress, topicName, subscription);
+        }
+
+        if (validateTopicName(topicName, requestId, command) == null) {
+            return;
+        }
+
+        CursorPosition position = command.getPosition();
+
+        getBrokerService().checkTopicNsOwnership(topicName).thenCompose(__ ->
+                service.getOrCreateTopic(topicName)
+        ).thenAccept(topic -> {
+            if (!(topic instanceof PersistentTopic)) {
+                commandSender.sendError(requestId, ServerError.NotAllowedError,
+                        "Only Persistent subscription is allowed.");
+                return;
+            }
+
+            InitialPosition initPosition = InitialPosition.Latest;
+            if (new PositionImpl(position).equals(PositionImpl.earliest)) {
+                initPosition = InitialPosition.Earliest;
+            }
+            Map<String, Long> properties = position.getPropertiesList().stream().collect(
+                    Collectors.toMap(LongProperty::getName, LongProperty::getValue));
+
+            PersistentTopic persistentTopic = (PersistentTopic) topic;
+            ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+            managedLedger.asyncOpenCursor(subscription,
+                    initPosition, properties, new AsyncCallbacks.OpenCursorCallback() {
+
+                        @Override
+                        public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                            CursorPosition position = cursor.getCursorPosition();
+                            Long version = cursor.getManagedLedger().getVersion();
+                            Position lastConfirmedEntry = cursor.getManagedLedger().getLastConfirmedEntry();
+                            if (version == null || lastConfirmedEntry == null) {
+                                log.error("[{}] [{}] Open cursor complete, but version={} and lastConfirmedEntry={} "
+                                                + "is not valid. ",
+                                        topicName, subscription, version, lastConfirmedEntry);
+                                commandSender.sendError(requestId, ServerError.ServiceNotReady,
+                                        String.format("ManagedLedger %s is not proper init. version=%s, lac=%s",
+                                                topicName, version, lastConfirmedEntry));
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] [{}] CreateCursor success. version={}, lastConfirmedEntry={}, "
+                                                    + "position={}", topicName, subscription,
+                                            version, lastConfirmedEntry, ToStringUtil.pbObjectToString(position));
+                                }
+                                commandSender.sendCreateCursorResponse(requestId,
+                                        version, lastConfirmedEntry, position);
+                            }
+                        }
+
+                        @Override
+                        public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("[{}] [{}] Open cursor failed. ", topicName, subscription,
+                                    exception);
+                            commandSender.sendError(requestId, BrokerServiceException.getClientErrorCode(exception),
+                                    exception.getMessage());
+                        }
+                    }, null);
+        }).exceptionally(throwable -> {
+            log.error("[{}] [{}] Create cursor failed. ", topicName, subscription, throwable);
+            commandSender.sendError(requestId, BrokerServiceException.getClientErrorCode(throwable),
+                    throwable.getMessage());
+
+            return null;
+        });
+    }
+
+    @Override
+    protected void handleDeleteCursor(CommandDeleteCursor command) {
+        checkArgument(state == State.Connected);
+        long requestId = command.getRequestId();
+        String topicName = command.getTopic();
+        String subscription = command.getSubscription();
+        if (log.isDebugEnabled()) {
+            log.debug("Receive DeleteCursor request {} from {} with topic={},sub={}", requestId,
+                    remoteAddress, topicName, subscription);
+        }
+
+        if (validateTopicName(topicName, requestId, command) == null) {
+            return;
+        }
+
+        getBrokerService().checkTopicNsOwnership(topicName).thenCompose(__ ->
+                service.getOrCreateTopic(topicName)
+        ).thenAccept(topic -> {
+            if (!(topic instanceof PersistentTopic)) {
+                commandSender.sendError(requestId, ServerError.NotAllowedError,
+                        "Only Persistent subscription is allowed.");
+                return;
+            }
+            PersistentTopic persistentTopic = (PersistentTopic) topic;
+            ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+            managedLedger.asyncDeleteCursor(subscription,
+                    new AsyncCallbacks.DeleteCursorCallback() {
+
+                        @Override
+                        public void deleteCursorComplete(Object ctx) {
+                            commandSender.sendSuccess(requestId);
+                        }
+
+                        @Override
+                        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("[{}] [{}] Delete cursor failed. ", topicName, subscription,
+                                    exception);
+                            commandSender.sendError(requestId,
+                                    BrokerServiceException.getClientErrorCode(exception), exception.getMessage());
+                        }
+                    }, null);
+        }).exceptionally(throwable -> {
+            log.error("[{}] [{}] Delete cursor failed. ", topicName, subscription, throwable);
+            commandSender.sendError(requestId, BrokerServiceException.getClientErrorCode(throwable),
+                    throwable.getMessage());
+            return null;
+        });
+    }
+
+    @Override
+    protected void handleUpdateCursor(CommandUpdateCursor command) {
+        checkArgument(state == State.Connected);
+        long requestId = command.getRequestId();
+        String topicName = command.getTopic();
+        String subscription = command.getSubscription();
+        CursorPosition position = command.getPosition();
+        if (log.isDebugEnabled()) {
+            log.debug("Receive UpdateCursor request {} from {} with topic={},sub={}, position={}",
+                    requestId, remoteAddress, topicName, subscription,
+                    ToStringUtil.pbObjectToString(position));
+        }
+
+        if (validateTopicName(topicName, requestId, command) == null) {
+            return;
+        }
+
+        service.getTopicIfExists(topicName).thenAccept(topicOpt -> {
+            if (!topicOpt.isPresent()) {
+                commandSender.sendError(requestId, ServerError.TopicNotFound,
+                        "topicOptional is not present.");
+                return;
+            }
+            if (!(topicOpt.get() instanceof PersistentTopic)) {
+                commandSender.sendError(requestId, ServerError.NotAllowedError,
+                        "Only Persistent subscription is allowed.");
+                return;
+            }
+
+            PersistentTopic persistentTopic = (PersistentTopic) topicOpt.get();
+            ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+            ManagedCursor managedCursor = managedLedger.getCursor(subscription);
+            if (managedCursor == null) {
+                commandSender.sendError(requestId, ServerError.SubscriptionNotFound, "Cursor not found.");
+                return;
+            }
+
+            managedCursor.updateCursorPositionAsync(position).thenRun(() -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("UpdateCursor request {} from {} with topic={},sub={} success.",
+                            requestId, remoteAddress, topicName, subscription);
+                }
+                commandSender.sendSuccess(requestId);
+            }).exceptionally(throwable -> {
+                log.error("[{}] [{}] Update cursor failed. ", topicName, subscription, throwable);
+                commandSender.sendError(requestId, BrokerServiceException.getClientErrorCode(throwable),
+                        throwable.getMessage());
+                return null;
+            });
+        }).exceptionally(throwable -> {
+            log.error("[{}] [{}] Update cursor failed. ", topicName, subscription, throwable);
+            commandSender.sendError(requestId, BrokerServiceException.getClientErrorCode(throwable),
+                    throwable.getMessage());
+            return null;
+        });
     }
 
     @Override

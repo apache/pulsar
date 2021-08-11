@@ -75,7 +75,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
  */
-@PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*" })
+@PowerMockIgnore(value = {"org.slf4j.*", "com.sun.org.apache.xerces.*"})
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected final String DUMMY_VALUE = "DUMMY_VALUE";

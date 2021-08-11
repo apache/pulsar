@@ -26,7 +26,6 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGE
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
@@ -38,9 +37,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -50,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +60,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -80,23 +78,26 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
-import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.BatchedEntryDeletionIndexInfo;
+import org.apache.pulsar.common.api.proto.CursorPosition;
+import org.apache.pulsar.common.api.proto.EntryPosition;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -111,7 +112,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final BookKeeper bookkeeper;
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
-    private final String name;
+    protected final String name;
     private final BookKeeper.DigestType digestType;
 
     protected volatile PositionImpl markDeletePosition;
@@ -140,8 +141,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
     @SuppressWarnings("unused")
     private volatile int resetCursorInProgress = FALSE;
-    private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_READ_OPS_UPDATER =
-        AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingReadOps");
+    protected static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_READ_OPS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingReadOps");
     @SuppressWarnings("unused")
     private volatile int pendingReadOps = 0;
 
@@ -235,8 +236,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         Closed // The managed cursor has been closed
     }
 
-    private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
-        AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
     protected volatile State state = null;
 
     protected final ManagedCursorMXBean mbean;
@@ -461,7 +462,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {
+    protected void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {
         lock.writeLock().lock();
         try {
             individualDeletedMessages.clear();
@@ -469,36 +470,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                 MLDataFormats.NestedPositionInfo lowerEndpoint = messageRange.getLowerEndpoint();
                 MLDataFormats.NestedPositionInfo upperEndpoint = messageRange.getUpperEndpoint();
 
-                if (lowerEndpoint.getLedgerId() == upperEndpoint.getLedgerId()) {
-                    individualDeletedMessages.addOpenClosed(lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId(),
-                            upperEndpoint.getLedgerId(), upperEndpoint.getEntryId());
-                } else {
-                    // Store message ranges after splitting them by ledger ID
-                    LedgerInfo lowerEndpointLedgerInfo = ledger.getLedgersInfo().get(lowerEndpoint.getLedgerId());
-                    if (lowerEndpointLedgerInfo != null) {
-                        individualDeletedMessages.addOpenClosed(lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId(),
-                                lowerEndpoint.getLedgerId(), lowerEndpointLedgerInfo.getEntries() - 1);
-                    } else {
-                        log.warn("[{}][{}] No ledger info of lower endpoint {}:{}", ledger.getName(), name,
-                                lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId());
-                    }
-
-                    for (LedgerInfo li : ledger.getLedgersInfo()
-                            .subMap(lowerEndpoint.getLedgerId(), false, upperEndpoint.getLedgerId(), false).values()) {
-                        individualDeletedMessages.addOpenClosed(li.getLedgerId(), -1, li.getLedgerId(),
-                                li.getEntries() - 1);
-                    }
-
-                    individualDeletedMessages.addOpenClosed(upperEndpoint.getLedgerId(), -1,
-                            upperEndpoint.getLedgerId(), upperEndpoint.getEntryId());
-                }
+                recoverIndividualDeletedMessage(lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId(),
+                        upperEndpoint.getLedgerId(), upperEndpoint.getEntryId());
             });
         } finally {
             lock.writeLock().unlock();
         }
     }
 
-    private void recoverBatchDeletedIndexes (List<MLDataFormats.BatchedEntryDeletionIndexInfo> batchDeletedIndexInfoList) {
+    protected void recoverBatchDeletedIndexes(
+            List<MLDataFormats.BatchedEntryDeletionIndexInfo> batchDeletedIndexInfoList) {
         lock.writeLock().lock();
         try {
             this.batchDeletedIndexes.clear();
@@ -517,7 +498,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void recoveredCursor(PositionImpl position, Map<String, Long> properties,
+    protected void recoveredCursor(PositionImpl position, Map<String, Long> properties,
                                  LedgerHandle recoveredFromCursorLedger) {
         // if the position was at a ledger that didn't exist (since it will be deleted if it was previously empty),
         // we need to move to the next existing ledger
@@ -786,7 +767,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void checkForNewEntries(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
+    protected void checkForNewEntries(OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
         try {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Re-trying the read at position {}", ledger.getName(), name, op.readPosition);
@@ -1782,7 +1763,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lastMarkDeleteEntry = mdEntry;
 
-        persistPositionToLedger(cursorLedger, mdEntry, new VoidCallback() {
+        persistPosition(mdEntry, new VoidCallback() {
             @Override
             public void operationComplete() {
                 if (log.isDebugEnabled()) {
@@ -1848,6 +1829,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
             }
         });
+    }
+
+    protected void persistPosition(MarkDeleteEntry mdEntry, VoidCallback callback) {
+        persistPositionToLedger(cursorLedger, mdEntry, callback);
     }
 
     @Override
@@ -3064,6 +3049,201 @@ public class ManagedCursorImpl implements ManagedCursor {
         boolean isReadPositionChanged = readPosition != null && !readPosition.equals(statsLastReadPosition);
         statsLastReadPosition = readPosition;
         return isReadPositionOnTail || isReadPositionChanged;
+    }
+
+    @Override
+    public CursorPosition getCursorPosition() {
+        return buildCursorPosition(lastMarkDeleteEntry);
+    }
+
+    protected CursorPosition buildCursorPosition(MarkDeleteEntry markDeleteEntry) {
+        CursorPosition position = new CursorPosition();
+        if (markDeleteEntry != null) {
+            position.setLedgerId(markDeleteEntry.newPosition.getLedgerId())
+                    .setEntryId(markDeleteEntry.newPosition.getEntryId())
+                    .addAllProperties(buildPropertiesMapForCursorPosition(markDeleteEntry.properties));
+        }
+        position.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRangesForCursorPosition())
+                .addAllBatchedEntryDeletionIndexInfos(buildBatchEntryDeletionIndexInfoListForCursorPosition());
+        return position;
+    }
+
+    @Override
+    public CompletableFuture<Void> updateCursorPositionAsync(CursorPosition position) {
+        PositionImpl newPosition = new PositionImpl(position);
+
+        lock.writeLock().lock();
+        try {
+            newPosition = setAcknowledgedPosition(newPosition);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+
+        Map<String, Long> properties = position.getPropertiesList().stream().collect(Collectors.toMap(
+                org.apache.pulsar.common.api.proto.LongProperty::getName,
+                org.apache.pulsar.common.api.proto.LongProperty::getValue)
+        );
+
+        recoverIndividualDeletedMessagesFromCursorPosition(position);
+
+        recoverBatchDeletedIndexesFromCursorPosition(position);
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        internalAsyncMarkDelete(newPosition, properties, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                future.complete(null);
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        return future;
+    }
+
+    protected void recoverBatchDeletedIndexesFromCursorPosition(CursorPosition position) {
+        if (!config.isDeletionAtBatchIndexLevelEnabled()
+                || batchDeletedIndexes == null
+                || position.getBatchedEntryDeletionIndexInfosCount() == 0) {
+            return;
+        }
+        lock.writeLock().lock();
+        try {
+            this.batchDeletedIndexes.clear();
+            position.getBatchedEntryDeletionIndexInfosList().forEach(batchDeletedIndexInfo -> {
+                if (batchDeletedIndexInfo.getDeleteSetsCount() > 0) {
+                    long[] array = new long[batchDeletedIndexInfo.getDeleteSetsCount()];
+                    for (int i = 0; i < batchDeletedIndexInfo.getDeleteSetsCount(); i++) {
+                        array[i] = batchDeletedIndexInfo.getDeleteSetAt(i);
+                    }
+                    this.batchDeletedIndexes.put(PositionImpl.get(
+                            batchDeletedIndexInfo.getPosition().getLedgerId(),
+                            batchDeletedIndexInfo.getPosition().getEntryId()
+                    ), BitSetRecyclable.create().resetWords(array));
+                }
+            });
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    protected void recoverIndividualDeletedMessagesFromCursorPosition(CursorPosition position) {
+        if (position.getIndividualDeletedMessagesCount() == 0) {
+            return;
+        }
+        lock.writeLock().lock();
+        try {
+            individualDeletedMessages.clear();
+            position.getIndividualDeletedMessagesList().forEach(messageRange -> {
+                EntryPosition lowerEndpoint = messageRange.getLowerEndpoint();
+                EntryPosition upperEndpoint = messageRange.getUpperEndpoint();
+                recoverIndividualDeletedMessage(lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId(),
+                        upperEndpoint.getLedgerId(), upperEndpoint.getEntryId());
+            });
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private void recoverIndividualDeletedMessage(long lowerEndpointLedgerId, long lowerEndpointEntryId,
+                                                 long upperEndpointLedgerId, long upperEndpointEntryId) {
+        if (lowerEndpointLedgerId == upperEndpointLedgerId) {
+            individualDeletedMessages.addOpenClosed(lowerEndpointLedgerId, lowerEndpointEntryId,
+                    upperEndpointLedgerId, upperEndpointEntryId);
+        } else {
+            // Store message ranges after splitting them by ledger ID
+            MLDataFormats.ManagedLedgerInfo.LedgerInfo lowerEndpointLedgerInfo =
+                    ledger.getLedgersInfo().get(lowerEndpointLedgerId);
+            if (lowerEndpointLedgerInfo != null) {
+                individualDeletedMessages.addOpenClosed(lowerEndpointLedgerId, lowerEndpointEntryId,
+                        lowerEndpointLedgerId, lowerEndpointLedgerInfo.getEntries() - 1);
+            } else {
+                log.warn("[{}][{}] No ledger info of lower endpoint {}:{}", ledger.getName(), name,
+                        lowerEndpointLedgerId, lowerEndpointEntryId);
+            }
+
+            for (MLDataFormats.ManagedLedgerInfo.LedgerInfo li : ledger.getLedgersInfo()
+                    .subMap(lowerEndpointLedgerId, false, upperEndpointLedgerId, false).values()) {
+                individualDeletedMessages.addOpenClosed(li.getLedgerId(), -1, li.getLedgerId(),
+                        li.getEntries() - 1);
+            }
+
+            individualDeletedMessages.addOpenClosed(upperEndpointLedgerId, -1,
+                    upperEndpointLedgerId, upperEndpointEntryId);
+        }
+    }
+
+    private List<org.apache.pulsar.common.api.proto.LongProperty> buildPropertiesMapForCursorPosition(
+            Map<String, Long> properties) {
+        if (properties.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return properties.entrySet().stream().map(stringLongEntry ->
+                new org.apache.pulsar.common.api.proto.LongProperty()
+                        .setName(stringLongEntry.getKey())
+                        .setValue(stringLongEntry.getValue())
+        ).collect(Collectors.toList());
+    }
+
+    private List<BatchedEntryDeletionIndexInfo> buildBatchEntryDeletionIndexInfoListForCursorPosition() {
+        lock.readLock().lock();
+        try {
+            if (!config.isDeletionAtBatchIndexLevelEnabled() || batchDeletedIndexes == null || batchDeletedIndexes
+                    .isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
+            Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
+            while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
+                Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
+                BatchedEntryDeletionIndexInfo batchDeletedIndexInfo = new BatchedEntryDeletionIndexInfo();
+                batchDeletedIndexInfo.setPosition()
+                        .setLedgerId(entry.getKey().getLedgerId())
+                        .setEntryId(entry.getKey().getEntryId());
+                long[] array = entry.getValue().toLongArray();
+                for (long l : array) {
+                    batchDeletedIndexInfo.addDeleteSet(l);
+                }
+
+                result.add(batchDeletedIndexInfo);
+            }
+            return result;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    private Iterable<org.apache.pulsar.common.api.proto.MessageRange> buildIndividualDeletedMessageRangesForCursorPosition() {
+        lock.readLock().lock();
+        try {
+            if (individualDeletedMessages.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            List<org.apache.pulsar.common.api.proto.MessageRange> rangeList = Lists.newArrayList();
+            individualDeletedMessages.forEach((positionRange) -> {
+                org.apache.pulsar.common.api.proto.MessageRange messageRange =
+                        new org.apache.pulsar.common.api.proto.MessageRange();
+                messageRange.setLowerEndpoint()
+                        .setLedgerId(positionRange.lowerEndpoint().ledgerId)
+                        .setEntryId(positionRange.lowerEndpoint().entryId);
+                messageRange.setUpperEndpoint()
+                        .setLedgerId(positionRange.upperEndpoint().ledgerId)
+                        .setEntryId(positionRange.upperEndpoint().entryId);
+
+                rangeList.add(messageRange);
+                return rangeList.size() <= config.getMaxUnackedRangesToPersist();
+            });
+
+            return rangeList;
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

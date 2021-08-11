@@ -24,6 +24,7 @@ import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.pulsar.common.api.proto.CursorPosition;
 
 public class PositionImpl implements Position, Comparable<PositionImpl> {
 
@@ -58,6 +59,11 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     public PositionImpl(PositionImpl other) {
         this.ledgerId = other.ledgerId;
         this.entryId = other.entryId;
+    }
+
+    public PositionImpl(CursorPosition position) {
+        this.ledgerId = position.getLedgerId();
+        this.entryId = position.getEntryId();
     }
 
     public static PositionImpl get(long ledgerId, long entryId) {

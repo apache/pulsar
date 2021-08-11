@@ -182,6 +182,18 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class ManagedLedgerNotWritableException extends ManagedLedgerException {
+        public ManagedLedgerNotWritableException() {
+            super("This topic is readonly.");
+        }
+    }
+
+    public static class EmptyLedgersException extends ManagedLedgerException {
+        public EmptyLedgersException() {
+            super("No ledgers");
+        }
+    }
+
     @Override
     public synchronized Throwable fillInStackTrace() {
         // Disable stack traces to be filled in

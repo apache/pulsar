@@ -39,6 +39,9 @@ import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.CommandConsumerStatsResponse;
+import org.apache.pulsar.common.api.proto.CommandCreateCursor;
+import org.apache.pulsar.common.api.proto.CommandCreateCursorResponse;
+import org.apache.pulsar.common.api.proto.CommandDeleteCursor;
 import org.apache.pulsar.common.api.proto.CommandEndTxn;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
@@ -47,6 +50,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetCursor;
+import org.apache.pulsar.common.api.proto.CommandGetCursorResponse;
 import org.apache.pulsar.common.api.proto.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
@@ -77,6 +82,7 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.CommandUpdateCursor;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.slf4j.Logger;
@@ -431,6 +437,29 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 checkArgument(cmd.hasEndTxnOnSubscriptionResponse());
                 handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
                 break;
+            case GET_CURSOR:
+                checkArgument(cmd.hasGetCursor());
+                handleGetCursor(cmd.getGetCursor());
+                break;
+            case GET_CURSOR_RESPONSE:
+                checkArgument(cmd.hasGetCursorResponse());
+                handleGetCursorResponse(cmd.getGetCursorResponse());
+                break;
+            case CREATE_CURSOR:
+                checkArgument(cmd.hasCreateCursor());
+                handleCreateCursor(cmd.getCreateCursor());
+                break;
+            case CREATE_CURSOR_RESPONSE:
+                checkArgument(cmd.hasCreateCursorResponse());
+                handleCreateCursorResponse(cmd.getCreateCursorResponse());
+                break;
+            case DELETE_CURSOR:
+                checkArgument(cmd.hasDeleteCursor());
+                handleDeleteCursor(cmd.getDeleteCursor());
+                break;
+            case UPDATE_CURSOR:
+                checkArgument(cmd.hasUpdateCursor());
+                handleUpdateCursor(cmd.getUpdateCursor());
             default:
                 break;
             }
@@ -667,9 +696,34 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleEndTxnOnSubscriptionResponse(
-        CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
+            CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
         throw new UnsupportedOperationException();
     }
+
+    protected void handleGetCursor(CommandGetCursor commandGetCursor) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetCursorResponse(CommandGetCursorResponse commandGetCursorResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCreateCursor(CommandCreateCursor commandCreateCursor) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCreateCursorResponse(CommandCreateCursorResponse commandCreateCursorResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleDeleteCursor(CommandDeleteCursor commandDeleteCursor) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleUpdateCursor(CommandUpdateCursor commandUpdateCursor) {
+        throw new UnsupportedOperationException();
+    }
+
 
     private static final Logger log = LoggerFactory.getLogger(PulsarDecoder.class);
 }

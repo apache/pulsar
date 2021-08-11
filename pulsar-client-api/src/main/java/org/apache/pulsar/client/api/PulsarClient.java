@@ -316,4 +316,20 @@ public interface PulsarClient extends Closeable {
      * @since 2.7.0
      */
     TransactionBuilder newTransaction() throws PulsarClientException;
+
+
+    /**
+     * Create a cursor client builder that can be used to configure and construct a cursor client.
+     * <p>Example:
+     *
+     * <pre>{@code
+     * CursorClient cursorClient = client.newCursorClient()
+     *                                  .topic("my-topic")
+     *                                  .create();
+     * }</pre>
+     *
+     * @return Cursor client builder.
+     * @since 2.9.0
+     */
+    CursorClientBuilder newCursorClient();
 }

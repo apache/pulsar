@@ -636,4 +636,15 @@ public interface ManagedLedger {
      * @return the future of managed ledger internal stats
      */
     CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata);
+
+    /**
+     * @param name cursor name.
+     * @return A {@link ManagedCursor} in this managed ledger. If this cursor does not exists, null will be returned.
+     */
+    ManagedCursor getCursor(String name);
+
+    /**
+     * @return Current meta version of this managed ledger.
+     */
+    Long getVersion();
 }

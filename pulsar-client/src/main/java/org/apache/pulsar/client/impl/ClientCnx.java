@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -63,6 +64,7 @@ import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
+import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
@@ -74,10 +76,12 @@ import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandCreateCursorResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandGetCursorResponse;
 import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
@@ -94,9 +98,9 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
@@ -109,13 +113,15 @@ public class ClientCnx extends PulsarHandler {
     private State state;
 
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
-        new ConcurrentLongHashMap<>(16, 1);
+            new ConcurrentLongHashMap<>(16, 1);
     // LookupRequests that waiting in client side.
     private final Queue<Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>>> waitingLookupRequests;
 
     private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
-    private final ConcurrentLongHashMap<TransactionMetaStoreHandler> transactionMetaStoreHandlers = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<CursorClientImpl> cursorClients = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<TransactionMetaStoreHandler> transactionMetaStoreHandlers =
+            new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
@@ -123,8 +129,8 @@ public class ClientCnx extends PulsarHandler {
     private final Semaphore maxLookupRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
 
-    private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER = AtomicIntegerFieldUpdater
-            .newUpdater(ClientCnx.class, "numberOfRejectRequests");
+    private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(ClientCnx.class, "numberOfRejectRequests");
     @SuppressWarnings("unused")
     private volatile int numberOfRejectRequests = 0;
 
@@ -180,7 +186,11 @@ public class ClientCnx extends PulsarHandler {
         GetSchema,
         GetOrCreateSchema,
         AckResponse,
-        Lookup;
+        Lookup,
+        GetCursor,
+        CreateCursor,
+        DeleteCursor,
+        UpdateCursor;
 
         String getDescription() {
             if (this == Command) {
@@ -271,12 +281,14 @@ public class ClientCnx extends PulsarHandler {
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
         transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
+        cursorClients.forEach((id, client) -> client.connectionClosed(this));
 
         pendingRequests.clear();
         waitingLookupRequests.clear();
 
         producers.clear();
         consumers.clear();
+        cursorClients.clear();
 
         timeoutTask.cancel(true);
     }
@@ -884,10 +896,26 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
-                                                 RequestType requestType, boolean flush) {
+                                                                 RequestType requestType, boolean flush) {
         TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
         sendRequestAndHandleTimeout(requestMessage, requestId, requestType, flush, future);
         return future;
+    }
+
+    public CompletableFuture<CommandGetCursorResponse> sendGetCursor(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.GetCursor, true);
+    }
+
+    public CompletionStage<CommandCreateCursorResponse> sendCreateCursor(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.CreateCursor, true);
+    }
+
+    public CompletionStage<Void> sendDeleteCursor(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.DeleteCursor, true);
+    }
+
+    public CompletionStage<Void> sendUpdateCursor(ByteBuf request, long requestId) {
+        return sendRequestAndHandleTimeout(request, requestId, RequestType.UpdateCursor, true);
     }
 
     public CompletableFuture<CommandGetLastMessageIdResponse> sendGetLastMessageId(ByteBuf request, long requestId) {
@@ -1027,6 +1055,34 @@ public class ClientCnx extends PulsarHandler {
         return transactionBufferHandler;
     }
 
+    @Override
+    protected void handleGetCursorResponse(CommandGetCursorResponse commandGetCursorResponse) {
+        checkArgument(state == State.Ready);
+        long requestId = commandGetCursorResponse.getRequestId();
+        CompletableFuture<CommandGetCursorResponse> future =
+                (CompletableFuture<CommandGetCursorResponse>) pendingRequests
+                        .remove(requestId);
+        if (future == null) {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+            return;
+        }
+        future.complete(new CommandGetCursorResponse().copyFrom(commandGetCursorResponse));
+    }
+
+    @Override
+    protected void handleCreateCursorResponse(CommandCreateCursorResponse commandCreateCursorResponse) {
+        checkArgument(state == State.Ready);
+        long requestId = commandCreateCursorResponse.getRequestId();
+        CompletableFuture<CommandCreateCursorResponse> future =
+                (CompletableFuture<CommandCreateCursorResponse>) pendingRequests.remove(requestId);
+        if (future == null) {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+            return;
+        }
+        future.complete(new CommandCreateCursorResponse().copyFrom(commandCreateCursorResponse));
+    }
+
+
     /**
      * check serverError and take appropriate action
      * <ul>
@@ -1101,13 +1157,23 @@ public class ClientCnx extends PulsarHandler {
         producers.put(producerId, producer);
     }
 
-    void registerTransactionMetaStoreHandler(final long transactionMetaStoreId, final TransactionMetaStoreHandler handler) {
+    void registerTransactionMetaStoreHandler(final long transactionMetaStoreId,
+                                             final TransactionMetaStoreHandler handler) {
         transactionMetaStoreHandlers.put(transactionMetaStoreId, handler);
     }
 
     public void registerTransactionBufferHandler(final TransactionBufferHandler handler) {
         transactionBufferHandler = handler;
     }
+
+    public void registerCursorClient(long clientId, CursorClientImpl cursorClient) {
+        cursorClients.put(clientId, cursorClient);
+    }
+
+    public void removeCursorClient(long cursorClientId) {
+        cursorClients.remove(cursorClientId);
+    }
+
 
     void removeProducer(final long producerId) {
         producers.remove(producerId);

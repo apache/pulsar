@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -46,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.CursorPosition;
 import org.testng.annotations.Test;
 
 public class ManagedCursorContainerTest {
@@ -384,6 +386,16 @@ public class ManagedCursorContainerTest {
         @Override
         public boolean checkAndUpdateReadPositionChanged() {
             return false;
+        }
+
+        @Override
+        public CursorPosition getCursorPosition() {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> updateCursorPositionAsync(CursorPosition position) {
+            return null;
         }
     }
 

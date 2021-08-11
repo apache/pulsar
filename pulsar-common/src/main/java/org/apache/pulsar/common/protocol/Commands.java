@@ -26,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -43,11 +42,9 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.cursor.CursorDataImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
-import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
@@ -57,14 +54,17 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxn;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandCreateCursorResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandGetCursorResponse;
 import org.apache.pulsar.common.api.proto.CommandGetLastMessageIdResponse;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
@@ -85,6 +85,8 @@ import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CursorPosition;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -97,6 +99,7 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -1099,13 +1102,79 @@ public class Commands {
             .setLedgerId(lastMessageLedgerId)
             .setEntryId(lastMessageEntryId)
             .setPartition(lastMessagePartitionIdx)
-            .setBatchIndex(lastMessageBatchIndex);
+                .setBatchIndex(lastMessageBatchIndex);
 
         if (markDeletePositionLedgerId >= 0) {
             response.setConsumerMarkDeletePosition()
                     .setLedgerId(markDeletePositionLedgerId)
                     .setEntryId(markDeletePositionEntryId);
         }
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newGetCursor(long requestId, String topic, String subscription) {
+        BaseCommand cmd = localCmd(Type.GET_CURSOR);
+        cmd.setGetCursor()
+                .setRequestId(requestId)
+                .setTopic(topic)
+                .setSubscription(subscription);
+        return serializeWithSize(cmd);
+    }
+
+    public static BaseCommand newGetCursorResponse(long requestId, Long version,
+                                                   long lacLedgerId, long lacEntryId,
+                                                   CursorPosition position) {
+        BaseCommand cmd = localCmd(Type.GET_CURSOR_RESPONSE);
+        CommandGetCursorResponse response = cmd.setGetCursorResponse();
+        response.setRequestId(requestId)
+                .setManagedLedgerVersion(version)
+                .setLastConfirmedEntry().setLedgerId(lacLedgerId).setEntryId(lacEntryId);
+        response.setPosition()
+                .copyFrom(position);
+        return cmd;
+    }
+
+    public static BaseCommand newCreateCursorResponse(long requestId, Long version,
+                                                      long lacLedgerId, long lacEntryId,
+                                                      CursorPosition position) {
+        BaseCommand cmd = localCmd(Type.CREATE_CURSOR_RESPONSE);
+        CommandCreateCursorResponse response = cmd.setCreateCursorResponse();
+        response.setRequestId(requestId)
+                .setManagedLedgerVersion(version)
+                .setLastConfirmedEntry().setLedgerId(lacLedgerId).setEntryId(lacEntryId);
+        response.setPosition()
+                .copyFrom(position);
+        return cmd;
+    }
+
+    public static ByteBuf newCreateCursor(long requestId, String topic, String subscription,
+                                          CursorDataImpl cursorData) {
+        BaseCommand cmd = localCmd(Type.CREATE_CURSOR);
+        cmd.setCreateCursor()
+                .setRequestId(requestId)
+                .setTopic(topic)
+                .setSubscription(subscription)
+                .setPosition().copyFrom(cursorData.getPosition());
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newDeleteCursor(long requestId, String topic, String subscription) {
+        BaseCommand cmd = localCmd(Type.DELETE_CURSOR);
+        cmd.setDeleteCursor()
+                .setRequestId(requestId)
+                .setTopic(topic)
+                .setSubscription(subscription);
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newUpdateCursor(long requestId, String topic, String subscription,
+                                          CursorDataImpl cursorData) {
+        BaseCommand cmd = localCmd(Type.UPDATE_CURSOR);
+        cmd.setUpdateCursor()
+                .setRequestId(requestId)
+                .setTopic(topic)
+                .setSubscription(subscription)
+                .setPosition().copyFrom(cursorData.getPosition());
         return serializeWithSize(cmd);
     }
 
@@ -1772,15 +1841,20 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v17.getValue();
     }
 
-    private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(ProducerAccessMode accessMode) {
+    public static boolean peerSupportsCursorOps(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v20.getValue();
+    }
+
+    private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(
+            ProducerAccessMode accessMode) {
         switch (accessMode) {
-        case Exclusive:
-            return org.apache.pulsar.common.api.proto.ProducerAccessMode.Exclusive;
-        case Shared:
-            return org.apache.pulsar.common.api.proto.ProducerAccessMode.Shared;
-        case WaitForExclusive:
-            return org.apache.pulsar.common.api.proto.ProducerAccessMode.WaitForExclusive;
-        default:
+            case Exclusive:
+                return org.apache.pulsar.common.api.proto.ProducerAccessMode.Exclusive;
+            case Shared:
+                return org.apache.pulsar.common.api.proto.ProducerAccessMode.Shared;
+            case WaitForExclusive:
+                return org.apache.pulsar.common.api.proto.ProducerAccessMode.WaitForExclusive;
+            default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }
     }

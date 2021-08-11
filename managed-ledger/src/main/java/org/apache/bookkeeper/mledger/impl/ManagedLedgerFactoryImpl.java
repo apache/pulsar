@@ -73,6 +73,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -98,6 +99,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     protected final ConcurrentHashMap<String, PendingInitializeManagedLedger> pendingInitializeLedgers =
         new ConcurrentHashMap<>();
     private final EntryCacheManager entryCacheManager;
+    private Supplier<PulsarClient> clientSupplier;
 
     private long lastStatTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
@@ -216,6 +218,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
+    }
+
+    public void setClientSupplier(Supplier<PulsarClient> clientSupplier) {
+        this.clientSupplier = clientSupplier;
     }
 
     private synchronized void handleMetadataStoreNotification(SessionEvent e) {
@@ -376,11 +382,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         ledgers.computeIfAbsent(name, (mlName) -> {
             // Create the managed ledger
             CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
-            final ManagedLedgerImpl newledger = new ManagedLedgerImpl(this,
-                    bookkeeperFactory.get(
-                            new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                                    config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                    store, config, scheduledExecutor, name, mlOwnershipChecker);
+            BookKeeper bookkeeper = bookkeeperFactory.get(new EnsemblePlacementPolicyConfig(
+                    config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                    config.getBookKeeperEnsemblePlacementPolicyProperties()));
+            final ManagedLedgerImpl newledger = config.getWriterTopic() != null ?
+                    new RemoteManagedLedgerImpl(this, bookkeeper, store, config, scheduledExecutor, name,
+                            mlOwnershipChecker, clientSupplier) :
+                    new ManagedLedgerImpl(this, bookkeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
             PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
             pendingInitializeLedgers.put(name, pendingLedger);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {

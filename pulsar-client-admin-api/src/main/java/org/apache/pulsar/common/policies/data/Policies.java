@@ -126,6 +126,22 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public String resource_group_name = null;
 
+
+    /**
+     * If it's set as true, this namespace will be in ShadowReader mode.
+     * @see Policies#writerNamespace
+     */
+    public boolean shadowReaderModeEnabled = false;
+
+    /**
+     * If {@link Policies#shadowReaderModeEnabled} and writerNamespace is set, it's in ShadowReader
+     * mode, which means this namespace is a "readonly-view" of writerNamespace. You can not write entries to any
+     * topic in this namespace, but you can consume all topics in writer_namespace through this namespace by switching
+     * writerNamespace to this namespace in the topic name.
+     */
+    public String writerNamespace = null;
+
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -149,7 +165,9 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name);
+                resource_group_name,
+                shadowReaderModeEnabled,
+                writerNamespace);
     }
 
     @Override
@@ -194,7 +212,9 @@ public class Policies {
                     && Objects.equals(offload_policies, other.offload_policies)
                     && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
                     && Objects.equals(properties, other.properties)
-                    && Objects.equals(resource_group_name, other.resource_group_name);
+                    && Objects.equals(resource_group_name, other.resource_group_name)
+                    && Objects.equals(shadowReaderModeEnabled, other.shadowReaderModeEnabled)
+                    && Objects.equals(writerNamespace, other.writerNamespace);
         }
 
         return false;

@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -37,6 +38,7 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.zookeeper.ZooKeeper;
@@ -56,7 +58,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
                            ZooKeeper zkClient,
                            BookKeeperClientFactory bookkeeperProvider,
-                           EventLoopGroup eventLoopGroup) throws Exception {
+                           EventLoopGroup eventLoopGroup,
+                           Supplier<PulsarClient> brokerClient) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
@@ -106,8 +109,9 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             return bkClient != null ? bkClient : defaultBkClient;
         };
 
-        this.managedLedgerFactory =
-                new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);
+        this.managedLedgerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkFactory,
+                managedLedgerFactoryConfig, statsLogger);
+        ((ManagedLedgerFactoryImpl) this.managedLedgerFactory).setClientSupplier(brokerClient);
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {

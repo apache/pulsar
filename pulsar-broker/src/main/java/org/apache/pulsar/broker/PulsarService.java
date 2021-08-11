@@ -635,8 +635,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.bkClientFactory = newBookKeeperClientFactory();
 
             managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore, getZkClient(),
-                    bkClientFactory, ioEventLoopGroup
+                    config, localMetadataStore, getZkClient(), bkClientFactory, ioEventLoopGroup, () -> {
+                        try {
+                            return this.getClient();
+                        } catch (PulsarServerException e) {
+                            return null;
+                        }
+                    }
             );
 
             this.brokerService = newBrokerService(this);

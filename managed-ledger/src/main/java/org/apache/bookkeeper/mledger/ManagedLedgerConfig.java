@@ -19,21 +19,18 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
@@ -77,6 +74,7 @@ public class ManagedLedgerConfig {
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private TopicName writerTopic;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -645,5 +643,13 @@ public class ManagedLedgerConfig {
 
     public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
         this.managedLedgerInterceptor = managedLedgerInterceptor;
+    }
+
+    public TopicName getWriterTopic() {
+        return writerTopic;
+    }
+
+    public void setWriterTopic(TopicName writerTopic) {
+        this.writerTopic = writerTopic;
     }
 }

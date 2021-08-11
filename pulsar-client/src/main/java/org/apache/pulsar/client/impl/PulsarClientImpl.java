@@ -55,6 +55,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.CursorClient;
+import org.apache.pulsar.client.api.CursorClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -110,11 +112,13 @@ public class PulsarClientImpl implements PulsarClient {
     // These sets are updated from multiple threads, so they require a threadsafe data structure
     private final Set<ProducerBase<?>> producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<ConsumerBase<?>> consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<CursorClient> cursorClients = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
+    private final AtomicLong cursorClientIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator
-        = new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE/2));
+            = new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE / 2));
 
     protected final EventLoopGroup eventLoopGroup;
     private final MemoryLimitController memoryLimitController;
@@ -677,6 +681,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         producers.forEach(p -> futures.add(p.closeAsync()));
         consumers.forEach(c -> futures.add(c.closeAsync()));
+        cursorClients.forEach(c -> futures.add(c.closeAsync()));
 
         // Need to run the shutdown sequence in a separate thread to prevent deadlocks
         // If there are consumers or producers that need to be shutdown we cannot use the same thread
@@ -845,6 +850,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     long newConsumerId() {
         return consumerIdGenerator.getAndIncrement();
+    }
+
+    long newCursorClientId() {
+        return cursorClientIdGenerator.getAndIncrement();
     }
 
     public long newRequestId() {
@@ -1050,5 +1059,42 @@ public class PulsarClientImpl implements PulsarClient {
         }
         return new TransactionBuilderImpl(this, tcClient);
     }
+
+    //cursor related API
+
+    @Override
+    public CursorClientBuilder newCursorClient() {
+        return new CursorClientBuilderImpl(this);
+    }
+
+    public CompletableFuture<CursorClient> createCursorClientAsync(String topic) {
+        CompletableFuture<CursorClient> cursorClientFuture = new CompletableFuture<>();
+        getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
+            }
+
+            if (metadata.partitions > 0) {
+                cursorClientFuture.completeExceptionally(
+                        new PulsarClientException("Only non-partitioned topic is support for CursorClient"));
+            } else {
+                CursorClientImpl cursorClient = new CursorClientImpl(this, topic, cursorClientFuture);
+                cursorClients.add(cursorClient);
+            }
+        }).exceptionally(ex -> {
+            log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
+            cursorClientFuture.completeExceptionally(ex);
+            return null;
+        });
+
+        return cursorClientFuture;
+    }
+
+    public void cleanupCursorClient(CursorClientImpl cursorClient) {
+        synchronized (cursorClients) {
+            cursorClients.remove(cursorClient);
+        }
+    }
+
 
 }

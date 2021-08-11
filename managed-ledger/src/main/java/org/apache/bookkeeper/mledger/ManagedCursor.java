@@ -20,11 +20,10 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -35,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.api.proto.CursorPosition;
 
 /**
  * A ManagedCursor is a persisted cursor inside a ManagedLedger.
@@ -710,4 +710,17 @@ public interface ManagedCursor {
      * @return if read position changed
      */
     boolean checkAndUpdateReadPositionChanged();
+
+    /**
+     * @return current cursor state of this cursor.
+     */
+    CursorPosition getCursorPosition();
+
+    /**
+     * Update and persist this cursor state in asynchronous mode.
+     *
+     * @param position cursor position data.
+     * @return A {@link CompletableFuture} to tracking the update process.
+     */
+    CompletableFuture<Void> updateCursorPositionAsync(CursorPosition position);
 }

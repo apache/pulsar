@@ -351,4 +351,14 @@ public class MockManagedLedger implements ManagedLedger {
     public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
         return null;
     }
+
+    @Override
+    public ManagedCursor getCursor(String name) {
+        return null;
+    }
+
+    @Override
+    public Long getVersion() {
+        return null;
+    }
 }

@@ -258,6 +258,7 @@ enum ProtocolVersion {
     v17 = 17; // Added support ack receipt
     v18 = 18; // Add client support for broker entry metadata
     v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
+    v20 = 20; // Add support for remote cursor management.
 }
 
 message CommandConnect {
@@ -873,6 +874,85 @@ message CommandEndTxnOnSubscriptionResponse {
     optional string message = 5;
 }
 
+/// --- cursor related ---
+
+message EntryPosition {
+    required int64 ledgerId = 1;
+    required int64 entryId = 2;
+}
+
+message MessageRange {
+    required EntryPosition lowerEndpoint = 1;
+    required EntryPosition upperEndpoint = 2;
+}
+
+message BatchedEntryDeletionIndexInfo {
+    required EntryPosition position = 1;
+    repeated int64 deleteSet = 2;
+}
+
+// Generic string and long tuple
+message LongProperty {
+    required string name = 1;
+    required int64 value = 2;
+}
+
+message CursorPosition {
+    required int64 ledgerId = 1;
+    required int64 entryId = 2;
+
+    repeated MessageRange individualDeletedMessages = 3;
+
+    // Additional custom properties associated with
+    // the current cursor position
+    repeated LongProperty properties = 4;
+
+    // Store which index in the batch message has been deleted
+    repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
+}
+
+message CommandGetCursor {
+    required uint64 request_id = 1;
+    required string topic = 2;
+    required string subscription = 3;
+}
+
+message CommandGetCursorResponse {
+    required uint64 request_id = 1;
+    required uint64 managedLedgerVersion = 2;
+    required EntryPosition lastConfirmedEntry = 3;
+    required CursorPosition position = 4;
+}
+
+message CommandCreateCursor {
+    required uint64 request_id = 1;
+    required string topic = 2;
+    required string subscription = 3;
+    required CursorPosition position = 4;
+}
+
+message CommandCreateCursorResponse {
+    required uint64 request_id = 1;
+    optional uint64 managedLedgerVersion = 2;
+    required EntryPosition lastConfirmedEntry = 3;
+    required CursorPosition position = 4;
+}
+
+
+message CommandDeleteCursor {
+    required uint64 request_id = 1;
+    required string topic = 2;
+    required string subscription = 3;
+}
+
+
+message CommandUpdateCursor {
+    required uint64 request_id = 1;
+    required string topic = 2;
+    required string subscription = 3;
+    required CursorPosition position = 4;
+}
+
 message BaseCommand {
     enum Type {
         CONNECT     = 2;
@@ -936,6 +1016,13 @@ message BaseCommand {
 
         GET_OR_CREATE_SCHEMA = 39;
         GET_OR_CREATE_SCHEMA_RESPONSE = 40;
+
+        GET_CURSOR = 41;
+        GET_CURSOR_RESPONSE = 42;
+        CREATE_CURSOR = 43;
+        CREATE_CURSOR_RESPONSE = 44;
+        DELETE_CURSOR = 45;
+        UPDATE_CURSOR = 46;
 
         // transaction related
         NEW_TXN = 50;
@@ -1019,10 +1106,18 @@ message BaseCommand {
     optional CommandGetOrCreateSchema getOrCreateSchema = 39;
     optional CommandGetOrCreateSchemaResponse getOrCreateSchemaResponse = 40;
 
+    // cursor related
+    optional CommandGetCursor getCursor = 41;
+    optional CommandGetCursorResponse getCursorResponse = 42;
+    optional CommandCreateCursor createCursor = 43;
+    optional CommandCreateCursorResponse createCursorResponse = 44;
+    optional CommandDeleteCursor deleteCursor = 45;
+    optional CommandUpdateCursor updateCursor = 46;
+
     // transaction related
     optional CommandNewTxn newTxn = 50;
     optional CommandNewTxnResponse newTxnResponse = 51;
-    optional CommandAddPartitionToTxn addPartitionToTxn= 52;
+    optional CommandAddPartitionToTxn addPartitionToTxn = 52;
     optional CommandAddPartitionToTxnResponse addPartitionToTxnResponse = 53;
     optional CommandAddSubscriptionToTxn addSubscriptionToTxn = 54;
     optional CommandAddSubscriptionToTxnResponse addSubscriptionToTxnResponse = 55;

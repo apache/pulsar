@@ -155,9 +155,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache = new ConcurrentLongHashMap<>(
             16 /* initial capacity */, 1 /* number of sections */);
     protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
-    private volatile Stat ledgersStat;
+    protected volatile Stat ledgersStat;
 
-    private final ManagedCursorContainer cursors = new ManagedCursorContainer();
+    protected final ManagedCursorContainer cursors = new ManagedCursorContainer();
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
     private final ManagedCursorContainer nonDurableActiveCursors =
             new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
@@ -248,12 +248,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         startIncluded, startExcluded
     }
 
-    private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, State> STATE_UPDATER = AtomicReferenceFieldUpdater
-            .newUpdater(ManagedLedgerImpl.class, State.class, "state");
+    protected static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater
+                    .newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
 
     private final OrderedScheduler scheduledExecutor;
-    private final OrderedExecutor executor;
+    protected final OrderedExecutor executor;
     final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
     protected final Clock clock;
@@ -328,6 +329,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         store.getManagedLedgerInfo(name, config.isCreateIfMissing(), new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] initialize with ManagedLedgerInfo={},stat={}", name, mlInfo, stat);
+                }
                 ledgersStat = stat;
                 if (mlInfo.hasTerminatedPosition()) {
                     state = State.Terminated;
@@ -410,7 +414,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         scheduleTimeoutTask();
     }
 
-    private synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
+    protected synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] initializing bookkeeper; ledgers {}", name, ledgers);
         }
@@ -496,7 +500,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, ledgerMetadata);
     }
 
-    private void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
+    protected void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] initializing cursors", name);
         }
@@ -519,9 +523,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     for (final String cursorName : consumers) {
                         log.info("[{}] Loading cursor {}", name, cursorName);
-                        final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, config, ManagedLedgerImpl.this, cursorName);
-
+                        final ManagedCursorImpl cursor = createManagedCursor(cursorName);
                         cursor.recover(new VoidCallback() {
                             @Override
                             public void operationComplete() {
@@ -550,8 +552,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Recovering cursor {} lazily" , name, cursorName);
                         }
-                        final ManagedCursorImpl cursor;
-                        cursor = new ManagedCursorImpl(bookKeeper, config, ManagedLedgerImpl.this, cursorName);
+                        final ManagedCursorImpl cursor = createManagedCursor(cursorName);
                         CompletableFuture<ManagedCursor> cursorRecoveryFuture = new CompletableFuture<>();
                         uninitializedCursors.put(cursorName, cursorRecoveryFuture);
 
@@ -902,9 +903,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Creating new cursor: {}", name, cursorName);
         }
-        final ManagedCursorImpl cursor = new ManagedCursorImpl(bookKeeper, config, this, cursorName);
+        final ManagedCursorImpl cursor = createManagedCursor(cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
+        doInitializeCursor(cursor, cursorName, initialPosition, properties, callback, ctx);
+    }
+
+    protected void doInitializeCursor(ManagedCursorImpl cursor, String cursorName, InitialPosition initialPosition,
+                                      Map<String, Long> properties, OpenCursorCallback callback, Object ctx) {
         PositionImpl position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
         cursor.initialize(position, properties, new VoidCallback() {
             @Override
@@ -932,6 +938,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.openCursorFailed(exception, ctx);
             }
         });
+    }
+
+    protected ManagedCursorImpl createManagedCursor(String cursorName) {
+        return new ManagedCursorImpl(bookKeeper, config, this, cursorName);
     }
 
     @Override
@@ -1677,7 +1687,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void asyncReadEntries(OpReadEntry opReadEntry) {
+    protected void asyncReadEntries(OpReadEntry opReadEntry) {
         final State state = STATE_UPDATER.get(this);
         if (state == State.Fenced || state == State.Closed) {
             opReadEntry.readEntriesFailed(new ManagedLedgerFencedException(), opReadEntry.ctx);
@@ -1839,7 +1849,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     }
 
-    private void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
+    protected void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
 
         if (opReadEntry.readPosition.compareTo(opReadEntry.maxPosition) > 0) {
             opReadEntry.checkReadCompletion();
@@ -3993,6 +4003,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             this.checkLedgerRollTask = this.scheduledExecutor.schedule(
                     safeRun(this::rollCurrentLedgerIfFull), this.maximumRolloverTimeMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    @Override
+    public ManagedCursor getCursor(String name) {
+        return cursors.get(name);
+    }
+
+    @Override
+    public Long getVersion() {
+        if (ledgersStat == null) {
+            return null;
+        } else {
+            return ledgersStat.getVersion();
         }
     }
 

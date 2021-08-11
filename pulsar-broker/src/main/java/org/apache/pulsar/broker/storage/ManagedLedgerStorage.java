@@ -20,11 +20,13 @@ package org.apache.pulsar.broker.storage;
 
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
 import org.apache.pulsar.common.classification.InterfaceStability.Unstable;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -49,7 +51,7 @@ public interface ManagedLedgerStorage extends AutoCloseable {
                     MetadataStoreExtended metadataStore,
                     ZooKeeper zkClient,
                     BookKeeperClientFactory bookkeeperProvider,
-                    EventLoopGroup eventLoopGroup) throws Exception;
+                    EventLoopGroup eventLoopGroup, Supplier<PulsarClient> brokerClient) throws Exception;
 
     /**
      * Return the factory to create {@link ManagedLedgerFactory}.
@@ -91,10 +93,11 @@ public interface ManagedLedgerStorage extends AutoCloseable {
                                        MetadataStoreExtended metadataStore,
                                        ZooKeeper zkClient,
                                        BookKeeperClientFactory bkProvider,
-                                       EventLoopGroup eventLoopGroup) throws Exception {
+                                       EventLoopGroup eventLoopGroup,
+                                       Supplier<PulsarClient> brokerClient) throws Exception {
         final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
         final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.getDeclaredConstructor().newInstance();
-        storage.initialize(conf, metadataStore, zkClient, bkProvider, eventLoopGroup);
+        storage.initialize(conf, metadataStore, zkClient, bkProvider, eventLoopGroup, brokerClient);
         return storage;
     }
 

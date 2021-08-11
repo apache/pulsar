@@ -23,7 +23,9 @@ import io.netty.util.concurrent.Future;
 import java.util.List;
 import java.util.Optional;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CursorPosition;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -76,9 +78,13 @@ public interface PulsarCommandSender {
     void sendReachedEndOfTopic(long consumerId);
 
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
-            int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-            RedeliveryTracker redeliveryTracker);
+                                        int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes,
+                                        EntryBatchIndexesAcks batchIndexesAcks,
+                                        RedeliveryTracker redeliveryTracker);
 
+    void sendGetCursorResponse(long requestId, long version, Position lastConfirmedEntry, CursorPosition position);
+
+    void sendCreateCursorResponse(long requestId, long version, Position lastConfirmedEntry, CursorPosition position);
     void sendTcClientConnectResponse(long requestId, ServerError error, String message);
 
     void sendTcClientConnectResponse(long requestId);

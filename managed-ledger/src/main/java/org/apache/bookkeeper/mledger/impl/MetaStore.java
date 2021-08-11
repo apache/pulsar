@@ -54,6 +54,16 @@ public interface MetaStore {
      */
     void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, MetaStoreCallback<ManagedLedgerInfo> callback);
 
+
+    /**
+     * Watch the managed ledger meta of the giving ledger, identified by ledgerName.
+     * when the meta is changed, the giving callback should be called.
+     *
+     * @param ledgerName Name of the watched managed ledger.
+     * @param callback Callback when the stored meta is changed.
+     */
+    void watchManagedLedgerInfo(String ledgerName, MetaStoreCallback<ManagedLedgerInfo> callback);
+
     /**
      *
      * @param ledgerName

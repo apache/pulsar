@@ -217,7 +217,7 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     CommandConnect* connect = cmd.mutable_connect();
     connect->set_client_version(_PULSAR_VERSION_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
-    connect->set_protocol_version(ProtocolVersion_MAX);
+    connect->set_protocol_version(Pro¸tocolVersion_MAX);
 
     FeatureFlags* flags = connect->mutable_feature_flags();
     flags->set_supports_auth_refresh(true);
@@ -658,6 +658,18 @@ std::string Commands::messageType(BaseCommand_Type type) {
             return "TC_CLIENT_CONNECT_REQUEST";
         case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
             return "TC_CLIENT_CONNECT_RESPONSE";
+        case BaseCommand::GET_CURSOR:
+            return "GET_CURSOR";
+        case BaseCommand::GET_CURSOR_RESPONSE:
+            return "GET_CURSOR_RESPONSE";
+        case BaseCommand::CREATE_CURSOR:
+            return "CREATE_CURSOR";
+        case BaseCommand::CREATE_CURSOR_RESPONSE:
+            return "CREATE_CURSOR_RESPONSE";
+        case BaseCommand::DELETE_CURSOR:
+            return "DELETE_CURSOR";
+        case BaseCommand::UPDATE_CURSOR:
+            return "UPDATE_CURSOR";
             break;
     };
     BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));

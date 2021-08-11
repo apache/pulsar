@@ -22,14 +22,17 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
-import java.util.concurrent.RejectedExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -46,10 +49,11 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
 
 @Slf4j
-public class MetaStoreImpl implements MetaStore {
+public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     private static final String BASE_NODE = "/managed-ledgers";
     private static final String PREFIX = BASE_NODE + "/";
@@ -60,10 +64,16 @@ public class MetaStoreImpl implements MetaStore {
     private static final int MAGIC_MANAGED_LEDGER_INFO_METADATA = 0x4778; // 0100 0111 0111 1000
     private final CompressionType compressionType;
 
+    private final Map<String, MetaStoreCallback<ManagedLedgerInfo>> ledgerChangeCallbackMap;
+
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor) {
         this.store = store;
         this.executor = executor;
         this.compressionType = CompressionType.NONE;
+        this.ledgerChangeCallbackMap = new ConcurrentHashMap<>();
+        if (this.store != null) {
+            this.store.registerListener(this);
+        }
     }
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor, String compressionType) {
@@ -81,6 +91,10 @@ public class MetaStoreImpl implements MetaStore {
             finalCompressionType = CompressionType.NONE;
         }
         this.compressionType = finalCompressionType;
+        this.ledgerChangeCallbackMap = new ConcurrentHashMap<>();
+        if (this.store != null) {
+            this.store.registerListener(this);
+        }
     }
 
     @Override
@@ -129,6 +143,12 @@ public class MetaStoreImpl implements MetaStore {
                     }
                     return null;
                 });
+    }
+
+    @Override
+    public void watchManagedLedgerInfo(String ledgerName, MetaStoreCallback<ManagedLedgerInfo> callback) {
+        String path = PREFIX + ledgerName;
+        ledgerChangeCallbackMap.put(path, callback);
     }
 
     @Override
@@ -391,4 +411,40 @@ public class MetaStoreImpl implements MetaStore {
                 org.apache.pulsar.common.api.proto.CompressionType.valueOf(compressionType.name()));
     }
 
+    @Override
+    public void accept(Notification notification) {
+        String path = notification.getPath();
+        if (path == null || !path.startsWith(PREFIX)) {
+            return;
+        }
+        MetaStoreCallback<ManagedLedgerInfo> callback = ledgerChangeCallbackMap.get(path);
+        if (callback == null) {
+            return;
+        }
+        String ledgerName = path.substring(PREFIX.length());
+        if (log.isDebugEnabled()) {
+            log.debug("managedLedger of {} is changed.", ledgerName);
+        }
+        store.get(path)
+                .thenAcceptAsync(optResult -> {
+                    if (optResult.isPresent()) {
+                        ManagedLedgerInfo info;
+                        try {
+                            info = parseManagedLedgerInfo(optResult.get().getValue());
+                            info = updateMLInfoTimestamp(info);
+                            callback.operationComplete(info, optResult.get().getStat());
+                        } catch (InvalidProtocolBufferException e) {
+                            callback.operationFailed(getException(e));
+                        }
+                    } else {
+                        callback.operationFailed(new MetadataNotFoundException("Managed ledger not found"));
+
+                    }
+                }, executor.chooseThread(ledgerName))
+                .exceptionally(ex -> {
+                    executor.executeOrdered(ledgerName,
+                            SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
+                    return null;
+                });
+    }
 }

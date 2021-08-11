@@ -1489,6 +1489,16 @@ public class BrokerService implements Closeable {
                     managedLedgerConfig.setNewEntriesCheckDelayInMillis(
                             serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
 
+                    if (policies.isPresent() && policies.get().shadowReaderModeEnabled) {
+                        if (policies.get().writerNamespace == null) {
+                            log.error("Policies of {} is error, shadowReaderModeEnabled is true, "
+                                    + "but writerNamespace not configured.", namespace);
+                        } else {
+                            NamespaceName writerNs = NamespaceName.get(policies.get().writerNamespace);
+                            managedLedgerConfig.setWriterTopic(
+                                    TopicName.get(TopicDomain.persistent.value(), writerNs, topicName.getLocalName()));
+                        }
+                    }
                     return managedLedgerConfig;
                 });
     }

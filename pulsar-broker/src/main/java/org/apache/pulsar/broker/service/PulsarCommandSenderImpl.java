@@ -26,10 +26,12 @@ import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CursorPosition;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
@@ -284,6 +286,26 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         });
 
         return writePromise;
+    }
+
+    @Override
+    public void sendGetCursorResponse(long requestId, long version, Position lastConfirmedEntry,
+                                      CursorPosition position) {
+        BaseCommand command = Commands.newGetCursorResponse(requestId, version,
+                lastConfirmedEntry.getLedgerId(), lastConfirmedEntry.getEntryId(), position);
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        cnx.ctx().writeAndFlush(outBuf);
+    }
+
+    @Override
+    public void sendCreateCursorResponse(long requestId, long version, Position lastConfirmedEntry,
+                                         CursorPosition position) {
+        BaseCommand command = Commands.newCreateCursorResponse(requestId, version,
+                lastConfirmedEntry.getLedgerId(), lastConfirmedEntry.getEntryId(), position);
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        cnx.ctx().writeAndFlush(outBuf);
     }
 
     @Override
