@@ -23,6 +23,8 @@ import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
@@ -35,6 +37,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.impl.PulsarClientImplementationBindingImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -143,8 +146,14 @@ public class SchemasResourceBase extends AdminResource {
             }
             byte[] data;
             if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
-                data = DefaultImplementation
-                        .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+                try {
+                    data = DefaultImplementation.getDefaultImplementation()
+                            .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema().getBytes(Charsets.UTF_8));
+                } catch (IOException conversionError) {
+                    log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, conversionError);
+                    response.resume(Response.serverError().build());
+                    return;
+                }
             } else {
                 data = payload.getSchema().getBytes(Charsets.UTF_8);
             }
@@ -241,16 +250,20 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     private static GetSchemaResponse convertSchemaAndMetadataToGetSchemaResponse(SchemaAndMetadata schemaAndMetadata) {
-        String schemaData;
-        if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
-            schemaData = DefaultImplementation.convertKeyValueSchemaInfoDataToString(
-                    DefaultImplementation.decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
-        } else {
-            schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+        try {
+            String schemaData;
+            if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
+                schemaData = DefaultImplementation.getDefaultImplementation().convertKeyValueSchemaInfoDataToString(
+                        DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
+            } else {
+                schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+            }
+            return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
+                    .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
+                    .data(schemaData).properties(schemaAndMetadata.schema.getProps()).build();
+        } catch (IOException conversionError) {
+            throw new RuntimeException(conversionError);
         }
-        return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
-                .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
-                .data(schemaData).properties(schemaAndMetadata.schema.getProps()).build();
     }
 
     private static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
