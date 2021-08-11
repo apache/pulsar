@@ -415,9 +415,23 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
+                Set<String> partitionedTopics = new HashSet<>();
+
                 for (String topic : topics) {
                     try {
-                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
+                        TopicName topicName = TopicName.get(topic);
+                        if (topicName.isPartitioned()) {
+                            String partitionedTopic = topicName.getPartitionedTopicName();
+                            if (!partitionedTopics.contains(partitionedTopic)) {
+                                // Distinguish partitioned topic to avoid duplicate deletion of the same schema
+                                futures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
+                                        partitionedTopic, true, true));
+                                partitionedTopics.add(partitionedTopic);
+                            }
+                        } else {
+                            futures.add(pulsar().getAdminClient().topics().deleteAsync(
+                                    topic, true, true));
+                        }
                     } catch (Exception e) {
                         log.error("[{}] Failed to force delete topic {}", clientAppId(), topic, e);
                         asyncResponse.resume(new RestException(e));
