@@ -665,6 +665,11 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public boolean hasBrokerPublishTime() {
+        return brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp();
+    }
+
+    @Override
     public Optional<Long> getBrokerPublishTime() {
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
             return Optional.of(brokerEntryMetadata.getBrokerTimestamp());
@@ -673,8 +678,17 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
+    public boolean hasIndex() {
+        return brokerEntryMetadata != null && brokerEntryMetadata.hasIndex();
+    }
+
+    @Override
     public Optional<Long> getIndex() {
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+            if (msgMetadata.hasNumMessagesInBatch() && messageId instanceof BatchMessageIdImpl) {
+                int batchIndex = ((BatchMessageIdImpl) messageId).getBatchIndex();
+                return Optional.of(brokerEntryMetadata.getIndex() - batchIndex);
+            }
             return Optional.of(brokerEntryMetadata.getIndex());
         }
         return Optional.empty();

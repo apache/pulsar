@@ -277,15 +277,15 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     }
 
     @Test(timeOut = 20000)
-    public void testConsumerGetBrokerEntryMetadata() throws Exception {
+    public void testConsumerGetBrokerEntryMetadataForIndividualMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
+                .enableBatching(false)
                 .create();
-
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
@@ -303,8 +303,49 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         for (int i = 0; i < messages; i++) {
             Message<byte[]> received = consumer.receive();
             Assert.assertTrue(
-                    received.getBrokerPublishTime().isPresent() && received.getBrokerPublishTime().get() >= sendTime);
-            Assert.assertTrue(received.getIndex().isPresent() && received.getIndex().get() == i);
+                    received.hasBrokerPublishTime() && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
+            Assert.assertTrue(received.hasIndex() && received.getIndex().orElse(-1L) == i);
         }
+        producer.close();
+        consumer.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testConsumerGetBrokerEntryMetadataForBatchMessage() throws Exception {
+        final String topic = newTopicName();
+        final String subscription = "my-sub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subscription)
+                .subscribe();
+
+        long sendTime = System.currentTimeMillis();
+        Long[] expected = new Long[]{0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L};
+
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.sendAsync(String.valueOf(i).getBytes());
+        }
+
+        Long[] receives = new Long[10];
+        for (int i = 0; i < messages; i++) {
+            Message<byte[]> received = consumer.receive();
+            Assert.assertTrue(
+                    received.hasBrokerPublishTime() && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
+            Assert.assertTrue(received.hasIndex());
+            receives[i] = received.getIndex().orElse(-1L);
+        }
+
+        Assert.assertEqualsNoOrder(receives, expected);
+        producer.close();
+        consumer.close();
     }
 }

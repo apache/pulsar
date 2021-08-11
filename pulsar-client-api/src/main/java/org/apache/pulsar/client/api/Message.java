@@ -247,6 +247,14 @@ public interface Message<T> {
     void release();
 
     /**
+     * Check whether the message has a broker publish time
+     *
+     * @since 2.9.0
+     * @return true if the message has a broker publish time, otherwise false.
+     */
+    boolean hasBrokerPublishTime();
+
+    /**
      * Get broker publish time from broker entry metadata.
      * Note that only if the feature is enabled in the broker then the value is available.
      *
@@ -254,6 +262,14 @@ public interface Message<T> {
      * @return broker publish time from broker entry metadata, or empty if the feature is not enabled in the broker.
      */
     Optional<Long> getBrokerPublishTime();
+
+    /**
+     * Check whether the message has a index.
+     *
+     * @since 2.9.0
+     * @return true if the message has a index, otherwise false.
+     */
+    boolean hasIndex();
 
     /**
      * Get index from broker entry metadata.
