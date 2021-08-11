@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -3205,7 +3206,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // The previous position will be the last position of an earlier ledgers
         NavigableMap<Long, LedgerInfo> headMap = ledgers.headMap(position.getLedgerId(), false);
 
-        if (headMap.isEmpty()) {
+        final Map.Entry<Long, LedgerInfo> firstEntry = headMap.firstEntry();
+        if (firstEntry == null) {
             // There is no previous ledger, return an invalid position in the current ledger
             return PositionImpl.get(position.getLedgerId(), -1);
         }
@@ -3213,13 +3215,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // We need to find the most recent non-empty ledger
         for (long ledgerId : headMap.descendingKeySet()) {
             LedgerInfo li = headMap.get(ledgerId);
-            if (li.getEntries() > 0) {
+            if (li != null && li.getEntries() > 0) {
                 return PositionImpl.get(li.getLedgerId(), li.getEntries() - 1);
             }
         }
 
         // in case there are only empty ledgers, we return a position in the first one
-        return PositionImpl.get(headMap.firstEntry().getKey(), -1);
+        return PositionImpl.get(firstEntry.getKey(), -1);
     }
 
     /**
