@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -546,7 +547,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             try {
-                consumer.acknowledgeCumulativeAsync(PulsarClientImplementationBindingImpl
+                consumer.acknowledgeCumulativeAsync(DefaultImplementation.getDefaultImplementation()
                         .newMessageId(((MessageIdImpl) message.getMessageId()).getLedgerId(),
                                 ((MessageIdImpl) message.getMessageId()).getEntryId() - 1, -1),
                         abortTxn).get();

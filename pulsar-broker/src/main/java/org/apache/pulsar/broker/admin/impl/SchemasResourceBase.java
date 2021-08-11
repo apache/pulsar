@@ -23,7 +23,6 @@ import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
@@ -37,7 +36,6 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.impl.PulsarClientImplementationBindingImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -254,7 +252,8 @@ public class SchemasResourceBase extends AdminResource {
             String schemaData;
             if (schemaAndMetadata.schema.getType() == SchemaType.KEY_VALUE) {
                 schemaData = DefaultImplementation.getDefaultImplementation().convertKeyValueSchemaInfoDataToString(
-                        DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
+                        DefaultImplementation.getDefaultImplementation()
+                                .decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
             } else {
                 schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
             }

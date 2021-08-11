@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +33,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
-import org.apache.pulsar.client.impl.PulsarClientImplementationBindingImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
