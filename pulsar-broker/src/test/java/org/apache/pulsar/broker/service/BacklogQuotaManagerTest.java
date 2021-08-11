@@ -398,10 +398,9 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 BacklogQuota.builder()
-                        .limitSize(20 * 1024)
                         .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-                        .build());
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
         config.setPreciseTimeBasedBacklogQuotaCheck(true);
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -441,10 +440,9 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 BacklogQuota.builder()
-                        .limitSize(20 * 1024)
                         .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-                        .build());
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
@@ -519,10 +517,9 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 BacklogQuota.builder()
-                        .limitSize(10 * 1024)
                         .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-                        .build());
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
         config.setPreciseTimeBasedBacklogQuotaCheck(true);
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
 
@@ -583,10 +580,9 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
                 BacklogQuota.builder()
-                        .limitSize(20 * 1024)
                         .limitTime(2 * TIME_TO_CHECK_BACKLOG_QUOTA)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-                        .build());
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
 
@@ -1090,10 +1086,9 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 BacklogQuota.builder()
-                        .limitSize(10 * 1024)
                         .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
-                        .build());
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
         config.setPreciseTimeBasedBacklogQuotaCheck(true);
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
@@ -1157,10 +1152,9 @@ public class BacklogQuotaManagerTest {
                 Maps.newHashMap());
         admin.namespaces().setBacklogQuota("prop/quotahold",
                 BacklogQuota.builder()
-                        .limitSize(15 * 1024)
                         .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
-                        .build());
+                        .build(), BacklogQuota.BacklogQuotaType.message_age);
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/quotahold/exceptandunblock2";

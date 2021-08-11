@@ -78,14 +78,14 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         try {
-            admin.topics().setBacklogQuota(testTopic, backlogQuota);
+            admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
         }
 
         try {
-            admin.topics().removeBacklogQuota(testTopic);
+            admin.topics().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);

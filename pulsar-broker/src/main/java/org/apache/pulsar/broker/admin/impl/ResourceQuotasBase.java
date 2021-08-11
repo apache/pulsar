@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -30,7 +31,8 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
     public ResourceQuota getDefaultResourceQuota() throws Exception {
         validateSuperUserAccess();
         try {
-            return pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota().join();
+            return pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota()
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get default resource quota", clientAppId());
             throw new RestException(e);
@@ -41,7 +43,8 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         try {
-            pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota).join();
+            pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get default resource quota", clientAppId());
             throw new RestException(e);
@@ -62,7 +65,8 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
 
         try {
-            return pulsar().getBrokerService().getBundlesQuotas().getResourceQuota(nsBundle).join();
+            return pulsar().getBrokerService().getBundlesQuotas().getResourceQuota(nsBundle)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get resource quota for namespace bundle {}", clientAppId(), nsBundle.toString());
             throw new RestException(e);
@@ -84,7 +88,8 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
 
         try {
-            pulsar().getBrokerService().getBundlesQuotas().setResourceQuota(nsBundle, quota).join();
+            pulsar().getBrokerService().getBundlesQuotas().setResourceQuota(nsBundle, quota)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             log.info("[{}] Successfully set resource quota for namespace bundle {}", clientAppId(),
                     nsBundle.toString());
         } catch (Exception e) {
@@ -109,7 +114,8 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
 
         try {
-            pulsar().getBrokerService().getBundlesQuotas().resetResourceQuota(nsBundle).join();
+            pulsar().getBrokerService().getBundlesQuotas().resetResourceQuota(nsBundle)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             log.info("[{}] Successfully unset resource quota for namespace bundle {}", clientAppId(),
                     nsBundle.toString());
         } catch (Exception e) {

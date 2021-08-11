@@ -355,6 +355,20 @@ class PULSAR_PUBLIC Client {
      */
     void shutdown();
 
+    /**
+     * @brief Get the number of alive producers on the current client.
+     *
+     * @return The number of alive producers on the  current client.
+     */
+    uint64_t getNumberOfProducers();
+
+    /**
+     * @brief Get the number of alive consumers on the current client.
+     *
+     * @return The number of alive consumers on the current client.
+     */
+    uint64_t getNumberOfConsumers();
+
    private:
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
            bool poolConnections);
