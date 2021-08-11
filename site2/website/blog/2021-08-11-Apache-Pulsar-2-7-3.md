@@ -13,7 +13,7 @@ The Apache Pulsar community releases version 2.7.3! 34 contributors provided imp
 
 - The ledger rollover scheduled task runs as expected. [PR-11226](https://github.com/apache/pulsar/pull/11226)
 
-This blog walks through the most noteworthy changes. For the complete list including all enhancements and bug fixes, check out the Pulsar 2.7.3 Release Notes.
+This blog walks through the most noteworthy changes. For the complete list including all enhancements and bug fixes, check out the [Pulsar 2.7.3 Release Notes](https://pulsar.apache.org/release-notes/#273-mdash-2021-07-27-a-id273a).
 
 # Notable bug fixes and enhancements
 
@@ -136,4 +136,6 @@ If you are interested in learning more about Pulsar 2.7.3, you can [download 2.7
 Do you have a Pulsar story to share? Join us and speak at Pulsar Virtual Summit
 Europe 2021! Feel free to [submit an abstract today](https://sessionize.com/pulsar-virtual-summit-europe-2021)!
 
-For more information about the Apache Pulsar project and the progress, visit the official website at https://pulsar.apache.org and follow the project on Twitter [@apache_pulsar](https://twitter.com/apache_pulsar).
+For more information about the Apache Pulsar project and the progress, visit
+the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
+[@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!
