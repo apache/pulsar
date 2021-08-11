@@ -16,7 +16,7 @@ working. You can choose one of them.
 
 Name | Description
 ---|---|
-Raw processing | The sink reads from topics and passes the raw content to Elasticsearch. <br><br> This is the **default** behavior. <br><br> Raw processing is available **up to Pulsar 2.8.x**.
+Raw processing | The sink reads from topics and passes the raw content to Elasticsearch. <br><br> This is the **default** behavior. <br><br> Raw processing was already available **in Pulsar 2.8.x**.
 Schema aware | The sink uses the schema and handles AVRO, JSON, and KeyValue schema types while mapping the content to the Elasticsearch document.<br><br> If you set `schemaEnable` to `true`, the sink interprets the contents of the message and you can define a **primary key** that in turn used as the special `_id` field on Elasticsearch.
 <br><br> This allows you to perform `UPDATE`, `INSERT`, and `DELETE` operations
 to Elasticsearch driven by the logical primary key of the message.<br><br> This
@@ -76,9 +76,9 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `indexNumberOfReplicas` | int| false |1 | The number of replicas of the index. |
 | `username` | String| false |" " (empty string)| The username used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided. |
 | `password` | String| false | " " (empty string)|The password used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided.  |
-| `ssl` | ElasticsearchSslConfig | false |  | Configuration for TLS encrypted communication |
+| `ssl` | ElasticSearchSslConfig | false |  | Configuration for TLS encrypted communication |
 
-### Definition of ElasticsearchSslConfig structure:
+### Definition of ElasticSearchSslConfig structure:
 
 | Name | Type|Required | Default | Description
 |------|----------|----------|---------|-------------|
