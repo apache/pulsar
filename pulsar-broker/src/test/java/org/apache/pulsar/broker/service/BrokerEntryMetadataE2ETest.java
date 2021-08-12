@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -306,6 +307,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                     received.hasBrokerPublishTime() && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
             Assert.assertTrue(received.hasIndex() && received.getIndex().orElse(-1L) == i);
         }
+
         producer.close();
         consumer.close();
     }
@@ -319,6 +321,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
                 .create();
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -328,23 +331,26 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .subscribe();
 
         long sendTime = System.currentTimeMillis();
-        Long[] expected = new Long[]{0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L};
 
-        final int messages = 10;
-        for (int i = 0; i < messages; i++) {
-            producer.sendAsync(String.valueOf(i).getBytes());
+        int numOfMessages;
+        // batch 1
+        for (numOfMessages = 0; numOfMessages < 5; numOfMessages++) {
+            producer.sendAsync(String.valueOf(numOfMessages).getBytes());
         }
+        producer.flush();
+        // batch 2
+        for (; numOfMessages < 10; numOfMessages++) {
+            producer.sendAsync(String.valueOf(numOfMessages).getBytes());
+        }
+        producer.flush();
 
-        Long[] receives = new Long[10];
-        for (int i = 0; i < messages; i++) {
+        for (int i = 0; i < numOfMessages; i++) {
             Message<byte[]> received = consumer.receive();
             Assert.assertTrue(
                     received.hasBrokerPublishTime() && received.getBrokerPublishTime().orElse(-1L) >= sendTime);
-            Assert.assertTrue(received.hasIndex());
-            receives[i] = received.getIndex().orElse(-1L);
+            Assert.assertTrue(received.hasIndex() && received.getIndex().orElse(-1L) == i);
         }
 
-        Assert.assertEqualsNoOrder(receives, expected);
         producer.close();
         consumer.close();
     }

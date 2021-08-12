@@ -686,8 +686,9 @@ public class MessageImpl<T> implements Message<T> {
     public Optional<Long> getIndex() {
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
             if (msgMetadata.hasNumMessagesInBatch() && messageId instanceof BatchMessageIdImpl) {
+                int batchSize = ((BatchMessageIdImpl) messageId).getBatchSize();
                 int batchIndex = ((BatchMessageIdImpl) messageId).getBatchIndex();
-                return Optional.of(brokerEntryMetadata.getIndex() - batchIndex);
+                return Optional.of(brokerEntryMetadata.getIndex() - batchSize + batchIndex + 1);
             }
             return Optional.of(brokerEntryMetadata.getIndex());
         }
