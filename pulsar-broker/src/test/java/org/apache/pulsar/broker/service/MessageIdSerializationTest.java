@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-
+import java.io.IOException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.Test;
@@ -46,7 +46,7 @@ public class MessageIdSerializationTest {
         MessageId.fromByteArray(null);
     }
 
-    @Test(expectedExceptions = RuntimeException.class)
+    @Test(expectedExceptions = IOException.class)
     void testProtobufSerializationEmpty() throws Exception {
         MessageId.fromByteArray(new byte[0]);
     }
