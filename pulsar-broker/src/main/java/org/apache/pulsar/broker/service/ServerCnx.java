@@ -186,7 +186,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private boolean preciseTopicPublishRateLimitingEnable;
     private boolean encryptionRequireOnProducer;
 
-    private boolean exposingBrokerEntryMetadataToClientEnabled;
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
     private FeatureFlags features;
@@ -218,9 +217,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     };
 
-    public boolean isExposingBrokerEntryMetadataToClientEnabled() {
-        return exposingBrokerEntryMetadataToClientEnabled;
-    }
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -247,7 +243,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.preciseDispatcherFlowControl = conf.isPreciseDispatcherFlowControl();
         this.preciseTopicPublishRateLimitingEnable = conf.isPreciseTopicPublishRateLimiterEnable();
         this.encryptionRequireOnProducer = conf.isEncryptionRequireOnProducer();
-        this.exposingBrokerEntryMetadataToClientEnabled = conf.isExposingBrokerEntryMetadataToClientEnabled();
         // Assign a portion of max-pending bytes to each IO thread
         this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
                 / conf.getNumIOThreads();
