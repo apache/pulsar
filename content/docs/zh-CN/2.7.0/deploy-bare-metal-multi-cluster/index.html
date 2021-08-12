@@ -141,7 +141,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 <h2><a class="anchor" aria-hidden="true" id="deploy-zookeeper"></a><a href="#deploy-zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploy ZooKeeper</h2>
 <p>每个 Pulsar 实例需要两个独立的 ZooKeeper 集群。</p>
 <ul>
-<li><a href="#deploy-local-zookeeper">本地集群</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
+<li><a href="#deploy-local-zookeeper">本地 ZooKeeper</a>负责集群级别的操作，提供集群的配置管理和协调。 每个 Pulsar 集群都需要一个专用的 ZooKeeper 集群。</li>
 <li><a href="#deploy-the-configuration-store">配置集群</a>负责实例级别的操作，提供整个系统的配置管理(跨集群)。 配置集群可以部署在独立的机器集群，也可以和本地 Zookeeper 集群部署在同一批机器。</li>
 </ul>
 <p>The configuration store quorum can be provided by an independent cluster of machines or by the same machines used by local ZooKeeper.</p>
@@ -162,7 +162,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 <span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid</span>
 </code></pre>
 <p>在 <code>zk2.us-west.example.com</code> 服务器上，这命令可以是：<code>echo 2&gt;data/zookeeper/myid</code>。</p>
-<p>一旦你在每台机器增加了<code>zookeeper.conf</code>配置文件，并且设置了<code>myid</code>，你能够在所有机器上使用<a href="/docs/zh-CN/2.7.0/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a>命令去启动Zookeeper 服务(前台运行或者后台运行)。</p>
+<p>一旦你将每台服务器添加到<code>zookeeper.conf</code>配置文件，并且每台服务器都有对应的<code>myid</code>，你就能使用<a href=“reference-cli-tools.md#pulsar-daemon”><code>pulsar-daemon</code></a>命令去启动所有 Zookeeper 服务（如果想在后台运行命令，记得使用 nohup）：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start zookeeper</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="部署配置存储集群"></a><a href="#部署配置存储集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署配置存储集群</h3>
@@ -170,7 +170,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 <p>如果是部署一个<a href="#single-cluster-pulsar-instance">单集群</a>实例，你不需要另外部署存储配置的 Zookeeper 集群。 然而，如果你是部署<a href="#multi-cluster-pulsar-instance">多集群</a>的实例，你必须单独部署 Zookeeper 集群来存储配置任务信息。</p>
 <h4><a class="anchor" aria-hidden="true" id="单集群-pulsar-实例"></a><a href="#单集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>单集群 Pulsar 实例</h4>
 <p>如果你的 Pulsar 实例只包含一个集群，你可以在同一批机器上部署本地 Zookeeper 集群和配置存储 Zookeeper 集群，此时这两个集群的 TCP 端口信息需要不一样。</p>
-<p>要在单个集群实例中部署配置存储的 Zookeeper 集群。步骤跟部署<a href="#local-zookeeper">本地 Zookeeper</a>一样，将同一批机器(跟本地集群一样的机器列表)信息添加到配置文件<a href="/docs/zh-CN/2.7.0/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a>中，但是必须确保使用不同的端口(Zookeeper 默认使用2181端口)。 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
+<p>要在单个集群实例中部署配置存储的 ZooKeeper 集群，步骤跟部署<a href="#local-zookeeper">本地 ZooKeeper</a>一样，将同一批机器(跟本地集群一样的机器列表)信息添加到配置文件<a href="/docs/zh-CN/2.7.0/reference-configuration#configuration-store"><code>conf/global_zookeeper.conf</code></a>中，但是必须确保使用不同的端口(ZooKeeper 默认使用 2181 端口)。 以下是一个使用 2184 端口的三节点ZooKeeper 集群的示例：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">clientPort</span>=<span class="hljs-string">2184</span>
 <span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2185:2186</span>
 <span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2185:2186</span>
@@ -179,7 +179,7 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 <p>跟之前一样，在 <code>data/global-zoocheper/myid</code> 文件为每个服务器创建 <code>myid</code> 。</p>
 <h4><a class="anchor" aria-hidden="true" id="多集群-pulsar-实例"></a><a href="#多集群-pulsar-实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>多集群 Pulsar 实例</h4>
 <p>当你部署一个全球性的Pulsar实例时，集群分布在不同的地理区域。配置存储必须是一个高可用和强一致的元数据存储服务，必须能够容忍整个区域的故障和分区。</p>
-<p>这里的关键是确保 ZK 成员投票节点必须分布在3个区域，其他区域以观察员身份运行。</p>
+<p>这里的关键是确保 ZK quorum 节点必须分布在至少 3 个区域，其他区域以观察员身份运行。</p>
 <p>强调一下，因为配置存储服务负载会很低，所以可以和本地 Zookeeper 集群部署在同一批主机上。</p>
 <p>例如，假设一个 Pulsar 实例有如下集群： <code>us-west</code>,<code>us-east</code>,<code>us-central</code>,<code>eu-central</code>,<code>ap-south</code>. 也假定每个群集都有自己的本地ZK服务器，其名称如下：</p>
 <pre><code class="hljs">zk[<span class="hljs-number">1</span><span class="hljs-number">-3</span>].${CLUSTER}.example.com
