@@ -45,7 +45,7 @@ namespace pulsar {
 
 static const char hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-static std::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits));
+static std::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits) - 1);
 static std::mt19937 randomEngine =
     std::mt19937(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
