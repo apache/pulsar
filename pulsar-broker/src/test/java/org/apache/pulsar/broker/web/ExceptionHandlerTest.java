@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.web;
 
 import lombok.SneakyThrows;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Response;
 import org.mockito.Mockito;
