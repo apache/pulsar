@@ -36,4 +36,5 @@ class PulsarSourceConsumerConfig<T> {
     private Map<String, String> consumerProperties;
     private CryptoKeyReader cryptoKeyReader;
     private ConsumerCryptoFailureAction consumerCryptoFailureAction;
+    private boolean poolMessages;
 }

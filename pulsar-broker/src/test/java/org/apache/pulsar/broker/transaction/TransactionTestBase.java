@@ -21,8 +21,6 @@ package org.apache.pulsar.broker.transaction;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
@@ -136,6 +134,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setSystemTopicEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
+            conf.setTopicLevelPoliciesEnabled(true);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));
