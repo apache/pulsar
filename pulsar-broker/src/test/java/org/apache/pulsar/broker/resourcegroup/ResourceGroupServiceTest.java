@@ -113,7 +113,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final String tenantName = "SomeTenant";
         final String namespaceName = "SomeNameSpace";
         rgs.registerTenant(rgName, tenantName);
-        rgs.registerNameSpace(rgName, namespaceName);
+        final String tenantAndNamespaceName = tenantName + "/" + namespaceName;
+        rgs.registerNameSpace(rgName, tenantAndNamespaceName);
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
             for (int monClassIdx = 0; monClassIdx < ResourceGroupMonitoringClass.values().length; monClassIdx++) {
@@ -126,7 +127,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         log.info("{} iterations of incrementUsage on RGS in {} msecs ({} usecs for each)",
                 numPerfTestIterations, diffMsecs, (1000 * (float) diffMsecs)/numPerfTestIterations);
         rgs.unRegisterTenant(rgName, tenantName);
-        rgs.unRegisterNameSpace(rgName, namespaceName);
+        rgs.unRegisterNameSpace(rgName, tenantAndNamespaceName);
 
         // The overhead of a RG lookup
         ResourceGroup retRG;
@@ -194,7 +195,10 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final String tenantName = topic.getTenant();
         final String namespaceName = topic.getNamespacePortion();
         rgs.registerTenant(rgName, tenantName);
-        rgs.registerNameSpace(rgName, namespaceName);
+        // Registering with the (non-qualified) namespace should throw.
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.registerNameSpace(rgName, namespaceName));
+        final String tenantAndNamespace = tenantName + "/" + namespaceName;
+        rgs.registerNameSpace(rgName, tenantAndNamespace);
 
         // Delete of our valid config should throw until we unref correspondingly.
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(rgName));
@@ -229,7 +233,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         }
 
         rgs.unRegisterTenant(rgName, tenantName);
-        rgs.unRegisterNameSpace(rgName, namespaceName);
+        // Unregistering with the (non-qualified) namespace should throw.
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.unRegisterNameSpace(rgName, namespaceName));
+        rgs.unRegisterNameSpace(rgName, tenantAndNamespace);
 
         BytesAndMessagesCount publishQuota = rgs.getPublishRateLimiters(rgName);
 
