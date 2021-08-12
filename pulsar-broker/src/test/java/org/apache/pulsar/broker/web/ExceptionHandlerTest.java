@@ -28,6 +28,9 @@ import org.testng.annotations.Test;
 
 import javax.servlet.http.HttpServletResponse;
 
+import static org.eclipse.jetty.http.HttpStatus.INTERNAL_SERVER_ERROR_500;
+import static org.eclipse.jetty.http.HttpStatus.PRECONDITION_FAILED_412;
+
 /**
  * Unit test for ExceptionHandler.
  */
@@ -37,18 +40,24 @@ public class ExceptionHandlerTest {
     @Test
     @SneakyThrows
     public void testHandle() {
+        String restriction = "Reach the max tenants [5] restriction";
+        String internal = "internal exception";
+        String illegal = "illegal argument exception ";
         ExceptionHandler handler = new ExceptionHandler();
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
-        handler.handle(response, new InterceptException(HttpStatus.PRECONDITION_FAILED_412, "Reach the max tenants [5] restriction"));
-        Mockito.verify(response).sendError(Mockito.anyInt(), Mockito.anyString());
-        handler.handle(response, new InterceptException(HttpStatus.INTERNAL_SERVER_ERROR_500, "internal exception"));
-        Mockito.verify(response, Mockito.times(2)).sendError(Mockito.anyInt(), Mockito.anyString());
-        handler.handle(response, new IllegalArgumentException("illegal argument exception "));
-        Mockito.verify(response, Mockito.times(3)).sendError(Mockito.anyInt(), Mockito.anyString());
+        handler.handle(response, new InterceptException(PRECONDITION_FAILED_412, restriction));
+        Mockito.verify(response).sendError(PRECONDITION_FAILED_412, restriction);
+
+        handler.handle(response, new InterceptException(INTERNAL_SERVER_ERROR_500, internal));
+        Mockito.verify(response).sendError(INTERNAL_SERVER_ERROR_500, internal);
+
+        handler.handle(response, new IllegalArgumentException(illegal));
+        Mockito.verify(response).sendError(INTERNAL_SERVER_ERROR_500, illegal);
+
         Response response2 = Mockito.mock(Response.class);
         HttpChannel httpChannel = Mockito.mock(HttpChannel.class);
         Mockito.when(response2.getHttpChannel()).thenReturn(httpChannel);
-        handler.handle(response2, new InterceptException(HttpStatus.PRECONDITION_FAILED_412, "Reach the max tenants [5] restriction"));
+        handler.handle(response2, new InterceptException(PRECONDITION_FAILED_412, restriction));
         Mockito.verify(httpChannel).sendResponse(Mockito.any(), Mockito.any(), Mockito.anyBoolean());
     }
 
