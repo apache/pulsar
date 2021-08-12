@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.client.internal;
 
+/**
+ * This class loads the implementation for {@link PulsarClientImplementationBinding}
+ * and allows you to decouple the API from the actual implementation.
+ * <b>This class is internal to the Pulsar API implementation, and it is not part of the public API
+ * it is not meant to be used by client applications.</b>
+ */
 public class DefaultImplementation {
     private static final PulsarClientImplementationBinding IMPLEMENTATION;
     static {
@@ -31,6 +37,10 @@ public class DefaultImplementation {
         IMPLEMENTATION = impl;
     }
 
+    /**
+     * Access the actual implementation of the Pulsar Client API
+     * @return the loaded implementation.
+     */
     public static PulsarClientImplementationBinding getDefaultImplementation() {
         return IMPLEMENTATION;
     }

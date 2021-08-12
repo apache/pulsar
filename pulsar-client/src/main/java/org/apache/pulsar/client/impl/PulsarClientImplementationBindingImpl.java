@@ -42,6 +42,39 @@ import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.BooleanSchema;
+import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
+import org.apache.pulsar.client.impl.schema.ByteSchema;
+import org.apache.pulsar.client.impl.schema.BytesSchema;
+import org.apache.pulsar.client.impl.schema.DateSchema;
+import org.apache.pulsar.client.impl.schema.DoubleSchema;
+import org.apache.pulsar.client.impl.schema.FloatSchema;
+import org.apache.pulsar.client.impl.schema.InstantSchema;
+import org.apache.pulsar.client.impl.schema.IntSchema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.LocalDateSchema;
+import org.apache.pulsar.client.impl.schema.LocalDateTimeSchema;
+import org.apache.pulsar.client.impl.schema.LocalTimeSchema;
+import org.apache.pulsar.client.impl.schema.LongSchema;
+import org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl;
+import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.client.impl.schema.ShortSchema;
+import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.TimeSchema;
+import org.apache.pulsar.client.impl.schema.TimestampSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.internal.PulsarClientImplementationBinding;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -53,188 +86,189 @@ import org.apache.pulsar.common.schema.SchemaType;
  * Helper class for class instantiations and it also contains methods to work with schemas.
  */
 @SuppressWarnings("unchecked")
-public class PulsarClientImplementationBindingImpl implements PulsarClientImplementationBinding {
+public final class PulsarClientImplementationBindingImpl implements PulsarClientImplementationBinding {
 
     public <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder() {
-        return new org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl();
+        return new SchemaDefinitionBuilderImpl();
     }
 
     public ClientBuilder newClientBuilder() {
-        return new org.apache.pulsar.client.impl.ClientBuilderImpl();
+        return new ClientBuilderImpl();
     }
 
     public MessageId newMessageId(long ledgerId, long entryId, int partitionIndex) {
-        return new org.apache.pulsar.client.impl.MessageIdImpl(ledgerId, entryId, partitionIndex);
+        return new MessageIdImpl(ledgerId, entryId, partitionIndex);
     }
 
     public MessageId newMessageIdFromByteArray(byte[] data) throws IOException {
-        return org.apache.pulsar.client.impl.MessageIdImpl.fromByteArray(data);
+        return MessageIdImpl.fromByteArray(data);
     }
 
     public MessageId newMessageIdFromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
-        return org.apache.pulsar.client.impl.MessageIdImpl.fromByteArrayWithTopic(data, topicName);
+        return MessageIdImpl.fromByteArrayWithTopic(data, topicName);
     }
 
     public Authentication newAuthenticationToken(String token) {
-        return new org.apache.pulsar.client.impl.auth.AuthenticationToken(token);
+        return new AuthenticationToken(token);
     }
 
     public Authentication newAuthenticationToken(Supplier<String> supplier) {
-        return new org.apache.pulsar.client.impl.auth.AuthenticationToken(supplier);
+        return new AuthenticationToken(supplier);
     }
 
     public Authentication newAuthenticationTLS(String certFilePath, String keyFilePath) {
-        return new org.apache.pulsar.client.impl.auth.AuthenticationTls(certFilePath, keyFilePath);
+        return new AuthenticationTls(certFilePath, keyFilePath);
     }
 
-    public Authentication createAuthentication(String authPluginClassName, String authParamsString) throws PulsarClientException.UnsupportedAuthenticationException {
-        return org.apache.pulsar.client.impl.AuthenticationUtil.create(authPluginClassName, authParamsString);
+    public Authentication createAuthentication(String authPluginClassName, String authParamsString)
+            throws PulsarClientException.UnsupportedAuthenticationException {
+        return AuthenticationUtil.create(authPluginClassName, authParamsString);
     }
 
     public Authentication createAuthentication(String authPluginClassName, Map<String, String> authParams)
             throws PulsarClientException.UnsupportedAuthenticationException {
-        return org.apache.pulsar.client.impl.AuthenticationUtil.create(authPluginClassName, authParams);
+        return AuthenticationUtil.create(authPluginClassName, authParams);
     }
 
     public Schema<byte[]> newBytesSchema() {
-        return new org.apache.pulsar.client.impl.schema.BytesSchema();
+        return new BytesSchema();
     }
 
     public Schema<String> newStringSchema() {
-        return new org.apache.pulsar.client.impl.schema.StringSchema();
+        return new StringSchema();
     }
 
     public Schema<String> newStringSchema(Charset charset) {
-        return new org.apache.pulsar.client.impl.schema.StringSchema(charset);
+        return new StringSchema(charset);
     }
 
     public Schema<Byte> newByteSchema() {
-        return new org.apache.pulsar.client.impl.schema.ByteSchema();
+        return new ByteSchema();
     }
 
     public Schema<Short> newShortSchema() {
-        return new org.apache.pulsar.client.impl.schema.ShortSchema();
+        return new ShortSchema();
     }
 
     public Schema<Integer> newIntSchema() {
-        return new org.apache.pulsar.client.impl.schema.IntSchema();
+        return new IntSchema();
     }
 
     public Schema<Long> newLongSchema() {
-        return new org.apache.pulsar.client.impl.schema.LongSchema();
+        return new LongSchema();
     }
 
     public Schema<Boolean> newBooleanSchema() {
-        return new org.apache.pulsar.client.impl.schema.BooleanSchema();
+        return new BooleanSchema();
     }
 
     public Schema<ByteBuffer> newByteBufferSchema() {
-        return new org.apache.pulsar.client.impl.schema.ByteBufferSchema();
+        return new ByteBufferSchema();
     }
 
     public Schema<Float> newFloatSchema() {
-        return new org.apache.pulsar.client.impl.schema.FloatSchema();
+        return new FloatSchema();
     }
 
     public Schema<Double> newDoubleSchema() {
-        return new org.apache.pulsar.client.impl.schema.DoubleSchema();
+        return new DoubleSchema();
     }
 
     public Schema<Date> newDateSchema() {
-        return org.apache.pulsar.client.impl.schema.DateSchema.of();
+        return DateSchema.of();
     }
 
     public Schema<Time> newTimeSchema() {
-        return org.apache.pulsar.client.impl.schema.TimeSchema.of();
+        return TimeSchema.of();
     }
 
     public Schema<Timestamp> newTimestampSchema() {
-        return org.apache.pulsar.client.impl.schema.TimestampSchema.of();
+        return TimestampSchema.of();
     }
 
     public Schema<Instant> newInstantSchema() {
-        return org.apache.pulsar.client.impl.schema.InstantSchema.of();
+        return InstantSchema.of();
     }
 
     public Schema<LocalDate> newLocalDateSchema() {
-        return org.apache.pulsar.client.impl.schema.LocalDateSchema.of();
+        return LocalDateSchema.of();
     }
 
     public Schema<LocalTime> newLocalTimeSchema() {
-        return org.apache.pulsar.client.impl.schema.LocalTimeSchema.of();
+        return LocalTimeSchema.of();
     }
 
     public Schema<LocalDateTime> newLocalDateTimeSchema() {
-        return org.apache.pulsar.client.impl.schema.LocalDateTimeSchema.of();
+        return LocalDateTimeSchema.of();
     }
 
     public <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
-        return org.apache.pulsar.client.impl.schema.AvroSchema.of(schemaDefinition);
+        return AvroSchema.of(schemaDefinition);
     }
 
     public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
-        return org.apache.pulsar.client.impl.schema.ProtobufSchema.of(schemaDefinition);
+        return ProtobufSchema.of(schemaDefinition);
     }
 
     public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
-        return org.apache.pulsar.client.impl.schema.ProtobufNativeSchema.of(schemaDefinition);
+        return ProtobufNativeSchema.of(schemaDefinition);
     }
 
     public <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
-        return org.apache.pulsar.client.impl.schema.JSONSchema.of(schemaDefinition);
+        return JSONSchema.of(schemaDefinition);
     }
 
     public Schema<GenericRecord> newAutoConsumeSchema() {
-        return new org.apache.pulsar.client.impl.schema.AutoConsumeSchema();
+        return new AutoConsumeSchema();
     }
 
     public Schema<byte[]> newAutoProduceSchema() {
-        return new org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema();
+        return new AutoProduceBytesSchema();
     }
 
     public Schema<byte[]> newAutoProduceSchema(Schema<?> schema) {
-        return new org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema(schema);
+        return new AutoProduceBytesSchema(schema);
     }
 
     public Schema<byte[]> newAutoProduceValidatedAvroSchema(Object schema) {
-        return new org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema(schema);
+        return new NativeAvroBytesSchema(schema);
     }
 
     public Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {
-        return org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl.kvBytes();
+        return KeyValueSchemaImpl.kvBytes();
     }
 
     public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
-        return org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl.of(keySchema, valueSchema);
+        return KeyValueSchemaImpl.of(keySchema, valueSchema);
     }
 
     public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                     KeyValueEncodingType keyValueEncodingType) {
-        return org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
+        return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
     }
 
     public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Class<K> key, Class<V> value, SchemaType type) {
-        return org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl.of(key, value, type);
+        return KeyValueSchemaImpl.of(key, value, type);
     }
 
     public Schema<?> getSchema(SchemaInfo schemaInfo) {
-        return org.apache.pulsar.client.impl.schema.AutoConsumeSchema.getSchema(schemaInfo);
+        return AutoConsumeSchema.getSchema(schemaInfo);
     }
 
     public GenericSchema<GenericRecord> getGenericSchema(SchemaInfo schemaInfo) {
         switch (schemaInfo.getType()) {
             case PROTOBUF_NATIVE:
-                return org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema.of(schemaInfo);
+                return GenericProtobufNativeSchema.of(schemaInfo);
             default:
-                return org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl.of(schemaInfo);
+                return GenericSchemaImpl.of(schemaInfo);
         }
 
     }
 
     public RecordSchemaBuilder newRecordSchemaBuilder(String name) {
-        return new org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl(name);
+        return new RecordSchemaBuilderImpl(name);
     }
 
     /**
@@ -244,7 +278,7 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
      * @return the kv encoding type
      */
     public KeyValueEncodingType decodeKeyValueEncodingType(SchemaInfo schemaInfo) {
-        return org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
+        return KeyValueSchemaInfo.decodeKeyValueEncodingType(schemaInfo);
     }
 
     /**
@@ -274,7 +308,7 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
                                                Schema<K> keySchema,
                                                Schema<V> valueSchema,
                                                KeyValueEncodingType keyValueEncodingType) {
-        return org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo.encodeKeyValueSchemaInfo(schemaName, keySchema, valueSchema, keyValueEncodingType);
+        return KeyValueSchemaInfo.encodeKeyValueSchemaInfo(schemaName, keySchema, valueSchema, keyValueEncodingType);
     }
 
     /**
@@ -284,7 +318,7 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
      * @return the pair of key schema info and value schema info
      */
     public KeyValue<SchemaInfo, SchemaInfo> decodeKeyValueSchemaInfo(SchemaInfo schemaInfo) {
-        return org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
+        return KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
     }
 
     /**
@@ -294,7 +328,7 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
      * @return the jsonified schema info
      */
     public String jsonifySchemaInfo(SchemaInfo schemaInfo) {
-        return org.apache.pulsar.client.impl.schema.SchemaUtils.jsonifySchemaInfo(schemaInfo);
+        return SchemaUtils.jsonifySchemaInfo(schemaInfo);
     }
 
     /**
@@ -304,7 +338,7 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
      * @return the jsonified schema info with version
      */
     public String jsonifySchemaInfoWithVersion(SchemaInfoWithVersion schemaInfoWithVersion) {
-        return org.apache.pulsar.client.impl.schema.SchemaUtils.jsonifySchemaInfoWithVersion(schemaInfoWithVersion);
+        return SchemaUtils.jsonifySchemaInfoWithVersion(schemaInfoWithVersion);
     }
 
     /**
@@ -314,7 +348,7 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
      * @return the jsonified schema info
      */
     public String jsonifyKeyValueSchemaInfo(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) {
-        return org.apache.pulsar.client.impl.schema.SchemaUtils.jsonifyKeyValueSchemaInfo(kvSchemaInfo);
+        return SchemaUtils.jsonifyKeyValueSchemaInfo(kvSchemaInfo);
     }
 
     /**
@@ -324,7 +358,7 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
      * @return the convert key/value schema data string
      */
     public String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
-        return org.apache.pulsar.client.impl.schema.SchemaUtils.convertKeyValueSchemaInfoDataToString(kvSchemaInfo);
+        return SchemaUtils.convertKeyValueSchemaInfoDataToString(kvSchemaInfo);
     }
 
     /**
@@ -334,15 +368,15 @@ public class PulsarClientImplementationBindingImpl implements PulsarClientImplem
      * @return the key/value schema info data bytes
      */
     public byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
-        return org.apache.pulsar.client.impl.schema.SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(keyValueSchemaInfoDataJsonBytes);
+        return SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(keyValueSchemaInfoDataJsonBytes);
     }
 
     public BatcherBuilder newDefaultBatcherBuilder() {
-        return new org.apache.pulsar.client.impl.DefaultBatcherBuilder();
+        return new DefaultBatcherBuilder();
     }
 
     public BatcherBuilder newKeyBasedBatcherBuilder() {
-        return new org.apache.pulsar.client.impl.KeyBasedBatcherBuilder();
+        return new KeyBasedBatcherBuilder();
     }
 
 }

@@ -47,6 +47,11 @@ import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
 
+/**
+ * Helper class for class instantiations and it also contains methods to work with schemas.
+ * This interface allows you to not depend on the Implementation classes directly.
+ * The actual implementation of this class is loaded from {@link DefaultImplementation}.
+ */
 public interface PulsarClientImplementationBinding {
     
     <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder();
