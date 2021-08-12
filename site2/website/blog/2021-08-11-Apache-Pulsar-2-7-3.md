@@ -133,8 +133,7 @@ create a metadata path `/managed-ledgers` on replicated clusters.
 
 If you are interested in learning more about Pulsar 2.7.3, you can [download 2.7.3](https://pulsar.apache.org/en/versions/) and try it out now! 
 
-Do you have a Pulsar story to share? Join us and speak at Pulsar Virtual Summit
-Europe 2021! Feel free to [submit an abstract today](https://sessionize.com/pulsar-virtual-summit-europe-2021)!
+The first-ever Pulsar Virtual Summit Europe 2021 will take place in October. [Register now](https://hopin.com/events/pulsar-summit-europe-2021) and help us make it an even bigger success by spreading the word on social!
 
 For more information about the Apache Pulsar project and the progress, visit
 the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
