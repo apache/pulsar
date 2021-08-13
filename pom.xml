@@ -2286,6 +2286,11 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </snapshots>
     </repository>
+    <repository>
+      <id>maven-restlet</id>
+      <name>Restlet repository</name>
+      <url>https://maven.restlet.talend.com</url>
+    </repository>
   </repositories>
 
 </project>
