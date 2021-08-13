@@ -644,6 +644,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
     };
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));
 }
 
 void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {

@@ -288,6 +288,10 @@ if (NOT APPLE AND NOT MSVC)
     set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
     # Hide all non-exported symbols to avoid conflicts
     set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
+    # Turn on color erro messages and show additional help with errors:
+    set(CMAKE_CXX_FLAGS " -fdiagnostics-show-option -fdiagnostics-color ${CMAKE_CXX_FLAGS}")
+    # Turn on warnings and enable warnings-as-errors:
+    set(CMAKE_CXX_FLAGS " -Wall -Wformat-security -Wvla -Wno-sign-compare -Werror${CMAKE_CXX_FLAGS}")
 endif ()
 
 if (LIB_ZSTD)

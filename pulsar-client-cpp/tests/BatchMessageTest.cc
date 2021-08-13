@@ -43,17 +43,11 @@ DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
 
-static int globalCount = 0;
 static std::string lookupUrl = "pulsar://localhost:6650";
 static std::string adminUrl = "http://localhost:8080/";
 
 // ecpoch time in seconds
-long epochTime = time(NULL);
-
-static void messageListenerFunction(Consumer consumer, const Message& msg) {
-    globalCount++;
-    consumer.acknowledge(msg);
-}
+const long epochTime = time(NULL);
 
 class MessageCountSendCallback {
    public:
@@ -942,7 +936,6 @@ TEST(BatchMessageTest, producerFailureResult) {
     Producer producer;
 
     int batchSize = 100;
-    int numOfMessages = 10000;
     ProducerConfiguration conf;
 
     conf.setCompressionType(CompressionZLib);

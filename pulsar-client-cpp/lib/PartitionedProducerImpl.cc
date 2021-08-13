@@ -37,11 +37,8 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const Top
       topicName_(topicName),
       topic_(topicName_->toString()),
       conf_(config),
-      state_(Pending),
       topicMetadata_(new TopicMetadataImpl(numPartitions)),
       flushedPartitions_(0) {
-    numProducersCreated_ = 0;
-    cleanup_ = false;
     routerPolicy_ = getMessageRouter();
 
     int maxPendingMessagesPerPartition =

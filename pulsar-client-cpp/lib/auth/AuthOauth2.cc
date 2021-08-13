@@ -119,14 +119,6 @@ bool Oauth2CachedToken::isExpired() { return expiresAt_ < currentTimeMillis(); }
 Oauth2Flow::Oauth2Flow() {}
 Oauth2Flow::~Oauth2Flow() {}
 
-// ClientCredentialFlow
-static std::string readFromFile(const std::string& credentialsFilePath) {
-    std::ifstream input(credentialsFilePath);
-    std::stringstream buffer;
-    buffer << input.rdbuf();
-    return buffer.str();
-}
-
 ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
                                            const std::string& clientSecret, const std::string& audience) {
     issuerUrl_ = issuerUrl;

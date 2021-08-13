@@ -56,7 +56,6 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 std::mutex mutex_;
-static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static long globalResendMessageCount = 0;
 std::string lookupUrl = "pulsar://localhost:6650";
@@ -3275,8 +3274,7 @@ TEST(BasicEndToEndTest, testRegexTopicsWithInitialPosition) {
 
     for (int i = 0; i < 10; i++) {
         Message msg;
-        Result res = consumer.receive(msg);
-        ASSERT_EQ(ResultOk, result);
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
     }
 
     client.close();

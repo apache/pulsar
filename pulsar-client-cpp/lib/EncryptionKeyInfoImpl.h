@@ -19,7 +19,6 @@
 #ifndef LIB_ENCRYPTIONKEYINFOIMPL_H_
 #define LIB_ENCRYPTIONKEYINFOIMPL_H_
 
-#include <iostream>
 #include <map>
 #include <pulsar/defines.h>
 
@@ -29,7 +28,7 @@ class PULSAR_PUBLIC EncryptionKeyInfoImpl {
    public:
     typedef std::map<std::string, std::string> StringMap;
 
-    EncryptionKeyInfoImpl();
+    EncryptionKeyInfoImpl() = default;
 
     EncryptionKeyInfoImpl(std::string key, StringMap& metadata);
 

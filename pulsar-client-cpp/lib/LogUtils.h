@@ -35,7 +35,7 @@ namespace pulsar {
 #endif
 
 #define DECLARE_LOG_OBJECT()                                                                     \
-    static pulsar::Logger* logger() {                                                            \
+    inline pulsar::Logger* logger() {                                                            \
         static thread_local std::unique_ptr<pulsar::Logger> threadSpecificLogPtr;                \
         pulsar::Logger* ptr = threadSpecificLogPtr.get();                                        \
         if (PULSAR_UNLIKELY(!ptr)) {                                                             \

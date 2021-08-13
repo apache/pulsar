@@ -30,11 +30,9 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       subscriptionName_(subscriptionName),
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
       conf_(conf),
-      state_(Pending),
       messages_(conf.getReceiverQueueSize()),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
-      pendingReceives_(),
       lookupServicePtr_(lookupServicePtr),
       numberTopicPartitions_(std::make_shared<std::atomic<int>>(0)),
       topics_(topics) {
