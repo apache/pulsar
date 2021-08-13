@@ -1044,7 +1044,7 @@ public class Commands {
         serializedCmdPong.release();
     }
 
-    static ByteBuf newPong() {
+    public static ByteBuf newPong() {
         return cmdPong.retainedDuplicate();
     }
 
