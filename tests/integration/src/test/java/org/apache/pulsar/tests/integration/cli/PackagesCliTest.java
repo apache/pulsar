@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.cli;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
@@ -49,15 +50,20 @@ public class PackagesCliTest extends TestRetrySupport {
             .brokerEnvs(getPackagesManagementServiceEnvs())
             .build();
         pulsarCluster = PulsarCluster.forSpec(spec);
+        setupFunctionWorkers();
         pulsarCluster.start();
     }
 
     @AfterClass(alwaysRun = true)
     public final void cleanup() {
-        markCurrentSetupNumberCleaned();
-        if (pulsarCluster != null) {
-            pulsarCluster.stop();
-            pulsarCluster = null;
+        try {
+            teardownFunctionWorkers();
+        } finally {
+            markCurrentSetupNumberCleaned();
+            if (pulsarCluster != null) {
+                pulsarCluster.stop();
+                pulsarCluster = null;
+            }
         }
     }
 
@@ -183,4 +189,14 @@ public class PackagesCliTest extends TestRetrySupport {
         System.arraycopy(commands, 0, cmds, 1, commands.length);
         return pulsarCluster.runAdminCommandOnAnyBroker(cmds);
     }
+
+    private void setupFunctionWorkers() {
+        final int numFunctionWorkers = 2;
+        pulsarCluster.setupFunctionWorkers("", FunctionRuntimeType.THREAD, numFunctionWorkers);
+    }
+
+    private void teardownFunctionWorkers() {
+        pulsarCluster.stopWorkers();
+    }
 }
+
