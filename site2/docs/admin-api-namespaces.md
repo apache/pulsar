@@ -392,7 +392,7 @@ admin.namespaces().unloadNamespaceBundle(namespace, bundle)
 
 #### Split namespace bundles
 
-One namespace bundle can contain multiple topics but can be served by only one broker. If a single bundle is creating an excessive load on a broker, an admin can split the bundle using the command below, permitting one or more of the new bundles to be unloaded, thus spreading the load across the brokers.
+One namespace bundle can contain multiple topics but can be served by only one broker. If a single bundle is creating an excessive load on a broker, an admin can split the bundle using the command below, permitting one or more of the new bundles to be unloaded, thus balancing the load across the brokers.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
