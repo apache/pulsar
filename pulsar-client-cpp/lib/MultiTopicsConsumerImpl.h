@@ -78,6 +78,8 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void seekAsync(uint64_t timestamp, ResultCallback callback) override;
     void negativeAcknowledge(const MessageId& msgId) override;
     bool isConnected() const override;
+    uint64_t getNumberOfConnectedConsumer() override;
+
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, MultiTopicsBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
     // return first topic name when all topics name valid, or return null pointer

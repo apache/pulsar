@@ -574,7 +574,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // to prevent "SSE4.2 CRC32C provider initialized" appearing in log topic
             new Crc32cIntChecksum();
             logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
-                    FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+                    FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
+                    instanceConfig.getInstanceName());
             logAppender.start();
             setupLogTopicAppender(LoggerContext.getContext());
         }
@@ -631,6 +632,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 if (conf.hasCryptoSpec()) {
                     consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
                 }
+                consumerConfig.setPoolMessages(conf.getPoolMessages());
 
                 topicSchema.put(topic, consumerConfig);
             });

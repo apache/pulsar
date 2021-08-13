@@ -150,8 +150,6 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://" + namespace + "/test" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace);
         pulsarClient.newProducer().topic(topic).create().close();
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         //namespace-level default value is null
         assertNull(admin.namespaces().getDelayedDelivery(namespace));
         //topic-level default value is null

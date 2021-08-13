@@ -124,6 +124,7 @@ public class TransactionAggregator {
         ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) managedLedger.getStats();
 
         managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
+        managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
         managedLedgerStats.backlogSize = managedLedger.getEstimatedBacklogSize();
         managedLedgerStats.offloadedStorageUsed = managedLedger.getOffloadedSize();
 
@@ -172,6 +173,8 @@ public class TransactionAggregator {
 
         metrics(stream, cluster, namespace, topic, subscription,
                 "pulsar_storage_size", stats.storageSize);
+        metrics(stream, cluster, namespace, topic, subscription,
+                "pulsar_storage_logical_size", stats.storageLogicalSize);
         metrics(stream, cluster, namespace, topic, subscription,
                 "pulsar_storage_backlog_size", stats.backlogSize);
         metrics(stream, cluster, namespace, topic, subscription,

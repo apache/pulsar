@@ -64,11 +64,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -110,7 +108,7 @@ public class PulsarFunctionPublishTest {
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
     @BeforeMethod
@@ -157,7 +155,8 @@ public class PulsarFunctionPublishTest {
         functionsWorkerService = createPulsarFunctionWorker(config);
 
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {});
+        pulsar = new PulsarService(config, workerConfig, functionWorkerService, (exitCode) -> {
+        });
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddressTls();
@@ -203,7 +202,7 @@ public class PulsarFunctionPublishTest {
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
-        while(!functionsWorkerService.getLeaderService().isLeader()) {
+        while (!functionsWorkerService.getLeaderService().isLeader()) {
             Thread.sleep(1000);
         }
     }
@@ -281,7 +280,8 @@ public class PulsarFunctionPublishTest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         Map<String, Object> userConfig = new HashMap<>();
         userConfig.put("publish-topic", publishTopic);
-        functionConfig.setUserConfig(userConfig);        functionConfig.setCleanupSubscription(true);
+        functionConfig.setUserConfig(userConfig);
+        functionConfig.setCleanupSubscription(true);
         return functionConfig;
     }
 
@@ -394,7 +394,7 @@ public class PulsarFunctionPublishTest {
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
-        String secondAddress = pulsar.getWebServiceAddressTls().replace("https://","");
+        String secondAddress = pulsar.getWebServiceAddressTls().replace("https://", "");
 
         //set multi webService url
         PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls() + "," + secondAddress)
@@ -442,7 +442,7 @@ public class PulsarFunctionPublishTest {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(publishTopic).subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-          sourceTopic, publishTopic, subscriptionName);
+                sourceTopic, publishTopic, subscriptionName);
 
         File jarFile = getPulsarApiExamplesJar();
         Assert.assertTrue(jarFile.exists() && jarFile.isFile());
@@ -519,10 +519,10 @@ public class PulsarFunctionPublishTest {
         URI dlogUri = URI.create(url);
 
         Namespace dlogNamespace = NamespaceBuilder.newBuilder()
-          .conf(dlogConf)
-          .clientId("function-worker-" + workerConfig.getWorkerId())
-          .uri(dlogUri)
-          .build();
+                .conf(dlogConf)
+                .clientId("function-worker-" + workerConfig.getWorkerId())
+                .uri(dlogUri)
+                .build();
 
         List<String> files = new LinkedList<>();
         dlogNamespace.getLogs(String.format("%s/%s/%s", tenant, namespacePortion, functionName)).forEachRemaining(new java.util.function.Consumer<String>() {
@@ -534,5 +534,38 @@ public class PulsarFunctionPublishTest {
 
         assertEquals(files.size(), 0, "BK files left over: " + files);
 
+    }
+
+    @Test
+    public void testUpdateFunctionUserConfig() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/input";
+        final String publishTopic = "persistent://" + replNamespace + "/publishtopic";
+        final String functionName = "test-update-user-config";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, publishTopic, subscriptionName);
+
+        String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        Map<String, Object> userConfig = functionConfig.getUserConfig();
+        functionConfig.setUserConfig(null);
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+        FunctionConfig updatefunctionConfig1 = admin.functions().getFunction(tenant, namespacePortion, functionName);
+        Assert.assertEquals(userConfig, updatefunctionConfig1.getUserConfig());
+
+        Map<String, Object> newUserConfig = new HashMap<>();
+        newUserConfig.put("publish-topic", publishTopic);
+        newUserConfig.put("test", "test");
+        updatefunctionConfig1.setUserConfig(newUserConfig);
+        admin.functions().updateFunctionWithUrl(updatefunctionConfig1, jarFilePathUrl);
+        FunctionConfig updatefunctionConfig2 = admin.functions().getFunction(tenant, namespacePortion, functionName);
+        Assert.assertEquals(updatefunctionConfig2.getUserConfig(), updatefunctionConfig1.getUserConfig());
     }
 }

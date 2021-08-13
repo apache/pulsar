@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -28,6 +29,7 @@ import java.util.Map;
  */
 @Data
 public class PublisherStatsImpl implements PublisherStats {
+    @JsonIgnore
     private int count;
 
     public ProducerAccessMode accessMode;
@@ -48,25 +50,34 @@ public class PublisherStatsImpl implements PublisherStats {
     public long producerId;
 
     /** Producer name. */
+    @JsonIgnore
     private int producerNameOffset = -1;
+    @JsonIgnore
     private int producerNameLength;
 
     /** Address of this publisher. */
+    @JsonIgnore
     private int addressOffset = -1;
+    @JsonIgnore
     private int addressLength;
 
     /** Timestamp of connection. */
+    @JsonIgnore
     private int connectedSinceOffset = -1;
+    @JsonIgnore
     private int connectedSinceLength;
 
     /** Client library version. */
+    @JsonIgnore
     private int clientVersionOffset = -1;
+    @JsonIgnore
     private int clientVersionLength;
 
     /**
      * In order to prevent multiple string objects under stats: create a string-buffer that stores data for all string
      * place-holders.
      */
+    @JsonIgnore
     private StringBuilder stringBuffer = new StringBuilder();
 
     /** Metadata (key/value strings) associated with this publisher. */

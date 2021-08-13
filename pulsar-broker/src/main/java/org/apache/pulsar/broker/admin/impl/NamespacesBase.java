@@ -227,7 +227,8 @@ public abstract class NamespacesBase extends AdminResource {
         boolean isEmpty;
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
             topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
             isEmpty = topics.isEmpty();
@@ -390,7 +391,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName).join();
+            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
@@ -551,7 +553,8 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             for (String topic : topics) {
                 NamespaceBundle topicBundle = pulsar().getNamespaceService()
                         .getBundle(TopicName.get(topic));
@@ -760,15 +763,6 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
             }
             validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-        for (String clusterId : replicationClusterSet) {
-            if (!clusters.contains(clusterId)) {
-                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
-            }
-            validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-
-        for (String clusterId : replicationClusterSet) {
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{

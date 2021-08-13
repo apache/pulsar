@@ -38,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
-	protected final AtomicInteger testId = new AtomicInteger(0);
+    protected final AtomicInteger testId = new AtomicInteger(0);
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceJson() throws Exception {
@@ -104,20 +104,19 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         sourceTester.setServiceContainer(mySQLContainer);
 
         PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-        		consumeTopicName, client);
+                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
+                consumeTopicName, client);
 
         runner.testSource(sourceTester);
     }
 
-	private void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    private void testDebeziumPostgreSqlConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
         final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
         final String consumeTopicName = "debezium/postgresql/dbserver1.inventory.products";
         final String sourceName = "test-source-debezium-postgersql-" + functionRuntimeType + "-" + randomName(8);
-
 
         // This is the binlog count that contained in postgresql container.
         final int numMessages = 26;
@@ -143,13 +142,13 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         sourceTester.setServiceContainer(postgreSqlContainer);
 
         PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-        		consumeTopicName, client);
+                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
+                consumeTopicName, client);
 
         runner.testSource(sourceTester);
     }
 
-	private void testDebeziumMongoDbConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+    private void testDebeziumMongoDbConnect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
 
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -182,8 +181,8 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         sourceTester.setServiceContainer(mongoDbContainer);
 
         PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
-        		converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
-        		consumeTopicName, client);
+                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
+                consumeTopicName, client);
 
         runner.testSource(sourceTester);
     }

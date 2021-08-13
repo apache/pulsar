@@ -361,7 +361,7 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(87);
-            pulsarServices[i].getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(defaultQuota);
+            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
 
             LoadReport lr = new LoadReport();
             lr.setName(lookupAddresses[i]);
@@ -502,7 +502,7 @@ public class LoadBalancerTest {
             defaultQuota.setBandwidthIn(20000);
             defaultQuota.setBandwidthOut(60000);
             defaultQuota.setMemory(75);
-            pulsarServices[i].getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(defaultQuota);
+            pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
         }
 
         // publish the initial load reports and wait for quotas be updated

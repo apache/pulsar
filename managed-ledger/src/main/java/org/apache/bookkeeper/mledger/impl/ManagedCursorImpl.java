@@ -421,6 +421,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
 
                 LedgerEntry entry = seq.nextElement();
+                mbean.addReadCursorLedgerSize(entry.getLength());
                 PositionInfo positionInfo;
                 try {
                     positionInfo = PositionInfo.parseFrom(entry.getEntry());
@@ -2599,7 +2600,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         checkNotNull(lh);
-        lh.asyncAddEntry(pi.toByteArray(), (rc, lh1, entryId, ctx) -> {
+        byte[] data = pi.toByteArray();
+        lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Updated cursor {} position {} in meta-ledger {}", ledger.getName(), name, position,
@@ -2614,6 +2616,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
 
                 mbean.persistToLedger(true);
+                mbean.addWriteCursorLedgerSize(data.length);
                 callback.operationComplete();
             } else {
                 log.warn("[{}] Error updating cursor {} position {} in meta-ledger {}: {}", ledger.getName(), name,

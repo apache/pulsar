@@ -18,12 +18,43 @@
  */
 package org.apache.pulsar;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
+
 /**
  * Pulsar version entry point.
  */
 public class PulsarVersionStarter {
 
+    private static class Arguments {
+        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
+    }
+
     public static void main(String args[]) {
+        Arguments arguments = new Arguments();
+        JCommander jcommander = new JCommander();
+        try {
+            jcommander.addObject(arguments);
+            jcommander.parse(args);
+            if (arguments.help) {
+                jcommander.usage();
+                return;
+            }
+            if (arguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("version", arguments);
+                cmd.run(null);
+                return;
+            }
+        } catch (Exception e) {
+            jcommander.usage();
+            return;
+        }
         System.out.println("Current version of pulsar is: " + PulsarVersion.getVersion());
     }
 }

@@ -180,6 +180,27 @@ public class MockZooKeeperSession extends ZooKeeper {
     }
 
     @Override
+    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object ctx) {
+        mockZooKeeper.addWatch(basePath, watcher, mode, cb, ctx);
+    }
+
+    @Override
+    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode)
+            throws KeeperException, InterruptedException {
+        mockZooKeeper.addWatch(basePath, watcher, mode);
+    }
+
+    @Override
+    public void addWatch(String basePath, AddWatchMode mode) throws KeeperException, InterruptedException {
+        mockZooKeeper.addWatch(basePath, mode);
+    }
+
+    @Override
+    public void addWatch(String basePath, AddWatchMode mode, VoidCallback cb, Object ctx) {
+        mockZooKeeper.addWatch(basePath, mode, cb, ctx);
+    }
+
+    @Override
     public void close() throws InterruptedException {
         mockZooKeeper.close();
     }

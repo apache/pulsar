@@ -1606,7 +1606,8 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException;
+    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic)
+            throws PulsarAdminException;
 
     /**
      * Get applied backlog quota map for a topic.
@@ -1639,6 +1640,7 @@ public interface Topics {
      *            Topic name
      * @param backlogQuota
      *            the new BacklogQuota
+     * @param backlogQuotaType
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1647,7 +1649,12 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException;
+    void setBacklogQuota(String topic, BacklogQuota backlogQuota,
+                         BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException;
+
+    default void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
+        setBacklogQuota(topic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
 
     /**
      * Remove a backlog quota policy from a topic.
@@ -1655,6 +1662,7 @@ public interface Topics {
      *
      * @param topic
      *            Topic name
+     * @param backlogQuotaType
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1663,7 +1671,12 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void removeBacklogQuota(String topic) throws PulsarAdminException;
+    void removeBacklogQuota(String topic, BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException;
+
+    default void removeBacklogQuota(String topic)
+            throws PulsarAdminException {
+        removeBacklogQuota(topic, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
 
     /**
      * Get the delayed delivery policy applied for a specified topic.

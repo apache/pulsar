@@ -53,6 +53,9 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.msgThroughputOut, 1.0);
         assertEquals(topicStats.averageMsgSize, 1.0);
         assertEquals(topicStats.offloadedStorageSize, 1);
+        assertEquals(topicStats.lastOffloadLedgerId, 0);
+        assertEquals(topicStats.lastOffloadSuccessTimeStamp, 0);
+        assertEquals(topicStats.lastOffloadFailureTimeStamp, 0);
         assertEquals(topicStats.storageSize, 1);
         assertEquals(topicStats.publishers.size(), 1);
         assertEquals(topicStats.subscriptions.size(), 1);
