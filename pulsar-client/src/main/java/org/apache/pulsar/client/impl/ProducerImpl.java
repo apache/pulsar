@@ -103,7 +103,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Queue<OpSendMsg> pendingMessages;
     private final Optional<Semaphore> semaphore;
     private volatile Timeout sendTimeout = null;
-    private long createProducerTimeout;
+    private long lookupDeadline;
     private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
@@ -219,7 +219,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sendTimeout = client.timer().newTimeout(this, conf.getSendTimeoutMs(), TimeUnit.MILLISECONDS);
         }
 
-        this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
+        this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         if (conf.isBatchingEnabled()) {
             BatcherBuilder containerBuilder = conf.getBatcherBuilder();
             if (containerBuilder == null) {
@@ -1285,7 +1285,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @Override
     public void connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
-
+        long producerDeadline = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
         // we set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating the
         // producer, it will try to grab a new cnx
         connectionHandler.setClientCnx(cnx);
@@ -1442,7 +1442,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         client.cleanupProducer(this);
                     } else if (producerCreatedFuture.isDone() || //
                     (cause instanceof PulsarClientException && PulsarClientException.isRetriableError(cause)
-                            && System.currentTimeMillis() < createProducerTimeout)) {
+                            && System.currentTimeMillis() < producerDeadline)) {
                         // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                         // still within the initial timeout budget and we are dealing with a retriable error
                         reconnectLater(cause);
@@ -1464,8 +1464,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @Override
     public void connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
-        boolean producerTimeout = System.currentTimeMillis() > createProducerTimeout;
-        if (nonRetriableError || producerTimeout) {
+        boolean timeout = System.currentTimeMillis() > lookupDeadline;
+        if (nonRetriableError || timeout) {
             exception.setPreviousExceptions(previousExceptions);
             if (producerCreatedFuture.completeExceptionally(exception)) {
                 if (nonRetriableError) {

@@ -128,7 +128,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
-    private final long subscribeTimeout;
+    private final long lookupDeadline;
     private final int partitionIndex;
     private final boolean hasParentConsumer;
 
@@ -245,7 +245,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
-        this.subscribeTimeout = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
+        this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.hasParentConsumer = hasParentConsumer;
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
@@ -691,6 +691,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public void connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
+        long subscribeDeadline = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
 
         if (getState() == State.Closing || getState() == State.Closed) {
             setState(State.Closed);
@@ -782,7 +783,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             if (e.getCause() instanceof PulsarClientException
                     && PulsarClientException.isRetriableError(e.getCause())
-                    && System.currentTimeMillis() < subscribeTimeout) {
+                    && System.currentTimeMillis() < subscribeDeadline) {
                 reconnectLater(e.getCause());
             } else if (!subscribeFuture.isDone()) {
                 // unable to create new consumer, fail operation
@@ -886,7 +887,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public void connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
-        boolean timeout = System.currentTimeMillis() > subscribeTimeout;
+        boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
             exception.setPreviousExceptions(previousExceptions);
             if (subscribeFuture.completeExceptionally(exception)) {
