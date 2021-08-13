@@ -139,7 +139,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
     <aerospike-client.version>4.4.8</aerospike-client.version>
-    <kafka-client.version>2.3.0</kafka-client.version>
+    <kafka-client.version>2.7.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
@@ -153,9 +153,9 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>3.3.0</hdfs-offload-version3>
     <elasticsearch.version>7.9.1</elasticsearch.version>
     <presto.version>332</presto.version>
-    <scala.binary.version>2.11</scala.binary.version>
-    <scala-library.version>2.11.12</scala-library.version>
-    <debezium.version>1.0.0.Final</debezium.version>
+    <scala.binary.version>2.13</scala.binary.version>
+    <scala-library.version>2.13.6</scala-library.version>
+    <debezium.version>1.5.4.Final</debezium.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.3.0</hbase.version>
