@@ -2534,6 +2534,8 @@ void testSyncFlushBatchMessagesPartitionedTopic(bool lazyStartPartitionedProduce
 
     Producer producer;
     int numOfMessages = 20;
+    // lazy partitioned producers make a single call to the message router during createProducer
+    int initPart = lazyStartPartitionedProducers ? 1 : 0;
     ProducerConfiguration tempProducerConfiguration;
     tempProducerConfiguration.setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>());
     ProducerConfiguration producerConfiguration = tempProducerConfiguration;
@@ -2583,7 +2585,7 @@ void testSyncFlushBatchMessagesPartitionedTopic(bool lazyStartPartitionedProduce
     LOG_INFO("sending first part messages in async, should timeout to receive");
 
     Message m;
-    ASSERT_EQ(ResultTimeout, consumer[0].receive(m, 5000));
+    ASSERT_EQ(ResultTimeout, consumer[initPart].receive(m, 5000));
 
     for (int i = numOfMessages / numberOfPartitions / 2; i < numOfMessages; i++) {
         std::string messageContent = prefix + std::to_string(i);
@@ -2607,11 +2609,12 @@ void testSyncFlushBatchMessagesPartitionedTopic(bool lazyStartPartitionedProduce
         std::string messageContent = prefix + std::to_string(i);
         Message msg =
             MessageBuilder().setContent(messageContent).setProperty("msgIndex", std::to_string(i)).build();
-        producer.send(msg);
+        ASSERT_EQ(ResultOk, producer.send(msg));
         LOG_DEBUG("sync sending message " << messageContent);
     }
+
     LOG_INFO("sending first part messages in sync, should not timeout to receive");
-    ASSERT_EQ(ResultOk, consumer[0].receive(m, 5000));
+    ASSERT_EQ(ResultOk, consumer[initPart].receive(m, 10000));
 
     producer.close();
     client.shutdown();

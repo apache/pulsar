@@ -522,12 +522,14 @@ class Client:
         * `lazy_start_partitioned_producers`:
           This config affects producers of partitioned topics only. It controls whether
           producers register and connect immediately to the owner broker of each partition
-          or start lazily on demand. Lazy starts occur when a message needs to be routed
-          to a partition that the producer has not yet registered and connected to.
+          or start lazily on demand. The internal producer of one partition is always
+          started eagerly, chosen by the routing policy, but the internal producers of
+          any additional partitions are started on demand, upon receiving their first
+          message.
           Using this mode can reduce the strain on brokers for topics with large numbers of
           partitions and when the SinglePartition routing policy is used without keyed messages.
-          Because producer registration and connection is on demand, this can produce extra
-          latency while the registration is being carried out.
+          Because producer connection can be on demand, this can produce extra send latency
+          for the first messages of a given partition.
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.

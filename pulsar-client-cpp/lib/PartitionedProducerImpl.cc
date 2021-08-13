@@ -87,12 +87,12 @@ unsigned int PartitionedProducerImpl::getNumPartitionsWithLock() const {
     return getNumPartitions();
 }
 
-ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partition) {
+ProducerImplPtr PartitionedProducerImpl::newInternalProducer(unsigned int partition, bool lazy) {
     using namespace std::placeholders;
     std::string topicPartitionName = topicName_->getTopicPartitionName(partition);
     auto producer = std::make_shared<ProducerImpl>(client_, topicPartitionName, conf_, partition);
 
-    if (conf_.getLazyStartPartitionedProducers()) {
+    if (lazy) {
         createLazyPartitionProducer(partition);
     } else {
         producer->getProducerCreatedFuture().addListener(
@@ -109,11 +109,25 @@ void PartitionedProducerImpl::start() {
     // create producer per partition
     // Here we don't need `producersMutex` to protect `producers_`, because `producers_` can only be increased
     // when `state_` is Ready
-    for (unsigned int i = 0; i < getNumPartitions(); i++) {
-        producers_.push_back(newInternalProducer(i));
-    }
 
-    if (!conf_.getLazyStartPartitionedProducers()) {
+    if (conf_.getLazyStartPartitionedProducers()) {
+        // start one producer now, to ensure authz errors occur now
+        // if the SinglePartition router is used, then this producer will serve
+        // all non-keyed messages in the future
+        Message msg = MessageBuilder().setContent("x").build();
+        short partition = (short)(routerPolicy_->getPartition(msg, *topicMetadata_));
+
+        for (unsigned int i = 0; i < getNumPartitions(); i++) {
+            bool lazy = (short)i != partition;
+            producers_.push_back(newInternalProducer(i, lazy));
+        }
+
+        producers_[partition]->start();
+    } else {
+        for (unsigned int i = 0; i < getNumPartitions(); i++) {
+            producers_.push_back(newInternalProducer(i, false));
+        }
+
         for (ProducerList::const_iterator prod = producers_.begin(); prod != producers_.end(); prod++) {
             (*prod)->start();
         }
@@ -399,7 +413,7 @@ void PartitionedProducerImpl::handleGetPartitions(Result result,
             topicMetadata_.reset(new TopicMetadataImpl(newNumPartitions));
 
             for (unsigned int i = currentNumPartitions; i < newNumPartitions; i++) {
-                auto producer = newInternalProducer(i);
+                auto producer = newInternalProducer(i, conf_.getLazyStartPartitionedProducers());
 
                 if (!conf_.getLazyStartPartitionedProducers()) {
                     producer->start();

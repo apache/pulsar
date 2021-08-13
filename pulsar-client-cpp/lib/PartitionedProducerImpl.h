@@ -104,7 +104,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     unsigned int getNumPartitions() const;
     unsigned int getNumPartitionsWithLock() const;
 
-    ProducerImplPtr newInternalProducer(unsigned int partition);
+    ProducerImplPtr newInternalProducer(unsigned int partition, bool lazy);
 
     MessageRoutingPolicyPtr routerPolicy_;
 
