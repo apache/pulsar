@@ -246,6 +246,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
                 scheduleReconnection(shared_from_this());
             } else {
                 LOG_ERROR(getName() << "Failed to create producer: " << strResult(result));
+                failPendingMessages(result, true);
                 producerCreatedPromise_.setFailed(result);
                 Lock lock(mutex_);
                 state_ = Failed;
