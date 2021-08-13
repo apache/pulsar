@@ -92,4 +92,4 @@ The following are some Grafana dashboards examples:
 - [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
 
  ## Alerting rules
- You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, you can refer to [StreamNative platform](https://streamnative.io/docs/latest/configure/control-center/alertmanager) examples or [Alert Manager](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) alerting rules.
+ You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).
