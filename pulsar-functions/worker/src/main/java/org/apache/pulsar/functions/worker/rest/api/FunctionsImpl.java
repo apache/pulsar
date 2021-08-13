@@ -760,7 +760,8 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
     }
 
     private static boolean hasPackageTypePrefix(String destPkgUrl) {
-        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
+        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString())
+                && destPkgUrl.contains("://"));
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
