@@ -137,9 +137,49 @@ public class PackagesCliTest extends TestRetrySupport {
         result.assertNoStdout();
     }
 
+    @Test(timeOut = 60000 * 5)
+    public void testCreateFunctionFromPackagesURLWithoutUploadingPackages() throws Exception {
+        ContainerExecResult result = runPackagesCommand("list", "--type", "function", "public/default");
+        assertEquals(result.getExitCode(), 0);
+
+        result = runPackagesCommand("list-versions", "function://public/default/nonexist");
+        assertEquals(result.getExitCode(), 0);
+
+        try {
+            result = runFunctionsCommand("create",
+                    "--jar", "function://public/default/nonexist@v1",
+                    "--inputs", "nonexist-input-topic",
+                    "--className", "org.DummyFunction");
+            fail("this command should be failed");
+        } catch (Exception e) {
+            // expected exception
+        }
+    }
+
+    @Test(timeOut = 60000 * 5)
+    public void testCreateFunctionFromPackagesURLWithUploadingPackages() throws Exception {
+        String testPackageName = "function://public/default/uploaded@v1";
+        ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
+                "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
+        assertEquals(result.getExitCode(), 0);
+
+        result = runFunctionsCommand("create",
+                "--jar", testPackageName,
+                "--inputs", "uploaded-input-topic",
+                "--className", "org.DummyFunction");
+        assertEquals(result.getExitCode(), 0);
+    }
+
     private ContainerExecResult runPackagesCommand(String... commands) throws Exception {
         String[] cmds = new String[commands.length + 1];
         cmds[0] = "packages";
+        System.arraycopy(commands, 0, cmds, 1, commands.length);
+        return pulsarCluster.runAdminCommandOnAnyBroker(cmds);
+    }
+
+    private ContainerExecResult runFunctionsCommand(String... commands) throws Exception {
+        String[] cmds = new String[commands.length + 1];
+        cmds[0] = "functions";
         System.arraycopy(commands, 0, cmds, 1, commands.length);
         return pulsarCluster.runAdminCommandOnAnyBroker(cmds);
     }
