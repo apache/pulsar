@@ -61,7 +61,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     }
 
     private void loadAllResourceGroups() {
-        rgResources.getChildrenAsync(path(RESOURCEGROUPS)).whenCompleteAsync((rgList, ex) -> {
+        rgResources.listResourceGroupsAsync().whenCompleteAsync((rgList, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when fetching resource groups", ex);
                 return;
@@ -83,7 +83,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
             for (String rgName: addList) {
                 final String resourceGroupPath = path(RESOURCEGROUPS, rgName);
                 pulsarService.getPulsarResources().getResourcegroupResources()
-                    .getAsync(resourceGroupPath).thenAcceptAsync((optionalRg) -> {
+                    .getResourceGroupAsync(resourceGroupPath).thenAcceptAsync(optionalRg -> {
                     ResourceGroup rg = optionalRg.get();
                     createResourceGroup(rgName, rg);
                 }).exceptionally((ex1) -> {
@@ -119,7 +119,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     private void updateResourceGroup(String notifyPath) {
         String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
 
-        rgResources.getAsync(notifyPath).whenComplete((optionalRg, ex) -> {
+        rgResources.getResourceGroupAsync(rgName).whenComplete((optionalRg, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when getting resource group {}", rgName, ex);
                 return;

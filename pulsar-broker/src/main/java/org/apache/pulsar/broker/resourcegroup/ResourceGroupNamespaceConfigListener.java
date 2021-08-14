@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -60,10 +61,8 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
         this.namespaceResources.getStore().registerListener(this);
     }
 
-    private void updateNamespaceResourceGroup(String path) {
-        String nsName = path.substring(path(POLICIES).length() + 1);
-
-        namespaceResources.getAsync(path).whenCompleteAsync((optionalPolicies, ex) -> {
+    private void updateNamespaceResourceGroup(NamespaceName nsName) {
+        namespaceResources.getPoliciesAsync(nsName).whenCompleteAsync((optionalPolicies, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when getting namespace {}", nsName, ex);
                 return;
@@ -74,18 +73,18 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
     }
 
     private void loadAllNamespaceResourceGroups() {
-        tenantResources.getChildrenAsync(path(POLICIES)).whenComplete((tenantList, ex) -> {
+        tenantResources.listTenantsAsync().whenComplete((tenantList, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when fetching tenants", ex);
                 return;
             }
             for (String ts: tenantList) {
-                namespaceResources.getChildrenAsync(path(POLICIES, ts)).whenComplete((nsList, ex1) -> {
+                namespaceResources.listNamespacesAsync(ts).whenComplete((nsList, ex1) -> {
                     if (ex1 != null) {
                         LOG.error("Exception when fetching namespaces", ex1);
                     } else {
                         for (String ns: nsList) {
-                            updateNamespaceResourceGroup(path(POLICIES, ts, ns));
+                            updateNamespaceResourceGroup(NamespaceName.get(ts, ns));
                         }
                     }
                 });
@@ -97,7 +96,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
         loadAllNamespaceResourceGroups();
     }
 
-    public void reconcileNamespaceResourceGroup(String ns, Policies policy) {
+    public void reconcileNamespaceResourceGroup(NamespaceName ns, Policies policy) {
         boolean delete = false, add = false;
         org.apache.pulsar.broker.resourcegroup.ResourceGroup current = rgService
                 .getNamespaceResourceGroup(ns);
@@ -148,21 +147,24 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
             reloadAllNamespaceResourceGroups();
         } else if (parts.length == 5) {
             switch (notification.getType()) {
-            case Modified:
-                updateNamespaceResourceGroup(notifyPath);
-                break;
-            case Deleted:
-                String nsName = notifyPath.substring(path(POLICIES).length() + 1);
-                ResourceGroup rg = rgService
-                        .getNamespaceResourceGroup(nsName);
-                if (rg != null) {
-                    try {
-                        rgService.unRegisterNameSpace(rg.resourceGroupName, nsName);
-                    } catch (PulsarAdminException e) {
-                        LOG.error("Failed to unregister namespace", e);
-                    }
+                case Modified: {
+                    NamespaceName nsName = NamespaceResources.namespaceFromPath(notifyPath);
+                    updateNamespaceResourceGroup(nsName);
+                    break;
                 }
-                break;
+                case Deleted: {
+                    NamespaceName nsName = NamespaceResources.namespaceFromPath(notifyPath);
+                    ResourceGroup rg = rgService
+                            .getNamespaceResourceGroup(nsName);
+                    if (rg != null) {
+                        try {
+                            rgService.unRegisterNameSpace(rg.resourceGroupName, nsName);
+                        } catch (PulsarAdminException e) {
+                            LOG.error("Failed to unregister namespace", e);
+                        }
+                    }
+                    break;
+                }
             default:
                 break;
             }

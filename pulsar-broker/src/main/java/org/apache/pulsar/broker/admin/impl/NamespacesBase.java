@@ -20,9 +20,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
@@ -105,7 +102,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,10 +119,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
 
         try {
-            return getListOfNamespaces(tenant);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get namespace list for tenant: {} - Does not exist", clientAppId(), tenant);
-            throw new RestException(Status.NOT_FOUND, "Property does not exist");
+            return tenantResources().getListOfNamespaces(tenant);
         } catch (Exception e) {
             log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
             throw new RestException(e);
@@ -142,13 +135,13 @@ public abstract class NamespacesBase extends AdminResource {
             int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
             // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
             if (maxNamespacesPerTenant > 0) {
-                List<String> namespaces = getListOfNamespaces(namespaceName.getTenant());
+                List<String> namespaces = tenantResources().getListOfNamespaces(namespaceName.getTenant());
                 if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
                     throw new RestException(Status.PRECONDITION_FAILED,
                             "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
                 }
             }
-            namespaceResources().create(path(POLICIES, namespaceName.toString()), policies);
+            namespaceResources().createPolicies(namespaceName, policies);
             log.info("[{}] Created namespace {}", clientAppId(), namespaceName);
         } catch (AlreadyExistsException e) {
             log.warn("[{}] Failed to create namespace {} - already exists", clientAppId(), namespaceName);
@@ -182,7 +175,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // ensure the local cluster is the only cluster for the global namespace configuration
         try {
-            policies = namespaceResources().get(path(POLICIES, namespaceName.toString())).orElseThrow(
+            policies = namespaceResources().getPolicies(namespaceName).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist."));
             if (namespaceName.isGlobal()) {
                 if (policies.replication_clusters.size() > 1) {
@@ -194,8 +187,7 @@ public abstract class NamespacesBase extends AdminResource {
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData = clusterResources().get(
-                            AdminResource.path("clusters", replCluster))
+                    ClusterData replClusterData = clusterResources().getCluster(replCluster)
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -257,7 +249,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
         try {
-            namespaceResources().set(path(POLICIES, namespaceName.toString()), (old) -> {
+            namespaceResources().setPolicies(namespaceName, old -> {
                 old.deleted = true;
                 return old;
             });
@@ -308,16 +300,14 @@ public abstract class NamespacesBase extends AdminResource {
             try {
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
-                final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-                namespaceResources().delete(globalZkPolicyPath);
+                namespaceResources().deletePolicies(namespaceName);
                 try {
-                    getLocalPolicies().delete(localZkPolicyPath);
+                    getLocalPolicies().deleteLocalPolicies(namespaceName);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
             } catch (Exception e) {
-                log.error("[{}] Failed to remove owned namespace {} from ZK", clientAppId(), namespaceName, e);
+                log.error("[{}] Failed to remove owned namespace {} from metadata", clientAppId(), namespaceName, e);
                 asyncResponse.resume(new RestException(e));
                 return null;
             }
@@ -347,7 +337,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // ensure the local cluster is the only cluster for the global namespace configuration
         try {
-            policies = namespaceResources().get(path(POLICIES, namespaceName.toString())).orElseThrow(
+            policies = namespaceResources().getPolicies(namespaceName).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist."));
             if (namespaceName.isGlobal()) {
                 if (policies.replication_clusters.size() > 1) {
@@ -360,7 +350,7 @@ public abstract class NamespacesBase extends AdminResource {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
                     ClusterData replClusterData =
-                            clusterResources().get(AdminResource.path("clusters", replCluster))
+                            clusterResources().getCluster(replCluster)
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -400,7 +390,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
         try {
-            namespaceResources().set(path(POLICIES, namespaceName.toString()), (old) -> {
+            namespaceResources().setPolicies(namespaceName, old -> {
                 old.deleted = true;
                 return old;
             });
@@ -454,11 +444,8 @@ public abstract class NamespacesBase extends AdminResource {
 
             try {
                 // remove partitioned topics znode
-                final String globalPartitionedPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString());
-                // check whether partitioned topics znode exist
-                if (namespaceResources().exists(globalPartitionedPath)) {
-                    deleteRecursive(namespaceResources(), globalPartitionedPath);
-                }
+                pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .clearPartitionedTopicMetadata(namespaceName);
 
                 try {
                     pulsar().getPulsarResources().getTopicResources().clearDomainPersistence(namespaceName).get();
@@ -471,12 +458,10 @@ public abstract class NamespacesBase extends AdminResource {
 
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
-                final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-                namespaceResources().delete(globalZkPolicyPath);
+                namespaceResources().deletePolicies(namespaceName);
 
                 try {
-                    getLocalPolicies().delete(localZkPolicyPath);
+                    getLocalPolicies().deleteLocalPolicies(namespaceName);
                 } catch (NotFoundException nne) {
                     // If the z-node with the modified information is not there anymore, we're already good
                 }
@@ -523,7 +508,7 @@ public abstract class NamespacesBase extends AdminResource {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
                     ClusterData replClusterData =
-                            clusterResources().get(AdminResource.path("clusters", replCluster))
+                            clusterResources().getCluster(replCluster)
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -598,7 +583,7 @@ public abstract class NamespacesBase extends AdminResource {
                     // the only replication cluster is other cluster, redirect
                     String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
                     ClusterData replClusterData =
-                            clusterResources().get(AdminResource.path("clusters", replCluster))
+                            clusterResources().getCluster(replCluster)
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
@@ -709,7 +694,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
         validatePoliciesReadOnlyAccess();
         checkNotNull(role, "Role should not be null");
-        updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
+        updatePolicies(namespaceName, policies ->{
             policies.auth_policies.getNamespaceAuthentication().remove(role);
             return policies;
         });
@@ -765,7 +750,7 @@ public abstract class NamespacesBase extends AdminResource {
             validatePeerClusterConflict(clusterId, replicationClusterSet);
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
         }
-        updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
+        updatePolicies(namespaceName, policies ->{
             policies.replication_clusters = replicationClusterSet;
             return policies;
         });
@@ -777,7 +762,7 @@ public abstract class NamespacesBase extends AdminResource {
         if (messageTTL != null && messageTTL < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
         }
-        updatePolicies(path(POLICIES, namespaceName.toString()), (policies)->{
+        updatePolicies(namespaceName, policies -> {
             policies.message_ttl_in_seconds = messageTTL;
             return policies;
         });
@@ -790,7 +775,7 @@ public abstract class NamespacesBase extends AdminResource {
         if (expirationTime != null && expirationTime < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for subscription expiration time");
         }
-        updatePolicies(path(POLICIES, namespaceName.toString()), (policies) -> {
+        updatePolicies(namespaceName, policies -> {
             policies.subscription_expiration_time_minutes = expirationTime;
             return policies;
         });
@@ -812,7 +797,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
         }
         // Force to read the data s.t. the watch to the cache content is setup.
-        namespaceResources().setAsync(path(POLICIES, namespaceName.toString()), (policies) -> {
+        namespaceResources().setPoliciesAsync(namespaceName, policies -> {
             policies.autoTopicCreationOverride = autoTopicCreationOverride;
             return policies;
         }).thenApply(r -> {
@@ -844,7 +829,7 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         // Force to read the data s.t. the watch to the cache content is setup.
-        namespaceResources().setAsync(path(POLICIES, namespaceName.toString()), (policies) -> {
+        namespaceResources().setPoliciesAsync(namespaceName, policies -> {
             policies.autoSubscriptionCreationOverride = autoSubscriptionCreationOverride;
             return policies;
         }).thenApply(r -> {
@@ -875,7 +860,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalModifyDeduplication(Boolean enableDeduplication) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
-        updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
+        updatePolicies(namespaceName, policies -> {
             policies.deduplicationEnabled = enableDeduplication;
             return policies;
         });
@@ -941,9 +926,8 @@ public abstract class NamespacesBase extends AdminResource {
             validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
-        String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
-            getLocalPolicies().setWithCreate(path, (oldPolicies) -> {
+            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> {
                 LocalPolicies localPolicies = oldPolicies.map(
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
@@ -980,9 +964,8 @@ public abstract class NamespacesBase extends AdminResource {
             validateClusterOwnership(namespaceName.getCluster());
             validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
-        String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
         try {
-            final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().get(path)
+            final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().getLocalPolicies(namespaceName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Namespace local-policies does not exist")).bookieAffinityGroup;
             if (bookkeeperAffinityGroup == null) {
@@ -996,8 +979,8 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
-            log.error("[{}] Failed to get local-policy configuration for namespace {} at path {}", clientAppId(),
-                    namespaceName, path, e);
+            log.error("[{}] Failed to get local-policy configuration for namespace {}", clientAppId(),
+                    namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -1146,8 +1129,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
-        final String path = path(POLICIES, namespaceName.toString());
-        updatePolicies(path, (policies) -> {
+        updatePolicies(namespaceName, policies -> {
             policies.publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
             return policies;
         });
@@ -1159,8 +1141,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
         log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName, topicName);
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 if (policies.publishMaxMessageRate != null) {
                     policies.publishMaxMessageRate.remove(pulsar().getConfiguration().getClusterName());
                 }
@@ -1194,8 +1175,7 @@ public abstract class NamespacesBase extends AdminResource {
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies)->{
+            updatePolicies(namespaceName, policies -> {
                 policies.topicDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
                 policies.clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
                 return policies;
@@ -1212,8 +1192,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalDeleteTopicDispatchRate() {
         validateSuperUserAccess();
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
                 policies.clusterDispatchRate.remove(pulsar().getConfiguration().getClusterName());
                 return policies;
@@ -1240,8 +1219,7 @@ public abstract class NamespacesBase extends AdminResource {
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, (policies) -> {
                 policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
                 return policies;
             });
@@ -1258,8 +1236,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
                 return policies;
             });
@@ -1283,8 +1260,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
                 return policies;
             });
@@ -1300,8 +1276,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalDeleteSubscribeRate() {
         validateSuperUserAccess();
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
                 return policies;
             });
@@ -1323,8 +1298,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalRemoveReplicatorDispatchRate() {
         validateSuperUserAccess();
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
                 return policies;
             });
@@ -1341,8 +1315,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateSuperUserAccess();
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.replicatorDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
                 return policies;
             });
@@ -1368,8 +1341,7 @@ public abstract class NamespacesBase extends AdminResource {
         final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
                 : BacklogQuotaType.destination_storage;
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            Policies policies = namespaceResources().get(path)
+            Policies policies = namespaceResources().getPolicies(namespaceName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace policies does not exist"));
             RetentionPolicies r = policies.retention_policies;
             if (r != null) {
@@ -1386,7 +1358,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
             policies.backlog_quota_map.put(quotaType, backlogQuota);
-            namespaceResources().set(path, p -> policies);
+            namespaceResources().setPolicies(namespaceName, p -> policies);
             log.info("[{}] Successfully updated backlog quota map: namespace={}, map={}", clientAppId(), namespaceName,
                     jsonMapper().writeValueAsString(backlogQuota));
 
@@ -1404,8 +1376,7 @@ public abstract class NamespacesBase extends AdminResource {
         final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
                 : BacklogQuotaType.destination_storage;
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.backlog_quota_map.remove(quotaType);
                 return policies;
             });
@@ -1423,8 +1394,8 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            Policies policies = namespaceResources().get(path).orElseThrow(() -> new RestException(Status.NOT_FOUND,
+            Policies policies = namespaceResources().getPolicies(namespaceName)
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                     "Namespace policies does not exist"));
             if (!checkQuotas(policies, retention)) {
                 log.warn("[{}] Failed to update retention configuration"
@@ -1434,7 +1405,7 @@ public abstract class NamespacesBase extends AdminResource {
                         "Retention Quota must exceed configured backlog quota for namespace.");
             }
             policies.retention_policies = retention;
-            namespaceResources().set(path, p -> policies);
+            namespaceResources().setPolicies(namespaceName, p -> policies);
             log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
                     namespaceName, jsonMapper().writeValueAsString(retention));
         } catch (RestException pfe) {
@@ -1462,8 +1433,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     private void doUpdatePersistence(PersistencePolicies persistence) {
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies)->{
+            updatePolicies(namespaceName, policies -> {
                 policies.persistence = persistence;
                 return policies;
             });
@@ -1685,8 +1655,7 @@ public abstract class NamespacesBase extends AdminResource {
         SubscriptionAuthMode authMode = subscriptionAuthMode == null ? subscriptionAuthMode = SubscriptionAuthMode.None
                 : subscriptionAuthMode;
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.subscription_auth_mode = authMode;
                 return policies;
             });
@@ -1706,7 +1675,7 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            updatePolicies(path(POLICIES, namespaceName.toString()), (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.encryption_required = encryptionRequired;
                 return policies;
             });
@@ -1739,13 +1708,13 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetPolicies(String fieldName, Object value) {
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            Policies policies = namespaceResources().get(path).orElseThrow(() -> new RestException(Status.NOT_FOUND,
+            Policies policies = namespaceResources().getPolicies(namespaceName)
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                     "Namespace policies does not exist"));
             Field field = Policies.class.getDeclaredField(fieldName);
             field.setAccessible(true);
             field.set(policies, value);
-            namespaceResources().set(path, p -> policies);
+            namespaceResources().setPolicies(namespaceName, p -> policies);
             log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
                     namespaceName, jsonMapper().writeValueAsString(value));
 
@@ -1776,8 +1745,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         try {
-            String path = joinPath(LOCAL_POLICIES_ROOT, this.namespaceName.toString());
-            getLocalPolicies().setWithCreate(path, (lp)->
+            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, (lp)->
                 lp.map(policies -> new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
                         antiAffinityGroup))
@@ -1798,7 +1766,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             return getLocalPolicies()
-                    .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString()))
+                    .getLocalPolicies(namespaceName)
                     .orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
         } catch (Exception e) {
             log.error("[{}] Failed to get the antiAffinityGroup of namespace {}", clientAppId(), namespaceName, e);
@@ -1813,8 +1781,7 @@ public abstract class NamespacesBase extends AdminResource {
         log.info("[{}] Deleting anti-affinity group for {}", clientAppId(), namespaceName);
 
         try {
-            final String path = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-            getLocalPolicies().set(path, (policies)->
+            getLocalPolicies().setLocalPolicies(namespaceName, (policies)->
                 new LocalPolicies(policies.bundles,
                         policies.bookieAffinityGroup,
                         null));
@@ -1840,13 +1807,12 @@ public abstract class NamespacesBase extends AdminResource {
         validateClusterExists(cluster);
 
         try {
-            List<String> namespaces = getListOfNamespaces(tenant);
+            List<String> namespaces = tenantResources().getListOfNamespaces(tenant);
 
             return namespaces.stream().filter(ns -> {
                 Optional<LocalPolicies> policies;
                 try {
-                    policies = getLocalPolicies()
-                            .get(AdminResource.joinPath(LOCAL_POLICIES_ROOT, ns));
+                    policies = getLocalPolicies().getLocalPolicies(namespaceName);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -1946,7 +1912,7 @@ public abstract class NamespacesBase extends AdminResource {
      */
     private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
         try {
-            ClusterData clusterData = clusterResources().get(path("clusters", clusterName)).orElseThrow(
+            ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
                     () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
             Set<String> peerClusters = clusterData.getPeerClusterNames();
             if (peerClusters != null && !peerClusters.isEmpty()) {
@@ -2066,8 +2032,7 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxProducersPerTopic must be 0 or more");
             }
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies)->{
+            updatePolicies(namespaceName, policies -> {
                 policies.max_producers_per_topic = maxProducersPerTopic;
                 return policies;
             });
@@ -2100,8 +2065,7 @@ public abstract class NamespacesBase extends AdminResource {
             if (maxConsumersPerTopic != null && maxConsumersPerTopic < 0) {
                 throw new RestException(Status.PRECONDITION_FAILED, "maxConsumersPerTopic must be 0 or more");
             }
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.max_consumers_per_topic = maxConsumersPerTopic;
                 return policies;
             });
@@ -2131,8 +2095,7 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "maxConsumersPerSubscription must be 0 or more");
             }
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.max_consumers_per_subscription = maxConsumersPerSubscription;
                 return policies;
             });
@@ -2160,8 +2123,7 @@ public abstract class NamespacesBase extends AdminResource {
                     "maxUnackedMessagesPerConsumer must be 0 or more");
         }
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies)->{
+            updatePolicies(namespaceName, policies -> {
                 policies.max_unacked_messages_per_consumer = maxUnackedMessagesPerConsumer;
                 return policies;
             });
@@ -2205,8 +2167,7 @@ public abstract class NamespacesBase extends AdminResource {
                     "maxUnackedMessagesPerSubscription must be 0 or more");
         }
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.max_unacked_messages_per_subscription = maxUnackedMessagesPerSubscription;
                 return policies;
             });
@@ -2237,8 +2198,7 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.PRECONDITION_FAILED,
                         "compactionThreshold must be 0 or more");
             }
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 policies.compaction_threshold = newThreshold;
                 return policies;
             });
@@ -2269,8 +2229,7 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 if (policies.offload_policies == null) {
                     policies.offload_policies = new OffloadPoliciesImpl();
                 }
@@ -2304,8 +2263,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 if (policies.offload_policies == null) {
                     policies.offload_policies = new OffloadPoliciesImpl();
                 }
@@ -2432,10 +2390,9 @@ public abstract class NamespacesBase extends AdminResource {
                                   Function<Policies, T> getter,
                                   String policyName) {
         try {
-            final String path = path(POLICIES, namespaceName.toString());
             MutableObject exception = new MutableObject(null);
             MutableObject policiesObj = new MutableObject(null);
-            updatePolicies(path, (policies) -> {
+            updatePolicies(namespaceName, policies -> {
                 try {
                     policies = policyTransformation.apply(policies);
                 } catch (Exception e) {
@@ -2464,8 +2421,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateOffloadPolicies(offloadPolicies);
 
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            namespaceResources().setAsync(path, (policies) -> {
+            namespaceResources().setPoliciesAsync(namespaceName, policies -> {
                 if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
                         OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
                     offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
@@ -2503,8 +2459,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         try {
-            final String path = path(POLICIES, namespaceName.toString());
-            namespaceResources().setAsync(path, (policies) -> {
+            namespaceResources().setPoliciesAsync(namespaceName, (policies) -> {
                 policies.offload_policies = null;
                 return policies;
             }).thenApply(r -> {
@@ -2577,8 +2532,7 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalSetProperty(String key, String value, AsyncResponse asyncResponse) {
        validatePoliciesReadOnlyAccess();
-       final String path = path(POLICIES, namespaceName.toString());
-       updatePoliciesAsync(path, (policies) -> {
+       updatePoliciesAsync(namespaceName, policies -> {
            policies.properties.put(key, value);
            return policies;
        }).thenAccept(v -> {
@@ -2596,8 +2550,7 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalSetProperties(Map<String, String> properties, AsyncResponse asyncResponse) {
        validatePoliciesReadOnlyAccess();
-       final String path = path(POLICIES, namespaceName.toString());
-       updatePoliciesAsync(path, (policies) -> {
+       updatePoliciesAsync(namespaceName, policies -> {
            policies.properties.putAll(properties);
            return policies;
        }).thenAccept(v -> {
@@ -2638,9 +2591,9 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalRemoveProperty(String key, AsyncResponse asyncResponse) {
        validatePoliciesReadOnlyAccess();
-       final String path = path(POLICIES, namespaceName.toString());
+
        AtomicReference<String> oldVal = new AtomicReference<>(null);
-       updatePoliciesAsync(path, (policies) -> {
+       updatePoliciesAsync(namespaceName, policies -> {
            oldVal.set(policies.properties.remove(key));
            return policies;
        }).thenAccept(v -> {
@@ -2658,9 +2611,8 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalClearProperties(AsyncResponse asyncResponse) {
        validatePoliciesReadOnlyAccess();
-       final String path = path(POLICIES, namespaceName.toString());
        AtomicReference<Integer> clearedCount = new AtomicReference<>(0);
-       updatePoliciesAsync(path, (policies) -> {
+       updatePoliciesAsync(namespaceName, policies -> {
            clearedCount.set(policies.properties.size());
            policies.properties.clear();
            return policies;
@@ -2677,11 +2629,11 @@ public abstract class NamespacesBase extends AdminResource {
        });
    }
 
-   private CompletableFuture<Void> updatePoliciesAsync(String path, Function<Policies, Policies> updateFunction) {
+   private CompletableFuture<Void> updatePoliciesAsync(NamespaceName ns, Function<Policies, Policies> updateFunction) {
        CompletableFuture<Void> result = new CompletableFuture<>();
-       namespaceResources().setAsync(path, updateFunction)
+       namespaceResources().setPoliciesAsync(ns, updateFunction)
            .thenAccept(v -> {
-               log.info("[{}] Successfully updated the {} on namespace {}", clientAppId(), path, namespaceName);
+               log.info("[{}] Successfully updated the policies on namespace {}", clientAppId(), namespaceName);
                result.complete(null);
            })
            .exceptionally(ex -> {
@@ -2701,10 +2653,10 @@ public abstract class NamespacesBase extends AdminResource {
        return result;
    }
 
-   private void updatePolicies(String path, Function<Policies, Policies> updateFunction) {
+   private void updatePolicies(NamespaceName ns, Function<Policies, Policies> updateFunction) {
        // Force to read the data s.t. the watch to the cache content is setup.
        try {
-           updatePoliciesAsync(path, updateFunction).get(namespaceResources().getOperationTimeoutSec(),
+           updatePoliciesAsync(ns, updateFunction).get(namespaceResources().getOperationTimeoutSec(),
                    TimeUnit.SECONDS);
        } catch (Exception e) {
            Throwable cause = e.getCause();
@@ -2721,10 +2673,9 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         if (rgName != null) {
-            final String resourceGroupPath = AdminResource.path(RESOURCEGROUPS, rgName);
             // check resourcegroup exists.
             try {
-                if (!resourceGroupResources().exists(resourceGroupPath)) {
+                if (!resourceGroupResources().resourceGroupExists(rgName)) {
                     throw new RestException(Status.PRECONDITION_FAILED, "ResourceGroup does not exist");
                 }
             } catch (Exception e) {

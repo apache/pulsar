@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
@@ -370,7 +371,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 registeredTenants.add(tenantRG);
             }
             if (!registeredNamespaces.contains(namespaceRG)) {
-                this.rgservice.registerNameSpace(namespaceRG, tenantAndNamespace);
+                this.rgservice.registerNameSpace(namespaceRG, NamespaceName.get(tenantAndNamespace));
                 registeredNamespaces.add(namespaceRG);
             }
         }
@@ -390,7 +391,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 registeredTenants.remove(tenantRG);
             }
             if (registeredNamespaces.contains(namespaceRG)) {
-                this.rgservice.unRegisterNameSpace(namespaceRG, tenantAndNamespace);
+                this.rgservice.unRegisterNameSpace(namespaceRG, NamespaceName.get(tenantAndNamespace));
                 registeredNamespaces.remove(namespaceRG);
             }
         }

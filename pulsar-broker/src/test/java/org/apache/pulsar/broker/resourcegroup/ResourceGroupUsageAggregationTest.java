@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
@@ -130,7 +131,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         final String tenantString = myTopic.getTenant();
         final String nsString = myTopic.getNamespace();
         rgs.registerTenant(rgName, tenantString);
-        rgs.registerNameSpace(rgName, nsString);
+        rgs.registerNameSpace(rgName, NamespaceName.get(nsString));
 
         final int NumMessagesToSend = 10;
         int sentNumBytes = 0;
@@ -174,7 +175,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         consumer.close();
 
         rgs.unRegisterTenant(rgName, tenantString);
-        rgs.unRegisterNameSpace(rgName, nsString);
+        rgs.unRegisterNameSpace(rgName, NamespaceName.get(nsString));
         rgs.resourceGroupDelete(rgName);
     }
 

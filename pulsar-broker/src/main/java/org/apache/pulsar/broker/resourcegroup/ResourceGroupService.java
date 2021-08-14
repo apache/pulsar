@@ -236,15 +236,7 @@ public class ResourceGroupService {
      * @param fqNamespaceName (i.e., in "tenant/Namespace" format)
      * @throws if the RG does not exist, or if the NS already references the RG.
      */
-    public void registerNameSpace(String resourceGroupName, String fqNamespaceName) throws PulsarAdminException {
-        // Check that it is a fully qualified NS (i.e., expect a '/' in it).
-        try {
-            val checkFqName = NamespaceName.get(fqNamespaceName);
-        } catch (RuntimeException rte) {
-            String errMesg = "Unexpected format found in fully-qualified namespace " + fqNamespaceName;
-            throw new PulsarAdminException(errMesg);
-        }
-
+    public void registerNameSpace(String resourceGroupName, NamespaceName fqNamespaceName) throws PulsarAdminException {
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
         // Check that the NS-name doesn't already have a RG association.
@@ -255,8 +247,8 @@ public class ResourceGroupService {
             throw new PulsarAdminException(errMesg);
         }
 
-        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName, ResourceGroupRefTypes.Namespaces, true,
-                                                        this.resourceUsageTransportManagerMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName.toString(), ResourceGroupRefTypes.Namespaces,
+                true, this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
             String errMesg = String.format("Namespace {} already references the target resource group {}",
                     fqNamespaceName, resourceGroupName);
@@ -275,19 +267,12 @@ public class ResourceGroupService {
      * @param fqNamespaceName i.e., in "tenant/Namespace" format)
      * @throws if the RG does not exist, or if the NS does not references the RG yet.
      */
-    public void unRegisterNameSpace(String resourceGroupName, String fqNamespaceName) throws PulsarAdminException {
-        // Check that it is a fully qualified NS (i.e., expect a '/' in it).
-        try {
-            val checkFqName = NamespaceName.get(fqNamespaceName);
-        } catch (RuntimeException rte) {
-            String errMesg = "Unexpected format found in fully-qualified namespace " + fqNamespaceName;
-            throw new PulsarAdminException(errMesg);
-        }
-
+    public void unRegisterNameSpace(String resourceGroupName, NamespaceName fqNamespaceName)
+            throws PulsarAdminException {
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
-        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName, ResourceGroupRefTypes.Namespaces, false,
-                                                        this.resourceUsageTransportManagerMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName.toString(), ResourceGroupRefTypes.Namespaces,
+                false, this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
             String errMesg = String.format("Namespace {} does not yet reference resource group {}",
                     fqNamespaceName, resourceGroupName);
@@ -305,7 +290,7 @@ public class ResourceGroupService {
      * @param namespaceName
      * @throws if the RG does not exist, or if the NS already references the RG.
      */
-    public ResourceGroup getNamespaceResourceGroup(String namespaceName) {
+    public ResourceGroup getNamespaceResourceGroup(NamespaceName namespaceName) {
         return this.namespaceToRGsMap.get(namespaceName);
     }
 
@@ -705,7 +690,7 @@ public class ResourceGroupService {
     private ConcurrentHashMap<String, ResourceGroup> tenantToRGsMap = new ConcurrentHashMap<>();
 
     // Given a qualified NS-name (i.e., in "tenant/namespace" format), record its associated resource-group
-    private ConcurrentHashMap<String, ResourceGroup> namespaceToRGsMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<NamespaceName, ResourceGroup> namespaceToRGsMap = new ConcurrentHashMap<>();
 
     // Maps to maintain the usage per topic, in produce/consume directions.
     private ConcurrentHashMap<String, BytesAndMessagesCount> topicProduceStats = new ConcurrentHashMap<>();

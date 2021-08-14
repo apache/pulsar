@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
@@ -36,13 +37,24 @@ public class TopicResources {
         this.store = store;
     }
 
+    public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
+        String path = "/managed-ledgers/" + ns + "/persistent";
+
+        return store.getChildren(path).thenApply(children ->
+                children.stream().map(c -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(c)).toString())
+                        .collect(Collectors.toList())
+        );
+    }
+
     public CompletableFuture<List<String>> getExistingPartitions(TopicName topic) {
-        String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + topic.getNamespace() + "/"
-                + topic.getDomain();
+        return getExistingPartitions(topic.getNamespaceObject(), topic.getDomain());
+    }
+
+    public CompletableFuture<List<String>> getExistingPartitions(NamespaceName ns, TopicDomain domain) {
+        String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + ns + "/" + domain;
         return store.getChildren(topicPartitionPath).thenApply(topics ->
                 topics.stream()
-                        .map(s -> String.format("%s://%s/%s",
-                                topic.getDomain().value(), topic.getNamespace(), decode(s)))
+                        .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
                         .collect(Collectors.toList())
         );
     }
@@ -62,7 +74,7 @@ public class TopicResources {
         return store.delete(path, Optional.empty());
     }
 
-    public CompletableFuture<Void> clearTennantPersistence(String tenant) {
+    public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
         return store.delete(path, Optional.empty());
     }

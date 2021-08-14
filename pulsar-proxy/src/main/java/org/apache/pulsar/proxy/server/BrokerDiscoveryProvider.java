@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.bookkeeper.common.util.MathUtils.signSafeMod;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -100,9 +99,8 @@ public class BrokerDiscoveryProvider implements Closeable {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             checkAuthorization(service, topicName, role, authenticationData);
-            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
-                    topicName.getNamespaceObject().toString(), "persistent", topicName.getEncodedLocalName());
-            pulsarResources.getNamespaceResources().getPartitionedTopicResources().getAsync(path)
+            pulsarResources.getNamespaceResources().getPartitionedTopicResources()
+                    .getPartitionedTopicMetadataAsync(topicName)
                     .thenAccept(metadata -> {
                         // if the partitioned topic is not found in zk, then the topic
                         // is not partitioned
@@ -152,13 +150,6 @@ public class BrokerDiscoveryProvider implements Closeable {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Successfully authorized {} on property {}", role, topicName.getTenant());
         }
-    }
-
-    public static String path(String... parts) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("/admin/");
-        Joiner.on('/').appendTo(sb, parts);
-        return sb.toString();
     }
 
     @Override
