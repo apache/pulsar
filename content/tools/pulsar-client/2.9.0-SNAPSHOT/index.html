@@ -32,9 +32,9 @@
 </thead>
 <tbody>
 <tr>
-<td><code>-ekn, --encryption-key-name</code></td>
-<td>The public key name to encrypt payload</td>
-<td>null</td>
+<td><code>-ks, --key-schema</code></td>
+<td>Schema type (can be bytes,avro,json,string...)</td>
+<td>string</td>
 </tr>
 <tr>
 <td><code>-m, --messages</code></td>
@@ -57,9 +57,24 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>-c, --chunking</code></td>
+<td>Should split the message and publish in chunks if message size is larger than allowed max size</td>
+<td>false</td>
+</tr>
+<tr>
+<td><code>-ekn, --encryption-key-name</code></td>
+<td>The public key name to encrypt payload</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>-p, --properties</code></td>
 <td>Properties to add, Comma separated key=value string, like k1=v1,k2=v2.</td>
 <td>[]</td>
+</tr>
+<tr>
+<td><code>-kvet, --key-value-encoding-type</code></td>
+<td>Key Value Encoding Type (it can be separated or inline)</td>
+<td>null</td>
 </tr>
 <tr>
 <td><code>-ekv, --encryption-key-value</code></td>
@@ -72,9 +87,9 @@
 <td>[]</td>
 </tr>
 <tr>
-<td><code>-c, --chunking</code></td>
-<td>Should split the message and publish in chunks if message size is larger than allowed max size</td>
-<td>false</td>
+<td><code>-vs, --value-schema</code></td>
+<td>Schema type (can be bytes,avro,json,string...)</td>
+<td>bytes</td>
 </tr>
 <tr>
 <td><code>-r, --rate</code></td>
