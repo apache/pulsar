@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import static java.lang.Float.max;
 import static java.lang.Math.abs;
+import lombok.val;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +40,7 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         if (confUsage < 0) {
             // This can happen if the RG is not configured with this particular limit (message or byte count) yet.
             // It is safe to return a high value (so we don't limit) for the quota.
-            log.debug("Configured usage (%d) is not set; returning a high calculated quota", confUsage);
+            log.debug("Configured usage {} is not set; returning a high calculated quota", confUsage);
             return Long.MAX_VALUE;
         }
 
@@ -48,6 +49,13 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
                     myUsage, totalUsage);
             log.error(errMesg);
             throw new PulsarAdminException(errMesg);
+        }
+
+        if (myUsage > totalUsage) {
+            String errMesg = String.format("Local usage (%d) is greater than total usage (%d)",
+                    myUsage, totalUsage);
+            // Log as a warning [in case this can happen transiently (?)].
+            log.warn(errMesg);
         }
 
         // How much unused capacity is left over?
@@ -60,7 +68,11 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         float myUsageFraction = (float) myUsage / totalUsage;
         float calculatedQuota = max(myUsage + residual * myUsageFraction, 0);
 
-        return (long) calculatedQuota;
+        val longCalculatedQuota = (long) calculatedQuota;
+        log.info("computeLocalQuota: myUsage={}, totalUsage={}, myFraction={}; newQuota returned={} [long: {}]",
+                myUsage, totalUsage, myUsageFraction, calculatedQuota, longCalculatedQuota);
+
+        return longCalculatedQuota;
     }
 
     @Override
