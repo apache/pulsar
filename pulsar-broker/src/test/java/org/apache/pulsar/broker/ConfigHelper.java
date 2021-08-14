@@ -39,7 +39,7 @@ public class ConfigHelper {
 
     public static BacklogQuota sizeBacklogQuota(ServiceConfiguration configuration) {
         return BacklogQuota.builder()
-                .limitSize(configuration.getBacklogQuotaDefaultLimitGB() * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                .limitSize((long) configuration.getBacklogQuotaDefaultLimitGB() * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
                 .retentionPolicy(configuration.getBacklogQuotaDefaultRetentionPolicy())
                 .build();
     }
