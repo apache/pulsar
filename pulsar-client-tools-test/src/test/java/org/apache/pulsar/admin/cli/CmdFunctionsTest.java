@@ -93,6 +93,7 @@ public class CmdFunctionsTest {
     private static final String PACKAGE_URL = "function://sample/ns1/jardummyexamples@1";
     private static final String PACKAGE_GO_URL = "function://sample/ns1/godummyexamples@1";
     private static final String PACKAGE_PY_URL = "function://sample/ns1/pydummyexamples@1";
+    private static final String PACKAGE_INVALID_URL = "functionsample.jar";
 
     private PulsarAdmin admin;
     private Functions functions;
@@ -421,6 +422,27 @@ public class CmdFunctionsTest {
         CreateFunction creater = cmd.getCreater();
 
         assertEquals("test-py-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithInvalidPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", PACKAGE_INVALID_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(FN_NAME, creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
