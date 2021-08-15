@@ -80,7 +80,7 @@
 <li><p>一个生产者将一批消息发送到多个主题，其中一批中的所有消息最终对任何消费者都可见，或者消费者永远不可见。</p></li>
 <li><p>端到端恰好一次语义（只执行一次 <code>consume-process-produce</code> 操作）。</p></li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="事物语义"></a><a href="#事物语义" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事物语义</h2>
+<h2><a class="anchor" aria-hidden="true" id="事务语义"></a><a href="#事务语义" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事务语义</h2>
 <p>Pulsar事务具有以下语义：</p>
 <ul>
 <li><p>事务中的所有操作都作为一个单元提交。</p>
@@ -89,31 +89,31 @@
 <li><p>每条消息只写入或处理一次，不会丢失数据或重复（即使发生故障）。</p></li>
 <li><p>If a transaction is aborted, all the writes and acknowledgments in this transaction rollback.</p></li>
 </ul></li>
-<li><p>事务中的一组消息可以从多个分区接收、生成和确认。</p>
+<li><p>事务中的批量消息可以被以多分区接收、生产和确认。</p>
 <ul>
 <li><p>消费者只能读取已提交（确认）的消息。 换句话说，代理不传递属于打开事务的事务消息或属于中止事务的消息。</p></li>
-<li><p>跨多个分区的消息写入是原子的。</p></li>
-<li><p>跨多个订阅的消息确认是原子的。 订阅下的消费者在确认带有事务ID的消息时，只会成功确认一次消息。</p></li>
+<li><p>跨多个分区的消息写入是原子性的。</p></li>
+<li><p>跨多个订阅的消息确认是原子性的。 订阅下的消费者在确认带有事务ID的消息时，只会成功确认一次消息。</p></li>
 </ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="事务和流处理"></a><a href="#事务和流处理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事务和流处理</h2>
 <p>Pulsar 上的流处理是对 Pulsar 主题的 <code>consume-process-produce</code> 操作：</p>
 <ul>
-<li><p><code>Consume</code>：运行Pulsar消费者的源操作符从一个或多个Pulsar主题读取消息。</p></li>
-<li><p><code>Process</code>：处理操作符转换消息。</p></li>
-<li><p><code>Produce</code>：运行Pulsar生产者的接收器操作符将结果消息写入一个或多个Pulsar主题。</p></li>
+<li><p><code>Consume</code>：运行Pulsar消费者的源算子（a source operator），从一个或多个Pulsar主题读取消息。</p></li>
+<li><p><code>Process</code>：处理算子（a processing operator），用于转换消息。</p></li>
+<li><p><code>Produce</code>：运行Pulsar生产者的接收算子（a sink operator），将结果消息写入一个或多个Pulsar主题。</p></li>
 </ul>
 <p><img src="/docs/assets/txn-2.png" alt=""></p>
-<p>Pulsar事务支持端到端的一次性流处理，这意味着消息不会从源操作符丢失，并且消息不会复制到接收器操作符。</p>
+<p>Pulsar事务支持端到端的恰好一次流处理，这意味着消息不会从源算子（source operator）丢失，并且消息不会重复发给接收算子（sink operator）。</p>
 <h2><a class="anchor" aria-hidden="true" id="使用场景"></a><a href="#使用场景" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用场景</h2>
-<p>在Pulsar 2.8.0之前，没有简单的方法可以使用Pulsar构建流处理应用程序来实现一次性处理保证。 随着Pulsar 2.8.0中引入的事务，以下服务支持仅一次语义：</p>
+<p>在Pulsar 2.8.0之前，没有简单的方法可以使用Pulsar构建流处理应用程序来实现恰好一次性处理保证。 随着Pulsar 2.8.0中引入的事务，以下服务支持恰好一次语义：</p>
 <ul>
 <li><p><a href="https://flink.apache.org/2021/01/07/pulsar-flink-connector-270.html">Pulsar Flink连接器</a></p>
-<p>在Pulsar2.8.0之前，如果要使用Pulsar和Flink构建流应用，Pulsar Flink连接器仅支持恰好一次源连接器和至少一次接收器连接器，这意味着端到端的最高处理保证至少一次，来自流应用程序的结果消息可能会产生重复的消息到Pulsar topic。</p>
+<p>在Pulsar2.8.0之前，如果要使用Pulsar和Flink构建流应用，Pulsar Flink连接器仅支持恰好一次源连接器（source connector）和至少一次接收器连接器（sink connector），这意味着端到端的最高处理保证至少一次，来自流应用程序的结果消息可能会产生重复的消息到Pulsar topic</p>
 <p>随着Pulsar 2.8.0中引入的事务，Pulsar Flink接收器连接器可以通过实现指定的 <code>TwoPhaseCommitSinkFunction</code> 并使用Pulsar事务 API 连接 Flink 接收器消息生命周期来支持恰好一次语义。</p></li>
-<li><p>未来版本中将添加对Pulsar Function和其他连接器的支持。</p></li>
+<li><p>未来版本中将添加对Pulsar Functions和其他连接器的支持。</p></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/txn-why"><span class="arrow-prev">← </span><span>为什么需要事务？</span></a><a class="docs-next button" href="/docs/zh-CN/txn-how"><span>事务运行原理</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#事物语义">事物语义</a></li><li><a href="#事务和流处理">事务和流处理</a></li><li><a href="#使用场景">使用场景</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/txn-why"><span class="arrow-prev">← </span><span>为什么需要事务？</span></a><a class="docs-next button" href="/docs/zh-CN/txn-how"><span>事务运行原理</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#事务语义">事务语义</a></li><li><a href="#事务和流处理">事务和流处理</a></li><li><a href="#使用场景">使用场景</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

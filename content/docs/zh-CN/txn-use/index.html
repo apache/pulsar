@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to use transactions? · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## 事物API"/><meta name="docsearch:version" content="2.8.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="How to use transactions? · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="## 事物API"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to use transactions? · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## 事务API"/><meta name="docsearch:version" content="2.8.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="How to use transactions? · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="## 事务API"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,15 +74,15 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to use transactions?</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="事物api"></a><a href="#事物api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事物API</h2>
-<p>事务功能主要是服务器端和协议级功能。 您可以通过 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/">事物API</a> 使用交易功能，该 API 在 ** 中可用 Pulsar 2.8.0 或更高版本**。</p>
-<p>要使用事务 API，您不需要在 Pulsar 客户端中进行任何额外设置。 <strong>默认</strong>事务是被<strong>禁用的</strong>。</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">How to use transactions?</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="事务api"></a><a href="#事务api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>事务API</h2>
+<p>事务功能主要是服务器端和协议级功能。 您可以通过 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/">事务API</a> 使用事务功能，该 API 在 ** Pulsar 2.8.0 或更高版本**中可用。</p>
+<p>要使用事务 API，您不需要在 Pulsar 客户端中进行任何额外设置。 <strong>默认情况下</strong>，事务是被<strong>禁用的</strong>。</p>
 <p>目前，事务API仅适用于 <strong>Java</strong>客户端。 未来版本中将添加对其他语言客户端的支持。</p>
 <h2><a class="anchor" aria-hidden="true" id="快速开始"></a><a href="#快速开始" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>快速开始</h2>
 <p>本节提供了如何在Java客户端中使用事务API发送和接收消息的示例</p>
 <ol>
 <li><p>启动Pulsar 2.8.0或更高版本。</p></li>
-<li><p>开启事物</p>
+<li><p>开启事务。</p>
 <p>更改 <code>broker.conf</code> 文件中的配置。</p>
 <pre><code class="hljs"><span class="hljs-attr">transactionCoordinatorEnabled</span>=<span class="hljs-literal">true</span>
 </code></pre>
@@ -119,7 +119,7 @@
    </td>
   </tr>
   <tr>
-   <td>1. 开始一个事物
+   <td>1. 启动一个事务
    </td>
    <td>应用程序通过调用PulsarClient.newTransaction打开一个新事务。 它将事务超时指定为1分钟。 如果事务没有在1分钟内提交，事务将自动中止。
    </td>
@@ -127,7 +127,7 @@
   <tr>
    <td>2. 接收来自主题的消息
    </td>
-   <td>应用程序创建两个普通消费者，分别接收来自主题 input-topic-1 和 input-topic-2 的消息。<br><br>如果要在事务中启用批量消息确认，请在消费这构建器ConsumerBuilder中调用enableBatchIndexAcknowledgment(true)方法。 有关示例，请参阅此表下方的 [1]。
+   <td>应用程序创建两个普通消费者，分别接收来自主题 input-topic-1 和 input-topic-2 的消息。<br><br>如果要在事务中启用批量消息确认，请在消费者构建器（Consumer Builder）中调用enableBatchIndexAcknowledgment(true) 方法。 有关示例，请参阅此表下方的 [1]。
    </td>
   </tr>
   <tr>
@@ -143,7 +143,7 @@
    </td>
   </tr>
   <tr>
-   <td>5. 提交这个事物
+   <td>5. 提交该事务。
    </td>
    <td>应用程序通过对打开的事务调用Transaction.commit()来提交事务。 提交操作确保两个输入消息被标记为已确认，并且两个输出消息成功写入输出主题。 
    <br><br>提示：您也可以调用 Transaction.abort() 来中止打开的事务。
@@ -161,7 +161,7 @@
     <span class="hljs-string">.enableBatchIndexAcknowledgment</span><span class="hljs-params">(true)</span> <span class="hljs-string">//</span> enable <span class="hljs-keyword">batch</span> index acknowledgement
     <span class="hljs-string">.subscribe</span><span class="hljs-params">()</span>;
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/txn-how"><span class="arrow-prev">← </span><span>事务运行原理</span></a><a class="docs-next button" href="/docs/zh-CN/txn-monitor"><span>如何监控事务？</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#事物api">事物API</a></li><li><a href="#快速开始">快速开始</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/txn-how"><span class="arrow-prev">← </span><span>事务运行原理</span></a><a class="docs-next button" href="/docs/zh-CN/txn-monitor"><span>如何监控事务？</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#事务api">事务API</a></li><li><a href="#快速开始">快速开始</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
