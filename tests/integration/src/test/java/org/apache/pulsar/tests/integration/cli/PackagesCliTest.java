@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.cli;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
@@ -46,24 +45,19 @@ public class PackagesCliTest extends TestRetrySupport {
     public final void setup() throws Exception {
         incrementSetupNumber();
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
-            .brokerEnvs(getPackagesManagementServiceEnvs())
-            .build();
+                .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
+                .brokerEnvs(getPackagesManagementServiceEnvs())
+                .build();
         pulsarCluster = PulsarCluster.forSpec(spec);
-        setupFunctionWorkers();
         pulsarCluster.start();
     }
 
     @AfterClass(alwaysRun = true)
     public final void cleanup() {
-        try {
-            teardownFunctionWorkers();
-        } finally {
-            markCurrentSetupNumberCleaned();
-            if (pulsarCluster != null) {
-                pulsarCluster.stop();
-                pulsarCluster = null;
-            }
+        markCurrentSetupNumberCleaned();
+        if (pulsarCluster != null) {
+            pulsarCluster.stop();
+            pulsarCluster = null;
         }
     }
 
@@ -94,13 +88,13 @@ public class PackagesCliTest extends TestRetrySupport {
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";
         ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
-            "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
+                "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
         assertEquals(result.getExitCode(), 0);
 
         BrokerContainer container = pulsarCluster.getBroker(0);
         String downloadFile = "tmp-file-" + RandomStringUtils.randomAlphabetic(8);
         String[] downloadCmd = new String[]{PulsarCluster.ADMIN_SCRIPT, "packages", "download",
-            "--path", downloadFile, testPackageName};
+                "--path", downloadFile, testPackageName};
         result = container.execCmd(downloadCmd);
         assertEquals(result.getExitCode(), 0);
 
@@ -125,7 +119,7 @@ public class PackagesCliTest extends TestRetrySupport {
 
         String contact = "test@apache.org";
         result = runPackagesCommand("update-metadata", "--description", "a test package",
-            "--contact", contact, "-PpropertyA=A", testPackageName);
+                "--contact", contact, "-PpropertyA=A", testPackageName);
         assertEquals(result.getExitCode(), 0);
 
         result = runPackagesCommand("get-metadata", testPackageName);
@@ -143,60 +137,10 @@ public class PackagesCliTest extends TestRetrySupport {
         result.assertNoStdout();
     }
 
-    @Test(timeOut = 60000 * 5)
-    public void testCreateFunctionFromPackagesURLWithoutUploadingPackages() throws Exception {
-        ContainerExecResult result = runPackagesCommand("list", "--type", "function", "public/default");
-        assertEquals(result.getExitCode(), 0);
-
-        result = runPackagesCommand("list-versions", "function://public/default/nonexist");
-        assertEquals(result.getExitCode(), 0);
-
-        try {
-            result = runFunctionsCommand("create",
-                    "--jar", "function://public/default/nonexist@v1",
-                    "--inputs", "nonexist-input-topic",
-                    "--className", "org.DummyFunction");
-            fail("this command should be failed");
-        } catch (Exception e) {
-            // expected exception
-        }
-    }
-
-    @Test(timeOut = 60000 * 5)
-    public void testCreateFunctionFromPackagesURLWithUploadingPackages() throws Exception {
-        String testPackageName = "function://public/default/uploaded@v1";
-        ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",
-                "--path", PulsarCluster.ADMIN_SCRIPT, testPackageName);
-        assertEquals(result.getExitCode(), 0);
-
-        result = runFunctionsCommand("create",
-                "--jar", testPackageName,
-                "--inputs", "uploaded-input-topic",
-                "--className", "org.DummyFunction");
-        assertEquals(result.getExitCode(), 0);
-    }
-
     private ContainerExecResult runPackagesCommand(String... commands) throws Exception {
         String[] cmds = new String[commands.length + 1];
         cmds[0] = "packages";
         System.arraycopy(commands, 0, cmds, 1, commands.length);
         return pulsarCluster.runAdminCommandOnAnyBroker(cmds);
     }
-
-    private ContainerExecResult runFunctionsCommand(String... commands) throws Exception {
-        String[] cmds = new String[commands.length + 1];
-        cmds[0] = "functions";
-        System.arraycopy(commands, 0, cmds, 1, commands.length);
-        return pulsarCluster.runAdminCommandOnAnyBroker(cmds);
-    }
-
-    private void setupFunctionWorkers() {
-        final int numFunctionWorkers = 2;
-        pulsarCluster.setupFunctionWorkers("", FunctionRuntimeType.THREAD, numFunctionWorkers);
-    }
-
-    private void teardownFunctionWorkers() {
-        pulsarCluster.stopWorkers();
-    }
 }
-
