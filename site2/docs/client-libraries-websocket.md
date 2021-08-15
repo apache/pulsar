@@ -403,9 +403,15 @@ TOPIC = scheme + '://localhost:8080/ws/v2/producer/persistent/public/default/my-
 
 ws = websocket.create_connection(TOPIC)
 
+# encode message
+s = "Hello World"
+firstEncoded = s.encode("UTF-8")
+binaryEncoded = base64.b64encode(firstEncoded)
+payloadString = binaryEncoded.decode('UTF-8')
+
 # Send one message as JSON
 ws.send(json.dumps({
-    'payload' : base64.b64encode('Hello World'),
+    'payload' : payloadString,
     'properties': {
         'key1' : 'value1',
         'key2' : 'value2'
