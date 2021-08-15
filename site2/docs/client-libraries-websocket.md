@@ -421,9 +421,9 @@ ws.send(json.dumps({
 
 response =  json.loads(ws.recv())
 if response['result'] == 'ok':
-    print 'Message published successfully'
+    print( 'Message published successfully')
 else:
-    print 'Failed to publish message:', response
+    print('Failed to publish message:', response)
 ws.close()
 ```
 
@@ -448,7 +448,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
+    print( "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
@@ -476,7 +476,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
+    print ( "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
