@@ -114,9 +114,9 @@
 <p>It is easy to configure Kubernetes runtime. You can just uncomment the settings of <code>kubernetesContainerFactory</code> in the <code>functions_worker.yaml</code> file. The following is an example.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory</span>
 <span class="hljs-attr">functionRuntimeFactoryConfigs:</span>
-  <span class="hljs-comment"># uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker</span>
+  <span class="hljs-comment"># 访问 kubernetes 集群的 uri，为空的话将使用函数 worker 中的 kubernetes 相关配置。</span>
   <span class="hljs-attr">k8Uri:</span>
-  <span class="hljs-comment"># the kubernetes namespace to run the function instances. 如果为空，则为默认的命名空间'default'</span>
+  <span class="hljs-comment"># 运行函数实例的 kubernetes 命名空间。 如果为空，则为默认的命名空间'default'</span>
   <span class="hljs-attr">jobNamespace:</span>
   <span class="hljs-comment"># 运行函数的 docker 镜像 by default it is `apachepulsar/pulsar`</span>
   <span class="hljs-attr">pulsarDockerImageName:</span>
