@@ -1694,6 +1694,7 @@ class Client:
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                        lazy_start_partitioned_producers=False,
                         properties=None,
                         batching_type=BatchingType.Default,
                         encryption_key=None,
@@ -1748,6 +1749,17 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
           other option is `PartitionsRoutingMode.UseSinglePartition`
+        * `lazy_start_partitioned_producers`:
+          This config affects producers of partitioned topics only. It controls whether
+          producers register and connect immediately to the owner broker of each partition
+          or start lazily on demand. The internal producer of one partition is always
+          started eagerly, chosen by the routing policy, but the internal producers of
+          any additional partitions are started on demand, upon receiving their first
+          message.
+          Using this mode can reduce the strain on brokers for topics with large numbers of
+          partitions and when the SinglePartition routing policy is used without keyed messages.
+          Because producer connection can be on demand, this can produce extra send latency
+          for the first messages of a given partition.
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
@@ -1788,6 +1800,7 @@ class Client:
         _check_type(BatchingType, batching_type, 'batching_type')
         _check_type_or_none(str, encryption_key, 'encryption_key')
         _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
+        _check_type(bool, lazy_start_partitioned_producers, 'lazy_start_partitioned_producers')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -1801,6 +1814,7 @@ class Client:
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
         conf.batching_type(batching_type)
+        conf.lazy_start_partitioned_producers(lazy_start_partitioned_producers)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -3124,6 +3138,7 @@ producers and consumers.</p></div>
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                        lazy_start_partitioned_producers=False,
                         properties=None,
                         batching_type=BatchingType.Default,
                         encryption_key=None,
@@ -3178,6 +3193,17 @@ producers and consumers.</p></div>
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
           other option is `PartitionsRoutingMode.UseSinglePartition`
+        * `lazy_start_partitioned_producers`:
+          This config affects producers of partitioned topics only. It controls whether
+          producers register and connect immediately to the owner broker of each partition
+          or start lazily on demand. The internal producer of one partition is always
+          started eagerly, chosen by the routing policy, but the internal producers of
+          any additional partitions are started on demand, upon receiving their first
+          message.
+          Using this mode can reduce the strain on brokers for topics with large numbers of
+          partitions and when the SinglePartition routing policy is used without keyed messages.
+          Because producer connection can be on demand, this can produce extra send latency
+          for the first messages of a given partition.
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
@@ -3218,6 +3244,7 @@ producers and consumers.</p></div>
         _check_type(BatchingType, batching_type, 'batching_type')
         _check_type_or_none(str, encryption_key, 'encryption_key')
         _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
+        _check_type(bool, lazy_start_partitioned_producers, 'lazy_start_partitioned_producers')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -3231,6 +3258,7 @@ producers and consumers.</p></div>
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
         conf.batching_type(batching_type)
+        conf.lazy_start_partitioned_producers(lazy_start_partitioned_producers)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -3701,7 +3729,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fbe77707b90&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None, batching_type=_pulsar.BatchingType.Default, encryption_key=None, crypto_key_reader=None)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f89deaeab90&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, lazy_start_partitioned_producers=False, properties=None, batching_type=_pulsar.BatchingType.Default, encryption_key=None, crypto_key_reader=None)</p>
     </div>
     
 
@@ -3756,6 +3784,17 @@ producers and consumers.</p></div>
 <li><code>message_routing_mode</code>:
   Set the message routing mode for the partitioned producer. Default is <code>PartitionsRoutingMode.RoundRobinDistribution</code>,
   other option is <code>PartitionsRoutingMode.UseSinglePartition</code></li>
+<li><code>lazy_start_partitioned_producers</code>:
+  This config affects producers of partitioned topics only. It controls whether
+  producers register and connect immediately to the owner broker of each partition
+  or start lazily on demand. The internal producer of one partition is always
+  started eagerly, chosen by the routing policy, but the internal producers of
+  any additional partitions are started on demand, upon receiving their first
+  message.
+  Using this mode can reduce the strain on brokers for topics with large numbers of
+  partitions and when the SinglePartition routing policy is used without keyed messages.
+  Because producer connection can be on demand, this can produce extra send latency
+  for the first messages of a given partition.</li>
 <li><code>properties</code>:
   Sets the properties for the producer. The properties associated with a producer
   can be used for identify a producer at broker side.</li>
@@ -3803,6 +3842,7 @@ batched into single batch message:
                     batching_max_allowed_size_in_bytes=128*1024,
                     batching_max_publish_delay_ms=10,
                     message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                    lazy_start_partitioned_producers=False,
                     properties=None,
                     batching_type=BatchingType.Default,
                     encryption_key=None,
@@ -3853,6 +3893,17 @@ batched into single batch message:
     * `message_routing_mode`:
       Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
       other option is `PartitionsRoutingMode.UseSinglePartition`
+    * `lazy_start_partitioned_producers`:
+      This config affects producers of partitioned topics only. It controls whether
+      producers register and connect immediately to the owner broker of each partition
+      or start lazily on demand. The internal producer of one partition is always
+      started eagerly, chosen by the routing policy, but the internal producers of
+      any additional partitions are started on demand, upon receiving their first
+      message.
+      Using this mode can reduce the strain on brokers for topics with large numbers of
+      partitions and when the SinglePartition routing policy is used without keyed messages.
+      Because producer connection can be on demand, this can produce extra send latency
+      for the first messages of a given partition.
     * `properties`:
       Sets the properties for the producer. The properties associated with a producer
       can be used for identify a producer at broker side.
@@ -3892,6 +3943,7 @@ batched into single batch message:
     _check_type(BatchingType, batching_type, 'batching_type')
     _check_type_or_none(str, encryption_key, 'encryption_key')
     _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
+    _check_type(bool, lazy_start_partitioned_producers, 'lazy_start_partitioned_producers')
     conf = _pulsar.ProducerConfiguration()
     conf.send_timeout_millis(send_timeout_millis)
     conf.compression_type(compression_type)
@@ -3904,6 +3956,7 @@ batched into single batch message:
     conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
     conf.partitions_routing_mode(message_routing_mode)
     conf.batching_type(batching_type)
+    conf.lazy_start_partitioned_producers(lazy_start_partitioned_producers)
     if producer_name:
         conf.producer_name(producer_name)
     if initial_sequence_id:
@@ -3929,7 +3982,7 @@ batched into single batch message:
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_reader">
-    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fbe6fadc090&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
+    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f89d6ebe090&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
     </div>
     
 
@@ -4108,7 +4161,7 @@ instances directly on a particular partition.
             
   <div class="item">
     <div class="name def" id="pulsar.Client.subscribe">
-    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fbe6facef90&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest, crypto_key_reader=None, replicate_subscription_state_enabled=False)</p>
+    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f89d6eaff90&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest, crypto_key_reader=None, replicate_subscription_state_enabled=False)</p>
     </div>
     
 

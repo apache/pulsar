@@ -39,6 +39,7 @@ var searchData=
   ['setkey',['setKey',['../classpulsar_1_1_encryption_key_info.html#a243fb74066b5d6c7153660a4a5cd3290',1,'pulsar::EncryptionKeyInfo']]],
   ['setkeysharedmode',['setKeySharedMode',['../classpulsar_1_1_key_shared_policy.html#ab7779b7a5af8ca4267044f3590c4d60d',1,'pulsar::KeySharedPolicy']]],
   ['setkeysharedpolicy',['setKeySharedPolicy',['../classpulsar_1_1_consumer_configuration.html#a772dc1c4f223fc753ecfa50cc6a42d3f',1,'pulsar::ConsumerConfiguration']]],
+  ['setlazystartpartitionedproducers',['setLazyStartPartitionedProducers',['../classpulsar_1_1_producer_configuration.html#ad661daaf2e6c16eb9b9fbc42779ca5d2',1,'pulsar::ProducerConfiguration']]],
   ['setlistenername',['setListenerName',['../classpulsar_1_1_client_configuration.html#a2b77a5eb371640f243524a0eed71bc08',1,'pulsar::ClientConfiguration']]],
   ['setlogconffilepath',['setLogConfFilePath',['../classpulsar_1_1_client_configuration.html#afffc25fc6be9f26221a206c49154b4cf',1,'pulsar::ClientConfiguration']]],
   ['setlogger',['setLogger',['../classpulsar_1_1_client_configuration.html#a659d381af7aa84fc90189e3d728cf7e0',1,'pulsar::ClientConfiguration']]],

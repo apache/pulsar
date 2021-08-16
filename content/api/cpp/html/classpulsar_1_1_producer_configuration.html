@@ -165,6 +165,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a2c09224f38f05f3ec59abbe6e3325c5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad5222b12e277b8d7ddeed38c83798804"><td class="memItemLeft" align="right" valign="top">HashingScheme&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#ad5222b12e277b8d7ddeed38c83798804">getHashingScheme</a> () const </td></tr>
 <tr class="separator:ad5222b12e277b8d7ddeed38c83798804"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad661daaf2e6c16eb9b9fbc42779ca5d2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#ad661daaf2e6c16eb9b9fbc42779ca5d2">setLazyStartPartitionedProducers</a> (bool)</td></tr>
+<tr class="separator:ad661daaf2e6c16eb9b9fbc42779ca5d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0979f5ce5bba98eb2c859dd8f5209966"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a0979f5ce5bba98eb2c859dd8f5209966">getLazyStartPartitionedProducers</a> () const </td></tr>
+<tr class="separator:a0979f5ce5bba98eb2c859dd8f5209966"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a953666b06aa2ca889b6c961530602b62"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a953666b06aa2ca889b6c961530602b62">setBlockIfQueueFull</a> (bool)</td></tr>
 <tr class="separator:a953666b06aa2ca889b6c961530602b62"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a64ad8c3d8de82ab1c518d37038d9e938"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a64ad8c3d8de82ab1c518d37038d9e938">getBlockIfQueueFull</a> () const </td></tr>
@@ -460,6 +464,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <p>The getter associated with <a class="el" href="classpulsar_1_1_producer_configuration.html#af59f65213ee86b004f928ef2469d06e8">setInitialSequenceId()</a>. </p>
+
+</div>
+</div>
+<a class="anchor" id="a0979f5ce5bba98eb2c859dd8f5209966"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool pulsar::ProducerConfiguration::getLazyStartPartitionedProducers </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>The getter associated with <a class="el" href="classpulsar_1_1_producer_configuration.html#ad661daaf2e6c16eb9b9fbc42779ca5d2">setLazyStartPartitionedProducers()</a> </p>
 
 </div>
 </div>
@@ -917,6 +937,29 @@ false if the property is not defined </dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">initialSequenceId</td><td>the initial sequence ID for the producer. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd></dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="ad661daaf2e6c16eb9b9fbc42779ca5d2"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a>&amp; pulsar::ProducerConfiguration::setLazyStartPartitionedProducers </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>This config affects producers of partitioned topics only. It controls whether producers register and connect immediately to the owner broker of each partition or start lazily on demand. The internal producer of one partition is always started eagerly, chosen by the routing policy, but the internal producers of any additional partitions are started on demand, upon receiving their first message. Using this mode can reduce the strain on brokers for topics with large numbers of partitions and when the SinglePartition routing policy is used without keyed messages. Because producer connection can be on demand, this can produce extra send latency for the first messages of a given partition. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">true/false</td><td>as to whether to start partition producers lazily </td></tr>
   </table>
   </dd>
 </dl>
