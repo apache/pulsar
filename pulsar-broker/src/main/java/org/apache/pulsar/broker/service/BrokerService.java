@@ -1250,11 +1250,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> preCreateSubForCompaction =
-                                        CompletableFuture.completedFuture(null);
-                                if (persistentTopic instanceof SystemTopic) {
-                                    preCreateSubForCompaction = ((SystemTopic) persistentTopic)
-                                            .preCreateSubForCompactionIfNeeded();
-                                }
+                                        persistentTopic.preCreateSubscriptionForCompactionIfNeeded();
                                 CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
                                 FutureUtil.waitForAll(Lists.newArrayList(preCreateSubForCompaction, replicationFuture))
                                 .thenCompose(v -> {
