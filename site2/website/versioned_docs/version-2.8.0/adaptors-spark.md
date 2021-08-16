@@ -6,7 +6,7 @@ original_id: adaptors-spark
 ---
 
 ## Spark structured streaming connector
-Pulsar Spark Connector is an integration of Apache Pulsar and Apache Spark (data processing engine), which allows Spark reading data from Pulsar and writing data to Pulsar using Spark structured streaming and Spark SQL and provides exactly-once source semantics and at-least-once sink semantics. For details, refer to [Pulsar Spark Connector in StreamNative Hub](https://hub.streamnative.io/).
+Pulsar Spark Connector is an integration of Apache Pulsar and Apache Spark (data processing engine), which allows Spark reading data from Pulsar and writing data to Pulsar using Spark structured streaming and Spark SQL and provides exactly-once source semantics and at-least-once sink semantics. 
 
 ## Spark streaming connector
 The Spark Streaming receiver for Pulsar is a custom receiver that enables Apache [Spark Streaming](https://spark.apache.org/streaming/) to receive data from Pulsar.

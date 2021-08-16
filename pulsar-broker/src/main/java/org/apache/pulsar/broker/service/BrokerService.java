@@ -1233,15 +1233,13 @@ public class BrokerService implements Closeable {
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> preCreateSubForCompaction =
-                                        CompletableFuture.completedFuture(null);
-                                if (persistentTopic instanceof SystemTopic) {
-                                    preCreateSubForCompaction = ((SystemTopic) persistentTopic)
-                                            .preCreateSubForCompactionIfNeeded();
-                                }
+                                        persistentTopic.preCreateSubscriptionForCompactionIfNeeded();
                                 CompletableFuture<Void> replicationFuture = persistentTopic
                                         .initialize()
                                         .thenCompose(__ -> persistentTopic.checkReplication());
-                                FutureUtil.waitForAll(Lists.newArrayList(preCreateSubForCompaction, replicationFuture))
+
+
+                                CompletableFuture.allOf(preCreateSubForCompaction, replicationFuture)
                                 .thenCompose(v -> {
                                     // Also check dedup status
                                     return persistentTopic.checkDeduplicationStatus();

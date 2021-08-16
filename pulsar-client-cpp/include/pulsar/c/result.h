@@ -53,14 +53,15 @@ typedef enum {
 
     pulsar_result_ConsumerNotInitialized,         /// Consumer is not initialized
     pulsar_result_ProducerNotInitialized,         /// Producer is not initialized
+    pulsar_result_ProducerBusy,                   /// Producer with same name is already connected
     pulsar_result_TooManyLookupRequestException,  /// Too Many concurrent LookupRequest
 
     pulsar_result_InvalidTopicName,  /// Invalid topic name
     pulsar_result_InvalidUrl,        /// Client Initialized with Invalid Broker Url (VIP Url passed to Client
                                      /// Constructor)
     pulsar_result_ServiceUnitNotReady,  /// Service Unit unloaded between client did lookup and
-                                        /// producer/consumer got created
-
+                                        /// producer/consumer got
+    /// created
     pulsar_result_OperationNotSupported,
     pulsar_result_ProducerBlockedQuotaExceededError,      /// Producer is blocked
     pulsar_result_ProducerBlockedQuotaExceededException,  /// Producer is getting exception
@@ -72,7 +73,23 @@ typedef enum {
     pulsar_result_UnsupportedVersionError,  /// Error when an older client/version doesn't support a required
                                             /// feature
     pulsar_result_TopicTerminated,          /// Topic was already terminated
-    pulsar_result_CryptoError               /// Error when crypto operation fails
+    pulsar_result_CryptoError,              /// Error when crypto operation fails
+
+    pulsar_result_IncompatibleSchema,   /// Specified schema is incompatible with the topic's schema
+    pulsar_result_ConsumerAssignError,  /// Error when a new consumer connected but can't assign messages to
+                                        /// this
+    /// consumer
+    pulsar_result_CumulativeAcknowledgementNotAllowedError,  /// Not allowed to call cumulativeAcknowledgement
+                                                             /// in
+    /// Shared and Key_Shared subscription mode
+    pulsar_result_TransactionCoordinatorNotFoundError,  /// Transaction coordinator not found
+    pulsar_result_InvalidTxnStatusError,                /// Invalid txn status error
+    pulsar_result_NotAllowedError,                      /// Not allowed
+    pulsar_result_TransactionConflict,                  /// Transaction ack conflict
+    pulsar_result_TransactionNotFound,                  /// Transaction not found
+    pulsar_result_ProducerFenced,                       /// Producer was fenced by broker
+
+    pulsar_result_MemoryBufferIsFull  /// Client-wide memory limit has been reached
 } pulsar_result;
 
 // Return string representation of result code
