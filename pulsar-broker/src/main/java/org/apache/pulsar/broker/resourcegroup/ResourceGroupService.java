@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import java.util.Map;
@@ -130,9 +129,7 @@ public class ResourceGroupService {
      */
     public void resourceGroupUpdate(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
       throws PulsarAdminException {
-        try {
-            checkNotNull(rgConfig);
-        } catch (NullPointerException e) {
+        if (rgConfig == null) {
             throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroup config");
         }
 
@@ -392,9 +389,7 @@ public class ResourceGroupService {
      * Get the RG with the given name. For internal operations only.
      */
     private ResourceGroup getResourceGroupInternal(String resourceGroupName) {
-        try {
-            checkNotNull(resourceGroupName);
-        } catch (NullPointerException e) {
+        if (resourceGroupName == null) {
             throw new IllegalArgumentException("Invalid null resource group name: " + resourceGroupName);
         }
 
@@ -678,9 +673,7 @@ public class ResourceGroupService {
 
     private void checkRGCreateParams(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
       throws PulsarAdminException {
-        try {
-            checkNotNull(rgConfig);
-        } catch (NullPointerException e) {
+        if (rgConfig == null) {
             throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroup config");
         }
 
