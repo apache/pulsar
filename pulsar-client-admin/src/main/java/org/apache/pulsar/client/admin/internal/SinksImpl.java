@@ -89,7 +89,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<List<String>>() {}));
@@ -126,7 +126,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(SinkConfig.class));
@@ -164,7 +164,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(SinkStatus.class));
@@ -204,7 +204,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -584,7 +584,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(

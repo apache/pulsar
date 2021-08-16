@@ -89,7 +89,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<List<String>>() {}));
@@ -126,7 +126,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(SourceConfig.class));
@@ -164,7 +164,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(SourceStatus.class));
@@ -205,7 +205,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -588,7 +588,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(

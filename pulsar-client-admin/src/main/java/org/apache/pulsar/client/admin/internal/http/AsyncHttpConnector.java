@@ -205,6 +205,22 @@ public class AsyncHttpConnector implements Connector {
             } else {
                 ClientResponse jerseyResponse =
                         new ClientResponse(Status.fromStatusCode(response.getStatusCode()), jerseyRequest);
+                jerseyResponse.setStatusInfo(new javax.ws.rs.core.Response.StatusType() {
+                    @Override
+                    public int getStatusCode() {
+                        return response.getStatusCode();
+                    }
+
+                    @Override
+                    public Status.Family getFamily() {
+                        return Status.Family.familyOf(response.getStatusCode());
+                    }
+
+                    @Override
+                    public String getReasonPhrase() {
+                        return response.getStatusText();
+                    }
+                });
                 response.getHeaders().forEach(e -> jerseyResponse.header(e.getKey(), e.getValue()));
                 if (response.hasResponseBody()) {
                     jerseyResponse.setEntityStream(response.getResponseBodyAsStream());

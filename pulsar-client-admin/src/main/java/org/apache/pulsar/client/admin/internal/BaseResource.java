@@ -236,7 +236,7 @@ public abstract class BaseResource {
     }
 
     public PulsarAdminException getApiException(Response response) {
-        if (response.getStatusInfo().equals(Response.Status.OK)) {
+        if (response.getStatus() == Response.Status.OK.getStatusCode()) {
             return null;
         }
         try {
