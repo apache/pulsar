@@ -67,7 +67,7 @@ You can have different types of access modes on topics for producers.
 
 > **Note**
 >
-> Once an application creates a producer with `Exclusive` or `WaitForExclusive` access mode successfully, the instance of this application is guaranteed to be the **only writer** on the topic. Any other producers trying to produce messages on this topic will either get errors immediately or have to wait until they get the `Exclusive` access. 
+> Once an application creates a producer with `Exclusive` or `WaitForExclusive` access mode successfully, the instance of this application is guaranteed to be the **only writer** to the topic. Any other producers trying to produce messages on this topic will either get errors immediately or have to wait until they get the `Exclusive` access. 
 > 
 > For more information, see [PIP 68: Exclusive Producer](https://github.com/apache/pulsar/wiki/PIP-68:-Exclusive-Producer).
 
@@ -187,7 +187,7 @@ consumer.negativeAcknowledge(msg);
 
 ### Acknowledgement timeout
 
-If a message is not consumed successfully, and you want the broker to redeliver this message automatically, then you can adopt the unacknowledged message automatic redelivery mechanism. With this redelivery approach enabled, the client tracks the unacknowledged messages within the entire `acktimeout` time range, and sends a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
+If a message is not consumed successfully, and you want the broker to redeliver this message automatically, then you can enable automatic redelivery mechanism for  unacknowledged messages. With automatic redelivery enabled, the client tracks the unacknowledged messages within the entire `acktimeout` time range, and sends a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
 
 > **Note**  
 > If batching is enabled, all messages in one batch are redelivered to the consumer.
