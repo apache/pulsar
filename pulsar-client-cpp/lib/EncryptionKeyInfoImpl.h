@@ -20,6 +20,7 @@
 #define LIB_ENCRYPTIONKEYINFOIMPL_H_
 
 #include <map>
+#include <string>
 #include <pulsar/defines.h>
 
 namespace pulsar {

@@ -139,8 +139,7 @@ void PatternMultiTopicsConsumerImpl::onTopicsAdded(NamespaceTopicsPtr addedTopic
 void PatternMultiTopicsConsumerImpl::handleOneTopicAdded(const Result result, const std::string& topic,
                                                          std::shared_ptr<std::atomic<int>> topicsNeedCreate,
                                                          ResultCallback callback) {
-    int previous = topicsNeedCreate->fetch_sub(1);
-    assert(previous > 0);
+    (*topicsNeedCreate)--;
 
     if (result != ResultOk) {
         LOG_ERROR("Failed when subscribed to topic " << topic << "  Error - " << result);
@@ -166,8 +165,7 @@ void PatternMultiTopicsConsumerImpl::onTopicsRemoved(NamespaceTopicsPtr removedT
 
     std::shared_ptr<std::atomic<int>> topicsNeedUnsub = std::make_shared<std::atomic<int>>(topicsNumber);
     ResultCallback oneTopicUnsubscribedCallback = [this, topicsNeedUnsub, callback](Result result) {
-        int previous = topicsNeedUnsub->fetch_sub(1);
-        assert(previous > 0);
+        (*topicsNeedUnsub)--;
 
         if (result != ResultOk) {
             LOG_ERROR("Failed when unsubscribe to one topic.  Error - " << result);

@@ -38,9 +38,7 @@ BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, cons
 
 BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& lookupUrl,
                                                    const std::string& listenerName)
-    : serviceUrl_(lookupUrl),
-      listenerName_(listenerName),
-      cnxPool_(cnxPool) {}
+    : serviceUrl_(lookupUrl), listenerName_(listenerName), cnxPool_(cnxPool) {}
 
 /*
  * @param topicName topic name to get broker for

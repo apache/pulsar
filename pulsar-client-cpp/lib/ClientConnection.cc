@@ -175,7 +175,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       connectTimeoutTask_(std::make_shared<PeriodicTask>(executor_->getIOService(),
                                                          clientConfiguration.getConnectionTimeout())),
       outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-        consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
+      consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
       maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()) {
 
     LOG_INFO(cnxString_ << "Create ClientConnection, timeout=" << clientConfiguration.getConnectionTimeout());
