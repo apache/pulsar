@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -118,10 +117,8 @@ public class ResourceGroupService {
      * @throws if RG with that name does not exist.
      */
     public void resourceGroupUpdate(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
-        try {
-            checkNotNull(rgConfig);
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroupConfigInfo");
+        if (rgConfig == null) {
+            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroup config");
         }
         ResourceGroup rg = this.getResourceGroupInternal(rgConfig.getName());
         if (rg == null) {
@@ -331,9 +328,7 @@ public class ResourceGroupService {
      * Get the RG with the given name. For internal operations only.
      */
     private ResourceGroup getResourceGroupInternal(String resourceGroupName) {
-        try {
-            checkNotNull(resourceGroupName);
-        } catch (NullPointerException e) {
+        if (resourceGroupName == null) {
             throw new IllegalArgumentException("Invalid null resource group name: " + resourceGroupName);
         }
 
@@ -542,10 +537,8 @@ public class ResourceGroupService {
     }
 
     private void checkRGCreateParams(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
-        try {
-            checkNotNull(rgConfig);
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroupConfigInfo");
+        if (rgConfig == null) {
+            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroup config");
         }
 
         if (rgConfig.getName().isEmpty()) {
