@@ -37,8 +37,12 @@ public class Utils {
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
         return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(HTTP)
                 || functionPkgUrl.startsWith(FILE)
-                || Arrays.stream(PackageType.values()).anyMatch(type -> functionPkgUrl.startsWith(type.toString()))
-                && functionPkgUrl.contains("://"));
+                || hasPackageTypePrefix(functionPkgUrl));
+    }
+
+    public static boolean hasPackageTypePrefix(String destPkgUrl) {
+        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString())
+                && destPkgUrl.contains("://"));
     }
 
     public static void inferMissingFunctionName(FunctionConfig functionConfig) {
