@@ -72,7 +72,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             List<WorkerFunctionInstanceStats> metricsList =
@@ -111,7 +111,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -150,7 +150,7 @@ public class WorkerImpl extends BaseResource implements Worker {
 
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<List<WorkerInfo>>() {}));
@@ -187,7 +187,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<WorkerInfo>(){}));
@@ -224,7 +224,7 @@ public class WorkerImpl extends BaseResource implements Worker {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(new ClientErrorException(response));
                         } else {
                             future.complete(response.readEntity(

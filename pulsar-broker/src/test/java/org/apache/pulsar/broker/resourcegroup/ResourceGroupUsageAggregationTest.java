@@ -128,7 +128,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
         final TopicName myTopic = TopicName.get(topicString);
         final String tenantString = myTopic.getTenant();
-        final String nsString = myTopic.getNamespacePortion();
+        final String nsString = myTopic.getNamespace();
         rgs.registerTenant(rgName, tenantString);
         rgs.registerNameSpace(rgName, nsString);
 

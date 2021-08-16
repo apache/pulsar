@@ -396,8 +396,7 @@ public class PulsarWorkerService implements WorkerService {
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
 
         try {
-            log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(workerConfig));
+            log.info("Worker Configs: {}", new ObjectMapper().writeValueAsString(workerConfig));
         } catch (JsonProcessingException e) {
             log.warn("Failed to print worker configs with error {}", e.getMessage(), e);
         }

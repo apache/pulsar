@@ -1389,6 +1389,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds). Default is 60 seconds")
     private int managedLedgerCursorPositionFlushSeconds = 60;
 
+    @FieldContext(minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "How frequently to refresh the stats. (seconds). Default is 60 seconds")
+    private int managedLedgerStatsPeriodSeconds = 60;
+
     //
     //
     @FieldContext(

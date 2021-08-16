@@ -69,20 +69,19 @@ void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
 
 UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, const ClientImplPtr client,
                                                            ConsumerImplBase& consumer)
-    : consumerReference_(consumer) {
-    UnAckedMessageTrackerEnabled(timeoutMs, timeoutMs, client, consumer);
-}
+    : UnAckedMessageTrackerEnabled(timeoutMs, timeoutMs, client, consumer) {}
 
 UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long tickDurationInMs,
                                                            const ClientImplPtr client,
                                                            ConsumerImplBase& consumer)
-    : consumerReference_(consumer) {
-    timeoutMs_ = timeoutMs;
-    tickDurationInMs_ = (timeoutMs >= tickDurationInMs) ? tickDurationInMs : timeoutMs;
-    client_ = client;
+    : consumerReference_(consumer),
+      client_(client),
+      timeoutMs_(timeoutMs),
+      tickDurationInMs_(timeoutMs >= tickDurationInMs ? tickDurationInMs : timeoutMs) {
+    const int blankPartitions =
+        static_cast<int>(std::ceil(static_cast<double>(timeoutMs_) / tickDurationInMs_)) + 1;
 
-    int blankPartitions = (int)std::ceil((double)timeoutMs_ / tickDurationInMs_);
-    for (int i = 0; i < blankPartitions + 1; i++) {
+    for (int i = 0; i < blankPartitions; i++) {
         std::set<MessageId> msgIds;
         timePartitions.push_back(msgIds);
     }

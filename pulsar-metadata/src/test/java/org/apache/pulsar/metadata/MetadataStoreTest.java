@@ -288,6 +288,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(store.getChildren(key1).join(), Collections.singletonList("xx"));
 
         store.delete(key1Child, Optional.empty()).join();
+
         n = notifications.poll(3, TimeUnit.SECONDS);
         assertNotNull(n);
         assertEquals(n.getType(), NotificationType.Deleted);
