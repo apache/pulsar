@@ -257,4 +257,18 @@
       </properties>
     </profile>
   </profiles>
+
+
+  <distributionManagement>
+    <repository>
+      <id>datastax-releases</id>
+      <name>DataStax Local Releases</name>
+      <url>https://repo.sjc.dsinternal.org/artifactory/datastax-releases-local/</url>
+    </repository>
+    <snapshotRepository>
+      <id>datastax-snapshots-local</id>
+      <name>DataStax Local Snapshots</name>
+      <url>https://repo.sjc.dsinternal.org/artifactory/datastax-snapshots-local/</url>
+    </snapshotRepository>
+  </distributionManagement>
 </project>
