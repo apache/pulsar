@@ -107,9 +107,9 @@
   <span class="hljs-attr">logDirectory:</span>
   <span class="hljs-comment"># 如果想把 java 实例的 jar 包放在其他位置执行，可以在这配置 jar 包存放位置</span>
   <span class="hljs-attr">javaInstanceJarLocation:</span>
-  <span class="hljs-comment"># change the python instance location only when you put the python instance jar in a different location</span>
+  <span class="hljs-comment"># 仅将 python 实例 jar 放在不同位置时才更改 python 实例位置</span>
   <span class="hljs-attr">pythonInstanceLocation:</span>
-  <span class="hljs-comment"># change the extra dependencies location:</span>
+  <span class="hljs-comment"># 更改额外的依赖项位置：</span>
   <span class="hljs-attr">extraFunctionDependenciesDir:</span>
 </code></pre>
 <p><em>Process</em> runtime is supported in Java, Python, and Go functions.</p>
@@ -175,20 +175,20 @@
   <span class="hljs-comment">#  cpu 请求的公式是 cpuRequest = userRequestCpu / cpuOverCommitRatio</span>
   <span class="hljs-attr">cpuOverCommitRatio:</span> <span class="hljs-number">1.0</span>
   <span class="hljs-comment"># 为 function/source/sink 设置的内存请求率和内存大小限制</span>
-  <span class="hljs-comment"># The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio</span>
+  <span class="hljs-comment"># 内存请求的公式是 memoryRequest = userRequestMemory / memoryOverCommitRatio</span>
   <span class="hljs-attr">memoryOverCommitRatio:</span> <span class="hljs-number">1.0</span>
-  <span class="hljs-comment"># The port inside the function pod which is used by the worker to communicate with the pod</span>
+  <span class="hljs-comment"># 函数 pod 内部的端口，worker 使用它与 pod 进行通信</span>
   <span class="hljs-attr">grpcPort:</span> <span class="hljs-number">9093</span>
-  <span class="hljs-comment"># The port inside the function pod on which prometheus metrics are exposed</span>
+  <span class="hljs-comment"># 函数 pod 内的端口，在其上暴露 prometheus 指标</span>
   <span class="hljs-attr">metricsPort:</span> <span class="hljs-number">9094</span>
-  <span class="hljs-comment"># The directory inside the function pod where nar packages will be extracted</span>
+  <span class="hljs-comment"># 函数 pod 中的 nar 包将被提取的目录</span>
   <span class="hljs-attr">narExtractionDirectory:</span>
-  <span class="hljs-comment"># The classpath where function instance files stored</span>
+  <span class="hljs-comment"># 存储函数实例文件的 classpath</span>
   <span class="hljs-attr">functionInstanceClassPath:</span>
-  <span class="hljs-comment"># the directory for dropping extra function dependencies</span>
-  <span class="hljs-comment"># if it is not an absolute path, it is relative to `pulsarRootDir`</span>
+  <span class="hljs-comment"># 用于删除额外的函数依赖项的目录</span>
+  <span class="hljs-comment"># 如果不是绝对路径，那就是相对于 `pulsarRootDir` 的路径</span>
   <span class="hljs-attr">extraFunctionDependenciesDir:</span>
-  <span class="hljs-comment"># Additional memory padding added on top of the memory requested by the function per on a per instance basis</span>
+  <span class="hljs-comment"># 在每个实例的函数请求的内存之上，添加了额外的内存补充</span>
   <span class="hljs-attr">percentMemoryPadding:</span> <span class="hljs-number">10</span>
 </code></pre>
 <p>如果函数 worker 运行在 Kubernetes 环境的 broker 中，你可以使用默认配置。</p>
@@ -307,8 +307,8 @@ io.kubernetes.client.ApiException: Forbidden
 <h3><a class="anchor" aria-hidden="true" id="定制-kubernetes-运行时"></a><a href="#定制-kubernetes-运行时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>定制 Kubernetes 运行时</h3>
 <p>Kubernetes 集成允许你实现类并自定义如何生成manifests. 你可以为配置文件<code>functions-worker.yml</code>的配置项<code>runtimeCustomizerClassName</code>指定一个全路径的类名。 这个类必须实现<code>org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer</code>接口。</p>
 <p>函数(数据来源/ 数据去向) API 会提供了一个标记，<code>customRuntimeOptions</code>，传递到这个接口。</p>
-<p>To initialize the <code>KubernetesManifestCustomizer</code>, you can provide <code>runtimeCustomizerConfig</code> in the <code>functions-worker.yml</code> file. <code>runtimeCustomizerConfig</code> is passed to the <code>public void initialize(Map&lt;String, Object&gt; config)</code> function of the interface. <code>runtimeCustomizerConfig</code>is different from the <code>customRuntimeOptions</code> as <code>runtimeCustomizerConfig</code> is the same across all functions. If you provide both <code>runtimeCustomizerConfig</code> and <code>customRuntimeOptions</code>, you need to decide how to manage these two configurations in your implementation of <code>KubernetesManifestCustomizer</code>.</p>
-<p>Pulsar 自带了一些实现。 若要使用基本的功能，可以将<code>runtimeCustomizerClassName</code>设置为<code>org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer</code>。 The built-in implementation initialized with <code>runtimeCustomizerConfig</code> enables you to pass a JSON document as <code>customRuntimeOptions</code> with certain properties to augment, which decides how the manifests are generated. 如果提供了 <code>runtimeCustomizerConfig</code> 和 <code>customRuntimeOptions</code> ，在两个配置发生冲突时，<code>BasicKubernetesManifestCustomizer</code> 会使用<code>customRuntimeOptions</code> 的参数来覆盖 runtimeCustomizerConfig 的配置。</p>
+<p>为了初始化 <code>KubernetesManifestCustomizer</code>，可以将 <code>runtimeCustomizerConfig</code> 在 <code>functions-worker.yml</code> 文件中进行提供。 <code>runtimeCustomizerConfig</code> 作为参数传递给 <code>public void initialize(Map&lt;String, Object&gt; config)</code> 函数。 <code>runtimeCustomizerConfig</code> 和 <code>customRuntimeOptions</code> 的配置值是不同的， <code>runtimeCustomizerConfig</code> 在所有的函数中配置值都一样。 如果同时配置了 <code>runtimeCustomizerConfig</code> 和<code>customRuntimeOptions</code>，需要决定如何管理这两个配置，在对<code>KubernetesManifestCustomizer</code> 的实现中。</p>
+<p>Pulsar 自带了一些实现。 若要使用基本的功能，可以将<code>runtimeCustomizerClassName</code>设置为<code>org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer</code>。 使用 <code>runtimeCustomizerConfig</code> 初始化的内置实现使得能够将 JSON 类型文件作为 <code>customRuntimeOptions</code> 传递，其中包含要扩充的某些属性，这也决定了 manifests 的生成方式。 如果提供了 <code>runtimeCustomizerConfig</code> 和 <code>customRuntimeOptions</code> ，在两个配置发生冲突时，<code>BasicKubernetesManifestCustomizer</code> 会使用<code>customRuntimeOptions</code> 的参数来覆盖 runtimeCustomizerConfig 的配置。</p>
 <p>如下是 <code>customRuntimeOptions</code> 的示例。</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"jobName"</span>: <span class="hljs-string">"jobname"</span>, <span class="hljs-comment">// 运行函数实例的 k8s pod 名字</span>
