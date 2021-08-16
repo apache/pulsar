@@ -445,7 +445,7 @@ public class CmdFunctionsTest {
         assertEquals(FN_NAME, creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
-        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+        verify(functions, times(0)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
     @Test
