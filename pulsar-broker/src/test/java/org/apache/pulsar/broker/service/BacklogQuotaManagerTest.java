@@ -1226,7 +1226,7 @@ public class BacklogQuotaManagerTest {
         if (backlogQuotaSizeGB) {
             config.setBacklogQuotaDefaultLimitGB(((double) backlogQuotaByte) / BacklogQuotaImpl.BYTES_IN_GIGABYTE);
         } else {
-            config.setBacklogQuotaDefaultLimitByte(backlogQuotaByte);
+            config.setBacklogQuotaDefaultLimitBytes(backlogQuotaByte);
         }
         config.setBacklogQuotaDefaultRetentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         pulsar = new PulsarService(config);
@@ -1256,7 +1256,6 @@ public class BacklogQuotaManagerTest {
 
         TopicStats stats = admin.topics().getStats(topic1);
         assertTrue(stats.getBacklogSize() < 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
-        System.out.println("finish");
     }
     private static final Logger LOG = LoggerFactory.getLogger(BacklogQuotaManagerTest.class);
 }

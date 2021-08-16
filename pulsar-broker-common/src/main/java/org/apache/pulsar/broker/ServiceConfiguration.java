@@ -346,7 +346,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
                 + " Increase it if you want to allow larger msg backlog"
     )
-    private long backlogQuotaDefaultLimitByte = -1;
+    private long backlogQuotaDefaultLimitBytes = -1;
 
     @FieldContext(
             category = CATEGORY_POLICIES,

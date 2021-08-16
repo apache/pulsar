@@ -56,7 +56,7 @@ public class BacklogQuotaManager {
         double backlogQuotaGB = pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB();
         this.defaultQuota = BacklogQuotaImpl.builder()
                 .limitSize(backlogQuotaGB > 0 ? (long) backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE
-                        : pulsar.getConfiguration().getBacklogQuotaDefaultLimitByte())
+                        : pulsar.getConfiguration().getBacklogQuotaDefaultLimitBytes())
                 .limitTime(pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond())
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
