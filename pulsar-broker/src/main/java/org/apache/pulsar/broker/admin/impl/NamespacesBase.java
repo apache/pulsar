@@ -435,9 +435,10 @@ public abstract class NamespacesBase extends AdminResource {
                             nonPartitionedTopics.add(topic);
                         }
                     } catch (Exception e) {
-                        String errorMessage = String.format("Failed to force delete topic %s, " +
-                                "but the previous deletion command of partitioned-topics:%s " +
-                                "and non-partitioned-topics:%s have been sent out asynchronously. Reason: %s",
+                        String errorMessage = String.format("Failed to force delete topic %s, "
+                                        + "but the previous deletion command of partitioned-topics:%s "
+                                        + "and non-partitioned-topics:%s have been sent out asynchronously. "
+                                        + "Reason: %s",
                                 topic, partitionedTopics, nonPartitionedTopics, e.getCause());
                         log.error("[{}] {}", clientAppId(), errorMessage, e);
                         asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, errorMessage));
@@ -445,8 +446,8 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                 }
 
-                log.info("Successfully send deletion command of partitioned-topics:{} " +
-                        "and non-partitioned-topics:{} in namespace:{}.",
+                log.info("Successfully send deletion command of partitioned-topics:{} "
+                                + "and non-partitioned-topics:{} in namespace:{}.",
                         partitionedTopics, nonPartitionedTopics, namespaceName);
             }
             // forcefully delete namespace bundles
