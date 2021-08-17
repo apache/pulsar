@@ -152,7 +152,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    if (hasPackageTypePrefix(sinkPkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(sinkPkgUrl)) {
                         componentPackageFile = downloadPackageFile(sinkPkgUrl);
                     } else {
                         if (!Utils.isFunctionPackageUrlSupported(sinkPkgUrl)) {
@@ -322,7 +322,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             // validate parameters
             try {
                 if (isNotBlank(sinkPkgUrl)) {
-                    if (hasPackageTypePrefix(sinkPkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(sinkPkgUrl)) {
                         componentPackageFile = downloadPackageFile(sinkPkgUrl);
                     } else {
                         try {
@@ -740,10 +740,6 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         SinkConfigUtils.ExtractedSinkDetails sinkDetails = SinkConfigUtils.validateAndExtractDetails(
                 sinkConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
         return SinkConfigUtils.convert(sinkConfig, sinkDetails);
-    }
-
-    private static boolean hasPackageTypePrefix(String destPkgUrl) {
-        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {

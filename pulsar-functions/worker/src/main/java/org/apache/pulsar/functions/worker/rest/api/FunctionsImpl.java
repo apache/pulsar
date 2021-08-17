@@ -154,7 +154,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    if (hasPackageTypePrefix(functionPkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
                         componentPackageFile = downloadPackageFile(functionPkgUrl);
                     } else {
                         if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
@@ -323,7 +323,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             // validate parameters
             try {
                 if (isNotBlank(functionPkgUrl)) {
-                    if (hasPackageTypePrefix(functionPkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
                         componentPackageFile = downloadPackageFile(functionName);
                     } else {
                         try {
@@ -757,10 +757,6 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
         return FunctionConfigUtils.convert(functionConfig, clsLoader);
 
-    }
-
-    private static boolean hasPackageTypePrefix(String destPkgUrl) {
-        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
