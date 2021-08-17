@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -111,7 +112,8 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
-    private final AtomicLong requestIdGenerator = new AtomicLong();
+    private final AtomicLong requestIdGenerator
+        = new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE/2));
 
     protected final EventLoopGroup eventLoopGroup;
     private final MemoryLimitController memoryLimitController;
