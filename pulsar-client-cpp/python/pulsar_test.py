@@ -378,7 +378,7 @@ class PulsarTest(TestCase):
                                           encryption_key="client-rsa.pem",
                                           crypto_key_reader=crypto_key_reader)
         reader = client.create_reader(topic=topic,
-                                      MessageId.earliest,
+                                      start_message_id=MessageId.earliest,
                                       crypto_key_reader=crypto_key_reader)
         producer.send('hello')
         msg = consumer.receive(TM)
