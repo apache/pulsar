@@ -133,7 +133,7 @@ public class MultiTopicsConsumerImplTest {
         // given
         MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
         CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
-        assertEquals(consumer.peekPendingReceive(), future);
+        assertTrue(consumer.hasNextPendingReceive());
         // when
         future.cancel(true);
         // then
