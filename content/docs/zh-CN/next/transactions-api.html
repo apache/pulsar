@@ -47,24 +47,24 @@
         <span class="hljs-string">.get</span><span class="hljs-params">()</span>;
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="生成事务消息"></a><a href="#生成事务消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生成事务消息</h2>
-<p>A transaction parameter is required when producing new transaction messages. The semantic of the transaction messages in Pulsar is <code>read-committed</code>, so the consumer cannot receive the ongoing transaction messages before the transaction is committed.</p>
+<p>当生产新的事务消息时，需要一个事务参数。 Pulsar 中的事务消息语义是<code>读已提交（read-committed）</code>，因此消费者在事务提交前无法接收正在进行的事务消息。</p>
 <pre><code class="hljs">producer.<span class="hljs-keyword">new</span><span class="hljs-constructor">Message(<span class="hljs-params">txn</span>)</span>.value(<span class="hljs-string">"Hello Pulsar Transaction"</span>.get<span class="hljs-constructor">Bytes()</span>).send<span class="hljs-constructor">Async()</span>;
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="确认事务消息"></a><a href="#确认事务消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认事务消息</h2>
-<p>The transaction acknowledgement requires a transaction parameter. The transaction acknowledgement marks the messages state to pending-ack state. When the transaction is committed, the pending-ack state becomes ack state. If the transaction is aborted, the pending-ack state becomes unack state.</p>
+<p>事务确认需要一个事务参数。 事务确认将消息状态标记为挂起待确认状态。 事务被提交后，挂起待确认状态将变成确认状态。 如果事务中止，则挂起待确认状态变为未确认状态。</p>
 <pre><code class="hljs"><span class="hljs-keyword">Message</span>&lt;byte[]&gt; <span class="hljs-keyword">message</span> = consumer.receive();
 consumer.acknowledgeAsync(<span class="hljs-keyword">message</span>.getMessageId(), txn);
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="提交事务"></a><a href="#提交事务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提交事务</h2>
-<p>When the transaction is committed, consumers receive the transaction messages and the pending-ack state becomes ack state.</p>
+<p>事务被提交后，消费者会接收事务消息，并将挂起待确认状态变成确认状态。</p>
 <pre><code class="hljs"><span class="hljs-selector-tag">txn</span><span class="hljs-selector-class">.commit</span>()<span class="hljs-selector-class">.get</span>();
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="中止事务"></a><a href="#中止事务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>中止事务</h2>
-<p>When the transaction is aborted, the transaction acknowledgement is canceled and the pending-ack messages are redelivered.</p>
+<p>当事务中止后，事务确认将被取消，并重新分发挂起待确认消息。</p>
 <pre><code class="hljs">txn.<span class="hljs-built_in">abort</span>().<span class="hljs-built_in">get</span>();
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h3>
-<p>The following example shows how messages are processed in transaction.</p>
+<p>下面的示例显示了消息在事务中的处理过程。</p>
 <pre><code class="hljs">PulsarClient pulsarClient = <span class="hljs-module-access"><span class="hljs-module"><span class="hljs-identifier">PulsarClient</span>.</span></span>builder<span class="hljs-literal">()</span>
         .service<span class="hljs-constructor">Url(<span class="hljs-params">getPulsarServiceList</span>()</span>.get(<span class="hljs-number">0</span>).get<span class="hljs-constructor">BrokerServiceUrl()</span>)
         .stats<span class="hljs-constructor">Interval(0, TimeUnit.SECONDS)</span>
@@ -109,11 +109,11 @@ sinkProducer.<span class="hljs-keyword">new</span><span class="hljs-constructor"
 txn.commit<span class="hljs-literal">()</span>.get<span class="hljs-literal">()</span>;
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="在事务中启用批量消息处理"></a><a href="#在事务中启用批量消息处理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在事务中启用批量消息处理</h2>
-<p>To enable batch messages in transactions, you need to enable the batch index acknowledgement feature. The transaction acks check whether the batch index acknowledgement conflicts.</p>
-<p>To enable batch index acknowledgement, you need to set <code>acknowledgmentAtBatchIndexLevelEnabled</code> to <code>true</code> in the <code>broker.conf</code> or <code>standalone.conf</code> file.</p>
+<p>要想在事务中开启批消息，你需要开启批索引确认（batch index acknowledgement）功能。 事务确认会检查批索引确认是否冲突。</p>
+<p>要想启用批索引确认功能，你需要在<code>broker.conf</code> 或<code>standalone.conf</code>中将 <code>acknowledgmentAtBatchIndexLevelEnabled</code> 设置为 <code>true</code>。</p>
 <pre><code class="hljs"><span class="hljs-attr">acknowledgmentAtBatchIndexLevelEnabled</span>=<span class="hljs-literal">true</span>
 </code></pre>
-<p>And then you need to call the <code>enableBatchIndexAcknowledgment(true)</code> method in the consumer builder.</p>
+<p>接着，你需要在消费者构建器（consumer builder）调用<code>enableBatchIndexAcknowledgment(true)</code>方法。</p>
 <pre><code class="hljs">Consumer&lt;byte[]&gt; sinkConsumer = pulsarClient
         <span class="hljs-string">.newConsumer</span><span class="hljs-params">()</span>
         <span class="hljs-string">.topic</span><span class="hljs-params">(transferTopic)</span>

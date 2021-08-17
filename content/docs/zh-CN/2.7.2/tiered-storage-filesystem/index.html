@@ -132,9 +132,9 @@ ls offloaders
 <p>你可以在配置文件 <code>broker.conf</code> 或 <code>standalone.conf</code> 中配置 filesystem offloader driver。</p>
 <ul>
 <li><p>以下为<strong>必选</strong> 配置。</p>
-<p>所需配置 | 说明 | 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader driver 名称，不区分大小写。 | filesystem <code>fileSystemURI</code> | Connection address | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>fileSystemProfilePath</code> | Hadoop profile path | ../conf/filesystem_offload_core_site.xml</p></li>
+<p>所需配置 | 说明 | 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader driver 名称，不区分大小写。 | filesystem <code>fileSystemURI</code> | 连接地址 | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>fileSystemProfilePath</code> | Hadoop 配置文件路径 | ../conf/filesystem_offload_core_site.xml</p></li>
 <li><p>以下为<strong>可选</strong> 配置。</p>
-<p>可选配置 | 描述 | 示例值 |---|---|--- <code>&lt;code&gt;managedLedgerMinLedgerRolloverTimeMinutes</code> | 一个 Topic 的 Ledger 翻转之间的最小时间<br><br><strong>注意</strong>: 不建议你在生产环境中设置此配置。|2 <code>managedLedgerMaxEntriesPerLedger</code> | 在触发翻转之前追加到 Topic ledger 的最大条目数。<br><br><strong>注意</strong>：不建议你在生产环境中设置此配置。|5000</p></li>
+<p>可选配置 | 描述 | 示例值 |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code> | 一个 Topic 的 Ledger 翻转之间的最小时间<br><br><strong>注意</strong>: 不建议你在生产环境中设置此配置。|2 <code>managedLedgerMaxEntriesPerLedger</code> | 在触发翻转之前追加到 Topic ledger 的最大条目数。<br><br><strong>注意</strong>：不建议你在生产环境中设置此配置。|5000</p></li>
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="offloader-driver-必填"></a><a href="#offloader-driver-必填" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Offloader driver (必填)</h4>
 <p>Offloader driver 名称，不区分大小写</p>
