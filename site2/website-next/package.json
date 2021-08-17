@@ -18,23 +18,32 @@
     "@docusaurus/preset-classic": "2.0.0-beta.4",
     "@mdx-js/react": "^1.6.21",
     "@svgr/webpack": "^5.5.0",
+    "bootstrap": "^3.3.7",
     "clsx": "^1.1.1",
     "file-loader": "^6.2.0",
+    "font-awesome": "^4.7.0",
+    "jquery": "^3.1.1",
+    "jquery.scrollto": "^2.1.2",
+    "node-static": "^0.7.9",
     "prism-react-renderer": "^1.2.1",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
+    "rehype-truncate": "^1.2.2",
+    "remark-html": "^14.0.0",
+    "remark-images": "^3.0.0",
+    "remark-linkify-regex": "^1.0.0",
     "url-loader": "^4.1.1"
   },
-  "browserslist": {
-    "production": [
-      ">0.5%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "devDependencies": {
+    "axios": "^0.18.0",
+    "ejs": "^2.5.2",
+    "highlight.js": "^9.7.0",
+    "jest": "^23.3.0",
+    "jest-puppeteer": "^3.2.1",
+    "marked": "^0.3.6",
+    "puppeteer": "^1.5.0",
+    "redoc": "^2.0.0-alpha.30",
+    "remarkable-embed": "^0.4.1",
+    "replace-in-file": "^3.4.0"
   }
 }

@@ -1,5 +1,94 @@
 const lightCodeTheme = require("prism-react-renderer/themes/github");
 const darkCodeTheme = require("prism-react-renderer/themes/dracula");
+const linkifyRegex = require("./remark-linkify-regex");
+
+const url = "https://pulsar.incubator.apache.org";
+const javadocUrl = url + "/api";
+const restApiUrl = url + "/admin-rest-api";
+const functionsApiUrl = url + "/functions-rest-api";
+const sourceApiUrl = url + "/source-rest-api";
+const sinkApiUrl = url + "/sink-rest-api";
+const packagesApiUrl = url + "/packages-rest-api";
+const githubUrl = "https://github.com/apache/incubator-pulsar";
+const baseUrl = "/";
+
+const injectLinkParse = ([, prefix, name, path]) => {
+  console.log(prefix, name, path);
+
+  if (prefix == "javadoc") {
+    return {
+      link: javadocUrl + path,
+      text: name,
+    };
+  } else if (prefix == "github") {
+    return {
+      link: githubUrl + "/tree/master/" + path,
+      text: name,
+    };
+  } else if (prefix == "rest") {
+    return {
+      link: restApiUrl + "#" + path,
+      text: name,
+    };
+  } else if (prefix == "functions") {
+    return {
+      link: functionsApiUrl + "#" + path,
+      text: name,
+    };
+  } else if (prefix == "source") {
+    return {
+      link: sourceApiUrl + "#" + path,
+      text: name,
+    };
+  } else if (prefix == "sink") {
+    return {
+      link: sinkApiUrl + "#" + path,
+      text: name,
+    };
+  } else if (prefix == "packages") {
+    return {
+      link: packagesApiUrl + "#" + path,
+      text: name,
+    };
+    // } else if (prefix == "endpoint") {
+    //   // endpoint api: endpoint|<op>
+    //   // {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/registerSource?version=[[pulsar:version_number]]}
+    //   // text: POST /admin/v3/sources/:tenant/:namespace/:sourceName
+    //   // link: https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSource?version=2.8.0&apiVersion=v3
+    //   const restPath = path.split("/");
+    //   const restApiVersion = restPath[2];
+    //   const restApiType = restPath[3];
+    //   let restBaseUrl = restApiUrl;
+    //   if (restApiType == "functions") {
+    //     restBaseUrl = functionsApiUrl;
+    //   } else if (restApiType == "source") {
+    //     restBaseUrl = sourceApiUrl;
+    //   } else if (restApiType == "sink") {
+    //     restBaseUrl = sinkApiUrl;
+    //   }
+    //   const suffix = keyparts[keyparts.length - 1];
+    //   restUrl = "";
+    //   if (suffix.indexOf("?version") >= 0) {
+    //     restUrl = keyparts[keyparts.length - 1] + "&apiVersion=" + restApiVersion;
+    //   } else {
+    //     restUrl =
+    //       keyparts[keyparts.length - 1] +
+    //       "version=master&apiVersion=" +
+    //       restApiVersion;
+    //   }
+    //   return renderEndpoint(
+    //     initializedPlugin,
+    //     restBaseUrl + "#",
+    //     keyparts,
+    //     restUrl
+    //   );
+  }
+
+  return {
+    link: path,
+    text: name,
+  };
+};
 
 /** @type {import('@docusaurus/types').DocusaurusConfig} */
 module.exports = {
@@ -110,6 +199,12 @@ module.exports = {
           // Please change this to your repo.
           editUrl:
             "https://github.com/facebook/docusaurus/edit/master/website/",
+          remarkPlugins: [
+            linkifyRegex(
+              /\{\@inject\:\s?((?!endpoint).)+:(.+):(.+)\}/,
+              injectLinkParse
+            ),
+          ],
         },
         blog: {
           showReadingTime: true,
@@ -123,4 +218,5 @@ module.exports = {
       },
     ],
   ],
+  // plugins: [createVariableInjectionPlugin(siteVariables)],
 };

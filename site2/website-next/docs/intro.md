@@ -1,36 +1,32 @@
 ---
 sidebar_position: 1
 slug: /
+# id: version-2.8.0-cookbooks-compaction
+# title: Topic compaction
+# sidebar_label: Topic compaction
+# original_id: cookbooks-compaction
 ---
 
-# Tutorial Intro
+**Next**
 
-Let's discover **Docusaurus in less than 5 minutes**.
+The `pulsar-admin` tool runs compaction via the Pulsar {@inject: rest:REST:/} API. To run compaction in its own dedicated process, i.e. _not_ through the {@inject: rest:REST Demo:/} API, Please don't show my /~ Secret Stuff ~/ Link: [REST](http://www.baidu.com)
 
-## Getting Started
+#### Source
 
-Get started by **creating a new site**.
+Create a source connector.
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+<!--DOCUSAURUS_CODE_TABS-->
 
-## Generate a new site
+<!--Admin CLI-->
 
-Generate a new Docusaurus site using the **classic template**:
+Use the `create` subcommand.
 
-```shell
-npx @docusaurus/init@latest init my-website classic
+```
+$ pulsar-admin sources create options
 ```
 
-## Start your site
+For more information, see here.
 
-Run the development server:
+<!--REST API-->
 
-```shell
-cd my-website
-
-npx docusaurus start
-```
-
-Your site starts at `http://localhost:3000`.
-
-Open `docs/intro.md` and edit some lines: the site **reloads automatically** and display your changes.
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/registerSource?version=[[pulsar:version_number]]} The `pulsar-admin` tool runs compaction via the Pulsar {@inject: rest:REST:/} API
