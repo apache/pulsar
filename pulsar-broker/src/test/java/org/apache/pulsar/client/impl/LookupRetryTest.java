@@ -68,6 +68,8 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default", Sets.newHashSet("test"));
+
+        connectionsCreated.set(0);
     }
 
     @Override
@@ -219,6 +221,36 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
 
             pulsarClient.newProducer().topic("TOO_MANY:2").create().close();
             pulsarClient.newProducer().topic("TOO_MANY:4").create().close();
+            Assert.assertEquals(connectionsCreated.get(), 3);
+        }
+    }
+
+    @Test
+    public void testCloseConnectionOnBrokerTimeout() throws Exception {
+        String lookupUrl = pulsar.getBrokerServiceUrl();
+        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
+                .maxNumberOfRejectedRequestPerConnection(1)
+                .connectionTimeout(2, TimeUnit.SECONDS)
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .lookupTimeout(10, TimeUnit.SECONDS)
+                .build()) {
+
+            // need 2 Timeouts because it takes the count before incrementing
+            pulsarClient.newProducer().topic("TIMEOUT:2").create().close();
+
+            Assert.assertEquals(connectionsCreated.get(), 2);
+        }
+
+        try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
+                .maxNumberOfRejectedRequestPerConnection(100)
+                .maxNumberOfRejectedRequestPerConnection(1)
+                .connectionTimeout(2, TimeUnit.SECONDS)
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .lookupTimeout(10, TimeUnit.SECONDS)
+                .build()) {
+
+            pulsarClient.newProducer().topic("TIMEOUT:2").create().close();
+            pulsarClient.newProducer().topic("TIMEOUT:2").create().close();
             Assert.assertEquals(connectionsCreated.get(), 3);
         }
     }

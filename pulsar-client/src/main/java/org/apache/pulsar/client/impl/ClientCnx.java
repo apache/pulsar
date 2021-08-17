@@ -1014,16 +1014,20 @@ public class ClientCnx extends PulsarHandler {
             log.error("{} Close connection because received internal-server error {}", ctx.channel(), errMsg);
             ctx.close();
         } else if (ServerError.TooManyRequests.equals(error)) {
-            long rejectedRequests = NUMBER_OF_REJECTED_REQUESTS_UPDATER.getAndIncrement(this);
-            if (rejectedRequests == 0) {
-                // schedule timer
-                eventLoopGroup.schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
-                        rejectedRequestResetTimeSec, TimeUnit.SECONDS);
-            } else if (rejectedRequests >= maxNumberOfRejectedRequestPerConnection) {
-                log.error("{} Close connection because received {} rejected request in {} seconds ", ctx.channel(),
-                        NUMBER_OF_REJECTED_REQUESTS_UPDATER.get(ClientCnx.this), rejectedRequestResetTimeSec);
-                ctx.close();
-            }
+            incrementRejectsAndMaybeClose();
+        }
+    }
+
+    private void incrementRejectsAndMaybeClose() {
+        long rejectedRequests = NUMBER_OF_REJECTED_REQUESTS_UPDATER.getAndIncrement(this);
+        if (rejectedRequests == 0) {
+            // schedule timer
+            eventLoopGroup.schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
+                                    rejectedRequestResetTimeSec, TimeUnit.SECONDS);
+        } else if (rejectedRequests >= maxNumberOfRejectedRequestPerConnection) {
+            log.error("{} Close connection because received {} rejected request in {} seconds ", ctx.channel(),
+                      NUMBER_OF_REJECTED_REQUESTS_UPDATER.get(ClientCnx.this), rejectedRequestResetTimeSec);
+            ctx.close();
         }
     }
 
@@ -1168,6 +1172,9 @@ public class ClientCnx extends PulsarHandler {
                             request.requestType.getDescription(), operationTimeoutMs,
                             request.requestId, remoteAddress, localAddress);
                     if (requestFuture.completeExceptionally(new TimeoutException(timeoutMessage))) {
+                        if (request.requestType == RequestType.Lookup) {
+                            incrementRejectsAndMaybeClose();
+                        }
                         log.warn("{} {}", ctx.channel(), timeoutMessage);
                     }
                 }
