@@ -3773,9 +3773,9 @@ public class PersistentTopicsBase extends AdminResource {
         TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
         int oldPartition = metadata.partitions;
-        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
         for (String exsitingTopicName : existingTopicList) {
-            if (exsitingTopicName.contains(prefix)) {
+            if (exsitingTopicName.startsWith(prefix)) {
                 try {
                     long suffix = Long.parseLong(exsitingTopicName.substring(
                             exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
