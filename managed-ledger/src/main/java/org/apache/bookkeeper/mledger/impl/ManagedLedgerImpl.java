@@ -57,7 +57,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -79,7 +80,6 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -253,7 +253,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected volatile State state = null;
 
     private final OrderedScheduler scheduledExecutor;
-    private final OrderedExecutor executor;
+    private final ScheduledExecutorService pinnedScheduledExecutor;
+    private final Executor pinnedExecutor;
     final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
     protected final Clock clock;
@@ -299,7 +300,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.ledgerMetadata = LedgerMetadataUtils.buildBaseManagedLedgerMetadata(name);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         this.scheduledExecutor = scheduledExecutor;
-        this.executor = bookKeeper.getMainWorkerPool();
+        this.pinnedScheduledExecutor = scheduledExecutor.chooseThread(name);
+        this.pinnedExecutor = bookKeeper.getMainWorkerPool().chooseThread(name);
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -354,7 +356,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (ledgers.size() > 0) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
-                        executor.executeOrdered(name, safeRun(() -> {
+                        pinnedExecutor.execute(safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
@@ -463,7 +465,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            executor.executeOrdered(name, safeRun(() -> {
+            pinnedExecutor.execute(safeRun(() -> {
                 mbean.endDataLedgerCreateOp();
                 if (rc != BKException.Code.OK) {
                     callback.initializeFailed(createManagedLedgerException(rc));
@@ -702,7 +704,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpAddEntry addOperation = OpAddEntry.create(this, buffer, callback, ctx);
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.executeOrdered(name, safeRun(() -> internalAsyncAddEntry(addOperation)));
+        pinnedExecutor.execute(safeRun(() -> internalAsyncAddEntry(addOperation)));
     }
 
     @Override
@@ -714,7 +716,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpAddEntry addOperation = OpAddEntry.create(this, buffer, numberOfMessages, callback, ctx);
 
         // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.executeOrdered(name, safeRun(() -> internalAsyncAddEntry(addOperation)));
+        pinnedExecutor.execute(safeRun(() -> internalAsyncAddEntry(addOperation)));
     }
 
     private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
@@ -1482,7 +1484,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback) {
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback), 100, TimeUnit.MILLISECONDS);
+            pinnedScheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback), 100, TimeUnit.MILLISECONDS);
             return;
         }
 
@@ -1779,7 +1781,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     promise.complete(res);
                 }
-            }, executor.chooseThread(name));
+            }, pinnedExecutor);
             return promise;
         });
     }
@@ -2160,7 +2162,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 break;
             }
 
-            executor.execute(safeRun(waitingCursor::notifyEntriesAvailable));
+            pinnedExecutor.execute(safeRun(waitingCursor::notifyEntriesAvailable));
         }
     }
 
@@ -2171,7 +2173,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 break;
             }
 
-            executor.execute(safeRun(cb::entriesAvailable));
+            pinnedExecutor.execute(safeRun(cb::entriesAvailable));
         }
     }
 
@@ -2218,15 +2220,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
-        executor.executeOrdered(name, safeRun(() -> internalTrimConsumedLedgers(promise)));
+        pinnedExecutor.execute(safeRun(() -> internalTrimConsumedLedgers(promise)));
     }
 
     public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
-        executor.executeOrdered(name, safeRun(() -> internalTrimLedgers(isTruncate, promise)));
+        pinnedExecutor.execute(safeRun(() -> internalTrimLedgers(isTruncate, promise)));
     }
 
     private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
-        scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(isTruncate, promise)), 100, TimeUnit.MILLISECONDS);
+        pinnedScheduledExecutor
+                .schedule(safeRun(() -> trimConsumedLedgersInBackground(isTruncate, promise)), 100, TimeUnit.MILLISECONDS);
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
@@ -2235,13 +2238,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader().getOffloadPolicies() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
-            executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
+            pinnedExecutor.execute(safeRun(() -> maybeOffload(promise)));
         }
     }
 
     private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
         if (!offloadMutex.tryLock()) {
-            scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
+            pinnedScheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
                                        100, TimeUnit.MILLISECONDS);
         } else {
             CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
@@ -2661,7 +2664,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
             } else if (rc != BKException.Code.OK) {
                 log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
-                scheduledExecutor.schedule(safeRun(() -> asyncDeleteLedger(ledgerId, retry - 1)), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                pinnedScheduledExecutor.schedule(safeRun(() -> asyncDeleteLedger(ledgerId, retry - 1)), DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Deleted ledger {}", name, ledgerId);
@@ -2933,7 +2936,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         synchronized (this) {
             if (!metadataMutex.tryLock()) {
                 // retry in 100 milliseconds
-                scheduledExecutor.schedule(
+                pinnedScheduledExecutor.schedule(
                         safeRun(() -> tryTransformLedgerInfo(ledgerId, transformation, finalPromise)), 100,
                         TimeUnit.MILLISECONDS);
             } else { // lock acquired
@@ -3413,12 +3416,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers;
     }
 
-    OrderedScheduler getScheduledExecutor() {
-        return scheduledExecutor;
+    ScheduledExecutorService getScheduledExecutor() {
+        return pinnedScheduledExecutor;
     }
 
-    ExecutorService getExecutor() {
-        return executor.chooseThread(getName());
+    Executor getExecutor() {
+        return pinnedExecutor;
     }
 
     private ManagedLedgerInfo getManagedLedgerInfo() {
@@ -3619,7 +3622,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             cb.createComplete(Code.UnexpectedConditionException, null, ledgerCreated);
             return;
         }
-        scheduledExecutor.schedule(() -> {
+        pinnedScheduledExecutor.schedule(() -> {
             if (!ledgerCreated.get()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Timeout creating ledger", name);
@@ -3668,7 +3671,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             timeoutSec = timeoutSec <= 0
                     ? Math.max(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds())
                     : timeoutSec;
-            this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(safeRun(() -> {
+            this.timeoutTask = this.pinnedScheduledExecutor.scheduleAtFixedRate(safeRun(() -> {
                 checkAddTimeout();
                 checkReadTimeout();
             }), timeoutSec, timeoutSec, TimeUnit.SECONDS);
@@ -3809,7 +3812,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         String deleteKey, final UpdatePropertiesCallback callback, Object ctx) {
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> asyncUpdateProperties(properties, isDelete, deleteKey,
+            pinnedScheduledExecutor.schedule(() -> asyncUpdateProperties(properties, isDelete, deleteKey,
                 callback, ctx), 100, TimeUnit.MILLISECONDS);
             return;
         }
@@ -3956,7 +3959,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // and the previous checkLedgerRollTask is not done, we could cancel it
                 checkLedgerRollTask.cancel(true);
             }
-            this.checkLedgerRollTask = this.scheduledExecutor.schedule(
+            this.checkLedgerRollTask = this.pinnedScheduledExecutor.schedule(
                     safeRun(this::rollCurrentLedgerIfFull), this.maximumRolloverTimeMs, TimeUnit.MILLISECONDS);
         }
     }
