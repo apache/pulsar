@@ -28,10 +28,13 @@ import alluxio.client.file.options.CreateFileOptions;
 import alluxio.exception.AlluxioException;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -43,11 +46,16 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * A Simple abstract class for Alluxio sink
- * Users need to implement extractKeyValue function to use this sink
+ * Alluxio sink that treats incoming messages on the input topic as Strings
+ * and write identical key/value pairs.
  */
+@Connector(
+        name = "alluxio",
+        type = IOType.SINK,
+        help = "The sink connector is used for moving records from Pulsar to Alluxio.",
+        configClass = AlluxioSinkConfig.class)
 @Slf4j
-public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
+public class AlluxioSink implements Sink<GenericObject> {
 
     private FileSystem fileSystem;
     private FileOutStream fileOutStream;
@@ -62,7 +70,7 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
     private AlluxioSinkConfig alluxioSinkConfig;
     private AlluxioState alluxioState;
 
-    private List<Record<V>> recordsToAck;
+    private List<Record<GenericObject>> recordsToAck;
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -107,7 +115,7 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
     }
 
     @Override
-    public void write(Record<V> record) {
+    public void write(Record<GenericObject> record) {
         long now = System.currentTimeMillis();
 
         switch (alluxioState) {
@@ -171,8 +179,8 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
         recordsToAck.clear();
     }
 
-    private void writeToAlluxio(Record<V> record) throws AlluxioException, IOException {
-        KeyValue<K, V> keyValue = extractKeyValue(record);
+    private void writeToAlluxio(Record<GenericObject> record) throws AlluxioException, IOException {
+        KeyValue<String, String> keyValue = extractKeyValue(record);
         if (fileOutStream == null) {
             createTmpFile();
         }
@@ -236,7 +244,7 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
         return rotated;
     }
 
-    private byte[] toByteArray(Object obj) {
+    private static byte[] toByteArray(Object obj) throws IOException {
         byte[] bytes = null;
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              ObjectOutputStream oos = new ObjectOutputStream(baos)) {
@@ -245,11 +253,12 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
             bytes = baos.toByteArray();
         } catch (IOException e) {
             log.error("Failed to serialize the object.", e);
+            throw e;
         }
         return bytes;
     }
 
-    private byte[] toBytes(Object obj) {
+    private static byte[] toBytes(Object obj) throws IOException {
         byte[] bytes;
         if (obj instanceof String) {
             String s = (String) obj;
@@ -262,7 +271,10 @@ public abstract class AlluxioAbstractSink<K, V> implements Sink<V> {
         return bytes;
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(Record<V> record);
+    public KeyValue<String, String> extractKeyValue(Record<GenericObject> record) {
+        String key = record.getKey().orElseGet(() -> String.valueOf(record.getValue()));
+        return new KeyValue<>(key, String.valueOf(record.getValue()));
+    };
 
     private enum AlluxioState {
         WRITE_STARTED,

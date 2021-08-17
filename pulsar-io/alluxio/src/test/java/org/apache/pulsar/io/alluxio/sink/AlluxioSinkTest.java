@@ -28,6 +28,7 @@ import alluxio.master.LocalAlluxioCluster;
 import com.google.common.io.Resources;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.Mock;
@@ -46,7 +47,7 @@ import static org.mockito.Mockito.mock;
  * Alluxio String Sink test
  */
 @Slf4j
-public class AlluxioStringSinkTest {
+public class AlluxioSinkTest {
 
     private static final String ALLUXIO_WEB_APTH = "core/server/common/src/main/webapp";
 
@@ -54,7 +55,7 @@ public class AlluxioStringSinkTest {
     protected SinkContext mockSinkContext;
 
     protected Map<String, Object> map;
-    protected AlluxioAbstractSink<String, String> sink;
+    protected AlluxioSink sink;
 
     @BeforeMethod
     public final void setUp() throws Exception {
@@ -80,7 +81,7 @@ public class AlluxioStringSinkTest {
 
         LocalAlluxioCluster cluster = setupSingleMasterCluster();
 
-        sink = new AlluxioStringSink();
+        sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
 
         FileSystem client = cluster.getClient();
@@ -105,10 +106,10 @@ public class AlluxioStringSinkTest {
 
         LocalAlluxioCluster cluster = setupSingleMasterCluster();
 
-        sink = new AlluxioStringSink();
+        sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
 
-        List<Record<String>> records = SinkRecordHelper.buildBatch(10);
+        List<Record<GenericObject>> records = SinkRecordHelper.buildBatch(10);
         records.forEach(record -> sink.write(record));
 
         FileSystem client = cluster.getClient();
@@ -142,10 +143,10 @@ public class AlluxioStringSinkTest {
 
         LocalAlluxioCluster cluster = setupSingleMasterCluster();
 
-        sink = new AlluxioStringSink();
+        sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
 
-        List<Record<String>> records = SinkRecordHelper.buildBatch(13);
+        List<Record<GenericObject>> records = SinkRecordHelper.buildBatch(13);
         records.forEach(record -> sink.write(record));
 
         FileSystem client = cluster.getClient();
