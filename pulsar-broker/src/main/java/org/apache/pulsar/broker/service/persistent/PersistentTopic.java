@@ -1398,8 +1398,8 @@ public class PersistentTopic extends AbstractTopic
         }
 
         TopicName topicName = TopicName.get(topic);
-        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
-                .getPolicies(topicName.getNamespaceObject())
+        return brokerService.pulsar().getConfigurationCache().policiesCache()
+                .getAsync(AdminResource.path(POLICIES, topicName.getNamespace()))
                 .thenApply(policies -> {
                     if (policies.isPresent()) {
                         return policies.get().compaction_threshold != null
