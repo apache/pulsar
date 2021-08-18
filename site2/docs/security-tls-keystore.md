@@ -136,7 +136,13 @@ If you have configured TLS on the broker, to disable non-TLS ports, you can set 
 brokerServicePort=
 webServicePort=
 ```
-In this case it's mandatory to specify `brokerClientTlsEnabled=true`, `brokerClientTlsEnabledWithKeyStore=true` and the related configuration properties `brokerClientTlsTrustStore` and `brokerClientTlsTrustStorePassword`.
+In this case, you need to set the following configurations.
+
+```conf
+brokerClientTlsEnabled=true // Set this to true
+brokerClientTlsEnabledWithKeyStore=true  // Set this to true
+brokerClientTlsTrustStore= // Set this to your desired value
+brokerClientTlsTrustStorePassword= // Set this to your desired value
 
 Optional settings that may worth consider:
 
