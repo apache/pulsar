@@ -3628,8 +3628,6 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions) {
         final String path = ZkAdminPaths.partitionedTopicPath(topicName);
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(topicName, false, false);
-        int oldPartition = metadata.partitions;
 
         CompletableFuture<Void> updatePartition = new CompletableFuture<>();
         createSubscriptions(topicName, numPartitions).thenAccept(res -> {
@@ -3638,13 +3636,15 @@ public class PersistentTopicsBase extends AdminResource {
                         p -> new PartitionedTopicMetadata(numPartitions));
                 updatePartition.complete(null);
             } catch (Exception e) {
-                for(int i=oldPartition; i<numPartitions; i++){
-                    try {
-                        namespaceResources().getPartitionedTopicResources().delete(ZkAdminPaths.managedLedgerPath(topicName.getPartition(i)));
-                    } catch (Exception deleteZnodeException){
-                        updatePartition.completeExceptionally(e);
+                getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                    int oldPartition = metadata.partitions;
+                    for(int i = oldPartition; i < numPartitions; i++){
+                        namespaceResources().getPartitionedTopicResources().deleteAsync(ZkAdminPaths.managedLedgerPath(topicName.getPartition(i)));
                     }
-                }
+                }).exceptionally(ex -> {
+                    updatePartition.completeExceptionally(e);
+                    return null;
+                });
                 updatePartition.completeExceptionally(e);
             }
         }).exceptionally(ex -> {
