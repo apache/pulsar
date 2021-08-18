@@ -166,7 +166,7 @@ TEST_F(KeyBasedBatchingTest, testSingleBatch) {
     for (int i = 0; i < numMessages; i++) {
         producer_.sendAsync(
             MessageBuilder().setContent("x").build(),
-            [&numMessageSent](Result result, const MessageId&) { ASSERT_EQ(result, ResultOk); });
+            [&numMessageSent](Result result, const MessageId&) { ASSERT_EQ(result, ResultOk); ++numMessageSent; });
     }
 
     Message msg;
@@ -174,4 +174,5 @@ TEST_F(KeyBasedBatchingTest, testSingleBatch) {
         receiveAndAck(msg);
     }
     ASSERT_EQ(ResultTimeout, consumer_.receive(msg, 3000));
+    ASSERT_EQ(numMessageSent.load(), numMessages);
 }

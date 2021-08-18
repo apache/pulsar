@@ -345,7 +345,7 @@ void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
         flushPromise_ = std::make_shared<Promise<Result, bool_type>>();
     } else {
         // already in flushing, register a listener callback
-        std::function<void(Result, bool)> listenerCallback = [this, callback](Result result, bool_type v) {
+        auto listenerCallback = [callback](Result result, bool_type v) {
             if (v) {
                 callback(ResultOk);
             } else {

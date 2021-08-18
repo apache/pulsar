@@ -161,10 +161,10 @@ void PatternMultiTopicsConsumerImpl::onTopicsRemoved(NamespaceTopicsPtr removedT
         callback(ResultOk);
         return;
     }
-    int topicsNumber = removedTopics->size();
 
-    std::shared_ptr<std::atomic<int>> topicsNeedUnsub = std::make_shared<std::atomic<int>>(topicsNumber);
-    ResultCallback oneTopicUnsubscribedCallback = [this, topicsNeedUnsub, callback](Result result) {
+    auto topicsNeedUnsub = std::make_shared<std::atomic<int>>(removedTopics->size());
+
+    ResultCallback oneTopicUnsubscribedCallback = [topicsNeedUnsub, callback](Result result) {
         (*topicsNeedUnsub)--;
 
         if (result != ResultOk) {

@@ -3451,7 +3451,7 @@ TEST(BasicEndToEndTest, testSendCallback) {
     std::set<MessageId> sentIdSet;
     for (int i = 0; i < 100; i++) {
         const auto msg = MessageBuilder().setContent("a").build();
-        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+        producer.sendAsync(msg, [&sentIdSet, &latch](Result result, const MessageId &id) {
             ASSERT_EQ(ResultOk, result);
             sentIdSet.emplace(id);
             latch.countdown();
@@ -3495,7 +3495,7 @@ TEST(BasicEndToEndTest, testSendCallback) {
     latch = Latch(numMessages);
     for (int i = 0; i < numMessages; i++) {
         const auto msg = MessageBuilder().setContent("a").build();
-        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+        producer.sendAsync(msg, [&sentIdSet, &latch](Result result, const MessageId &id) {
             ASSERT_EQ(ResultOk, result);
             sentIdSet.emplace(id);
             latch.countdown();
