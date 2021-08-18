@@ -88,14 +88,14 @@ else() # GCC or Clang are mostly compatible:
     # Turn on warnings and enable warnings-as-errors:
     add_compile_options(-Wall -Wformat-security -Wvla -Werror) 
     # Turn off certain warnings that are too much pain for too little gain:
-    add_compile_options(-Wno-sign-compare -Wno-deprecated-declarations)
+    add_compile_options(-Wno-sign-compare -Wno-deprecated-declarations -Wno-error=cpp)
     if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
         add_compile_options(-msse4.2 -mpclmul)
     endif()
     # Options unique to Clang or GCC:
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-Qunused-arguments) 
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
         add_compile_options(-Wno-stringop-truncation)
     endif()
 endif()
