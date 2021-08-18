@@ -196,11 +196,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final String tenantName = topic.getTenant();
         final String namespaceName = topic.getNamespacePortion();
         rgs.registerTenant(rgName, tenantName);
-        // Registering with the (non-qualified) namespace should throw.
 
         final NamespaceName tenantAndNamespace = NamespaceName.get(tenantName, namespaceName);
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.registerNameSpace(rgName, tenantAndNamespace));
-
         rgs.registerNameSpace(rgName, tenantAndNamespace);
 
         // Delete of our valid config should throw until we unref correspondingly.
@@ -236,8 +233,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         }
 
         rgs.unRegisterTenant(rgName, tenantName);
-        // Unregistering with the (non-qualified) namespace should throw.
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.unRegisterNameSpace(rgName, tenantAndNamespace));
         rgs.unRegisterNameSpace(rgName, tenantAndNamespace);
 
         BytesAndMessagesCount publishQuota = rgs.getPublishRateLimiters(rgName);
