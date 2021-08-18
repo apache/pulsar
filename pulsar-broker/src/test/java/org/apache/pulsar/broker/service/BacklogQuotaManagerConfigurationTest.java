@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.mock;
@@ -30,12 +31,20 @@ import static org.testng.Assert.assertEquals;
 @Test(groups = "broker")
 public class BacklogQuotaManagerConfigurationTest {
 
+    private ServiceConfiguration serviceConfiguration;
+    private PulsarService pulsarService;
+
+    @BeforeMethod
+    public void setup() {
+        serviceConfiguration = new ServiceConfiguration();
+        initializeServiceConfiguration();
+        pulsarService = getPulsarService();
+    }
+
     @Test
     public void testBacklogQuotaDefaultLimitGBConversion() {
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        initializeServiceConfiguration(serviceConfiguration);
+        serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
 
-        PulsarService pulsarService = getPulsarService(serviceConfiguration);
         BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
@@ -43,11 +52,9 @@ public class BacklogQuotaManagerConfigurationTest {
 
     @Test
     public void testBacklogQuotaDefaultLimitPrecedence() {
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        initializeServiceConfiguration(serviceConfiguration);
+        serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
         serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
 
-        PulsarService pulsarService = getPulsarService(serviceConfiguration);
         BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
@@ -55,24 +62,20 @@ public class BacklogQuotaManagerConfigurationTest {
 
     @Test
     public void testBacklogQuotaDefaultLimitBytes() {
-        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        initializeServiceConfiguration(serviceConfiguration);
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);
         serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
 
-        PulsarService pulsarService = getPulsarService(serviceConfiguration);
         BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 123);
     }
 
-    private void initializeServiceConfiguration(ServiceConfiguration serviceConfiguration) {
-        serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
+    private void initializeServiceConfiguration() {
         serviceConfiguration.setClusterName("test");
         serviceConfiguration.setZookeeperServers("http://localhost:2181");
     }
 
-    private PulsarService getPulsarService(ServiceConfiguration serviceConfiguration) {
+    private PulsarService getPulsarService() {
         PulsarService pulsarService = mock(PulsarService.class);
         ConfigurationCacheService configurationCacheService = mock(ConfigurationCacheService.class);
         when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
