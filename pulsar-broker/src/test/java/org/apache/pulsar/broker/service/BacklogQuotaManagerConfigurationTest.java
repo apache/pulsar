@@ -21,45 +21,53 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker")
 public class BacklogQuotaManagerConfigurationTest {
 
     @Test
-    public void testBacklogQuotaConfiguration() {
+    public void testBacklogQuotaDefaultLimitGBConversion() {
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
-        double backlogQuotaDefaultLimitGB = 1.6;
-        initializeServiceConfiguration(serviceConfiguration, backlogQuotaDefaultLimitGB);
+        initializeServiceConfiguration(serviceConfiguration);
+
         PulsarService pulsarService = getPulsarService(serviceConfiguration);
-
-        // Test correct conversion of double value
         BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
-        assertEquals((long) (backlogQuotaDefaultLimitGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE),
-                backlogQuotaManager.getDefaultQuota().getLimitSize());
 
-        int backlogQuotaDefaultLimitBytes = 123;
-
-        // Test precedence of backlogQuotaDefaultLimitGB over backlogQuotaDefaultLimitBytes
-        serviceConfiguration.setBacklogQuotaDefaultLimitBytes(backlogQuotaDefaultLimitBytes);
-        backlogQuotaManager = new BacklogQuotaManager(pulsarService);
-        assertEquals((long) (backlogQuotaDefaultLimitGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE),
-                backlogQuotaManager.getDefaultQuota().getLimitSize());
-
-        // Test backlogQuotaDefaultLimitBytes is applied if backlogQuotaDefaultLimitGB <= 0
-        serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);
-        serviceConfiguration.setBacklogQuotaDefaultLimitBytes(backlogQuotaDefaultLimitBytes);
-        backlogQuotaManager = new BacklogQuotaManager(pulsarService);
-        assertEquals(backlogQuotaDefaultLimitBytes, backlogQuotaManager.getDefaultQuota().getLimitSize());
+        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
-    private void initializeServiceConfiguration(ServiceConfiguration serviceConfiguration, double backlogQuotaDefaultLimitGB) {
-        serviceConfiguration.setBacklogQuotaDefaultLimitGB(backlogQuotaDefaultLimitGB);
+    @Test
+    public void testBacklogQuotaDefaultLimitPrecedence() {
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        initializeServiceConfiguration(serviceConfiguration);
+        serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
+
+        PulsarService pulsarService = getPulsarService(serviceConfiguration);
+        BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
+
+        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
+    }
+
+    @Test
+    public void testBacklogQuotaDefaultLimitBytes() {
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        initializeServiceConfiguration(serviceConfiguration);
+        serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);
+        serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
+
+        PulsarService pulsarService = getPulsarService(serviceConfiguration);
+        BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
+
+        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 123);
+    }
+
+    private void initializeServiceConfiguration(ServiceConfiguration serviceConfiguration) {
+        serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
         serviceConfiguration.setClusterName("test");
         serviceConfiguration.setZookeeperServers("http://localhost:2181");
     }
