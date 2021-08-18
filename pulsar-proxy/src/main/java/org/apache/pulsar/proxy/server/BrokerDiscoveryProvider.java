@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.zookeeper.KeeperException;
@@ -119,7 +120,7 @@ public class BrokerDiscoveryProvider implements Closeable {
         return metadataFuture;
     }
 
-    protected static void checkAuthorization(ProxyService service, TopicName topicName, String role,
+    protected void checkAuthorization(ProxyService service, TopicName topicName, String role,
             AuthenticationDataSource authenticationData) throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
@@ -130,14 +131,10 @@ public class BrokerDiscoveryProvider implements Closeable {
         if (!service.getAuthorizationService().canLookup(topicName, role, authenticationData)) {
             LOG.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             // check namespace authorization
-            TenantInfoImpl tenantInfo;
+            TenantInfo tenantInfo;
             try {
-                tenantInfo = service.getConfigurationCacheService().propertiesCache()
-                        .get(path(POLICIES, topicName.getTenant()))
+                tenantInfo = pulsarResources.getTenantResources().getTenant(topicName.getTenant())
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
-            } catch (KeeperException.NoNodeException e) {
-                LOG.warn("Failed to get property admin data for non existing property {}", topicName.getTenant());
-                throw new IllegalAccessException("Property does not exist");
             } catch (Exception e) {
                 LOG.error("Failed to get property admin data for property");
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
