@@ -25,8 +25,7 @@
 extern "C" {
 #endif
 
-typedef enum
-{
+typedef enum {
     pulsar_result_Ok,  /// Operation successful
 
     pulsar_result_UnknownError,  /// Unknown error happened on broker
