@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static org.apache.pulsar.broker.admin.ZkAdminPaths.POLICIES;
-import static org.apache.pulsar.common.policies.path.PolicyPath.path;
 import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -132,7 +130,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
     public void accept(Notification notification) {
         String notifyPath = notification.getPath();
 
-        if (!notifyPath.startsWith(path(POLICIES))) {
+        if (!NamespaceResources.pathIsFromNamespace(notifyPath)) {
             return;
         }
         String[] parts = notifyPath.split("/");

@@ -27,6 +27,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
@@ -57,6 +58,12 @@ public class TopicResources {
                         .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
                         .collect(Collectors.toList())
         );
+    }
+
+    public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
+        return store.put(path, new byte[0], Optional.of(-1l))
+                .thenApply(__ -> null);
     }
 
     public CompletableFuture<Boolean> persistentTopicExists(TopicName topic) {

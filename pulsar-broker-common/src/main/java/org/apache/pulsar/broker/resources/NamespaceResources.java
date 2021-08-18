@@ -100,6 +100,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         return setAsync(joinPath(BASE_POLICIES_PATH, ns.toString()), function);
     }
 
+    public static boolean pathIsFromNamespace(String path) {
+        return path.startsWith(BASE_POLICIES_PATH);
+    }
+
     public static NamespaceName namespaceFromPath(String path) {
         return NamespaceName.get(path.substring(BASE_POLICIES_PATH.length() + 1));
     }

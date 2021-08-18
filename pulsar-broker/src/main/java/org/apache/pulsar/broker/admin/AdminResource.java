@@ -153,8 +153,8 @@ public abstract class AdminResource extends PulsarWebResource {
             result.completeExceptionally(new IllegalStateException("metadata store not initialized"));
             return result;
         }
-        localStore.get()
-                .put(ZkAdminPaths.managedLedgerPath(topicName.getPartition(partition)), new byte[0], Optional.of(-1L))
+
+        getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Topic partition {} created.", clientAppId(), topicName.getPartition(partition));
