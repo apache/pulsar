@@ -254,13 +254,7 @@ vcpkg install --feature-flags=manifests --triplet x64-windows
 3. Build c++ libraries.
 
 ```shell
-cmake \
- -B ./build \
- -A x64 \
- -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF \
- -DVCPKG_TRIPLET=x64-windows \
- -DCMAKE_BUILD_TYPE=Release \
- -S .
+cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
 cmake --build ./build --config Release
 ```
 

@@ -253,7 +253,7 @@ ${PULSAR_PATH}/pulsar-client-cpp/vcpkg_installed
 
 ##### Examples will be placed in
 ```
-${PULSAR_PATH}/pulsar-client-cpp/build/examples
+${PULSAR_PATH}/pulsar-client-cpp/build/examples/Release
 ```
 
 ## Tests
