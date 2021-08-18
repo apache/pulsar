@@ -3640,11 +3640,10 @@ public class PersistentTopicsBase extends AdminResource {
                     int oldPartition = metadata.partitions;
                     for (int i = oldPartition; i < numPartitions; i++) {
                         String managedLedgerPath = ZkAdminPaths.managedLedgerPath(topicName.getPartition(i));
-                        try {
-                            namespaceResources().getPartitionedTopicResources().deleteAsync(managedLedgerPath);
-                        } catch (Exception cleanZnodeException) {
-                            log.error("Failed to clean managedLedger znode {}", managedLedgerPath, cleanZnodeException);
-                        }
+                        namespaceResources().getPartitionedTopicResources().deleteAsync(managedLedgerPath).exceptionally(ex1 -> {
+                            log.error("[{}] Failed to delete managedLedger znode {}", clientAppId(), managedLedgerPath, ex1.getCause());
+                            return null;
+                        });
                     }
                 }).exceptionally(ex -> {
                     updatePartition.completeExceptionally(e);
