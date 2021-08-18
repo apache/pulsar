@@ -3638,8 +3638,13 @@ public class PersistentTopicsBase extends AdminResource {
             } catch (Exception e) {
                 getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
                     int oldPartition = metadata.partitions;
-                    for(int i = oldPartition; i < numPartitions; i++){
-                        namespaceResources().getPartitionedTopicResources().deleteAsync(ZkAdminPaths.managedLedgerPath(topicName.getPartition(i)));
+                    for (int i = oldPartition; i < numPartitions; i++) {
+                        String managedLedgerPath = ZkAdminPaths.managedLedgerPath(topicName.getPartition(i));
+                        try {
+                            namespaceResources().getPartitionedTopicResources().deleteAsync(managedLedgerPath);
+                        } catch (Exception cleanZnodeException) {
+                            log.error("Failed to clean managedLedger znode {}", managedLedgerPath, cleanZnodeException);
+                        }
                     }
                 }).exceptionally(ex -> {
                     updatePartition.completeExceptionally(e);
