@@ -29,7 +29,13 @@ pushd tests
 
 export RETRY_FAILED="${RETRY_FAILED:-1}"
 
-if [ -f /gtest-parallel/gtest-parallel ]; then
+gtest_parallel=$(which gtest-parallel 2> /dev/null)
+
+if [ -z "$gtest_parallel" ]; then
+    gtest_parallel=/gtest-parallel/gtest-parallel 
+fi
+
+if [ -f $gtest_parallel ]; then
     gtest_workers=10
     # use nproc to set workers to 2 x the number of available cores if nproc is available
     if [ -x "$(command -v nproc)" ]; then
@@ -43,7 +49,7 @@ if [ -f /gtest-parallel/gtest-parallel ]; then
         tests="--gtest_filter=$1"
         echo "Running tests: $1"
     fi
-    /gtest-parallel/gtest-parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
+    $gtest_parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
       --workers=$gtest_workers --retry_failed=$RETRY_FAILED -d /tmp \
       ./main
     RES=$?
