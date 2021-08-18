@@ -72,7 +72,7 @@ public class BacklogQuotaManagerConfigurationTest {
 
     private void initializeServiceConfiguration() {
         serviceConfiguration.setClusterName("test");
-        serviceConfiguration.setZookeeperServers("http://localhost:2181");
+        serviceConfiguration.setZookeeperServers("localhost:2181");
     }
 
     private PulsarService getPulsarService() {
