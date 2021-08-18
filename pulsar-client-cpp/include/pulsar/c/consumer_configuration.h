@@ -28,7 +28,8 @@ extern "C" {
 
 typedef struct _pulsar_consumer_configuration pulsar_consumer_configuration_t;
 
-typedef enum {
+typedef enum
+{
     /**
      * There can be only 1 consumer on the same topic with the same consumerName
      */
@@ -52,7 +53,8 @@ typedef enum {
     pulsar_ConsumerKeyShared
 } pulsar_consumer_type;
 
-typedef enum {
+typedef enum
+{
     /**
      * the latest position which means the start consuming position will be the last message
      */
@@ -63,7 +65,8 @@ typedef enum {
     initial_position_earliest
 } initial_position;
 
-typedef enum {
+typedef enum
+{
     // This is the default option to fail consume until crypto succeeds
     pulsar_ConsumerFail,
     // Message is silently acknowledged and not delivered to the application

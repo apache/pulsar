@@ -28,15 +28,22 @@
 extern "C" {
 #endif
 
-typedef enum {
+typedef enum
+{
     pulsar_UseSinglePartition,
     pulsar_RoundRobinDistribution,
     pulsar_CustomPartition
 } pulsar_partitions_routing_mode;
 
-typedef enum { pulsar_Murmur3_32Hash, pulsar_BoostHash, pulsar_JavaStringHash } pulsar_hashing_scheme;
+typedef enum
+{
+    pulsar_Murmur3_32Hash,
+    pulsar_BoostHash,
+    pulsar_JavaStringHash
+} pulsar_hashing_scheme;
 
-typedef enum {
+typedef enum
+{
     pulsar_CompressionNone = 0,
     pulsar_CompressionLZ4 = 1,
     pulsar_CompressionZLib = 2,
@@ -44,7 +51,8 @@ typedef enum {
     pulsar_CompressionSNAPPY = 4
 } pulsar_compression_type;
 
-typedef enum {
+typedef enum
+{
     pulsar_None = 0,
     pulsar_String = 1,
     pulsar_Json = 2,
@@ -63,7 +71,8 @@ typedef enum {
     pulsar_AutoPublish = -4,
 } pulsar_schema_type;
 
-typedef enum {
+typedef enum
+{
     // This is the default option to fail send if crypto operation fails
     pulsar_ProducerFail,
     // Ignore crypto failure and proceed with sending unencrypted messages
