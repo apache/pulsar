@@ -1296,6 +1296,8 @@ void testHandlerReconnectionPartitionProducers(bool lazyStartPartitionedProducer
 
     std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
     int res = makePutRequest(url, "1");
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
 
     ProducerConfiguration producerConf;
     producerConf.setSendTimeout(10000);
