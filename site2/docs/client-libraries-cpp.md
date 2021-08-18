@@ -261,8 +261,8 @@ cmake --build ./build --config Release
 4. Client library will be placed in.
 
 ```
-${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.lib
-${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.dll
+${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.lib
+${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll
 ```
 
 ## Connection URLs

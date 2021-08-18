@@ -247,7 +247,7 @@ ${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.dll
 
 ##### Add windows environment paths
 ```
-${PULSAR_PAHT}/pulsar-client-cpp/build/lib/Release
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release
 ${PULSAR_PATH}/pulsar-client-cpp/vcpkg_installed
 ```
 
