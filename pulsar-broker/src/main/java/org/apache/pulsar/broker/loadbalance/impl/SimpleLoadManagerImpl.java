@@ -1122,7 +1122,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         return String.format("%s:%s", pulsar.getAdvertisedAddress(),
                 pulsar.getConfiguration().getWebServicePort().isPresent()
                         ? pulsar.getConfiguration().getWebServicePort().get()
-                        : pulsar.getConfiguration().getWebServicePortTls());
+                        : pulsar.getConfiguration().getWebServicePortTls().get());
     }
 
     @Override
