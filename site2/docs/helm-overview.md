@@ -10,7 +10,7 @@ sidebar_label: Overview
 
 The Apache Pulsar Helm chart provides one of the most convenient ways to operate Pulsar on Kubernetes. With all the required components, Helm chart is scalable and thus being suitable for large-scale deployments.
 
-The Apache Pulsar Helm chart contains all compoments to support the features and functions that Pulsar delivers. You can install and configure these components seperately.
+The Apache Pulsar Helm chart contains all components to support the features and functions that Pulsar delivers. You can install and configure these components separately.
 
 - Pulsar core components:
     - ZooKeeper
@@ -89,7 +89,7 @@ To uninstall the Apache Pulsar Helm chart, run the following command:
 helm delete <pulsar-release-name>
 ```
 
-For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by `helm delete` command. It is recommended to *conciously* remove these items, as they affect re-deployment.
+For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by `helm delete` command. It is recommended to *consciously* remove these items, as they affect re-deployment.
 
 * PVCs for stateful data: remove these items.
     - ZooKeeper: This is your metadata.
