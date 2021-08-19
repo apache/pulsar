@@ -22,7 +22,7 @@ The configuration of the Redis sink connector has the following properties.
 | `redisHosts` |String|true|" " (empty string) | A comma-separated list of Redis hosts to connect to. |
 | `redisPassword` |String|false|" " (empty string) | The password used to connect to Redis. |
 | `redisDatabase` | int|true|0  | The Redis database to connect to. |
-| `clientMode` |String| false|Standalone | The client mode when interacting with Redis cluster. <br><br>Below are the available options: <br><li>Standalone<br><li>Cluster |
+| `clientMode` |String| false|Standalone | The client mode when interacting with Redis cluster. <br /><br />Below are the available options: <br /><li>Standalone<br /><li>Cluster |
 | `autoReconnect` | boolean|false|true | Whether the Redis client automatically reconnect or not. |
 | `requestQueue` | int|false|2147483647 | The maximum number of queued requests to Redis. |
 | `tcpNoDelay` |boolean| false| false | Whether to enable TCP with no delay or not. |

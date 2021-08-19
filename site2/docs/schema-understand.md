@@ -142,7 +142,7 @@ Currently, Pulsar supports the following primitive types:
 | `DOUBLE` | A double-precision (64-bit) IEEE 754 floating-point number |
 | `BYTES` | A sequence of 8-bit unsigned bytes |
 | `STRING` | A Unicode character sequence |
-| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br>It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value | 
+| `TIMESTAMP` (`DATE`, `TIME`) |  A logic type represents a specific instant in time with millisecond precision. <br />It stores the number of milliseconds since `January 1, 1970, 00:00:00 GMT` as an `INT64` value | 
 | INSTANT | A single instantaneous point on the time-line with nanoseconds precision|
 | LOCAL_DATE | An immutable date-time object that represents a date, often viewed as year-month-day|
 | LOCAL_TIME | An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision.|
@@ -301,8 +301,8 @@ This section describes the details of type and usage of the `struct` schema.
 
 |Type|Description|
 ---|---|
-`AvroBaseStructSchema`|Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports  `AvroSchema`, `JsonSchema`, and `ProtobufSchema`. <br><br>This allows Pulsar:<br>- to use the same tools to manage schema definitions<br>- to use different serialization or deserialization methods to handle data|
-`ProtobufNativeSchema`|`ProtobufNativeSchema` is based on protobuf native Descriptor. <br><br>This allows Pulsar:<br>- to use native protobuf-v3 to serialize or deserialize data<br>- to use `AutoConsume` to deserialize data.
+`AvroBaseStructSchema`|Pulsar uses [Avro Specification](http://avro.apache.org/docs/current/spec.html) to declare the schema definition for `AvroBaseStructSchema`, which supports  `AvroSchema`, `JsonSchema`, and `ProtobufSchema`. <br /><br />This allows Pulsar:<br />- to use the same tools to manage schema definitions<br />- to use different serialization or deserialization methods to handle data|
+`ProtobufNativeSchema`|`ProtobufNativeSchema` is based on protobuf native Descriptor. <br /><br />This allows Pulsar:<br />- to use native protobuf-v3 to serialize or deserialize data<br />- to use `AutoConsume` to deserialize data.
 
 ##### Usage
 

@@ -70,25 +70,25 @@ Let’s walk through the steps for _beginning a transaction_.
    </td>
   </tr>
   <tr>
-   <td>1.1<br>New Txn
+   <td>1.1<br />New Txn
    </td>
    <td>The first step is that the Pulsar client finds the transaction coordinator.
    </td>
   </tr>
   <tr>
-   <td>1.2<br>Allocate Txn ID
+   <td>1.2<br />Allocate Txn ID
    </td>
    <td>The transaction coordinator allocates a transaction ID for the transaction. In the transaction log, the transaction is logged with its transaction ID and status (OPEN), which ensures the transaction status is persisted regardless of transaction coordinator crashes. 
    </td>
   </tr>
   <tr>
-   <td>1.3<br>Send Result
+   <td>1.3<br />Send Result
    </td>
    <td>The transaction log sends the result of persisting the transaction ID to the transaction coordinator.
    </td>
   </tr>
   <tr>
-   <td>1.4<br>Bring Txn ID
+   <td>1.4<br />Bring Txn ID
    </td>
    <td>After the transaction status entry is logged, the transaction coordinator brings the transaction ID back to the Pulsar client.
    </td>
@@ -111,37 +111,37 @@ Let’s walk through the steps for _publishing messages with a transaction_.
    </td>
   </tr>
   <tr>
-   <td>2.1.1<br>Add Produced Partitions to Txn
+   <td>2.1.1<br />Add Produced Partitions to Txn
    </td>
    <td>Before the Pulsar client produces messages to a new topic partition, it sends a request to the transaction coordinator to add the partition to the transaction.
    </td>
   </tr>
   <tr>
-   <td>2.1.2<br>Log Partition Changes of Txn
+   <td>2.1.2<br />Log Partition Changes of Txn
    </td>
    <td>The transaction coordinator logs the partition changes of the transaction into the transaction log for durability, which ensures the transaction coordinator knows all the partitions that a transaction is handling. The transaction coordinator can commit or abort changes on each partition at the end-partition phase.
    </td>
   </tr>
   <tr>
-   <td>2.1.3<br>Send Result
+   <td>2.1.3<br />Send Result
    </td>
    <td>The transaction log sends the result of logging the new partition (used for producing messages) to the transaction coordinator.
    </td>
   </tr>
   <tr>
-   <td>2.1.4<br>Send Result
+   <td>2.1.4<br />Send Result
    </td>
    <td>The transaction coordinator sends the result of adding a new produced partition to the transaction.
    </td>
   </tr>
   <tr>
-   <td>2.2.1<br>Produce Msgs to Partitions w/Txn
+   <td>2.2.1<br />Produce Msgs to Partitions w/Txn
    </td>
    <td>The Pulsar client starts producing messages to partitions. The flow of this part is the same as the normal flow of producing messages except that the batch of messages produced by a transaction contains transaction IDs. 
    </td>
   </tr>
   <tr>
-   <td>2.2.2<br>Write Msgs
+   <td>2.2.2<br />Write Msgs
    </td>
    <td>The broker writes messages to a partition.
    </td>
@@ -164,39 +164,39 @@ Let’s walk through the steps for _acknowledging messages with a transaction_.
    </td>
   </tr>
   <tr>
-   <td>3.1.1<br>Send Request
+   <td>3.1.1<br />Send Request
    </td>
    <td>The Pulsar client sends a request to add an acknowledged subscription to the transaction coordinator.
    </td>
   </tr>
   <tr>
-   <td>3.1.2<br>Log Subscription
+   <td>3.1.2<br />Log Subscription
    </td>
    <td>The transaction coordinator logs the addition of subscription, which ensures that it knows all subscriptions handled by a transaction and can commit or abort changes on each subscription at the end phase.
    </td>
   </tr>
   <tr>
-   <td>3.1.3<br>Send Result
+   <td>3.1.3<br />Send Result
    </td>
    <td>The transaction log sends the result of logging the new partition (used for acknowledging messages) to the transaction coordinator.
    </td>
   </tr>
   <tr>
-   <td>3.1.4<br>Send Result
+   <td>3.1.4<br />Send Result
    </td>
    <td>The transaction coordinator sends the result of adding the new acknowledged partition to the transaction.
    </td>
   </tr>
   <tr>
-   <td>3.2<br>Ack Msgs w/ Txn
+   <td>3.2<br />Ack Msgs w/ Txn
    </td>
    <td>The Pulsar client acknowledges messages on the subscription. The flow of this part is the same as the normal flow of acknowledging messages except that the acknowledged request carries a transaction ID. 
    </td>
   </tr>
   <tr>
-   <td>3.3<br>Check Ack
+   <td>3.3<br />Check Ack
    </td>
-   <td>The broker receiving the acknowledgement request checks if the acknowledgment belongs to a transaction or not.<br>If it belongs to a transaction, the broker marks the message as in PENDING_ACK status, which means the message can not be acknowledged or negative-acknowledged by other consumers using the same subscription until the acknowledgement is committed or aborted.<br>If there are two transactions attempting to acknowledge on one message with the same subscription, only one transaction succeeds and the other transaction is conflicted. The Pulsar client aborts the whole transaction when it tries to acknowledge but detects a conflict. The conflict can be detected on both individual acknowledgements and cumulative acknowledgements.
+   <td>The broker receiving the acknowledgement request checks if the acknowledgment belongs to a transaction or not.<br />If it belongs to a transaction, the broker marks the message as in PENDING_ACK status, which means the message can not be acknowledged or negative-acknowledged by other consumers using the same subscription until the acknowledgement is committed or aborted.<br />If there are two transactions attempting to acknowledge on one message with the same subscription, only one transaction succeeds and the other transaction is conflicted. The Pulsar client aborts the whole transaction when it tries to acknowledge but detects a conflict. The conflict can be detected on both individual acknowledgements and cumulative acknowledgements.
    </td>
   </tr>
 </table>
@@ -221,19 +221,19 @@ Let’s walk through the steps for _ending the transaction_.
    </td>
   </tr>
   <tr>
-   <td>4.1.1<br>End Txn request
+   <td>4.1.1<br />End Txn request
    </td>
    <td>The Pulsar client issues an end transaction request (with a field indicating whether the transaction is to be committed or aborted) to the transaction coordinator. 
    </td>
   </tr>
   <tr>
-   <td>4.1.2<br>Committing Txn
+   <td>4.1.2<br />Committing Txn
    </td>
    <td>The transaction coordinator writes a COMMITTING or ABORTING message to its transaction log.
    </td>
   </tr>
   <tr>
-   <td>4.1.3<br>Send Results
+   <td>4.1.3<br />Send Results
    </td>
    <td>The transaction log sends the result of logging the committing or aborting status.
    </td>
@@ -256,19 +256,19 @@ Let’s walk through the steps for _finalizing a transaction_.
    </td>
   </tr>
   <tr>
-   <td>4.2.1<br>Commit Txn on Subscriptions
+   <td>4.2.1<br />Commit Txn on Subscriptions
    </td>
    <td>The transaction coordinator commits transactions on subscriptions and commits transactions on partitions at the same time.
    </td>
   </tr>
   <tr>
-   <td>4.2.2<br>Write Marker
+   <td>4.2.2<br />Write Marker
    </td>
    <td>The broker (produce) writes produced committed markers to the actual partitions. At the same time, the broker (ack) writes acked committed marks to the subscription pending ack partitions.
    </td>
   </tr>
   <tr>
-   <td>4.2.3<br>Send Result
+   <td>4.2.3<br />Send Result
    </td>
    <td>The data log sends the result of writing produced committed marks to the broker. At the same time, pending ack data log sends the result of writing acked committed marks to the broker. The cursor moves to the next position.
 <ul>
@@ -298,19 +298,19 @@ Let’s walk through the steps for _marking a transaction as COMMITTED or ABORTE
    </td>
   </tr>
   <tr>
-   <td>4.3.1<br>Commit Txn
+   <td>4.3.1<br />Commit Txn
    </td>
    <td>After all produced messages and acknowledgements to all partitions involved in this transaction have been successfully committed or aborted, the transaction coordinator writes the final COMMITTED or ABORTED transaction status messages to its transaction log, indicating that the transaction is complete. All the messages associated with the transaction in its transaction log can be safely removed.
    </td>
   </tr>
   <tr>
-   <td>4.3.2<br>Send Result
+   <td>4.3.2<br />Send Result
    </td>
    <td>The transaction log sends the result of the committed transaction to the transaction coordinator.
    </td>
   </tr>
   <tr>
-   <td>4.3.3<br>Send Result
+   <td>4.3.3<br />Send Result
    </td>
    <td>The transaction coordinator sends the result of the committed transaction to the Pulsar client.
    </td>

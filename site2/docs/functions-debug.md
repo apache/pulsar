@@ -276,7 +276,7 @@ $ pulsar-admin functions status options
 |Flag|Description
 |---|---
 |`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function.
-|`--instance-id`|The instance ID of a Pulsar Function <br>If the `--instance-id` is not specified, it gets the IDs of all instances.<br>
+|`--instance-id`|The instance ID of a Pulsar Function <br />If the `--instance-id` is not specified, it gets the IDs of all instances.<br />
 |`--name`|The name of a Pulsar Function. 
 |`--namespace`|The namespace of a Pulsar Function.
 |`--tenant`|The tenant of a Pulsar Function.
@@ -331,7 +331,7 @@ $ pulsar-admin functions stats options
 |Flag|Description
 |---|---
 |`--fqfn`|The Fully Qualified Function Name (FQFN) of a Pulsar Function.
-|`--instance-id`|The instance ID of a Pulsar Function. <br>If the `--instance-id` is not specified, it gets the IDs of all instances.<br>
+|`--instance-id`|The instance ID of a Pulsar Function. <br />If the `--instance-id` is not specified, it gets the IDs of all instances.<br />
 |`--name`|The name of a Pulsar Function. 
 |`--namespace`|The namespace of a Pulsar Function.
 |`--tenant`|The tenant of a Pulsar Function.

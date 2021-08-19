@@ -421,7 +421,7 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
      `--rm` | Remove the container automatically when it exits. | /
      `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
      `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
-     `-e` | Set environment variables. | This example sets the following variables:<br>- The password for the user is _password_.<br>- The name for the user is _postgres_.
+     `-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
 
      > #### Tip
      >
@@ -546,10 +546,10 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
  Flag | Description | This example 
  ---|---|---|
  `--archive` | The path to the archive file for the sink. | _pulsar-io-jdbc-postgres-{{pulsar:version}}.nar_ |
- `--inputs` | The input topic(s) of the sink. <br><br> Multiple topics can be specified as a comma-separated list.||
+ `--inputs` | The input topic(s) of the sink. <br /><br /> Multiple topics can be specified as a comma-separated list.||
  `--name` | The name of the sink. | _pulsar-postgres-jdbc-sink_ |
  `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-postgres-jdbc-sink.yaml_ |
- `--parallelism` | The parallelism factor of the sink. <br><br> For example, the number of sink instances to run. |  _1_ |
+ `--parallelism` | The parallelism factor of the sink. <br /><br /> For example, the number of sink instances to run. |  _1_ |
 
  > #### Tip
  >

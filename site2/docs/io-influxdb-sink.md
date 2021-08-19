@@ -21,8 +21,8 @@ The configuration of the InfluxDB sink connector has the following properties.
 | `token` | String|true| " " (empty string) |The authentication token used to authenticate to InfluxDB. |
 | `organization` | String| true|" " (empty string)  | The InfluxDB organization to write to. |
 | `bucket` |String| true | " " (empty string)| The InfluxDB bucket to write to. |
-| `precision` | String|false| ns | The timestamp precision for writing data to InfluxDB. <br><br>Below are the available options:<li>ns<br><li>us<br><li>ms<br><li>s|
-| `logLevel` | String|false| NONE|The log level for InfluxDB request and response. <br><br>Below are the available options:<li>NONE<br><li>BASIC<br><li>HEADERS<br><li>FULL|
+| `precision` | String|false| ns | The timestamp precision for writing data to InfluxDB. <br /><br />Below are the available options:<li>ns<br /><li>us<br /><li>ms<br /><li>s|
+| `logLevel` | String|false| NONE|The log level for InfluxDB request and response. <br /><br />Below are the available options:<li>NONE<br /><li>BASIC<br /><li>HEADERS<br /><li>FULL|
 | `gzipEnable` | boolean|false | false | Whether to enable gzip or not. |
 | `batchTimeMs` |long|false| 1000L |   The InfluxDB operation time in milliseconds. |
 | `batchSize` | int|false|200| The batch size of writing to InfluxDB. |
@@ -34,8 +34,8 @@ The configuration of the InfluxDB sink connector has the following properties.
 | `username` | String|false| " " (empty string) |The username used to authenticate to InfluxDB. |
 | `password` | String| false|" " (empty string)  | The password used to authenticate to InfluxDB. |
 | `database` |String| true | " " (empty string)| The InfluxDB to which write messages. |
-| `consistencyLevel` | String|false|ONE | The consistency level for writing data to InfluxDB. <br><br>Below are the available options:<li>ALL<br><li> ANY<br><li>ONE<br><li>QUORUM |
-| `logLevel` | String|false| NONE|The log level for InfluxDB request and response. <br><br>Below are the available options:<li>NONE<br><li>BASIC<br><li>HEADERS<br><li>FULL|
+| `consistencyLevel` | String|false|ONE | The consistency level for writing data to InfluxDB. <br /><br />Below are the available options:<li>ALL<br /><li> ANY<br /><li>ONE<br /><li>QUORUM |
+| `logLevel` | String|false| NONE|The log level for InfluxDB request and response. <br /><br />Below are the available options:<li>NONE<br /><li>BASIC<br /><li>HEADERS<br /><li>FULL|
 | `retentionPolicy` | String|false| autogen| The retention policy for InfluxDB. |
 | `gzipEnable` | boolean|false | false | Whether to enable gzip or not. |
 | `batchTimeMs` |long|false| 1000L |   The InfluxDB operation time in milliseconds. |

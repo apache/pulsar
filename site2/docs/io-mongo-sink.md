@@ -15,7 +15,7 @@ The configuration of the MongoDB sink connector has the following properties.
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| `mongoUri` | String| true| " " (empty string) | The MongoDB URI to which the connector connects. <br><br>For more information, see [connection string URI format](https://docs.mongodb.com/manual/reference/connection-string/). |
+| `mongoUri` | String| true| " " (empty string) | The MongoDB URI to which the connector connects. <br /><br />For more information, see [connection string URI format](https://docs.mongodb.com/manual/reference/connection-string/). |
 | `database` | String| true| " " (empty string)| The database name to which the collection belongs. |
 | `collection` | String| true| " " (empty string)| The collection name to which the connector writes messages. |
 | `batchSize` | int|false|100 | The batch size of writing messages to collections. |

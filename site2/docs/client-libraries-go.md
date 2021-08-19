@@ -110,7 +110,7 @@ The following configurable parameters are available for Pulsar clients:
 
  Name | Description | Default
 | :-------- | :---------- |:---------- |
-| URL | Configure the service URL for the Pulsar service.<br><br>If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br><br>This parameter is **required**. |None |
+| URL | Configure the service URL for the Pulsar service.<br /><br />If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br /><br />This parameter is **required**. |None |
 | ConnectionTimeout | Timeout for the establishment of a TCP connection | 30s |
 | OperationTimeout| Set the operation timeout. Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the operation will be marked as failed| 30s|
 | Authentication | Configure the authentication provider. Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")` | no authentication |

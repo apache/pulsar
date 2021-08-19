@@ -64,8 +64,8 @@ You can configure the Aliyun OSS offloader driver in the configuration file `bro
     | --- | --- | --- |
     | `managedLedgerOffloadReadBufferSizeInBytes` | Size of block read | 1 MB |
     | `managedLedgerOffloadMaxBlockSizeInBytes` | Size of block write | 64 MB |
-    | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
-    | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
+    | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
+    | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
 
 #### Bucket (required)
 

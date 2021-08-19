@@ -17,7 +17,7 @@ The configuration of the Netty source connector has the following properties.
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| `type` |String| true |tcp | The network protocol over which data is transmitted to netty. <br><br>Below are the available options:<br><li>tcp<li>http<li>udp |
+| `type` |String| true |tcp | The network protocol over which data is transmitted to netty. <br /><br />Below are the available options:<br /><li>tcp<li>http<li>udp |
 | `host` | String|true | 127.0.0.1 | The host name or address on which the source instance listen. |
 | `port` | int|true | 10999 | The port on which the source instance listen. |
 | `numberOfThreads` |int| true |1 | The number of threads of Netty TCP server to accept incoming connections and handle the traffic of accepted connections. |

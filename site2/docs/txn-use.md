@@ -84,7 +84,7 @@ Let’s walk through this example step by step.
   <tr>
    <td>2. Receive messages from topics.
    </td>
-   <td>The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively.<br><br>If you want to enable batch messages ack in transactions, call the enableBatchIndexAcknowledgment(true) method in the consumer builder. For the example, see [1] below this table.
+   <td>The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively.<br /><br />If you want to enable batch messages ack in transactions, call the enableBatchIndexAcknowledgment(true) method in the consumer builder. For the example, see [1] below this table.
    </td>
   </tr>
   <tr>
@@ -103,7 +103,7 @@ Let’s walk through this example step by step.
    <td>5. Commit the transaction.
    </td>
    <td>The application commits the transaction by calling Transaction.commit() on the open transaction. The commit operation ensures the two input messages are marked as acknowledged and the two output messages are written successfully to the output topics. 
-   <br><br>Tip: You can also call Transaction.abort() to abort the open transaction.
+   <br /><br />Tip: You can also call Transaction.abort() to abort the open transaction.
    </td>
   </tr>
 </table>
