@@ -81,6 +81,15 @@ public class ServiceConfigurationTest {
         assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.of(5.0));
     }
 
+    @Test
+    public void testServicePortsEmpty() throws Exception {
+        String confFile = "brokerServicePort=\nwebServicePort=\n";
+        InputStream stream = new ByteArrayInputStream(confFile.getBytes());
+        final ServiceConfiguration config = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        assertEquals(config.getBrokerServicePort(), Optional.empty());
+        assertEquals(config.getWebServicePort(), Optional.empty());
+    }
+
     /**
      * test {@link ServiceConfiguration} with incorrect values.
      *

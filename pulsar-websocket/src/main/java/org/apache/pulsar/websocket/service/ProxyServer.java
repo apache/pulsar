@@ -23,10 +23,12 @@ import com.google.common.collect.Lists;
 import java.net.MalformedURLException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
 
+import java.util.stream.Collectors;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
@@ -121,7 +123,9 @@ public class ProxyServer {
     }
 
     public void start() throws PulsarServerException {
-        log.info("Starting web socket proxy at port {}", conf.getWebServicePort().get());
+        log.info("Starting web socket proxy at port {}", Arrays.stream(server.getConnectors())
+                .map(ServerConnector.class::cast).map(ServerConnector::getPort).map(Object::toString)
+                .collect(Collectors.joining(",")));
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         Slf4jRequestLog requestLog = new Slf4jRequestLog();
         requestLog.setExtended(true);
