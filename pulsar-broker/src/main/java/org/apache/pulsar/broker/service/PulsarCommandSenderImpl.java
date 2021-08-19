@@ -246,6 +246,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 // skip broker entry metadata if consumer-client doesn't support broker entry metadata or the
                 // features is not enabled
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v18.getValue()
+                        || !cnx.supportBrokerMetadata()
                         || !cnx.getBrokerService().getPulsar().getConfig()
                         .isExposingBrokerEntryMetadataToClientEnabled()) {
                     Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
