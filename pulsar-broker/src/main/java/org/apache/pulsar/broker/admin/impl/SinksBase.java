@@ -71,8 +71,11 @@ public class SinksBase extends AdminResource {
                                      String namespace,
                              @ApiParam(value = "The name of a Pulsar Sink") final @PathParam("sinkName")
                                          String sinkName,
+                             @ApiParam(value = "The Java InputStream object of the sink package")
                              final @FormDataParam("data") InputStream uploadedInputStream,
+                             @ApiParam(value = "The Java FormDataContentDisposition object that contains the file name")
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                             @ApiParam(value = "The URL of the sink package")
                              final @FormDataParam("url") String sinkPkgUrl,
                              @ApiParam(value =
                                      "A JSON value presenting config payload of a Pulsar Sink."
@@ -173,8 +176,11 @@ public class SinksBase extends AdminResource {
                            @ApiParam(value = "The namespace of a Pulsar Sink") final @PathParam("namespace")
                                    String namespace,
                            @ApiParam(value = "The name of a Pulsar Sink") final @PathParam("sinkName") String sinkName,
+                           @ApiParam(value = "The Java InputStream object of the sink package")
                            final @FormDataParam("data") InputStream uploadedInputStream,
+                           @ApiParam(value = "The Java FormDataContentDisposition object that contains the file name")
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                           @ApiParam(value = "The URL of the sink package")
                            final @FormDataParam("url") String sinkPkgUrl,
                            @ApiParam(value =
                                    "A JSON value presenting config payload of a Pulsar Sink."
