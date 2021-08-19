@@ -251,14 +251,14 @@ cd ${PULSAR_HOME}/pulsar-client-cpp
 vcpkg install --feature-flags=manifests --triplet x64-windows
 ```
 
-3. Build c++ libraries.
+3. Build C++ libraries.
 
 ```shell
 cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
 cmake --build ./build --config Release
 ```
 
-4. Client library will be placed in.
+4. Client libraries are available in the following places.
 
 ```
 ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.lib

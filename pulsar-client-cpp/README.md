@@ -237,7 +237,7 @@ ${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCM
 
 #### Checks
 
-##### Client library will be placed in
+##### Client libraries are available in the following places.
 ```
 ${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.lib
 ${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.dll
@@ -245,13 +245,13 @@ ${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.dll
 
 #### Examples
 
-##### Add windows environment paths
+##### Add windows environment paths.
 ```
 ${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release
 ${PULSAR_PATH}/pulsar-client-cpp/vcpkg_installed
 ```
 
-##### Examples will be placed in
+##### Examples are available in.
 ```
 ${PULSAR_PATH}/pulsar-client-cpp/build/examples/Release
 ```
