@@ -19,7 +19,7 @@ The configuration of Canal source connector has the following properties.
 |`destination`|true|None|Source destination that Canal source connector connects to.
 | `singleHostname` | false | None | Canal server address.|
 | `singlePort` | false | None | Canal server port.|
-| `cluster` | true | false | Whether to enable cluster mode based on Canal server configuration or not.<br/><br/><li>true: **cluster** mode.<br/>If set to true, it talks to `zkServers` to figure out the actual database host.<br/><br/><li>false: **standalone** mode.<br/>If set to false, it connects to the database specified by `singleHostname` and `singlePort`. |
+| `cluster` | true | false | Whether to enable cluster mode based on Canal server configuration or not.<br /><br /><li>true: **cluster** mode.<br />If set to true, it talks to `zkServers` to figure out the actual database host.<br /><br /><li>false: **standalone** mode.<br />If set to false, it connects to the database specified by `singleHostname` and `singlePort`. |
 | `zkServers` | true | None | Address and port of the Zookeeper that Canal source connector talks to figure out the actual database host.|
 | `batchSize` | false | 1000 | Batch size to fetch from Canal. |
 

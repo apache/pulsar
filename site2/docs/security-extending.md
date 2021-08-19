@@ -168,8 +168,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
@@ -183,8 +183,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
