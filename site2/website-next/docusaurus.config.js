@@ -12,8 +12,7 @@ const packagesApiUrl = url + "/packages-rest-api";
 const githubUrl = "https://github.com/apache/incubator-pulsar";
 const baseUrl = "/";
 
-const injectLinkParse = ([, prefix, name, path]) => {
-  console.log("...", prefix, name, path);
+const injectLinkParse = ([, prefix, , name, path]) => {
   if (prefix == "javadoc") {
     return {
       link: javadocUrl + path,
@@ -59,7 +58,6 @@ const injectLinkParse = ([, prefix, name, path]) => {
 
 const injectLinkParseForEndpoint = ([, info]) => {
   const [method, path, suffix] = info.split("|");
-  console.log(method, path, suffix);
 
   const restPath = path.split("/");
   const restApiVersion = restPath[2];
@@ -187,13 +185,14 @@ module.exports = {
       "@docusaurus/preset-classic",
       {
         docs: {
+          // path: "../docs",
           sidebarPath: require.resolve("./sidebars.js"),
           // Please change this to your repo.
           editUrl:
             "https://github.com/facebook/docusaurus/edit/master/website/",
           remarkPlugins: [
             linkifyRegex(
-              /{\@inject\:\s?((?!endpoint)[^}])+:([^}]+):([^}]+)}/,
+              /{\@inject\:\s?(((?!endpoint)[^}])+):([^}]+):([^}]+)}/,
               injectLinkParse
             ),
             linkifyRegex(
