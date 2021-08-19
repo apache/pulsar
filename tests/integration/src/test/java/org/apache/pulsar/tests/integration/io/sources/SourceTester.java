@@ -58,6 +58,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
         add("source");
         add("op");
         add("ts_ms");
+        add("transaction");
     }};
 
     protected SourceTester(String sourceType) {
@@ -144,7 +145,10 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
             GenericRecord valueRecord = msg.getValue().getValue();
             Assert.assertNotNull(valueRecord.getFields());
             Assert.assertTrue(valueRecord.getFields().size() > 0);
+
+            log.info("Received message: key = {}, value = {}.", keyRecord.getNativeObject(), valueRecord.getNativeObject());
             for (Field field : valueRecord.getFields()) {
+                log.info("validating field {}", field.getName());
                 Assert.assertTrue(DEBEZIUM_FIELD_SET.contains(field.getName()));
             }
 

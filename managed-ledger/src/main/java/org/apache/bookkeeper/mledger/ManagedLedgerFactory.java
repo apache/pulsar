@@ -161,7 +161,6 @@ public interface ManagedLedgerFactory {
      */
     void shutdown() throws InterruptedException, ManagedLedgerException;
 
-
     /**
      * This method tries it's best to releases all the resources maintained by the ManagedLedgerFactory.
      * It will take longer time to shutdown than shutdown();
@@ -170,5 +169,15 @@ public interface ManagedLedgerFactory {
      * @throws ManagedLedgerException
      */
     CompletableFuture<Void> shutdownAsync() throws ManagedLedgerException, InterruptedException;
+
+    /**
+     * Check managed ledger has been initialized before.
+     *
+     * @param ledgerName {@link String}
+     * @return a future represents the result of the operation.
+     *         an instance of {@link Boolean} is returned
+     *         if the operation succeeds.
+     */
+    CompletableFuture<Boolean> asyncExists(String ledgerName);
 
 }

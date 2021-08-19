@@ -159,14 +159,16 @@ public class NamespaceBundleFactory {
 
     private void handleMetadataStoreNotification(Notification n) {
         if (n.getPath().startsWith(LOCAL_POLICIES_ROOT)) {
-            final NamespaceName namespace = NamespaceName.get(getNamespaceFromPoliciesPath(n.getPath()));
-
             try {
-                LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
-                // Trigger a background refresh to fetch new bundle data from the policies
-                bundlesCache.synchronous().invalidate(namespace);
+                final Optional<NamespaceName> namespace = NamespaceName.getIfValid(
+                        getNamespaceFromPoliciesPath(n.getPath()));
+                if (namespace.isPresent()) {
+                    LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
+                    // Trigger a background refresh to fetch new bundle data from the policies
+                    bundlesCache.synchronous().invalidate(namespace.get());
+                }
             } catch (Exception e) {
-                LOG.error("Failed to update the policy change for ns {}", namespace, e);
+                LOG.error("Failed to update the policy change for path {}", n.getPath(), e);
             }
         }
     }

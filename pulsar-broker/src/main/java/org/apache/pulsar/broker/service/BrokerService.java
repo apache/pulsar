@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -254,6 +255,7 @@ public class BrokerService implements Closeable {
     @Getter
     private final BundlesQuotas bundlesQuotas;
 
+    private PulsarChannelInitializer.Factory pulsarChannelInitFactory = PulsarChannelInitializer.DEFAULT_FACTORY;
     private Channel listenChannel;
     private Channel listenChannelTls;
 
@@ -410,7 +412,8 @@ public class BrokerService implements Closeable {
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
-        bootstrap.childHandler(new PulsarChannelInitializer(pulsar, false));
+        bootstrap.childHandler(
+                pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, false));
 
         Optional<Integer> port = serviceConfig.getBrokerServicePort();
         if (port.isPresent()) {
@@ -427,7 +430,8 @@ public class BrokerService implements Closeable {
         Optional<Integer> tlsPort = serviceConfig.getBrokerServicePortTls();
         if (tlsPort.isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
-            tlsBootstrap.childHandler(new PulsarChannelInitializer(pulsar, true));
+            tlsBootstrap.childHandler(
+                    pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, true));
             try {
                 listenChannelTls = tlsBootstrap.bind(new InetSocketAddress(
                         pulsar.getBindAddress(), tlsPort.get())).sync()
@@ -1233,15 +1237,13 @@ public class BrokerService implements Closeable {
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : new PersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> preCreateSubForCompaction =
-                                        CompletableFuture.completedFuture(null);
-                                if (persistentTopic instanceof SystemTopic) {
-                                    preCreateSubForCompaction = ((SystemTopic) persistentTopic)
-                                            .preCreateSubForCompactionIfNeeded();
-                                }
+                                        persistentTopic.preCreateSubscriptionForCompactionIfNeeded();
                                 CompletableFuture<Void> replicationFuture = persistentTopic
                                         .initialize()
                                         .thenCompose(__ -> persistentTopic.checkReplication());
-                                FutureUtil.waitForAll(Lists.newArrayList(preCreateSubForCompaction, replicationFuture))
+
+
+                                CompletableFuture.allOf(preCreateSubForCompaction, replicationFuture)
                                 .thenCompose(v -> {
                                     // Also check dedup status
                                     return persistentTopic.checkDeduplicationStatus();
@@ -2648,5 +2650,10 @@ public class BrokerService implements Closeable {
 
     public long getPausedConnections() {
         return pausedConnections.longValue();
+    }
+
+    @VisibleForTesting
+    public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
+        this.pulsarChannelInitFactory = factory;
     }
 }

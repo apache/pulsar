@@ -280,19 +280,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-
         return startBrokerWithoutAuthorization(conf);
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
         conf.setBrokerShutdownTimeoutMs(0L);
-        PulsarService pulsar = spy(new PulsarService(conf));
+        PulsarService pulsar = spy(newPulsarService(conf));
         setupBrokerMocks(pulsar);
         beforePulsarStartMocks(pulsar);
         pulsar.start();
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
         return pulsar;
+    }
+
+    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
+        return new PulsarService(conf);
     }
 
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {

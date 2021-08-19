@@ -77,6 +77,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -94,12 +95,14 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         conf.setManagedLedgerMaxEntriesPerLedger(2);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
         super.internalSetup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-tenant",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-tenant/use/my-ns");
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-tenant/my-ns", Collections.singleton("test"));
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
@@ -121,7 +124,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testCompaction() throws Exception {
-        String topic = "persistent://my-tenant/use/my-ns/my-topic-" + System.nanoTime();
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
 
         Set<String> keys = Sets.newHashSet("a", "b", "c");
         Set<String> keysToExpire = Sets.newHashSet("x1", "x2");
@@ -193,6 +196,91 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         // In the raw topic there should be no messages
         validateMessages(pulsarClient, false, topic, round, Collections.emptySet());
+    }
+
+
+    /**
+     * When a topic is created, if the compaction threshold are set, the data should be retained in the compacted view,
+     * even if the topic is not yet compacted.
+     */
+    @Test
+    public void testCompactionRetentionOnTopicCreationWithNamespacePolicies() throws Exception {
+        String namespace = "my-tenant/my-ns";
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
+        admin.namespaces().setCompactionThreshold(namespace, 10);
+
+        testCompactionCursorRetention(topic);
+    }
+
+    @Test
+    public void testCompactionRetentionAfterTopicCreationWithNamespacePolicies() throws Exception {
+        String namespace = "my-tenant/my-ns";
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
+
+        // Pre-create the topic, so that compaction is enabled only after the topic was created
+        pulsarClient.newProducer(Schema.INT32).topic(topic).create().close();
+
+        admin.namespaces().setCompactionThreshold(namespace, 10);
+
+        Awaitility.await().untilAsserted(() ->
+                testCompactionCursorRetention(topic)
+        );
+    }
+
+    @Test
+    public void testCompactionRetentionOnTopicCreationWithTopicPolicies() throws Exception {
+        String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
+
+        // Pre-create the topic, otherwise setting policies will fail
+        pulsarClient.newProducer(Schema.INT32).topic(topic).create().close();
+
+        admin.topics().setCompactionThreshold(topic, 10);
+
+        Awaitility.await().untilAsserted(() ->
+                testCompactionCursorRetention(topic)
+        );
+    }
+
+    private void testCompactionCursorRetention(String topic) throws Exception {
+        Set<String> keys = Sets.newHashSet("a", "b", "c");
+        Set<String> keysToExpire = Sets.newHashSet("x1", "x2");
+        Set<String> allKeys = new HashSet<>();
+        allKeys.addAll(keys);
+        allKeys.addAll(keysToExpire);
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(SerializationFeature.INDENT_OUTPUT, true);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+
+        log.info(" ---- X 1: {}", mapper.writeValueAsString(
+                admin.topics().getInternalStats(topic, false)));
+
+        int round = 1;
+
+        for (String key : allKeys) {
+            producer.newMessage()
+                    .key(key)
+                    .value(round)
+                    .send();
+        }
+
+        log.info(" ---- X 2: {}", mapper.writeValueAsString(
+                admin.topics().getInternalStats(topic, false)));
+
+        validateMessages(pulsarClient, true, topic, round, allKeys);
+
+        compactor.compact(topic).join();
+
+        log.info(" ---- X 3: {}", mapper.writeValueAsString(
+                admin.topics().getInternalStats(topic, false)));
+
+        validateMessages(pulsarClient, true, topic, round, allKeys);
     }
 
     private void validateMessages(PulsarClient client, boolean readCompacted, String topic, int round, Set<String> expectedKeys)

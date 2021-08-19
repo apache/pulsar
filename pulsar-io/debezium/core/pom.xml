@@ -90,6 +90,13 @@
       <type>test-jar</type>
     </dependency>
 
+    <dependency>
+      <groupId>io.debezium</groupId>
+      <artifactId>debezium-connector-mysql</artifactId>
+      <version>${debezium.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
 </project>

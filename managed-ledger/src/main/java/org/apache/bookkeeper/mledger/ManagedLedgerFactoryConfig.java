@@ -48,22 +48,22 @@ public class ManagedLedgerFactoryConfig {
     private double cacheEvictionFrequency = 100;
 
     /**
-     * All entries that have stayed in cache for more than the configured time, will be evicted
+     * All entries that have stayed in cache for more than the configured time, will be evicted.
      */
     private long cacheEvictionTimeThresholdMillis = 1000;
 
     /**
-     * Whether we should make a copy of the entry payloads when inserting in cache
+     * Whether we should make a copy of the entry payloads when inserting in cache.
      */
     private boolean copyEntriesInCache = false;
 
     /**
-     * Whether trace managed ledger task execution time
+     * Whether trace managed ledger task execution time.
      */
     private boolean traceTaskExecution = true;
 
     /**
-     * Managed ledger prometheus stats Latency Rollover Seconds
+     * Managed ledger prometheus stats Latency Rollover Seconds.
      */
     private int prometheusStatsLatencyRolloverSeconds = 60;
 
@@ -73,7 +73,12 @@ public class ManagedLedgerFactoryConfig {
     private int cursorPositionFlushSeconds = 60;
 
     /**
-     * cluster name for prometheus stats
+     * How frequently to refresh the stats.
+     */
+    private int statsPeriodSeconds = 60;
+
+    /**
+     * cluster name for prometheus stats.
      */
     private String clusterName;
 

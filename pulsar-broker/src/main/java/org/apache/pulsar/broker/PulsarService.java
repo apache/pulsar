@@ -24,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -241,7 +242,7 @@ public class PulsarService implements AutoCloseable {
     private ProtocolHandlers protocolHandlers = null;
 
     private final ShutdownService shutdownService;
-    private final EventLoopGroup ioEventLoopGroup;
+    protected final EventLoopGroup ioEventLoopGroup;
 
     private MetricsGenerator metricsGenerator;
 
@@ -658,7 +659,7 @@ public class PulsarService implements AutoCloseable {
                 config, localMetadataStore, getZkClient(), bkClientFactory, ioEventLoopGroup
             );
 
-            this.brokerService = new BrokerService(this, ioEventLoopGroup);
+            this.brokerService = newBrokerService(this);
 
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
@@ -1071,7 +1072,8 @@ public class PulsarService implements AutoCloseable {
             List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
-            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName).join()) {
+            for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)
+                    .get(config.getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
@@ -1677,4 +1679,8 @@ public class PulsarService implements AutoCloseable {
                 || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
+    @VisibleForTesting
+    protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
+        return new BrokerService(pulsar, ioEventLoopGroup);
+    }
 }

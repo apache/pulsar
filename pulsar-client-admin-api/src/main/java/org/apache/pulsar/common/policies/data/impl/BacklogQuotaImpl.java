@@ -27,6 +27,9 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 @AllArgsConstructor
 @NoArgsConstructor
 public class BacklogQuotaImpl implements BacklogQuota {
+    public static final long BYTES_IN_GIGABYTE = 1024 * 1024 * 1024;
+
+    // backlog quota by size in byte
     private long limitSize;
     // backlog quota by time in second
     private int limitTime;
@@ -37,7 +40,7 @@ public class BacklogQuotaImpl implements BacklogQuota {
     }
 
     public static class BacklogQuotaImplBuilder implements BacklogQuota.Builder {
-        private long limitSize;
+        private long limitSize = -1;
         private int limitTime = -1;
         private RetentionPolicy retentionPolicy;
 

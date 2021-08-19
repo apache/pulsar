@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +47,7 @@ import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -122,7 +124,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testSetBacklogQuota() throws Exception {
+    public void testSetSizeBasedBacklogQuota() throws Exception {
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(1024)
@@ -130,7 +132,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
-        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
         Awaitility.await()
@@ -138,7 +140,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                         .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
 
         BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(testTopic));
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager
+                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, testTopic);
         Assert.assertEquals(backlogQuota, backlogQuotaInManager);
 
@@ -146,14 +149,37 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testRemoveBacklogQuota() throws Exception {
+    public void testSetTimeBasedBacklogQuota() throws Exception {
+
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitTime(1000)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
+
+        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager
+                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.message_age);
+
+        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveSizeBasedBacklogQuota() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(1024)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
-        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
         Awaitility.await()
@@ -161,16 +187,18 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                         .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
 
         BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(testTopic));
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager
+                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, testTopic);
         Assert.assertEquals(backlogQuota, backlogQuotaInManager);
 
-        admin.topics().removeBacklogQuota(testTopic);
+        admin.topics().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.destination_storage);
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.destination_storage)));
 
-        backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(testTopic));
+        backlogQuotaInManager = backlogQuotaManager
+                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInManager,
                 testTopic);
         Assert.assertEquals(backlogQuotaManager.getDefaultQuota(), backlogQuotaInManager);
@@ -179,7 +207,37 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testCheckBacklogQuota() throws Exception {
+    public void testRemoveTimeBasedBacklogQuota() throws Exception {
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitTime(1000)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
+
+        BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager
+                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.message_age);
+        Assert.assertEquals(backlogQuota, backlogQuotaInManager);
+
+        admin.topics().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.message_age);
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertNull(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age)));
+
+        backlogQuotaInManager = backlogQuotaManager
+                .getBacklogQuota(TopicName.get(testTopic), BacklogQuota.BacklogQuotaType.message_age);
+        Assert.assertEquals(backlogQuotaManager.getDefaultQuota(), backlogQuotaInManager);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckSizeBasedBacklogQuota() throws Exception {
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
         String namespace = TopicName.get(testTopic).getNamespace();
         admin.namespaces().setRetention(namespace, retentionPolicies);
@@ -193,7 +251,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
-            admin.topics().setBacklogQuota(testTopic, backlogQuota);
+            admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
@@ -205,7 +263,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
-            admin.topics().setBacklogQuota(testTopic, backlogQuota);
+            admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
@@ -216,7 +274,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
-        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
 
         BacklogQuota finalBacklogQuota = backlogQuota;
         Awaitility.await()
@@ -226,8 +284,56 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
+    @Test
+    public void testCheckTimeBasedBacklogQuota() throws Exception {
+        RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
+        String namespace = TopicName.get(testTopic).getNamespace();
+        admin.namespaces().setRetention(namespace, retentionPolicies);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace), retentionPolicies));
+
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitTime(10 * 60)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        try {
+            admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        backlogQuota = BacklogQuota.builder()
+                .limitTime(10 * 60 + 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        try {
+            admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        backlogQuota = BacklogQuota.builder()
+                .limitTime(10 * 60 - 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
+
+        BacklogQuota finalBacklogQuota = backlogQuota;
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), finalBacklogQuota));
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
     @Test(timeOut = 20000)
-    public void testGetBacklogQuotaApplied() throws Exception {
+    public void testGetSizeBasedBacklogQuotaApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
         assertEquals(admin.topics().getBacklogQuotaMap(topic), Maps.newHashMap());
@@ -236,6 +342,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getBacklogQuotaMap(topic, true), brokerQuotaMap);
         BacklogQuota namespaceQuota = BacklogQuota.builder()
                 .limitSize(30)
+                .limitTime(10)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
                 .build();
 
@@ -243,23 +350,67 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertFalse(admin.namespaces().getBacklogQuotaMap(myNamespace).isEmpty()));
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> namespaceQuotaMap = Maps.newHashMap();
         namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, namespaceQuota);
+        namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, BacklogQuota.builder()
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold).build());
         assertEquals(admin.topics().getBacklogQuotaMap(topic, true), namespaceQuotaMap);
 
         BacklogQuota topicQuota = BacklogQuota.builder()
                 .limitSize(40)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
-        admin.topics().setBacklogQuota(topic, topicQuota);
+        admin.topics().setBacklogQuota(topic, topicQuota, BacklogQuota.BacklogQuotaType.destination_storage);
         Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getBacklogQuotaMap(topic).isEmpty()));
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> topicQuotaMap = Maps.newHashMap();
         topicQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, topicQuota);
         assertEquals(admin.topics().getBacklogQuotaMap(topic, true), topicQuotaMap);
 
         admin.namespaces().removeBacklogQuota(myNamespace);
-        admin.topics().removeBacklogQuota(topic);
-        Awaitility.await().untilAsserted(() -> assertTrue(admin.namespaces().getBacklogQuotaMap(myNamespace).isEmpty()));
+        admin.topics().removeBacklogQuota(topic, BacklogQuota.BacklogQuotaType.destination_storage);
+        Awaitility.await().untilAsserted(() -> assertTrue(admin.namespaces().getBacklogQuotaMap(myNamespace)
+                .get(BacklogQuota.BacklogQuotaType.destination_storage) == null));
         Awaitility.await().untilAsserted(() -> assertTrue(admin.topics().getBacklogQuotaMap(topic).isEmpty()));
+        assertTrue(admin.topics().getBacklogQuotaMap(topic, true)
+                .get(BacklogQuota.BacklogQuotaType.destination_storage) == null);
+    }
+
+    @Test(timeOut = 20000)
+    public void testGetTimeBasedBacklogQuotaApplied() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        assertEquals(admin.topics().getBacklogQuotaMap(topic), Maps.newHashMap());
+        assertEquals(admin.namespaces().getBacklogQuotaMap(myNamespace), Maps.newHashMap());
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> brokerQuotaMap = ConfigHelper.backlogQuotaMap(conf);
         assertEquals(admin.topics().getBacklogQuotaMap(topic, true), brokerQuotaMap);
+        BacklogQuota namespaceQuota = BacklogQuota.builder()
+                .limitTime(30)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
+
+        admin.namespaces().setBacklogQuota(myNamespace, namespaceQuota, BacklogQuota.BacklogQuotaType.message_age);
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.namespaces().getBacklogQuotaMap(myNamespace).isEmpty()));
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> namespaceQuotaMap = Maps.newHashMap();
+        namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, namespaceQuota);
+        namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, BacklogQuota.builder()
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold).build());
+        assertEquals(admin.topics().getBacklogQuotaMap(topic, true), namespaceQuotaMap);
+
+        BacklogQuota topicQuota = BacklogQuota.builder()
+                .limitTime(40)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        admin.topics().setBacklogQuota(topic, topicQuota, BacklogQuota.BacklogQuotaType.message_age);
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getBacklogQuotaMap(topic).isEmpty()));
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> topicQuotaMap = Maps.newHashMap();
+        topicQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, topicQuota);
+        assertEquals(admin.topics().getBacklogQuotaMap(topic, true), topicQuotaMap);
+
+        admin.namespaces().removeBacklogQuota(myNamespace, BacklogQuota.BacklogQuotaType.message_age);
+        admin.topics().removeBacklogQuota(topic, BacklogQuota.BacklogQuotaType.message_age);
+        Awaitility.await().untilAsserted(() -> assertTrue(admin.namespaces().getBacklogQuotaMap(myNamespace)
+                .get(BacklogQuota.BacklogQuotaType.message_age) == null));
+        Awaitility.await().untilAsserted(() -> assertTrue(admin.topics().getBacklogQuotaMap(topic).isEmpty()));
+        assertTrue(admin.topics().getBacklogQuotaMap(topic, true)
+                .get(BacklogQuota.BacklogQuotaType.message_age) == null);
     }
 
     @Test
@@ -276,7 +427,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
         try {
-            admin.topics().setBacklogQuota(testTopic, backlogQuota);
+            admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
@@ -288,13 +439,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testCheckRetention() throws Exception {
+    public void testCheckRetentionSizeBasedQuota() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(10 * 1024 * 1024)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
 
-        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
@@ -318,6 +469,47 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
 
         retention = new RetentionPolicies(10, 12);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        admin.topics().setRetention(testTopic, retention);
+
+        RetentionPolicies finalRetention = retention;
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getRetention(testTopic), finalRetention));
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckRetentionTimeBasedQuota() throws Exception {
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitTime(10 * 60)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
+
+        RetentionPolicies retention = new RetentionPolicies(10, 10);
+        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
+        try {
+            admin.topics().setRetention(testTopic, retention);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        retention = new RetentionPolicies(9, 10);
+        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
+        try {
+            admin.topics().setRetention(testTopic, retention);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        retention = new RetentionPolicies(12, 10);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         admin.topics().setRetention(testTopic, retention);
 
@@ -1319,6 +1511,44 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testDisableSubscribeRate() throws Exception {
+        assertEquals(pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(), 0);
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        admin.lookups().lookupTopic(persistenceTopic);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(persistenceTopic).get().get();
+        Field field = PersistentTopic.class.getDeclaredField("subscribeRateLimiter");
+        field.setAccessible(true);
+        Optional<SubscribeRateLimiter> limiter = (Optional<SubscribeRateLimiter>) field.get(topic);
+        // sub rate limiter should be null by default
+        assertFalse(limiter.isPresent());
+
+        // Enable / Disable subscribe rate in namespace-level
+        final SubscribeRate subscribeRate = new SubscribeRate(1, 100);
+        admin.namespaces().setSubscribeRate(myNamespace, subscribeRate);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertTrue(limiter1.isPresent());
+        });
+        admin.namespaces().removeSubscribeRate(myNamespace);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertFalse(limiter2.isPresent());
+        });
+
+        // Enable / Disable subscribe rate in topic-level
+        admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertTrue(limiter1.isPresent());
+        });
+        admin.topics().removeSubscribeRate(persistenceTopic);
+        Awaitility.await().untilAsserted(()-> {
+            Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
+            assertFalse(limiter2.isPresent());
+        });
+    }
+
+    @Test
     public void testGetSetSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
 
@@ -1466,7 +1696,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
-
+        pulsarClient.newProducer().topic(persistenceTopic).create().close();
         SubscribeRate subscribeRate = new SubscribeRate(2, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, persistenceTopic);
         admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);
@@ -2214,7 +2444,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
-        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
         Awaitility.await()

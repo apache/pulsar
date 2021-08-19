@@ -103,8 +103,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
 
-    public static final int StatsPeriodSeconds = 60;
-
     //indicate whether shutdown() is called.
     private volatile boolean closed;
 
@@ -181,7 +179,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats,
-                0, StatsPeriodSeconds, TimeUnit.SECONDS);
+                0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
                 config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
@@ -634,6 +632,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         cacheEvictionExecutor.shutdownNow();
 
         entryCacheManager.clear();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> asyncExists(String ledgerName) {
+        return store.asyncExists(ledgerName);
     }
 
     @Override

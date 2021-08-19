@@ -25,6 +25,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -99,8 +100,10 @@ public class NamespaceStatsAggregator {
             stats.managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
             stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
-            stats.backlogQuotaLimit = topic.getBacklogQuota().getLimitSize();
-            stats.backlogQuotaLimitTime = topic.getBacklogQuota().getLimitTime();
+            stats.backlogQuotaLimit = topic
+                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize();
+            stats.backlogQuotaLimitTime = topic
+                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime();
 
             stats.managedLedgerStats.storageWriteLatencyBuckets
                     .addAll(mlStats.getInternalAddEntryLatencyBuckets());
