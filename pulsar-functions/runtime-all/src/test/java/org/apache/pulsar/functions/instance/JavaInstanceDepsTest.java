@@ -72,8 +72,9 @@ public class JavaInstanceDepsTest {
                         && !name.startsWith("org/apache/avro")
                         && !name.startsWith("com/fasterxml/jackson")
                         && !name.startsWith("org/apache/commons/compress")
-                        && !name.startsWith("com/google/protobuf")
-                        && !name.startsWith("com/google/gson")
+                        && !name.startsWith("com/google")
+                        && !name.startsWith("org/checkerframework")
+                        && !name.startsWith("javax/annotation")
                         && !name.startsWith("org/apache/logging/slf4j")
                         && !name.startsWith("org/apache/logging/log4j")) {
                     notAllowedClasses.add(name);
