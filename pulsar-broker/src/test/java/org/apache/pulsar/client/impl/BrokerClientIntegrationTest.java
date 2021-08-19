@@ -81,6 +81,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -951,6 +952,61 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer.redeliverUnacknowledgedMessages();
         assertEquals(payload.refCnt(), 0);
         consumer.close();
+        producer.close();
+    }
+
+    /**
+     * It validates pooled message consumption for batch and non-batch messages.
+     * 
+     * @throws Exception
+     */
+    @Test(dataProvider = "booleanFlagProvider")
+    public void testConsumerWithPooledMessagesWithReader(boolean isBatchingEnabled) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+
+        final String topic = "persistent://my-property/my-ns/testConsumerWithPooledMessages" + isBatchingEnabled;
+
+        @Cleanup
+        Reader<ByteBuffer> reader = newPulsarClient.newReader(Schema.BYTEBUFFER).topic(topic).poolMessages(true)
+                .startMessageId(MessageId.latest).create();
+
+        @Cleanup
+        Producer<byte[]> producer = newPulsarClient.newProducer().topic(topic).enableBatching(isBatchingEnabled).create();
+
+        final int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("value-" + i).getBytes(UTF_8))
+            .eventTime((i + 1) * 100L).sendAsync();
+        }
+        producer.flush();
+
+        // Reuse pre-allocated pooled buffer to process every message
+        byte[] val = null;
+        int size = 0;
+        for (int i = 0; i < numMessages; i++) {
+            Message<ByteBuffer> msg = reader.readNext();
+            ByteBuffer value;
+            try {
+                value = msg.getValue();
+                int capacity = value.remaining();
+                // expand the size of buffer if needed
+                if (capacity > size) {
+                    val = new byte[capacity];
+                    size = capacity;
+                }
+                // read message into pooled buffer
+                value.get(val, 0, capacity);
+                // process the message
+                assertEquals(("value-" + i), new String(val, 0, capacity));
+                assertTrue(value.isDirect());
+            } finally {
+                msg.release();
+            }
+        }
+        reader.close();
         producer.close();
     }
 }
