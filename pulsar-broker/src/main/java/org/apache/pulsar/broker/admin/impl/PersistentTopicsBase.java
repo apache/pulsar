@@ -3642,13 +3642,13 @@ public class PersistentTopicsBase extends AdminResource {
                         String managedLedgerPath = ZkAdminPaths.managedLedgerPath(topicName.getPartition(i));
                         namespaceResources().getPartitionedTopicResources()
                                 .deleteAsync(managedLedgerPath).exceptionally(ex1 -> {
-                            log.error("[{}] Failed to delete managedLedger znode {}", clientAppId(),
+                            log.warn("[{}] Failed to clean up managedLedger znode {}", clientAppId(),
                                     managedLedgerPath, ex1.getCause());
                             return null;
                         });
                     }
                 }).exceptionally(ex -> {
-                    updatePartition.completeExceptionally(e);
+                    log.warn("[{}] Failed to clean up managedLedger znode", clientAppId(), ex.getCause());
                     return null;
                 });
                 updatePartition.completeExceptionally(e);
