@@ -235,10 +235,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             log.debug("[{}] startReceivingMessages for {} new consumers in topics consumer, state: {}",
                 topic, newConsumers.size(), getState());
         }
+
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
                 consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
-                receiveMessageFromConsumer(consumer);
+                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
             });
         }
     }
@@ -995,14 +996,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
 
                 // We have successfully created new consumers, so we can start receiving messages for them
-                List<ConsumerImpl<T>> newConsumers = consumers.values().stream()
-                        .filter(consumer1 -> {
-                            String consumerTopicName = consumer1.getTopic();
-                            return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
-                                    TopicName.get(topicName).getPartitionedTopicName());
-                        })
-                        .collect(Collectors.toList());
-                internalPinnedExecutor.execute(() -> startReceivingMessages(newConsumers));
+                startReceivingMessages(consumers.values().stream()
+                                .filter(consumer1 -> {
+                                    String consumerTopicName = consumer1.getTopic();
+                                    return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
+                                            TopicName.get(topicName).getPartitionedTopicName());
+                                })
+                                .collect(Collectors.toList()));
 
                 subscribeResult.complete(null);
                 log.info("[{}] [{}] Success subscribe new topic {} in topics consumer, partitions: {}, allTopicPartitionsNumber: {}",
