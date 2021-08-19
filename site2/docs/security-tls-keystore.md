@@ -121,7 +121,7 @@ tlsTrustStoreType=JKS
 tlsTrustStore=/var/private/tls/broker.truststore.jks
 tlsTrustStorePassword=brokerpw
 
-# interal client/admin-client config
+# internal client/admin-client config
 brokerClientTlsEnabled=true
 brokerClientTlsEnabledWithKeyStore=true
 brokerClientTlsTrustStoreType=JKS
@@ -213,7 +213,7 @@ tlsTrustStoreType=JKS
 tlsTrustStore=/var/private/tls/broker.truststore.jks
 tlsTrustStorePassword=brokerpw
 
-# interal client/admin-client config
+# internal client/admin-client config
 brokerClientTlsEnabled=true
 brokerClientTlsEnabledWithKeyStore=true
 brokerClientTlsTrustStoreType=JKS

@@ -41,7 +41,7 @@ For more specific steps involving UI, refer to [Example Service Access Control S
 > ### TLS encryption 
 >
 > Note that when you are using Athenz as an authentication provider, you had better use TLS encryption 
-> as it can protect role tokens from being intercepted and reused. (for more details involving TLS encrption see [Architecture - Data Model](https://github.com/AthenZ/athenz/blob/master/docs/data_model.md)).
+> as it can protect role tokens from being intercepted and reused. (for more details involving TLS encryption see [Architecture - Data Model](https://github.com/AthenZ/athenz/blob/master/docs/data_model.md)).
 
 In the `conf/broker.conf` configuration file in your Pulsar installation, you need to provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names.
 
