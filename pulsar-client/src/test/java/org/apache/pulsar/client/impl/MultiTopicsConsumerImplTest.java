@@ -23,6 +23,8 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -155,12 +157,13 @@ public class MultiTopicsConsumerImplTest {
     @Test
     public void testConsumerCleanupOnSubscribeFailure() {
         ExecutorProvider executorProvider = mock(ExecutorProvider.class);
+        ExecutorService internalExecutorService = Executors.newSingleThreadScheduledExecutor();
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
         consumerConfData.setSubscriptionName("subscriptionName");
         consumerConfData.setTopicNames(new HashSet<>(Arrays.asList("a", "b", "c")));
         int completionDelayMillis = 10;
         Schema<byte[]> schema = Schema.BYTES;
-        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx();
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(internalExecutorService);
         when(clientMock.getPartitionedTopicMetadata(any())).thenAnswer(invocation -> createExceptionFuture(
                 new PulsarClientException.InvalidConfigurationException("a mock exception"), completionDelayMillis));
         CompletableFuture<Consumer<byte[]>> completeFuture = new CompletableFuture<>();

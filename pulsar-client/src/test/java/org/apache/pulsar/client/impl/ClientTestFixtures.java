@@ -41,12 +41,17 @@ class ClientTestFixtures {
     public static ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor();
 
     static <T> PulsarClientImpl createPulsarClientMock() {
+        return createPulsarClientMock(mock(ExecutorService.class));
+    }
+
+    static <T> PulsarClientImpl createPulsarClientMock(ExecutorService internalExecutorService) {
         PulsarClientImpl clientMock = mock(PulsarClientImpl.class, Mockito.RETURNS_DEEP_STUBS);
 
         ClientConfigurationData clientConf = new ClientConfigurationData();
         when(clientMock.getConfiguration()).thenReturn(clientConf);
         when(clientMock.timer()).thenReturn(mock(Timer.class));
 
+        when(clientMock.getInternalExecutorService()).thenReturn(internalExecutorService);
         when(clientMock.externalExecutorProvider()).thenReturn(mock(ExecutorProvider.class));
         when(clientMock.eventLoopGroup().next()).thenReturn(mock(EventLoop.class));
 
@@ -55,6 +60,10 @@ class ClientTestFixtures {
 
     static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx() {
         return mockClientCnx(createPulsarClientMock());
+    }
+
+    static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx(ExecutorService internalExecutorService) {
+        return mockClientCnx(createPulsarClientMock(internalExecutorService));
     }
 
     static PulsarClientImpl mockClientCnx(PulsarClientImpl clientMock) {
