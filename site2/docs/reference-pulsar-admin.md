@@ -1957,7 +1957,7 @@ $ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/t
 ```
 
 ### `permissions`
-Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
+Get the permissions on a topic. Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
 
 Usage
 ```bash
@@ -2283,7 +2283,7 @@ Options
 |----|---|---|
 |`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|0|
 |`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
-|`-a`, `--bookkeeper-ack-quorum`|Number of acks (garanteed copies) to wait for each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|Number of acks (guaranteed copies) to wait for each entry|0|
 |`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
 
 ### `remove-persistence`
@@ -2453,7 +2453,7 @@ Options
 
 
 ### `reset-namespace-bundle-quota`
-Reset the specifed namespace bundle's resource quota to a default value.
+Reset the specified namespace bundle's resource quota to a default value.
 
 Usage
 ```bash
@@ -2507,7 +2507,7 @@ $ pulsar-admin schemas delete persistent://tenant/namespace/topic
 
 
 ### `get`
-Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).
+Retrieve the schema definition associated with a topic (at a given version if version is supplied).
 
 Usage
 ```bash
@@ -2517,7 +2517,7 @@ $ pulsar-admin schemas get persistent://tenant/namespace/topic options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`--version`|The version of the schema definition to retrive for a topic.||
+|`--version`|The version of the schema definition to retrieve for a topic.||
 
 ### `extract`
 Provide the schema definition for a topic via Java class name contained in a JAR file
