@@ -494,7 +494,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
 
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>(numLedgers);
 
         List<String> ledgerNames = new ArrayList<>(this.ledgers.keySet());
         int numLedgers = ledgerNames.size();
