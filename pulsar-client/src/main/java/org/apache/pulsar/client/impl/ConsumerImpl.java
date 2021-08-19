@@ -925,6 +925,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
             failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
+            return closeFuture;
         }
 
         stats.getStatTimeout().ifPresent(Timeout::cancel);
