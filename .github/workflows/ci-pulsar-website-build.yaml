@@ -56,9 +56,6 @@ jobs:
           distribution: 'adopt'
           java-version: 11
 
-      - name: Replace maven's wagon-http version
-        run: sudo ./build/replace_maven-wagon-http-version.sh
-
       - name: clean disk
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc

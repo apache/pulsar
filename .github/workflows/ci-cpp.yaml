@@ -79,10 +79,6 @@ jobs:
           docker rmi $(docker images -q) -f
           df -h
 
-      - name: Replace maven's wagon-http version
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: sudo ./build/replace_maven-wagon-http-version.sh
-
       - name: build package
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: mvn -B -ntp -q install -Pcore-modules,-main -DskipTests
