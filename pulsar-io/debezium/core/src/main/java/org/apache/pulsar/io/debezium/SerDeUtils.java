@@ -21,16 +21,20 @@ package org.apache.pulsar.io.debezium;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.util.Base64;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class SerDeUtils {
-    public static Object deserialize(String objectBase64Encoded) {
+    public static Object deserialize(String objectBase64Encoded, ClassLoader classLoader) {
         byte[] data = Base64.getDecoder().decode(objectBase64Encoded);
-        InputStream bai = new ByteArrayInputStream(data);
-        try (ObjectInputStream ois = new ObjectInputStream(bai)) {
+        try (InputStream bai = new ByteArrayInputStream(data);
+             PulsarClientBuilderInputStream ois = new PulsarClientBuilderInputStream(bai, classLoader)) {
            return ois.readObject();
         } catch (Exception e) {
             throw new RuntimeException(
@@ -39,12 +43,29 @@ public class SerDeUtils {
     }
 
     public static String serialize(Object obj) throws Exception {
-        ByteArrayOutputStream bao = new ByteArrayOutputStream();
-        try (ObjectOutputStream oos = new ObjectOutputStream(bao)) {
+        try (ByteArrayOutputStream bao = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bao)) {
             oos.writeObject(obj);
             oos.flush();
             byte[] data = bao.toByteArray();
             return Base64.getEncoder().encodeToString(data);
+        }
+    }
+
+    static class PulsarClientBuilderInputStream extends ObjectInputStream {
+        private final ClassLoader classLoader;
+        public PulsarClientBuilderInputStream(InputStream in, ClassLoader ldr) throws IOException {
+            super(in);
+            this.classLoader = ldr;
+        }
+
+        protected Class resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+            try {
+                return Class.forName(desc.getName(), true, classLoader);
+            } catch (Exception ex) {
+                log.warn("PulsarClientBuilderInputStream resolveClass failed {} {}", desc.getName(), ex);
+            }
+            return super.resolveClass(desc);
         }
     }
 }
