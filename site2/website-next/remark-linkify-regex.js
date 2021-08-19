@@ -47,7 +47,6 @@ function splitTextNode(textNode, inputRegex, parseFn) {
         h("text", { value: oldText.slice(startTextIdx, endTextIdx) })
       );
     }
-    // const feedId = output[0];
     const { link, text } = parseFn(output);
     newNodes.push(h("link", { url: link }, [h("text", { value: text })]));
     startTextIdx = regex.lastIndex;

@@ -13,8 +13,7 @@ const githubUrl = "https://github.com/apache/incubator-pulsar";
 const baseUrl = "/";
 
 const injectLinkParse = ([, prefix, name, path]) => {
-  console.log(prefix, name, path);
-
+  console.log("...", prefix, name, path);
   if (prefix == "javadoc") {
     return {
       link: javadocUrl + path,
@@ -50,43 +49,38 @@ const injectLinkParse = ([, prefix, name, path]) => {
       link: packagesApiUrl + "#" + path,
       text: name,
     };
-    // } else if (prefix == "endpoint") {
-    //   // endpoint api: endpoint|<op>
-    //   // {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName|operation/registerSource?version=[[pulsar:version_number]]}
-    //   // text: POST /admin/v3/sources/:tenant/:namespace/:sourceName
-    //   // link: https://pulsar.incubator.apache.org/admin-rest-api#operation/registerSource?version=2.8.0&apiVersion=v3
-    //   const restPath = path.split("/");
-    //   const restApiVersion = restPath[2];
-    //   const restApiType = restPath[3];
-    //   let restBaseUrl = restApiUrl;
-    //   if (restApiType == "functions") {
-    //     restBaseUrl = functionsApiUrl;
-    //   } else if (restApiType == "source") {
-    //     restBaseUrl = sourceApiUrl;
-    //   } else if (restApiType == "sink") {
-    //     restBaseUrl = sinkApiUrl;
-    //   }
-    //   const suffix = keyparts[keyparts.length - 1];
-    //   restUrl = "";
-    //   if (suffix.indexOf("?version") >= 0) {
-    //     restUrl = keyparts[keyparts.length - 1] + "&apiVersion=" + restApiVersion;
-    //   } else {
-    //     restUrl =
-    //       keyparts[keyparts.length - 1] +
-    //       "version=master&apiVersion=" +
-    //       restApiVersion;
-    //   }
-    //   return renderEndpoint(
-    //     initializedPlugin,
-    //     restBaseUrl + "#",
-    //     keyparts,
-    //     restUrl
-    //   );
   }
 
   return {
     link: path,
     text: name,
+  };
+};
+
+const injectLinkParseForEndpoint = ([, info]) => {
+  const [method, path, suffix] = info.split("|");
+  console.log(method, path, suffix);
+
+  const restPath = path.split("/");
+  const restApiVersion = restPath[2];
+  const restApiType = restPath[3];
+  let restBaseUrl = restApiUrl;
+  if (restApiType == "functions") {
+    restBaseUrl = functionsApiUrl;
+  } else if (restApiType == "source") {
+    restBaseUrl = sourceApiUrl;
+  } else if (restApiType == "sink") {
+    restBaseUrl = sinkApiUrl;
+  }
+  let restUrl = "";
+  if (suffix.indexOf("?version") >= 0) {
+    restUrl = suffix + "&apiVersion=" + restApiVersion;
+  } else {
+    restUrl = suffix + "version=master&apiVersion=" + restApiVersion;
+  }
+  return {
+    text: method + " " + path,
+    link: restBaseUrl + "#" + restUrl,
   };
 };
 
@@ -129,8 +123,6 @@ module.exports = {
             {
               label: "1.1.1",
               to: "docs/",
-              // activeBaseRegex:
-              //   "docs/(?!2.1.0-incubating|2.1.1-incubating|2.2.0|2.2.1|2.3.0|2.3.1|2.3.2|2.4.0|2.4.1|2.4.2|2.5.0|2.5.1|2.5.2|2.6.0|2.6.1|2.6.2|2.6.3|2.6.4|2.7.0|2.7.1|2.7.2|2.7.3|2.8.0|next)",
             },
             {
               label: "1.1.0",
@@ -201,8 +193,12 @@ module.exports = {
             "https://github.com/facebook/docusaurus/edit/master/website/",
           remarkPlugins: [
             linkifyRegex(
-              /\{\@inject\:\s?((?!endpoint).)+:(.+):(.+)\}/,
+              /{\@inject\:\s?((?!endpoint)[^}])+:([^}]+):([^}]+)}/,
               injectLinkParse
+            ),
+            linkifyRegex(
+              /{\@inject\:\s?endpoint\|([^}]+)}/,
+              injectLinkParseForEndpoint
             ),
           ],
         },
@@ -218,5 +214,4 @@ module.exports = {
       },
     ],
   ],
-  // plugins: [createVariableInjectionPlugin(siteVariables)],
 };
