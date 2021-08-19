@@ -59,7 +59,7 @@ Pass an instance of `SparkStreamingPulsarReceiver` to the `receiverStream` metho
 
     ConsumerConfigurationData<byte[]> pulsarConf = new ConsumerConfigurationData();
 
-    Set<String> set = new HashSet<>();
+    Set<String> set = new HashSet\<\>();
     set.add(topic);
     pulsarConf.setTopicNames(set);
     pulsarConf.setSubscriptionName(subs);

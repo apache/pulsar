@@ -266,7 +266,7 @@ This example shows how to construct a key/value schema and then use it to produc
 
     // send the key/value message
     producer.newMessage()
-    .value(new KeyValue<>(key, value))
+    .value(new KeyValue\<\>(key, value))
     .send();
     ```
 

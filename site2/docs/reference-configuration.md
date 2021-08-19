@@ -3,12 +3,11 @@ id: reference-configuration
 title: Pulsar configuration
 sidebar_label: Pulsar configuration
 ---
-
-<style type="text/css">
+<!-- <style type="text/css">
   table{
     font-size: 80%;
   }
-</style>
+</style> -->
 
 
 You can manage Pulsar configuration by configuration files in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md).
@@ -176,14 +175,14 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitGB| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. | -1 |
-|backlogQuotaDefaultRetentionPolicy|The defaulted backlog quota retention policy. By Default, it is `producer_request_hold`. <li>'producer_request_hold' Policy which holds producer's send request until the resource becomes available (or holding times out)</li> <li>'producer_exception' Policy which throws `javax.jms.ResourceAllocationException` to the producer </li><li>'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog</li>|producer_request_hold|
+|backlogQuotaDefaultRetentionPolicy|The defaulted backlog quota retention policy. By Default, it is `producer_request_hold`. <li>'producer_request_hold' Policy which holds producer's send request until the resource becomes available (or holding times out) </li><li>'producer_exception' Policy which throws `javax.jms.ResourceAllocationException` to the producer </li><li>'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog</li>|producer_request_hold|
 |allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
 |allowAutoTopicCreationType| The type of topic that is allowed to be automatically created.(partitioned/non-partitioned) |non-partitioned|
 |allowAutoSubscriptionCreation| Enable subscription auto creation if a new consumer connected |true|
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
-| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. <li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. | `delete_when_no_subscriptions` |
+| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. </li><li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. </li>| `delete_when_no_subscriptions` |
 | brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is not specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
 |forceDeleteTenantAllowed| Enable you to delete a tenant forcefully. |false|
 |forceDeleteNamespaceAllowed| Enable you to delete a namespace forcefully. |false|
@@ -368,7 +367,7 @@ You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool
 | tlsEnableHostnameVerification | Whether the server hostname must match the common name of the certificate that is used by the server. | false |
 |tlsTrustCertsFilePath|||
 | useKeyStoreTls | Enable TLS with KeyStore type configuration in the broker. | false |
-| tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS <li>PKCS12 |JKS|
+| tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path. | |
 | tlsTrustStorePassword | TLS TrustStore password. | |
 
@@ -530,15 +529,15 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | tlsRequireTrustedClientCertOnConnect | Trusted client certificates are required for to connect TLS. Reject the Connection if the client certificate is not trusted. In effect, this requires that all connecting clients perform TLS client authentication. | false |
 | tlsEnabledWithKeyStore | Enable TLS with KeyStore type configuration in broker. | false |
 | tlsProvider | TLS Provider for KeyStore type. | |
-| tlsKeyStoreType | TLS KeyStore type configuration in the broker.<li>JKS <li>PKCS12 |JKS|
+| tlsKeyStoreType | TLS KeyStore type configuration in the broker.<li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsKeyStore | TLS KeyStore path in the broker. | |
 | tlsKeyStorePassword | TLS KeyStore password for the broker. | |
-| tlsTrustStoreType | TLS TrustStore type configuration in the broker<li>JKS <li>PKCS12 |JKS|
+| tlsTrustStoreType | TLS TrustStore type configuration in the broker<li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path in the broker. | |
 | tlsTrustStorePassword | TLS TrustStore password for the broker. | |
 | brokerClientTlsEnabledWithKeyStore | Configure whether the internal client uses the KeyStore type to authenticate with Pulsar brokers. | false |
 | brokerClientSslProvider | The TLS Provider used by the internal client to authenticate with other Pulsar brokers. | |
-| brokerClientTlsTrustStoreType | TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS <li>PKCS12 | JKS |
+| brokerClientTlsTrustStoreType | TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS </li><li>PKCS12 </li>| JKS |
 | brokerClientTlsTrustStore | TLS TrustStore path for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsTrustStorePassword | TLS TrustStore password for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsCiphers | Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake. | |
@@ -717,7 +716,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
-| proxyLogLevel | Proxy log level <li>0: Do not log any TCP channel information. <li>1: Parse and log any TCP channel information and command information without message body. <li>2: Parse and log channel information, command information and message body.| 0 |
+| proxyLogLevel | Proxy log level <li>0: Do not log any TCP channel information. </li><li>1: Parse and log any TCP channel information and command information without message body. </li><li>2: Parse and log channel information, command information and message body.</li>| 0 |
 |authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
 |authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
 |authenticationProviders| Authentication provider name list (a comma-separated list of class names) ||

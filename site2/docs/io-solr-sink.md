@@ -19,7 +19,7 @@ The configuration of the Solr sink connector has the following properties.
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| `solrUrl` | String|true|" " (empty string) | <li>Comma-separated zookeeper hosts with chroot used in the SolrCloud mode. <br />**Example**<br />`localhost:2181,localhost:2182/chroot` <br /><br /><li>URL to connect to Solr used in standalone mode. <br />**Example**<br />`localhost:8983/solr` |
+| `solrUrl` | String|true|" " (empty string) | <li>Comma-separated zookeeper hosts with chroot used in the SolrCloud mode. </li><br />**Example**<br />`localhost:2181,localhost:2182/chroot` <br /><br /><li>URL to connect to Solr used in standalone mode. </li><br />**Example**<br />`localhost:8983/solr` |<li>Comma-separated zookeeper hosts with chroot used in the SolrCloud mode. </li><li>Comma-separated zookeeper hosts with chroot used in the SolrCloud mode. </li>
 | `solrMode` | String|true|SolrCloud| The client mode when interacting with the Solr cluster. <br /><br />Below are the available options:<br /><li>Standalone<br /><li> SolrCloud|
 | `solrCollection` |String|true| " " (empty string) | Solr collection name to which records need to be written. |
 | `solrCommitWithinMs` |int| false|10 | The time within million seconds for Solr updating commits.|

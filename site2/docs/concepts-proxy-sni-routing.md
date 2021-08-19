@@ -87,7 +87,7 @@ ClientBuilder clientBuilder = PulsarClient.builder()
         .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI)
         .operationTimeout(1000, TimeUnit.MILLISECONDS);
 
-Map<String, String> authParams = new HashMap<>();
+Map<String, String> authParams = new HashMap\<\>();
 authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
 authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
 clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);

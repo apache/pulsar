@@ -273,10 +273,10 @@ Let’s walk through the steps for _finalizing a transaction_.
    <td>The data log sends the result of writing produced committed marks to the broker. At the same time, pending ack data log sends the result of writing acked committed marks to the broker. The cursor moves to the next position.
 <ul>
 
-<li>If the transaction is committed, the PENDING ACK status becomes `ACK` status.
+<li>If the transaction is committed, the PENDING ACK status becomes `ACK` status.</li>
 
-<li>If the transaction is aborted, the PENDING ACK status becomes UNACK status. (Aborting an acknowledgment results in the message being re-delivered to other consumers.)
-</li>
+<li>If the transaction is aborted, the PENDING ACK status becomes UNACK status. (Aborting an acknowledgment results in the message being re-delivered to other consumers.)</li>
+
 </ul>
    </td>
   </tr>

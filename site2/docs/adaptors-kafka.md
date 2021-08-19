@@ -63,7 +63,7 @@ props.put("bootstrap.servers", "pulsar://localhost:6650");
 props.put("key.serializer", IntegerSerializer.class.getName());
 props.put("value.serializer", StringSerializer.class.getName());
 
-Producer<Integer, String> producer = new KafkaProducer<>(props);
+Producer<Integer, String> producer = new KafkaProducer\<\>(props);
 
 for (int i = 0; i < 10; i++) {
     producer.send(new ProducerRecord<Integer, String>(topic, i, "hello-" + i));
@@ -86,7 +86,7 @@ props.put("enable.auto.commit", "false");
 props.put("key.deserializer", IntegerDeserializer.class.getName());
 props.put("value.deserializer", StringDeserializer.class.getName());
 
-Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
+Consumer<Integer, String> consumer = new KafkaConsumer\<\>(props);
 consumer.subscribe(Arrays.asList(topic));
 
 while (true) {
