@@ -72,13 +72,17 @@ public class NonPersistentSubscription implements Subscription {
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
 
-    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
+    // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
+    private final boolean isDurable;
+
+    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
         this.lastActive = System.currentTimeMillis();
+        this.isDurable = isDurable;
     }
 
     @Override
@@ -200,6 +204,9 @@ public class NonPersistentSubscription implements Subscription {
         ConsumerStatsImpl stats = consumer.getStats();
         bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
+        if (!isDurable) {
+            topic.unsubscribe(subName);
+        }
 
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
