@@ -102,8 +102,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarAdmin = exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig) : null;
-        this.pulsarClient = InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
         this.clientBuilder = InstanceUtils.createPulsarClientBuilder(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
+        this.pulsarClient = this.clientBuilder.build();
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
