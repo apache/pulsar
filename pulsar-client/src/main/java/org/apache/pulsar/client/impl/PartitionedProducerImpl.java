@@ -20,11 +20,15 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -35,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -93,6 +98,19 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
         switch (messageRouteMode) {
             case CustomPartition:
+                String messageRouterClassName = conf.getMessageRouterClassName();
+                if (isNotBlank(messageRouterClassName)) {
+                    Class<?> clazz;
+                    try {
+                        clazz = Class.forName(messageRouterClassName);
+                        messageRouter = (MessageRouter) clazz.getDeclaredConstructor().newInstance();
+                        conf.setCustomMessageRouter(messageRouter);
+                    } catch (ClassNotFoundException | NoSuchMethodException | InvocationTargetException |
+                            InstantiationException | IllegalAccessException | ClassCastException e) {
+                        log.error("[{}] Error occurred while instantiating the messageRouterClassName",
+                                messageRouterClassName, new PulsarClientException(e));
+                    }
+                }
                 messageRouter = checkNotNull(conf.getCustomMessageRouter());
                 break;
             case SinglePartition:

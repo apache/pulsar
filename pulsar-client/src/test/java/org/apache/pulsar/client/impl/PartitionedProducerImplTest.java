@@ -107,6 +107,16 @@ public class PartitionedProducerImplTest {
         assertTrue(messageRouter instanceof CustomMessageRouter);
     }
 
+    @Test
+    public void testInitializeCustomMessageRouterInstanceFromProperty() throws NoSuchFieldException, IllegalAccessException {
+        ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
+        producerConfigurationData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfigurationData.setMessageRouterClassName("org.apache.pulsar.client.impl.TestMessageRouter");
+
+        MessageRouter messageRouter = getMessageRouter(producerConfigurationData);
+        assertTrue(messageRouter instanceof TestMessageRouter);
+    }
+
     private MessageRouter getMessageRouter(ProducerConfigurationData producerConfigurationData)
             throws NoSuchFieldException, IllegalAccessException {
         PartitionedProducerImpl impl = new PartitionedProducerImpl(
@@ -154,3 +164,5 @@ public class PartitionedProducerImplTest {
     }
 
 }
+
+class TestMessageRouter implements MessageRouter {}

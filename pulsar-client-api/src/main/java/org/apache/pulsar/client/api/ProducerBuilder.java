@@ -254,6 +254,19 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> messageRoutingMode(MessageRoutingMode messageRoutingMode);
 
     /**
+     * Set the messageRouterClassName for a partitioned producer when {@link MessageRoutingMode}
+     * is {@link MessageRoutingMode#CustomPartition}
+     *
+     * <p>This config gets precedence over {@link ProducerBuilder#messageRouter}.
+     *
+     * @param messageRouterClassName the message router class name whose instance should
+     *                               be created.
+     * @return the producer builder instance
+     * @see MessageRoutingMode
+     */
+    ProducerBuilder<T> messageRouterClassName(String messageRouterClassName);
+
+    /**
      * Change the {@link HashingScheme} used to chose the partition on where to publish a particular message.
      *
      * <p>Standard hashing functions available are:

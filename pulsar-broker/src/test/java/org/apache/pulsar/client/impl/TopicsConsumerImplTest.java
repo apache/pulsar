@@ -1244,4 +1244,43 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         });
     }
 
+    @Test(timeOut = testTimeout)
+    public void testMessageRouterClassNamePrecedenceOverMessageRouter() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/testMessageRouterClassNamePrecedenceOverMessageRouter";
+        final String subName = "custom-message-router-test";
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
+        admin.topics().createPartitionedTopic(topicName, 5);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 5);
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouterClassName("org.apache.pulsar.client.impl.TestMessageRouter")
+                // Configuring 'messageRouter' to verify that it is overridden by the 'messageRouterClassName'
+                .messageRouter(new CustomMessageRouter())
+                .create();
+
+        assertEquals(((PartitionedProducerImpl) producer).conf.getCustomMessageRouter().getClass(), TestMessageRouter.class);
+        final int messages = 20;
+        for (int i = 0; i < messages; i++) {
+            MessageId messageId = producer.newMessage().key(String.valueOf(i)).value("message - " + i).send();
+            assertEquals(((MessageIdImpl) messageId).partitionIndex, 4);
+        }
+    }
+
+    private static class CustomMessageRouter implements MessageRouter {
+        @Override
+        public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+            return Integer.parseInt(msg.getKey()) % metadata.numPartitions();
+        }
+    }
+}
+
+class TestMessageRouter implements MessageRouter {
+    @Override
+    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+        // Always return the static partition number.
+        return 4;
+    }
 }

@@ -174,6 +174,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> messageRouterClassName(@NonNull String messageRouterClassName) {
+        conf.setMessageRouterClassName(messageRouterClassName);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> compressionType(@NonNull CompressionType compressionType) {
         conf.setCompressionType(compressionType);
         return this;
