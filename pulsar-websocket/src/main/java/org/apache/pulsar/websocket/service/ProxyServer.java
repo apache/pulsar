@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 
 import java.util.stream.Collectors;
 import javax.servlet.Servlet;
@@ -34,13 +33,13 @@ import javax.websocket.DeploymentException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
+import org.apache.pulsar.broker.web.RequestLogger;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -126,11 +125,7 @@ public class ProxyServer {
                 .map(ServerConnector.class::cast).map(ServerConnector::getPort).map(Object::toString)
                 .collect(Collectors.joining(",")));
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        Slf4jRequestLog requestLog = new Slf4jRequestLog();
-        requestLog.setExtended(true);
-        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
-        requestLog.setLogLatency(true);
-        requestLogHandler.setRequestLog(requestLog);
+        requestLogHandler.setRequestLog(RequestLogger.getRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 
