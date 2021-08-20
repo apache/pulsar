@@ -162,7 +162,8 @@ TEST_F(KeyBasedBatchingTest, testSingleBatch) {
 
     constexpr int numMessages = 5 * 100;
     std::atomic_int numMessageSent{0};
-    // messages with no key will use a batch with an empty string as key
+    // messages with no key are packed to the same batch and this batch has no key
+    // the broker uses `NON_KEY` as the key when dispatching messages from this batch
     for (int i = 0; i < numMessages; i++) {
         producer_.sendAsync(
             MessageBuilder().setContent("x").build(),

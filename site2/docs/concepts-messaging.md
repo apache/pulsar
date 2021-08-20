@@ -345,11 +345,11 @@ In *Key_Shared* mode, multiple consumers can attach to the same subscription. Me
 
 ![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
 
-Note that when the consumers are using the Key_Shared subscription mode, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based bathcing is necessary for Key_Shared subscription mode:
+Note that when the consumers are using the Key_Shared subscription mode, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based batching is necessary for Key_Shared subscription mode:
 1. The broker dispatches messages according to the keys of the messages, but the default batching approach might fail to pack the messages with the same key to the same batch. 
-2. Since it is the consumers instead of the broker who dispatch the messages from the batches, the key of the first message in one batch will be considered as the key of all messages in this batch, thereby leading to context errors. 
+2. Since it is the consumers instead of the broker who dispatch the messages from the batches, the key of the first message in one batch is considered as the key of all messages in this batch, thereby leading to context errors. 
 
-The key-based batching aims at resolving the abovementioned issues. This batching method ensures that the producers pack the messages with the same key to the same batch. The messages without a key will be packed into one batch, using an empty string as the key. In addition, each consumer is associated with **only one** key and should receive **only one message batch** for the connected key. By default, you can limit batching by configuring the number of messages that producers are allowed to send. 
+The key-based batching aims at resolving the above-mentioned issues. This batching method ensures that the producers pack the messages with the same key to the same batch. The messages without a key are packed into one batch and this batch has no key. When the broker dispatches messages from this batch, it uses `NON_KEY` as the key. In addition, each consumer is associated with **only one** key and should receive **only one message batch** for the connected key. By default, you can limit batching by configuring the number of messages that producers are allowed to send. 
 
 Below are examples of enabling the key-based batching under the Key_Shared subscription mode, with `client` being the Pulsar client that you created.
 
