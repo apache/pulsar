@@ -561,10 +561,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
     public void removeNonPersistentTopicReaderTest() throws Exception {
         final String topic = "non-persistent://my-property/my-ns/non-topic";
 
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
-
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
