@@ -56,7 +56,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |compactionRate|The rate at which compaction will read entries, in adds per second.|1000|
 |isThrottleByBytes|Throttle compaction by bytes or by entries.|false|
 |compactionRateByEntries|The rate at which compaction will read entries, in adds per second.|1000|
-|compactionRateByBytes|Set the rate at which compaction will read entries. The unit is bytes added per second.|1000000|
+|compactionRateByBytes|Set the rate at which compaction reads entries. The unit is bytes added per second.|1000000|
 |journalMaxSizeMB|Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.|2048|
 |journalMaxBackups|The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.|5|
 |journalPreAllocSizeMB|How space to pre-allocate at a time in the journal.|16|
