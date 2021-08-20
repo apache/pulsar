@@ -446,9 +446,11 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                 }
 
-                log.info("Successfully send deletion command of partitioned-topics:{} "
-                                + "and non-partitioned-topics:{} in namespace:{}.",
-                        partitionedTopics, nonPartitionedTopics, namespaceName);
+                if (log.isDebugEnabled()) {
+                    log.debug("Successfully send deletion command of partitioned-topics:{} "
+                                    + "and non-partitioned-topics:{} in namespace:{}.",
+                            partitionedTopics, nonPartitionedTopics, namespaceName);
+                }
             }
             // forcefully delete namespace bundles
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
