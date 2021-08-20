@@ -139,12 +139,12 @@ class PULSAR_PUBLIC Reader {
     bool isConnected() const;
 
     /**
-     * Asynchronously get an id of the last available message or a message id with -1 as an entryId if the topic is empty.
+     * Asynchronously get an ID of the last available message or a message ID with -1 as an entryId if the topic is empty.
      */
     void getLastMessageIdAsync(GetLastMessageIdCallback callback);
 
     /**
-     * Get an id of the last available message or a message id with -1 as an entryId if the topic is empty.
+     * Get an ID of the last available message or a message ID with -1 as an entryId if the topic is empty.
      */
     Result getLastMessageId(MessageId& messageId);
 
