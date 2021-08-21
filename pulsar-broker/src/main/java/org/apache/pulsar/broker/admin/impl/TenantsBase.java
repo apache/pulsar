@@ -228,6 +228,9 @@ public class TenantsBase extends AdminResource {
 
             globalZk().delete(path(POLICIES, tenant), -1);
             log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to delete tenant {}: does not exist", clientAppId(), tenant);
+            throw new RestException(Status.NOT_FOUND, "The tenant does not exist");
         } catch (Exception e) {
             log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
