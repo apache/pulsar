@@ -2,12 +2,22 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2021-08-11T06:00:00.000Z</updated>
+    <updated>2021-08-18T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Announcing Pulsar Summit Asia 2021: CFP Is Open!]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2021/08/18/asia-cfp.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2021/08/18/asia-cfp.html"/>
+        <updated>2021-08-18T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We’re proud to announce the Pulsar Summit Asia 2021!</p> <p>2021 has been a remarkable year for the Apache Pulsar community. <a href="https://streamnative.io/en/blog/community/2021-06-14-pulsar-hits-its-400th-contributor-and-passes-kafka-in-monthly-active-contributors">Both the technology and community are growing rapidly this year</a>, and <a href="https://www.na2021.pulsar-summit.org">Pulsar Virtual Summit North America 2021</a> was a big success with...</p>]]></summary>
+        <author>
+            <name>Dianjin</name>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.7.3]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2021/08/11/Apache-Pulsar-2-7-3.html</id>
