@@ -1906,13 +1906,13 @@ public class PersistentTopic extends AbstractTopic
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
         stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
         Optional<CompactorMXBean> mxBean = getCompactorMXBean();
-        stats.compact.lastCompactionRemovedEventCount = mxBean.map(stat ->
+        stats.compaction.lastCompactionRemovedEventCount = mxBean.map(stat ->
                 stat.getLastCompactionRemovedEventCount(topic)).orElse(0L);
-        stats.compact.lastCompactionSucceedTimestamp = mxBean.map(stat ->
+        stats.compaction.lastCompactionSucceedTimestamp = mxBean.map(stat ->
                 stat.getLastCompactionSucceedTimestamp(topic)).orElse(0L);
-        stats.compact.lastCompactionFailedTimestamp = mxBean.map(stat ->
+        stats.compaction.lastCompactionFailedTimestamp = mxBean.map(stat ->
                 stat.getLastCompactionFailedTimestamp(topic)).orElse(0L);
-        stats.compact.lastCompactionDurationTimeInMills = mxBean.map(stat ->
+        stats.compaction.lastCompactionDurationTimeInMills = mxBean.map(stat ->
                 stat.getLastCompactionDurationTimeInMills(topic)).orElse(0L);
 
         return stats;
