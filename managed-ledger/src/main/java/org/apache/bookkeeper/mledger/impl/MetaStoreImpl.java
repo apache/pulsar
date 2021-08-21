@@ -29,6 +29,7 @@ import java.util.concurrent.CompletionException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.concurrent.RejectedExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -119,7 +120,13 @@ public class MetaStoreImpl implements MetaStore {
                     }
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
+                    try {
+                        executor.executeOrdered(ledgerName,
+                                SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
+                    } catch (RejectedExecutionException e) {
+                        //executor maybe shutdown, use common pool to run callback.
+                        CompletableFuture.runAsync(() -> callback.operationFailed(getException(ex)));
+                    }
                     return null;
                 });
     }

@@ -2271,7 +2271,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         log.info("Finished reading entries");
 
         ledger.close();
-        factory.shutdown();
     }
 
     @Test
