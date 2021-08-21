@@ -113,8 +113,8 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
-    /** The compact stats */
-    public CompactionStatsImpl compact;
+    /** The compaction stats */
+    public CompactionStatsImpl compaction;
 
     public List<? extends PublisherStats> getPublishers() {
         return publishers;
@@ -132,7 +132,7 @@ public class TopicStatsImpl implements TopicStats {
         this.publishers = new ArrayList<>();
         this.subscriptions = new HashMap<>();
         this.replication = new TreeMap<>();
-        this.compact = new CompactionStatsImpl();
+        this.compaction = new CompactionStatsImpl();
     }
 
     public void reset() {
@@ -160,7 +160,7 @@ public class TopicStatsImpl implements TopicStats {
         this.lastOffloadLedgerId = 0;
         this.lastOffloadFailureTimeStamp = 0;
         this.lastOffloadSuccessTimeStamp = 0;
-        this.compact.reset();
+        this.compaction.reset();
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current

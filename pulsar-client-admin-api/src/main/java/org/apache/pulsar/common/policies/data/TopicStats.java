@@ -87,5 +87,5 @@ public interface TopicStats {
     int getNonContiguousDeletedMessagesRangesSerializedSize();
 
     /** The compaction stats. */
-    CompactionStats getCompact();
+    CompactionStats getCompaction();
 }
