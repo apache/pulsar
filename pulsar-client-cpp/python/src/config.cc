@@ -89,6 +89,13 @@ static ProducerConfiguration& ProducerConfiguration_setCryptoKeyReader(ProducerC
     return conf;
 }
 
+static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfiguration& conf,
+                                                                        py::object cryptoKeyReader) {
+    CryptoKeyReaderWrapper cryptoKeyReaderWrapper = py::extract<CryptoKeyReaderWrapper>(cryptoKeyReader);
+    conf.setCryptoKeyReader(cryptoKeyReaderWrapper.cryptoKeyReader);
+    return conf;
+}
+
 class LoggerWrapper: public Logger {
     PyObject* _pyLogger;
     Logger* fallbackLogger;
@@ -292,5 +299,6 @@ void export_config() {
             .def("subscription_role_prefix", &ReaderConfiguration::setSubscriptionRolePrefix)
             .def("read_compacted", &ReaderConfiguration::isReadCompacted)
             .def("read_compacted", &ReaderConfiguration::setReadCompacted)
+            .def("crypto_key_reader", &ReaderConfiguration_setCryptoKeyReader, return_self<>())
             ;
 }
