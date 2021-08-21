@@ -84,7 +84,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactionScheduler.shutdownNow();
     }
 
-    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected) throws Exception {
+    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics) throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
@@ -111,6 +111,16 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(bytes, expected.remove(key),
                                 "Compacted version should match expected version");
             m.close();
+        }
+        if (checkMetrics) {
+            long compactedTopicRemovedEventCount = compactor.getStats().getLastCompactionRemovedEventCount(topic);
+            long lastCompactSucceedTimestamp = compactor.getStats().getLastCompactionSucceedTimestamp(topic);
+            long lastCompactFailedTimestamp = compactor.getStats().getLastCompactionFailedTimestamp(topic);
+            long lastCompactDurationTimeInMills = compactor.getStats().getLastCompactionDurationTimeInMills(topic);
+            Assert.assertTrue(compactedTopicRemovedEventCount >= 1);
+            Assert.assertTrue(lastCompactSucceedTimestamp >= 1L);
+            Assert.assertTrue(lastCompactDurationTimeInMills >= 0L);
+            Assert.assertEquals(lastCompactFailedTimestamp, 0L);
         }
         Assert.assertTrue(expected.isEmpty(), "All expected keys should have been found");
         return keys;
@@ -140,7 +150,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                     .send();
             expected.put(key, data);
         }
-        compactAndVerify(topic, expected);
+        compactAndVerify(topic, expected, true);
     }
 
     @Test
@@ -169,7 +179,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         expected.put("a", "A_2".getBytes());
         expected.put("b", "B_1".getBytes());
 
-        compactAndVerify(topic, new HashMap<>(expected));
+        compactAndVerify(topic, new HashMap<>(expected), false);
 
         producer.newMessage()
                 .key("b")
@@ -177,7 +187,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 .send();
         expected.put("b", "B_2".getBytes());
 
-        compactAndVerify(topic, expected);
+        compactAndVerify(topic, expected, false);
     }
 
     @Test
@@ -206,7 +216,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         expected.put("b", "B_1".getBytes());
         expected.put("c", "C_1".getBytes());
 
-        List<String> keyOrder = compactAndVerify(topic, expected);
+        List<String> keyOrder = compactAndVerify(topic, expected, false);
 
         Assert.assertEquals(keyOrder, Lists.newArrayList("c", "b", "a"));
     }

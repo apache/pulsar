@@ -150,6 +150,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
@@ -1903,7 +1905,27 @@ public class PersistentTopic extends AbstractTopic
         stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
         stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
+        Optional<CompactorMXBean> mxBean = getCompactorMXBean();
+        stats.compact.lastCompactionRemovedEventCount = mxBean.map(stat ->
+                stat.getLastCompactionRemovedEventCount(topic)).orElse(0L);
+        stats.compact.lastCompactionSucceedTimestamp = mxBean.map(stat ->
+                stat.getLastCompactionSucceedTimestamp(topic)).orElse(0L);
+        stats.compact.lastCompactionFailedTimestamp = mxBean.map(stat ->
+                stat.getLastCompactionFailedTimestamp(topic)).orElse(0L);
+        stats.compact.lastCompactionDurationTimeInMills = mxBean.map(stat ->
+                stat.getLastCompactionDurationTimeInMills(topic)).orElse(0L);
+
         return stats;
+    }
+
+    private Optional<CompactorMXBean> getCompactorMXBean() {
+        Compactor compactor = null;
+        try {
+            compactor = brokerService.pulsar().getCompactor(false);
+        } catch (PulsarServerException ex) {
+            log.warn("get compactor error", ex);
+        }
+        return Optional.ofNullable(compactor).map(c -> c.getStats());
     }
 
     @Override
