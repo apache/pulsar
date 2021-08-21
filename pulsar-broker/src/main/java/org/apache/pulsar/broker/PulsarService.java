@@ -1324,12 +1324,16 @@ public class PulsarService implements AutoCloseable {
     // only public so mockito can mock it
     public Compactor newCompactor() throws PulsarServerException {
         return new TwoPhaseCompactor(this.getConfiguration(),
-                                     getClient(), getBookKeeperClient(),
-                                     getCompactorExecutor());
+                getClient(), getBookKeeperClient(),
+                getCompactorExecutor());
     }
 
     public synchronized Compactor getCompactor() throws PulsarServerException {
-        if (this.compactor == null) {
+        return getCompactor(true);
+    }
+
+    public synchronized Compactor getCompactor(boolean shouldInitialize) throws PulsarServerException {
+        if (this.compactor == null && shouldInitialize) {
             this.compactor = newCompactor();
         }
         return this.compactor;
@@ -1338,8 +1342,8 @@ public class PulsarService implements AutoCloseable {
     protected synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
         if (this.offloaderScheduler == null) {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
-                .name("offloader").build();
+                    .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
+                    .name("offloader").build();
         }
         return this.offloaderScheduler;
     }
