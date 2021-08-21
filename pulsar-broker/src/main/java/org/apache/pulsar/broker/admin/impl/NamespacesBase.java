@@ -415,13 +415,41 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
+                Set<String> partitionedTopics = new HashSet<>();
+                Set<String> nonPartitionedTopics = new HashSet<>();
+
                 for (String topic : topics) {
                     try {
-                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
+                        TopicName topicName = TopicName.get(topic);
+                        if (topicName.isPartitioned()) {
+                            String partitionedTopic = topicName.getPartitionedTopicName();
+                            if (!partitionedTopics.contains(partitionedTopic)) {
+                                // Distinguish partitioned topic to avoid duplicate deletion of the same schema
+                                futures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
+                                        partitionedTopic, true, true));
+                                partitionedTopics.add(partitionedTopic);
+                            }
+                        } else {
+                            futures.add(pulsar().getAdminClient().topics().deleteAsync(
+                                    topic, true, true));
+                            nonPartitionedTopics.add(topic);
+                        }
                     } catch (Exception e) {
-                        log.error("[{}] Failed to force delete topic {}", clientAppId(), topic, e);
-                        asyncResponse.resume(new RestException(e));
+                        String errorMessage = String.format("Failed to force delete topic %s, "
+                                        + "but the previous deletion command of partitioned-topics:%s "
+                                        + "and non-partitioned-topics:%s have been sent out asynchronously. "
+                                        + "Reason: %s",
+                                topic, partitionedTopics, nonPartitionedTopics, e.getCause());
+                        log.error("[{}] {}", clientAppId(), errorMessage, e);
+                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, errorMessage));
+                        return;
                     }
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Successfully send deletion command of partitioned-topics:{} "
+                                    + "and non-partitioned-topics:{} in namespace:{}.",
+                            partitionedTopics, nonPartitionedTopics, namespaceName);
                 }
             }
             // forcefully delete namespace bundles
