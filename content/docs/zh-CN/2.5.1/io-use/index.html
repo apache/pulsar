@@ -144,7 +144,7 @@ configs:
 <li><p><a href="#reload">重新加载连接器</a></p></li>
 <li><p><a href="#get-available-connectors">获取可用连接器列表</a></p></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="重新加载"></a><a href="#重新加载" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>重新加载</code></h3>
+<h3><a class="anchor" aria-hidden="true" id="reload"></a><a href="#reload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>reload</code></h3>
 <p>如果你在连接器文件夹中添加或删除了 nar 文件，在使用连接器之前要重新载入已有内置连接器。</p>
 <h4><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
 <p>使用 <code>reload</code> 子命令。</p>
@@ -541,15 +541,15 @@ configs:
 <p>Parameter| Description |---|--- <code>tenant</code> | Tenant name <code>namespace</code> | Namespace name <code>sink</code> | Source name <code>id</code> | Sink instanceID</p>
 <p><strong>异常</strong></p>
 <p>异常名称|描述 | --- | --- <code>PulsarAdminException</code> |意外的错误</p>
-<p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSinkStatusWidstanceID</code></a>。<!--END_DOCUSAURUS_CODE_TABS-->## 更新连接器</p></li>
+<p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-"><code>getSinkStatusWithInstanceID</code></a>。<!--END_DOCUSAURUS_CODE_TABS-->## 更新连接器</p></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="update"></a><a href="#update" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
 <p>You can update a running connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
 <h4><a class="anchor" aria-hidden="true" id="source-8"></a><a href="#source-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
-<p>更新正在运行的 Pulsar 源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>更新</code> 子命令。</p>
+<p>更新正在运行的 Pulsar 源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>update</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#update">here</a>.<!--REST API-->Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSource?version=2.8.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#update">此处</a>。<!--REST API-->向如下端点发送一个 <code>PUT</code> 请求： <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSource?version=2.8.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 <!--Java Admin API-->* Update a running source connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs">```java
 void updateSource(SourceConfig sourceConfig,
@@ -571,7 +571,7 @@ void updateSource(SourceConfig sourceConfig,
 | `PulsarAdminException.NotFoundException`      | 集群不存在   |
 | `PulsarAdminException`                        | 未知错误    |
 
-欲了解更多信息，请参阅 [`updateSource`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-)
+欲了解更多信息，请参阅 [`updateSource`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-)。
 </code></pre>
 <ul>
 <li><p>Update a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
@@ -608,11 +608,11 @@ void updateSource(SourceConfig sourceConfig,
 </table>
 </li>
 </ul>
-<p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSourceWithUrl-SourceConfig-java.lang.String-"><code>createSourceWell</code></a>。<!--END_DOCUSAURUS_CODE_TABS-->#### Sink</p>
-<p>更新正在运行的 Pulsar sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>更新</code> 子命令。</p>
+<p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#updateSourceWithUrl-SourceConfig-java.lang.String-"><code>createSourceWithUrl</code></a>。<!--END_DOCUSAURUS_CODE_TABS-->#### Sink</p>
+<p>更新正在运行的 Pulsar sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>update</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">update</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#update-1">here</a>.<!--REST API-->Send a <code>PUT</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSink?version=2.8.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#update-1">此处</a>。<!--REST API-->向如下端点发送一个 <code>PUT</code> 请求：<a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/updateSink?version=2.8.0&amp;apiVersion=v3"><b>PUT</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 <!--Java Admin API-->* Update a running sink connector with a <strong>local file</strong>.</p>
 <pre><code class="hljs">```java
 void updateSink(SinkConfig sinkConfig,
@@ -671,19 +671,19 @@ void updateSink(SinkConfig sinkConfig,
 </table>
 </li>
 </ul>
-<p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSinkWithUrl-SinkConfig-java.lang.String-"><code>updateSinkWirl</code></a>。<!--END_DOCUSAURUS_CODE_TABS-->## 停止连接器</p>
+<p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#updateSinkWithUrl-SinkConfig-java.lang.String-"><code>updateSinkWithUrl</code></a>。<!--END_DOCUSAURUS_CODE_TABS-->## 停止连接器</p>
 <h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
 <p>You can stop a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
 <h4><a class="anchor" aria-hidden="true" id="source-9"></a><a href="#source-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
-<p>停止一个源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>停止</code> 子命令。</p>
+<p>停止一个源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>stop</code> 子命令。</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sources stop <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#stop">here</a>.<!--REST API-->* Stop <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#stop">此处</a>。<!--REST API-->* Stop <strong>all</strong> source connectors.</p>
+<p>向如下端点发送一个 <code>POST</code> 请求： <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 <ul>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
+<p>向如下端点发送一个 <code>POST</code> 请求：<a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId</i></a>
 <!--Java Admin API-->* Stop <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSource</span><span class="hljs-params">(String tenant,
                 String namespace,
@@ -709,7 +709,7 @@ void updateSink(SinkConfig sinkConfig,
 | ---------------------- | ---- |
 | `PulsarAdminException` | 未知错误 |
 
-欲了解更多信息，请参阅 [`停止源`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-)。
+欲了解更多信息，请参阅 [`stopSource`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-)。
 </code></pre>
 <ul>
 <li><p>Stop a <strong>specified</strong> source connector.</p>
@@ -738,17 +738,17 @@ void updateSink(SinkConfig sinkConfig,
 | ---------------------- | ---- |
 | `PulsarAdminException` | 未知错误 |
 
-欲了解更多信息，请参阅 [`停止源`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-)。&lt;!--END_DOCUSAURUS_CODE_TABS--&gt;#### Sink
+欲了解更多信息，请参阅 [`stopSource`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-)。&lt;!--END_DOCUSAURUS_CODE_TABS--&gt;#### Sink
 </code></pre>
-<p>停止 sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>停止</code> 子命令。</p>
+<p>停止 sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>stop</code> 子命令。</p>
 <pre><code class="hljs"><span class="hljs-symbol">$</span> pulsar-admin sinks stop <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#stop-1">here</a>.<!--REST API-->* Stop <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#stop-1">此处</a>。<!--REST API-->* Stop <strong>all</strong> sink connectors.</p>
+<p>向如下端点发送一个 <code>POST</code> 请求： <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName/stop</i></a>
 </p>
 <ul>
 <li><p>Stop a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
+<p>向如下端点发送一个 <code>POST</code> 请求：<a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/stopSink?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkeName/:instanceId/stop</i></a>
 <!--Java Admin API-->* Stop <strong>all</strong> sink connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">stopSink</span><span class="hljs-params">(String tenant,
             String namespace,
@@ -808,15 +808,15 @@ void updateSink(SinkConfig sinkConfig,
 <h3><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>restart</code></h3>
 <p>You can restart a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
 <h4><a class="anchor" aria-hidden="true" id="source-10"></a><a href="#source-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
-<p>重新启动一个源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>重启</code> 子命令。</p>
+<p>重新启动一个源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>restart</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">restart</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#restart">here</a>.<!--REST API-->* Restart <strong>all</strong> source connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#restart">此处</a>。<!--REST API-->* Restart <strong>all</strong> source connectors.</p>
+<p>向如下端点发送一个 <code>POST</code> 请求：<a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/restart</i></a>
 </p>
 <ul>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
+<p>向如下端点发送一个 <code>POST</code> 请求： <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/restart</i></a>
 <!--Java Admin API-->* Restart <strong>all</strong> source connectors.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSource</span><span class="hljs-params">(String tenant,
                    String namespace,
@@ -842,7 +842,7 @@ void updateSink(SinkConfig sinkConfig,
 | ---------------------- | ---- |
 | `PulsarAdminException` | 未知错误 |
 
-欲了解更多信息，请参阅 [`重启源`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-)。
+欲了解更多信息，请参阅 [`restartSource`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-)。
 </code></pre>
 <ul>
 <li><p>Restart a <strong>specified</strong> source connector.</p>
@@ -871,17 +871,17 @@ void updateSink(SinkConfig sinkConfig,
 | ---------------------- | ---- |
 | `PulsarAdminException` | 未知错误 |
 
-欲了解更多信息，请参阅 [`重启源`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-)。&lt;!--END_DOCUSAURUS_CODE_TABS--&gt;#### Sink
+欲了解更多信息，请参阅 [`restartSource`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-)。&lt;!--END_DOCUSAURUS_CODE_TABS--&gt;#### Sink
 </code></pre>
-<p>重新启动 sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>重启</code> 子命令。</p>
+<p>重新启动 sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>restart</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">restart</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#restart-1">here</a>.<!--REST API-->* Restart <strong>all</strong> sink connectors.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#restart-1">此处</a>。<!--REST API-->* Restart <strong>all</strong> sink connectors.</p>
+<p>向如下端点发送一个 <code>POST</code> 请求：<a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/restart</i></a>
 </p>
 <ul>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
-<p>Send a <code>POST</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
+<p>向如下端点发送一个 <code>POST</code> 请求：<a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/restartSource?version=2.8.0&amp;apiVersion=v3"><b>POST</b> <i>/admin/v3/sources/:tenant/:namespace/:sinkName/:instanceId/restart</i></a>
 <!--Java Admin API-->* 重启所有 Pulsar sink 连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">restartSink</span><span class="hljs-params">(String tenant,
                  String namespace,
@@ -907,7 +907,7 @@ void updateSink(SinkConfig sinkConfig,
 | ---------------------- | ---- |
 | `PulsarAdminException` | 未知错误 |
 
-欲了解更多信息，请参阅 [`重新启动Sink`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-)。
+欲了解更多信息，请参阅 [`restartSink`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-)。
 </code></pre>
 <ul>
 <li><p>Restart a <strong>specified</strong> sink connector.</p>
@@ -936,17 +936,17 @@ void updateSink(SinkConfig sinkConfig,
 | ---------------------- | ---- |
 | `PulsarAdminException` | 未知错误 |
 
-欲了解更多信息，请参阅 [`重新启动Sink`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-)。&lt;!--END_DOCUSAURUS_CODE_TABS--&gt;## 删除连接器
+欲了解更多信息，请参阅 [`restartSink`](https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-)。&lt;!--END_DOCUSAURUS_CODE_TABS--&gt;## 删除连接器
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="delete"></a><a href="#delete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>You can delete a connector using <strong>Admin CLI</strong>, <strong>REST API</strong> or <strong>JAVA admin API</strong>.</p>
 <h4><a class="anchor" aria-hidden="true" id="source-11"></a><a href="#source-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Source</h4>
-<p>删除源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>删除</code> 子命令。</p>
+<p>删除源连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>delete</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sources <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#delete">here</a>.<!--REST API-->删除 al Pulsar 源连接器。</p>
-<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSource?version=2.8.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
-<!--Java Admin API-->删除源连接器。</p>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#delete">此处</a>。<!--REST API-->删除 Pulsar 源连接器。</p>
+<p>向如下端点发送一个 <code>DELETE</code> 请求： <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSource?version=2.8.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
+]}<!--Java Admin API-->删除源连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSource</span><span class="hljs-params">(String tenant,
                   String namespace,
                   String source)</span>
@@ -961,7 +961,7 @@ void updateSink(SinkConfig sinkConfig,
 <tr><td></td><td></td></tr>
 </tbody>
 </table>
-<p><code>租户</code> | 租户名称 <code>命名空间</code> | 命名空间名称 <code>源</code> | 源名称</p>
+<p><code>tenant</code> | 租户名称 <code>namespace</code> | 命名空间名称 <code>source</code> | 源名称</p>
 <p><strong>异常</strong></p>
 <table>
 <thead>
@@ -975,11 +975,11 @@ void updateSink(SinkConfig sinkConfig,
 </tbody>
 </table>
 <p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Source.html#deleteSource-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>。<!--END_DOCUSAURUS_CODE_TABS-->#### Sink</p>
-<p>删除 sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>删除</code> 子命令。</p>
+<p>删除 sink 连接器。<!--DOCUSAURUS_CODE_TABS--><!--Admin CLI-->使用 <code>delete</code> 子命令。</p>
 <pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> sinks <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span>
 </code></pre>
-<p>For more information, see <a href="/docs/zh-CN/2.5.1/io-cli#delete-1">here</a>.<!--REST API-->删除 sink 连接器。</p>
-<p>Send a <code>DELETE</code> request to this endpoint: <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSink?version=2.8.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
+<p>更多信息，可参阅<a href="/docs/zh-CN/2.5.1/io-cli#delete-1">此处</a>。<!--REST API-->删除 sink 连接器。</p>
+<p>向如下端点发送一个 <code>DELETE</code> 请求： <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/deregisterSink?version=2.8.0&amp;apiVersion=v3"><b>DELETE</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 <!--Java Admin API-->删除 Pulsar sink 连接器。</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">deleteSink</span><span class="hljs-params">(String tenant,
                 String namespace,
@@ -995,7 +995,7 @@ void updateSink(SinkConfig sinkConfig,
 <tr><td></td><td></td></tr>
 </tbody>
 </table>
-<p><code>租户</code> | 租户名称 <code>命名空间</code> | 命名空间名称 <code>sink</code> | sink 名称</p>
+<p><code>tenant</code> | 租户名称 <code>namespace</code> | 命名空间名称 <code>sink</code> | Sink 名称</p>
 <p><strong>异常</strong></p>
 <table>
 <thead>
@@ -1009,7 +1009,7 @@ void updateSink(SinkConfig sinkConfig,
 </tbody>
 </table>
 <p>欲了解更多信息，请参阅 <a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/org/apache/pulsar/client/admin/Sink.html#deleteSink-java.lang.String-java.lang.String-java.lang.String-"><code>deleteSource</code></a>。<!--END_DOCUSAURUS_CODE_TABS--></p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.1/io-quickstart"><span class="arrow-prev">← </span><span>开始</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.1/io-debug"><span>调试</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a></li><li><a href="#配置连接器">配置连接器</a><ul class="toc-headings"><li><a href="#配置连接器的默认存储位置">配置连接器的默认存储位置</a></li><li><a href="#配置连接器的-yaml-文件">配置连接器的 YAML 文件</a></li></ul></li><li><a href="#获取可用的连接器">获取可用的连接器</a><ul class="toc-headings"><li><a href="#重新加载"><code>重新加载</code></a></li><li><a href="#available"><code>available</code></a></li></ul></li><li><a href="#运行连接器">运行连接器</a><ul class="toc-headings"><li><a href="#create"><code>create</code></a></li><li><a href="#start"><code>start</code></a></li><li><a href="#localrun"><code>localrun</code></a></li></ul></li><li><a href="#监控连接器">监控连接器</a><ul class="toc-headings"><li><a href="#get"><code>get</code></a></li><li><a href="#update"><code>update</code></a></li><li><a href="#stop"><code>stop</code></a></li><li><a href="#restart"><code>restart</code></a></li><li><a href="#delete"><code>delete</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.1/io-quickstart"><span class="arrow-prev">← </span><span>开始</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.1/io-debug"><span>调试</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a></li><li><a href="#配置连接器">配置连接器</a><ul class="toc-headings"><li><a href="#配置连接器的默认存储位置">配置连接器的默认存储位置</a></li><li><a href="#配置连接器的-yaml-文件">配置连接器的 YAML 文件</a></li></ul></li><li><a href="#获取可用的连接器">获取可用的连接器</a><ul class="toc-headings"><li><a href="#reload"><code>reload</code></a></li><li><a href="#available"><code>available</code></a></li></ul></li><li><a href="#运行连接器">运行连接器</a><ul class="toc-headings"><li><a href="#create"><code>create</code></a></li><li><a href="#start"><code>start</code></a></li><li><a href="#localrun"><code>localrun</code></a></li></ul></li><li><a href="#监控连接器">监控连接器</a><ul class="toc-headings"><li><a href="#get"><code>get</code></a></li><li><a href="#update"><code>update</code></a></li><li><a href="#stop"><code>stop</code></a></li><li><a href="#restart"><code>restart</code></a></li><li><a href="#delete"><code>delete</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
