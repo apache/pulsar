@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
@@ -90,6 +91,7 @@ public class Producer {
 
     private final SchemaVersion schemaVersion;
     private final String clientAddress; // IP address only, no port number included
+    private final AtomicBoolean isDisconnecting = new AtomicBoolean(false);
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
@@ -552,6 +554,7 @@ public class Producer {
             log.debug("Removed producer: {}", this);
         }
         closeFuture.complete(null);
+        isDisconnecting.set(false);
     }
 
     /**
@@ -561,7 +564,7 @@ public class Producer {
      * @return Completable future indicating completion of producer close
      */
     public CompletableFuture<Void> disconnect() {
-        if (!closeFuture.isDone()) {
+        if (!closeFuture.isDone() && isDisconnecting.compareAndSet(false, true)) {
             log.info("Disconnecting producer: {}", this);
             cnx.execute(() -> {
                 cnx.closeProducer(this);
@@ -667,6 +670,10 @@ public class Producer {
 
     public String getClientAddress() {
         return clientAddress;
+    }
+
+    public boolean isDisconnecting() {
+        return isDisconnecting.get();
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
