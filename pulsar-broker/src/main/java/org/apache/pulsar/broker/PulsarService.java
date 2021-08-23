@@ -24,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -241,7 +242,7 @@ public class PulsarService implements AutoCloseable {
     private ProtocolHandlers protocolHandlers = null;
 
     private final ShutdownService shutdownService;
-    private final EventLoopGroup ioEventLoopGroup;
+    protected final EventLoopGroup ioEventLoopGroup;
 
     private MetricsGenerator metricsGenerator;
 
@@ -658,7 +659,7 @@ public class PulsarService implements AutoCloseable {
                 config, localMetadataStore, getZkClient(), bkClientFactory, ioEventLoopGroup
             );
 
-            this.brokerService = new BrokerService(this, ioEventLoopGroup);
+            this.brokerService = newBrokerService(this);
 
             // Start load management service (even if load balancing is disabled)
             this.loadManager.set(LoadManager.create(this));
@@ -1323,12 +1324,16 @@ public class PulsarService implements AutoCloseable {
     // only public so mockito can mock it
     public Compactor newCompactor() throws PulsarServerException {
         return new TwoPhaseCompactor(this.getConfiguration(),
-                                     getClient(), getBookKeeperClient(),
-                                     getCompactorExecutor());
+                getClient(), getBookKeeperClient(),
+                getCompactorExecutor());
     }
 
     public synchronized Compactor getCompactor() throws PulsarServerException {
-        if (this.compactor == null) {
+        return getCompactor(true);
+    }
+
+    public synchronized Compactor getCompactor(boolean shouldInitialize) throws PulsarServerException {
+        if (this.compactor == null && shouldInitialize) {
             this.compactor = newCompactor();
         }
         return this.compactor;
@@ -1337,8 +1342,8 @@ public class PulsarService implements AutoCloseable {
     protected synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
         if (this.offloaderScheduler == null) {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
-                .name("offloader").build();
+                    .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
+                    .name("offloader").build();
         }
         return this.offloaderScheduler;
     }
@@ -1547,12 +1552,15 @@ public class PulsarService implements AutoCloseable {
                                     AuthorizationService authorizationService)
             throws Exception {
         if (functionWorkerService.isPresent()) {
-            if (workerConfig.isUseTls()) {
+            if (workerConfig.isUseTls() || brokerServiceUrl == null) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
+            } else {
+                workerConfig.setPulsarServiceUrl(brokerServiceUrl);
+            }
+            if (workerConfig.isUseTls() || webServiceAddress == null) {
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddressTls);
             } else {
-                workerConfig.setPulsarServiceUrl(brokerServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddress);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddress);
             }
@@ -1678,4 +1686,8 @@ public class PulsarService implements AutoCloseable {
                 || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
+    @VisibleForTesting
+    protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
+        return new BrokerService(pulsar, ioEventLoopGroup);
+    }
 }

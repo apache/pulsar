@@ -123,7 +123,8 @@ admin.namespaces().setRetention(namespace, policies);
 
 You can fetch the retention policy for a namespace by specifying the namespace. The output will be a JSON object with two keys: `retentionTimeInMinutes` and `retentionSizeInMB`.
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`get-retention`](reference-pulsar-admin.md#namespaces) subcommand and specify the namespace.
 
@@ -137,15 +138,16 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 }
 ```
 
-#### REST API
+<!--REST API-->
 
 {@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=[[pulsar:version_number]]}
 
-#### Java
+<!--Java-->
 
 ```java
 admin.namespaces().getRetention(namespace);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## Backlog quotas
 
@@ -177,7 +179,8 @@ Backlog quotas are handled at the namespace level. They can be managed via:
 
 You can set a size and/or time threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit and/or a time limit in second, and a policy by name.
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand and specify a namespace, a size limit using the `-l`/`--limit` , `-lt`/`--limitTime` flag to limit backlog, a retention policy using the `-p`/`--policy` flag and a policy type using `-t`/`--type` (default is destination_storage).
 
@@ -196,11 +199,11 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
 --type message_age
 ```
 
-#### REST API
+<!--REST API-->
 
 {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
-#### Java
+<!--Java-->
 
 ```java
 long sizeLimit = 2147483648L;
@@ -208,12 +211,14 @@ BacklogQuota.RetentionPolicy policy = BacklogQuota.RetentionPolicy.producer_requ
 BacklogQuota quota = new BacklogQuota(sizeLimit, policy);
 admin.namespaces().setBacklogQuota(namespace, quota);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get backlog threshold and backlog retention policy
 
 You can see which size threshold and backlog retention policy has been applied to a namespace.
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`get-backlog-quotas`](reference-pulsar-admin.md#pulsar-admin-namespaces-get-backlog-quotas) subcommand and specify a namespace. Here's an example:
 
@@ -227,20 +232,22 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 }
 ```
 
-#### REST API
+<!--REST API-->
 
 {@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
 
-#### Java
+<!--Java-->
 
 ```java
 Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
   admin.namespaces().getBacklogQuotas(namespace);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Remove backlog quotas
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace, use `t`/`--type` to specify backlog type to remove(default is destination_storage). Here's an example:
 
@@ -248,15 +255,16 @@ Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespac
 $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
 ```
 
-#### REST API
+<!--REST API-->
 
 {@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=[[pulsar:version_number]]}
 
-#### Java
+<!--Java-->
 
 ```java
 admin.namespaces().removeBacklogQuota(namespace);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Clear backlog
 
@@ -278,7 +286,8 @@ By default, Pulsar stores all unacknowledged messages forever. This can lead to 
 
 ### Set the TTL for a namespace
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`set-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-set-message-ttl) subcommand and specify a namespace and a TTL (in seconds) using the `-ttl`/`--messageTTL` flag.
 
@@ -289,19 +298,21 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
   --messageTTL 120 # TTL of 2 minutes
 ```
 
-#### REST API
+<!--REST API-->
 
 {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
-#### Java
+<!--Java-->
 
 ```java
 admin.namespaces().setNamespaceMessageTTL(namespace, ttlInSeconds);
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get the TTL configuration for a namespace
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`get-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-get-message-ttl) subcommand and specify a namespace.
 
@@ -312,19 +323,21 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 60
 ```
 
-#### REST API
+<!--REST API-->
 
 {@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
-#### Java
+<!--Java-->
 
 ```java
 admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Remove the TTL configuration for a namespace
 
-#### pulsar-admin
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
 
 Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-message-ttl) subcommand and specify a namespace.
 
@@ -334,15 +347,17 @@ Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces
 $ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
 ```
 
-#### REST API
+<!--REST API-->
 
 {@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=[[pulsar:version_number]]}
 
-#### Java
+<!--Java-->
 
 ```java
 admin.namespaces().removeNamespaceMessageTTL(namespace)
 ```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 ## Delete messages from namespaces
 
 If you do not have any retention period and that you never have much of a backlog, the upper limit for retaining messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).

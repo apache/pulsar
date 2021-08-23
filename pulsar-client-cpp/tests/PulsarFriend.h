@@ -61,6 +61,11 @@ class PulsarFriend {
         return *producerImpl;
     }
 
+    static ProducerImpl& getInternalProducerImpl(Producer producer, int index) {
+        PartitionedProducerImpl* producerImpl = static_cast<PartitionedProducerImpl*>(producer.impl_.get());
+        return *(producerImpl->producers_[index]);
+    }
+
     static void producerFailMessages(Producer producer, Result result) {
         producer.producerFailMessages(result);
     }

@@ -270,7 +270,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             }
 
             NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
-                    name -> new NonPersistentSubscription(this, subscriptionName));
+                    name -> new NonPersistentSubscription(this, subscriptionName, isDurable));
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
                     cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta, MessageId.latest);
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
@@ -320,7 +320,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState) {
-        return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName));
+        return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName, true));
     }
 
     @Override

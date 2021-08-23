@@ -51,12 +51,14 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -71,6 +73,11 @@ public class BacklogQuotaManagerTest {
 
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 3;
     private static final int MAX_ENTRIES_PER_LEDGER = 5;
+
+    @DataProvider(name = "backlogQuotaSizeGB")
+    public Object[][] backlogQuotaSizeGB() {
+        return new Object[][] { { true }, { false } };
+    }
 
     @BeforeMethod
     void setup() throws Exception {
@@ -1211,5 +1218,44 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
+    @Test(dataProvider = "backlogQuotaSizeGB")
+    public void testBacklogQuotaInGB(boolean backlogQuotaSizeGB) throws Exception {
+
+        pulsar.close();
+        long backlogQuotaByte = 10 * 1024;
+        if (backlogQuotaSizeGB) {
+            config.setBacklogQuotaDefaultLimitGB(((double) backlogQuotaByte) / BacklogQuotaImpl.BYTES_IN_GIGABYTE);
+        } else {
+            config.setBacklogQuotaDefaultLimitBytes(backlogQuotaByte);
+        }
+        config.setBacklogQuotaDefaultRetentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        pulsar = new PulsarService(config);
+        pulsar.start();
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        final String topic1 = "persistent://prop/ns-quota/topic2";
+        final String subName1 = "c1";
+        final String subName2 = "c2";
+        final int numMsgs = 20;
+
+        Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = createProducer(client, topic1);
+        byte[] content = new byte[1024];
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(content);
+            consumer1.receive();
+            consumer2.receive();
+        }
+
+        Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
+        rolloverStats();
+
+        TopicStats stats = admin.topics().getStats(topic1);
+        assertTrue(stats.getBacklogSize() < 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
+    }
     private static final Logger LOG = LoggerFactory.getLogger(BacklogQuotaManagerTest.class);
 }

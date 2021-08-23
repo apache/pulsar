@@ -153,7 +153,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    if (hasPackageTypePrefix(sourcePkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(sourcePkgUrl)) {
                         componentPackageFile = downloadPackageFile(sourcePkgUrl);
                     } else {
                         if (!Utils.isFunctionPackageUrlSupported(sourcePkgUrl)) {
@@ -321,7 +321,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 if (isNotBlank(sourcePkgUrl)) {
-                    if (hasPackageTypePrefix(sourcePkgUrl)) {
+                    if (Utils.hasPackageTypePrefix(sourcePkgUrl)) {
                         componentPackageFile = downloadPackageFile(sourcePkgUrl);
                     } else {
                         try {
@@ -744,10 +744,6 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 = SourceConfigUtils.validateAndExtractDetails(
                         sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
         return SourceConfigUtils.convert(sourceConfig, sourceDetails);
-    }
-
-    private static boolean hasPackageTypePrefix(String destPkgUrl) {
-        return Arrays.stream(PackageType.values()).anyMatch(type -> destPkgUrl.startsWith(type.toString()));
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {

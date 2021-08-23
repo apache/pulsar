@@ -377,11 +377,24 @@ class PulsarTest(TestCase):
         producer = client.create_producer(topic=topic,
                                           encryption_key="client-rsa.pem",
                                           crypto_key_reader=crypto_key_reader)
+        reader = client.create_reader(topic=topic,
+                                      start_message_id=MessageId.earliest,
+                                      crypto_key_reader=crypto_key_reader)
         producer.send('hello')
         msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.value(), 'hello')
         consumer.unsubscribe()
+
+        msg = reader.read_next(TM)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        with self.assertRaises(pulsar.Timeout):
+            reader.read_next(100)
+
+        reader.close()
+
         client.close()
 
     def test_tls_auth3(self):

@@ -85,4 +85,7 @@ public interface TopicStats {
 
     /** The serialized size of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRangesSerializedSize();
+
+    /** The compaction stats. */
+    CompactionStats getCompaction();
 }
