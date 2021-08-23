@@ -296,13 +296,14 @@ public class MessageImpl<T> implements Message<T> {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
 
+        BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
         Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata, msg.msgMetadata);
         msg.payload = headersAndPayloadWithBrokerEntryMetadata;
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;
         msg.properties = Collections.emptyMap();
-        msg.brokerEntryMetadata = null;
+        msg.brokerEntryMetadata = brokerEntryMetadata;
         return msg;
     }
 
@@ -662,6 +663,37 @@ public class MessageImpl<T> implements Message<T> {
             ReferenceCountUtil.safeRelease(payload);
             recycle();
         }
+    }
+
+    @Override
+    public boolean hasBrokerPublishTime() {
+        return brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp();
+    }
+
+    @Override
+    public Optional<Long> getBrokerPublishTime() {
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+            return Optional.of(brokerEntryMetadata.getBrokerTimestamp());
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public boolean hasIndex() {
+        return brokerEntryMetadata != null && brokerEntryMetadata.hasIndex();
+    }
+
+    @Override
+    public Optional<Long> getIndex() {
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+            if (msgMetadata.hasNumMessagesInBatch() && messageId instanceof BatchMessageIdImpl) {
+                int batchSize = ((BatchMessageIdImpl) messageId).getBatchSize();
+                int batchIndex = ((BatchMessageIdImpl) messageId).getBatchIndex();
+                return Optional.of(brokerEntryMetadata.getIndex() - batchSize + batchIndex + 1);
+            }
+            return Optional.of(brokerEntryMetadata.getIndex());
+        }
+        return Optional.empty();
     }
 
     private MessageImpl(Handle<MessageImpl<?>> recyclerHandle) {

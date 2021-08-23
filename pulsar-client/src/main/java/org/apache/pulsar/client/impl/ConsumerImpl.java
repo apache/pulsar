@@ -88,6 +88,7 @@ import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -1022,8 +1023,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
+        BrokerEntryMetadata brokerEntryMetadata;
         MessageMetadata msgMetadata;
         try {
+            brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(headersAndPayload);
             msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         } catch (Throwable t) {
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
@@ -1090,6 +1093,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount,
                     poolMessages);
             uncompressedPayload.release();
+            message.setBrokerEntryMetadata(brokerEntryMetadata);
 
             // Enqueue the message so that it can be retrieved when application calls receive()
             // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
@@ -1108,7 +1112,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
-            receiveIndividualMessagesFromBatch(msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
+            receiveIndividualMessagesFromBatch(brokerEntryMetadata, msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
 
             uncompressedPayload.release();
         }
@@ -1256,8 +1260,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         completePendingReceive(receivedFuture, interceptMessage);
     }
 
-    void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
-            MessageIdData messageId, ClientCnx cnx) {
+    void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
+                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            MessageIdData messageId, ClientCnx cnx) {
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
         // create ack tracker for entry aka batch
@@ -1317,6 +1322,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 final MessageImpl<T> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadata, singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount, poolMessages);
+                message.setBrokerEntryMetadata(brokerEntryMetadata);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }

@@ -217,6 +217,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     };
 
+
     enum State {
         Start, Connected, Failed, Connecting
     }

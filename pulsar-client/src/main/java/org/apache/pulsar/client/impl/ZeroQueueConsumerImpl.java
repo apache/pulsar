@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
@@ -178,9 +179,9 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     @Override
-    void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount,
-            List<Long> ackSet,
-            ByteBuf uncompressedPayload, MessageIdData messageId, ClientCnx cnx) {
+    void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
+                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            MessageIdData messageId, ClientCnx cnx) {
         log.warn(
                 "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",
                 subscription, consumerName);
