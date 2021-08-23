@@ -181,11 +181,13 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
         if (firstInQueue == null) {
             // The pending op might been polled by others such as cleanup pending op when create Ledger failed.
+            ReferenceCountUtil.release(data);
             this.recycle();
             return;
         }
         if (this != firstInQueue) {
             firstInQueue.failed(new ManagedLedgerException("Unexpected add entry op when complete the add entry op."));
+            ReferenceCountUtil.release(data);
             this.recycle();
             return;
         }
