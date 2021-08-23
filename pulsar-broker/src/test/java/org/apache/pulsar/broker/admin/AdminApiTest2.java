@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.Response.Status;
 import lombok.Cleanup;
@@ -1469,6 +1471,60 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.schemas().getSchemaInfo(topic);
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 404);
+        }
+    }
+
+    @Test
+    public void testDistinguishTopicTypeWhenForceDeleteNamespace() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
+        final String ns = "prop-xyz/distinguish-topic-type-ns";
+        final String exNs = "prop-xyz/ex-distinguish-topic-type-ns";
+        admin.namespaces().createNamespace(ns, 2);
+        admin.namespaces().createNamespace(exNs, 2);
+
+        final String p1 = "persistent://" + ns + "/p1";
+        final String p5 = "persistent://" + ns + "/p5";
+        final String np = "persistent://" + ns + "/np";
+
+        admin.topics().createPartitionedTopic(p1, 1);
+        admin.topics().createPartitionedTopic(p5, 5);
+        admin.topics().createNonPartitionedTopic(np);
+
+        final String exNp = "persistent://" + exNs + "/np";
+        admin.topics().createNonPartitionedTopic(exNp);
+        // insert an invalid topic name
+        pulsar.getLocalMetadataStore().put(
+                "/managed-ledgers/" + exNs + "/persistent/", "".getBytes(), Optional.empty()).join();
+
+        List<String> topics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(ns)).get();
+        List<String> exTopics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(exNs)).get();
+
+        // ensure that the topic list contains all the topics
+        List<String> allTopics = new ArrayList<>(Arrays.asList(np, TopicName.get(p1).getPartition(0).toString()));
+        for (int i = 0; i < 5; i++) {
+            allTopics.add(TopicName.get(p5).getPartition(i).toString());
+        }
+        Assert.assertEquals(allTopics.stream().filter(t -> !topics.contains(t)).count(), 0);
+        Assert.assertTrue(exTopics.contains("persistent://" + exNs + "/"));
+        // partition num = p1 + p5 + np
+        Assert.assertEquals(topics.size(), 1 + 5 + 1);
+        Assert.assertEquals(exTopics.size(), 1 + 1);
+
+        admin.namespaces().deleteNamespace(ns, true);
+        Arrays.asList(p1, p5, np).forEach(t -> {
+            try {
+                admin.schemas().getSchemaInfo(t);
+            } catch (PulsarAdminException e) {
+                // all the normal topics' schemas have been deleted
+                Assert.assertEquals(e.getStatusCode(), 404);
+            }
+        });
+
+        try {
+            admin.namespaces().deleteNamespace(exNs, true);
+            fail("Should fail due to invalid topic");
+        } catch (Exception e) {
+            //ok
         }
     }
 

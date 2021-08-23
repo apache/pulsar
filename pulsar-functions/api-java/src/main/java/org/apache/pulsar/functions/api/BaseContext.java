@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api;
 
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -194,11 +195,27 @@ public interface BaseContext {
     void recordMetric(String metricName, double value);
 
     /**
-     * Get the pulsar client.
+     * Get the pre-configured pulsar client.
+     *
+     * You can use this client to access Pulsar cluster.
+     * The Function will be responsible for disposing this client.
      *
      * @return the instance of pulsar client
      */
     default PulsarClient getPulsarClient() {
         throw new UnsupportedOperationException("not implemented");
     }
+
+    /**
+     * Get the pre-configured pulsar client builder.
+     *
+     * You can use this Builder to setup client to connect to the Pulsar cluster.
+     * But you need to close client properly after using it.
+     *
+     * @return the instance of pulsar client builder.
+     */
+    default ClientBuilder getPulsarClientBuilder() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
 }

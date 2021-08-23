@@ -198,7 +198,7 @@ Make sure that the keytabs configured in the `pulsar_jaas.conf` file and kdc ser
 
 #### Configure CLI tools
 
-If you are using a command-line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need to preform the following steps:
+If you are using a command-line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need to perform the following steps:
 
 Step 1. Config your `client.conf`.
 ```shell
