@@ -18,12 +18,9 @@
  */
 package org.apache.pulsar.compaction;
 
-import org.apache.pulsar.broker.service.BrokerService;
-import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import java.util.Optional;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -40,11 +37,33 @@ public class CompactorMXBeanImplTest {
         mxBean.addCompactionRemovedEvent(topic);
         assertEquals(mxBean.getLastCompactionRemovedEventCount(topic), 0, 0);
         mxBean.addCompactionEndOp(topic, true);
-        mxBean.addCompactionEndOp(topic, false);
         assertEquals(mxBean.getLastCompactionRemovedEventCount(topic), 1, 0);
         assertTrue(mxBean.getLastCompactionSucceedTimestamp(topic) > 0L);
-        assertTrue(mxBean.getLastCompactionFailedTimestamp(topic) > 0L);
         assertTrue(mxBean.getLastCompactionDurationTimeInMills(topic) >= 0L);
+        assertEquals(mxBean.getLastCompactionFailedTimestamp(topic), 0, 0);
+        assertEquals(mxBean.getCompactionRemovedEventCount(topic), 1, 0);
+        assertEquals(mxBean.getCompactionSucceedCount(topic), 1, 0);
+        assertEquals(mxBean.getCompactionFailedCount(topic), 0, 0);
+        assertTrue(mxBean.getCompactionDurationTimeInMills(topic) >= 0L);
+        mxBean.addCompactionStartOp(topic);
+        mxBean.addCompactionRemovedEvent(topic);
+        mxBean.addCompactionEndOp(topic, false);
+        assertEquals(mxBean.getCompactionRemovedEventCount(topic), 2, 0);
+        assertEquals(mxBean.getCompactionFailedCount(topic), 1, 0);
+        assertEquals(mxBean.getCompactionSucceedCount(topic), 1, 0);
+        assertTrue(mxBean.getLastCompactionFailedTimestamp(topic) > 0L);
+        assertTrue(mxBean.getCompactionDurationTimeInMills(topic) >= 0L);
+        mxBean.addCompactionReadOp(topic, 22);
+        assertTrue(mxBean.getCompactionReadThroughput(topic) > 0L);
+        mxBean.addCompactionWriteOp(topic, 33);
+        assertTrue(mxBean.getCompactionWriteThroughput(topic) > 0L);
+        mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
+        assertTrue(mxBean.getCompactionLatencyBuckets(topic)[0] > 0l);
+        mxBean.reset();
+        assertEquals(mxBean.getCompactionRemovedEventCount(topic), 0, 0);
+        assertEquals(mxBean.getCompactionSucceedCount(topic), 0, 0);
+        assertEquals(mxBean.getCompactionFailedCount(topic), 0, 0);
+        assertEquals(mxBean.getCompactionDurationTimeInMills(topic), 0, 0);
     }
 
 }

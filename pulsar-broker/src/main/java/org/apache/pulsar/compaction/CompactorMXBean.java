@@ -54,4 +54,38 @@ public interface CompactorMXBean {
      */
     void removeTopic(String topic);
 
+    /**
+     * @return the removed event count of compaction
+     */
+    long getCompactionRemovedEventCount(String topic);
+
+    /**
+     * @return the succeed count of compaction
+     */
+    long getCompactionSucceedCount(String topic);
+
+    /**
+     * @return the failed count of compaction
+     */
+    long getCompactionFailedCount(String topic);
+
+    /**
+     * @return the duration time of compaction
+     */
+    long getCompactionDurationTimeInMills(String topic);
+
+    /**
+     * @return the latency buckets
+     */
+    long[] getCompactionLatencyBuckets(String topic);
+
+    /**
+     * @return the read throughput of compaction
+     */
+    double getCompactionReadThroughput(String topic);
+
+    /**
+     * @return the write throughput of compaction
+     */
+    double getCompactionWriteThroughput(String topic);
 }

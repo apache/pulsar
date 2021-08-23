@@ -119,6 +119,7 @@ The following metrics are available for broker:
   - [Token metrics](#token-metrics)
   - [Authentication metrics](#authentication-metrics)
   - [Connection metrics](#connection-metrics)
+  - [Compaction metrics](#compaction-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -427,6 +428,28 @@ All the connection metrics are labelled with the following labels:
 | pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
 | pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
 | pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
+
+### Compaction metrics
+
+All the compaction metrics are labelled with the following labels:
+
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
+- namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
+- quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_compaction_removedEventCount | Gauge | The removed event count of compaction |
+| pulsar_compaction_succeedCount | Gauge | The succeed count of compaction |
+| pulsar_compaction_failedCount | Gauge | The failed count of compaction |
+| pulsar_compaction_durationTimeInMills | Gauge | The duration time of compaction |
+| pulsar_compaction_readThroughput | Gauge | The read throughput of compaction |
+| pulsar_compaction_writeThroughput | Gauge | The write throughput of compaction |
+| pulsar_compaction_latencyBuckets | Histogram | The compaction latency with given quantile. <br> Available quantile: <br><ul><li>quantile="0.0_0.5" is latency between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is latency between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is latency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is latency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is latency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is latency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is latency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is latency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is latency between (200ms, 1000ms]</li></ul> |
+| pulsar_compaction_latencyBuckets_OVERFLOW | Gauge | The compaction latency > 1s |
+| pulsar_compaction_compactedEntriesCount | Gauge | The compacted entries count |
+| pulsar_compaction_compactedEntriesSize |Gauge  | The compacted entries size |
+
 
 ## Pulsar Functions
 

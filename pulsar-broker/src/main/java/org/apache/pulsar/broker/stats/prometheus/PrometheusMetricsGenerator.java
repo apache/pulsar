@@ -43,6 +43,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.metrics.CompactionMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
@@ -141,6 +142,12 @@ public class PrometheusMetricsGenerator {
             // generate managedCursor metrics
             parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
+        }
+
+        if (pulsar.getConfiguration().isExposeCompactionMetricsInPrometheus()) {
+            // generate compaction metrics
+            parseMetricsToPrometheusMetrics(new CompactionMetrics(pulsar).generate(),
+                    clusterName, Collector.Type.GAUGE, stream);
         }
 
         parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()

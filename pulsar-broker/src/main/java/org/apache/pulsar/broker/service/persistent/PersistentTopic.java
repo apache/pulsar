@@ -1991,19 +1991,14 @@ public class PersistentTopic extends AbstractTopic
         info.entries = -1;
         info.size = -1;
 
-        try {
-            Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext =
-                    ((CompactedTopicImpl) compactedTopic)
-                            .getCompactedTopicContext();
-            if (compactedTopicContext.isPresent()) {
-                CompactedTopicImpl.CompactedTopicContext ledgerContext = compactedTopicContext.get();
-                info.ledgerId = ledgerContext.getLedger().getId();
-                info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
-                info.size = ledgerContext.getLedger().getLength();
-            }
-        } catch (ExecutionException | InterruptedException e) {
-            log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
+        Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext = getCompactedTopicContext();
+        if (compactedTopicContext.isPresent()) {
+            CompactedTopicImpl.CompactedTopicContext ledgerContext = compactedTopicContext.get();
+            info.ledgerId = ledgerContext.getLedger().getId();
+            info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
+            info.size = ledgerContext.getLedger().getLength();
         }
+
         stats.compactedLedger = info;
 
         stats.cursors = Maps.newTreeMap();
@@ -2118,6 +2113,15 @@ public class PersistentTopic extends AbstractTopic
             return null;
         });
         return statFuture;
+    }
+
+    public Optional<CompactedTopicImpl.CompactedTopicContext> getCompactedTopicContext() {
+        try {
+            return ((CompactedTopicImpl) compactedTopic).getCompactedTopicContext();
+        } catch (ExecutionException | InterruptedException e) {
+            log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
+        }
+        return Optional.empty();
     }
 
     public long getBacklogSize() {
