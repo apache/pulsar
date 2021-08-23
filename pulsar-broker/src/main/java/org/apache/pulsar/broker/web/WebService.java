@@ -211,7 +211,7 @@ public class WebService implements AutoCloseable {
     public void start() throws PulsarServerException {
         try {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
-            requestLogHandler.setRequestLog(RequestLogger.getRequestLogger());
+            requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
             handlers.add(0, new ContextHandlerCollection());
             handlers.add(requestLogHandler);
 

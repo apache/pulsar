@@ -33,7 +33,7 @@ import javax.websocket.DeploymentException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
-import org.apache.pulsar.broker.web.RequestLogger;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -125,7 +125,7 @@ public class ProxyServer {
                 .map(ServerConnector.class::cast).map(ServerConnector::getPort).map(Object::toString)
                 .collect(Collectors.joining(",")));
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(RequestLogger.getRequestLogger());
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 

@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.servlet.Servlet;
-import org.apache.pulsar.broker.web.RequestLogger;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -126,7 +126,7 @@ public class ServerManager {
 
     public void start() throws Exception {
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(RequestLogger.getRequestLogger());
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 

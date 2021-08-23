@@ -23,9 +23,9 @@ import org.eclipse.jetty.server.CustomRequestLog;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
 
 /**
- * Common class to initialize a standard request logger across all pulsar components.
+ * Class to standardize initialization of a Jetty request logger for all pulsar components.
  */
-public class RequestLogger {
+public class JettyRequestLogFactory {
 
     /**
      * The time format to use for request logging. This custom format is necessary because the
@@ -55,10 +55,10 @@ public class RequestLogger {
             "%{client}a - %u" + TIME_FORMAT + "\"%r\" %s %O \"%{Referer}i\" \"%{User-Agent}i\" %{ms}T";
 
     /**
-     * Common method to build the standard pulsar request logger.
+     * Build a new Jetty request logger using the format defined in this class.
      * @return a request logger
      */
-    public static CustomRequestLog getRequestLogger() {
+    public static CustomRequestLog createRequestLogger() {
         return new CustomRequestLog(new Slf4jRequestLogWriter(), LOG_FORMAT);
     }
 }

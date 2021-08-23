@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
-import org.apache.pulsar.broker.web.RequestLogger;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -52,7 +52,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
 
@@ -113,7 +112,7 @@ public class WorkerServer {
             workerConfig.isAuthenticateMetricsEndpoint(), authenticationService));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(RequestLogger.getRequestLogger());
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 

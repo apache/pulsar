@@ -35,7 +35,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
-import org.apache.pulsar.broker.web.RequestLogger;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -194,7 +194,7 @@ public class WebServer {
 
     public void start() throws Exception {
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(RequestLogger.getRequestLogger());
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 
