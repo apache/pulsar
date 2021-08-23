@@ -28,22 +28,25 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ReaderImplTest {
-    ReaderImpl<byte[]> reader;
-    private ExecutorService executorService;
+    private ReaderImpl<byte[]> reader;
+    private ExecutorProvider executorProvider;
+    private ExecutorService internalExecutor;
 
     @BeforeMethod
     void setupReader() {
-        PulsarClientImpl mockedClient = ClientTestFixtures.createPulsarClientMockWithMockedClientCnx();
+        executorProvider = new ExecutorProvider(1, "ReaderImplTest");
+        internalExecutor = Executors.newSingleThreadScheduledExecutor();
+        PulsarClientImpl mockedClient = ClientTestFixtures.createPulsarClientMockWithMockedClientCnx(
+                executorProvider, internalExecutor);
         ReaderConfigurationData<byte[]> readerConfiguration = new ReaderConfigurationData<>();
         readerConfiguration.setTopicName("topicName");
-        executorService = Executors.newSingleThreadExecutor();
-        when(mockedClient.getInternalExecutorService()).thenReturn(executorService);
         CompletableFuture<Consumer<byte[]>> consumerFuture = new CompletableFuture<>();
         reader = new ReaderImpl<>(mockedClient, readerConfiguration, ClientTestFixtures.createMockedExecutorProvider(),
                 consumerFuture, Schema.BYTES);
@@ -51,9 +54,13 @@ public class ReaderImplTest {
 
     @AfterMethod
     public void clean() {
-        if (executorService != null) {
-            executorService.shutdownNow();
-            executorService = null;
+        if (executorProvider != null) {
+            executorProvider.shutdownNow();
+            executorProvider = null;
+        }
+        if (internalExecutor != null) {
+            internalExecutor.shutdownNow();
+            internalExecutor = null;
         }
     }
 

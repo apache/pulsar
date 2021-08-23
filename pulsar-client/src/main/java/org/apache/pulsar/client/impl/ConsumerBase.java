@@ -71,7 +71,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
     protected final ScheduledExecutorService externalPinnedExecutor;
-    protected final ExecutorService internalPinnedExecutor;
+    protected final ScheduledExecutorService internalPinnedExecutor;
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -104,7 +104,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.unAckedChunkedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
         this.executorProvider = executorProvider;
         this.externalPinnedExecutor = (ScheduledExecutorService) executorProvider.getExecutor();
-        this.internalPinnedExecutor = client.getInternalExecutorService();
+        this.internalPinnedExecutor = (ScheduledExecutorService) client.getInternalExecutorService();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
@@ -222,7 +222,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void completePendingReceive(CompletableFuture<Message<T>> receivedFuture, Message<T> message) {
-        getExecutor(message).execute(() -> {
+        getInternalExecutor(message).execute(() -> {
             if (!receivedFuture.complete(message)) {
                 log.warn("Race condition detected. receive future was already completed (cancelled={}) and message was dropped. message={}",
                         receivedFuture.isCancelled(), message);
@@ -251,7 +251,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void failPendingReceives() {
+    private void failPendingReceives() {
         while (!pendingReceives.isEmpty()) {
             CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
             if (receiveFuture == null) {
@@ -266,7 +266,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void failPendingBatchReceives() {
+    private void failPendingBatchReceives() {
         while (hasNextBatchReceive()) {
             OpBatchReceive<T> opBatchReceive = nextBatchReceive();
             if (opBatchReceive == null || opBatchReceive.future == null) {
@@ -886,7 +886,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
                         log.error("Race condition in consumer {} (should not cause data loss). "
                                 + " Concurrent operations on pendingBatchReceives is not safe", this.consumerName);
-                        if (!removed.future.isDone()) {
+                        if (removed != null && !removed.future.isDone()) {
                             completeOpBatchReceive(removed);
                         }
                     }
@@ -917,7 +917,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
                                 callMessageListener(msg));
                     } else {
-                        getExecutor(msg).execute(() -> {
+                        getExternalExecutor(msg).execute(() -> {
                             callMessageListener(msg);
                         });
                     }
@@ -999,12 +999,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected abstract void completeOpBatchReceive(OpBatchReceive<T> op);
 
-    private ExecutorService getExecutor(Message<T> msg) {
+    private ExecutorService getExternalExecutor(Message<T> msg) {
         ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl) ? ((TopicMessageImpl) msg).receivedByconsumer
                 : null;
         ExecutorService executor = receivedConsumer != null && receivedConsumer.externalPinnedExecutor != null
                 ? receivedConsumer.externalPinnedExecutor
                 : externalPinnedExecutor;
+        return executor;
+    }
+
+    private ExecutorService getInternalExecutor(Message<T> msg) {
+        ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl) ? ((TopicMessageImpl) msg).receivedByconsumer
+                : null;
+        ExecutorService executor = receivedConsumer != null && receivedConsumer.internalPinnedExecutor != null
+                ? receivedConsumer.internalPinnedExecutor
+                : internalPinnedExecutor;
         return executor;
     }
 
