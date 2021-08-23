@@ -95,14 +95,23 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
                 this.publishMaxMessageRate = Math.max(resourceGroup.getPublishRateInMsgs(), 0);
                 this.publishMaxByteRate = Math.max(resourceGroup.getPublishRateInBytes(), 0);
                 if (this.publishMaxMessageRate > 0) {
-                    // TODO: pass the executor
-                    publishRateLimiterOnMessage =
-                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, this::apply);
+                    publishRateLimiterOnMessage = RateLimiter.builder()
+                            .scheduledExecutorService(scheduledExecutorService)
+                            .permits(publishMaxMessageRate)
+                            .rateTime(1L)
+                            .timeUnit(TimeUnit.SECONDS)
+                            .rateLimitFunction(this::apply)
+                            .build();
                 }
                 if (this.publishMaxByteRate > 0) {
-                    // TODO: pass the executor
                     publishRateLimiterOnByte =
-                        new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS, this::apply);
+                    RateLimiter.builder()
+                            .scheduledExecutorService(scheduledExecutorService)
+                            .permits(publishMaxByteRate)
+                            .rateTime(1L)
+                            .timeUnit(TimeUnit.SECONDS)
+                            .rateLimitFunction(this::apply)
+                            .build();
                 }
             } else {
                 this.publishMaxMessageRate = 0;

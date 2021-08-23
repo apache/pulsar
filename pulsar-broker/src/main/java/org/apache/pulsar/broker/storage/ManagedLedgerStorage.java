@@ -42,13 +42,13 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      *
      * @param conf service config
      * @param zkClient zk client
-     * @param bookkeperProvider bookkeeper provider
+     * @param bookkeeperProvider bookkeeper provider
      * @throws Exception
      */
     void initialize(ServiceConfiguration conf,
                     MetadataStore metadataStore,
                     ZooKeeper zkClient,
-                    BookKeeperClientFactory bookkeperProvider,
+                    BookKeeperClientFactory bookkeeperProvider,
                     EventLoopGroup eventLoopGroup) throws Exception;
 
     /**

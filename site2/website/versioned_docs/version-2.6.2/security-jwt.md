@@ -258,7 +258,7 @@ brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0
 # Or, alternatively, read token from file
 # brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
 
-# Whether client authorization credentials are forwared to the broker for re-authorization.
+# Whether client authorization credentials are forwarded to the broker for re-authorization.
 # Authentication must be enabled via authenticationEnabled=true for this to take effect.
 forwardAuthorizationCredentials=true
 ```

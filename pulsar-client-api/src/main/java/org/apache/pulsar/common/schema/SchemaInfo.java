@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.schema;
 
 import java.util.Map;
-import org.apache.pulsar.client.internal.DefaultImplementation;
+
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 

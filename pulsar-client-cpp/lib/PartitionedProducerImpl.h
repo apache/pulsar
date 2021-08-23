@@ -64,10 +64,10 @@ class PartitionedProducerImpl : public ProducerImplBase,
     void triggerFlush() override;
     void flushAsync(FlushCallback callback) override;
     bool isConnected() const override;
-
+    uint64_t getNumberOfConnectedProducer() override;
     void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
-
+    void createLazyPartitionProducer(const unsigned int partitionIndex);
     void handleSinglePartitionProducerClose(Result result, const unsigned int partitionIndex,
                                             CloseCallback callback);
 
@@ -104,7 +104,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     unsigned int getNumPartitions() const;
     unsigned int getNumPartitionsWithLock() const;
 
-    ProducerImplPtr newInternalProducer(unsigned int partition) const;
+    ProducerImplPtr newInternalProducer(unsigned int partition, bool lazy);
 
     MessageRoutingPolicyPtr routerPolicy_;
 
@@ -129,6 +129,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     void runPartitionUpdateTask();
     void getPartitionMetadata();
     void handleGetPartitions(const Result result, const LookupDataResultPtr& partitionMetadata);
+    bool assertState(const PartitionedProducerState state);
 };
 
 }  // namespace pulsar

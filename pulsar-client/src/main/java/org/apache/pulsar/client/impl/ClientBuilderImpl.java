@@ -145,6 +145,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit) {
+        conf.setLookupTimeoutMs(unit.toMillis(lookupTimeout));
+        return this;
+    }
+
+    @Override
     public ClientBuilder ioThreads(int numIoThreads) {
         conf.setNumIoThreads(numIoThreads);
         return this;

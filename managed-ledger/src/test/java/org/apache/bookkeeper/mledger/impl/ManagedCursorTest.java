@@ -3462,9 +3462,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                     assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
                 });
-
-        factory1.shutdown();
-        dirtyFactory.shutdown();
     }
 
     @Test

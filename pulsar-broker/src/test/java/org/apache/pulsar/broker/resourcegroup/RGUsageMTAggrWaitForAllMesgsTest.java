@@ -358,9 +358,10 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
 
     private void registerTenantsAndNamespaces(String[] topicStrings) throws Exception {
         for (String topicStr : topicStrings) {
-            TopicName topic = TopicName.get(topicStr);
-            String tenantRG = TopicToTenantRGName(topic);
-            String namespaceRG = TopicToNamespaceRGName(topic);
+            final TopicName topic = TopicName.get(topicStr);
+            final String tenantRG = TopicToTenantRGName(topic);
+            final String namespaceRG = TopicToNamespaceRGName(topic);
+            final String tenantAndNamespace = topic.getNamespace();
 
             // The tenant name and namespace name parts of the topic are the same as their corresponding RG-names.
             // Hence, the arguments to register look a little odd.
@@ -369,7 +370,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 registeredTenants.add(tenantRG);
             }
             if (!registeredNamespaces.contains(namespaceRG)) {
-                this.rgservice.registerNameSpace(namespaceRG, namespaceRG);
+                this.rgservice.registerNameSpace(namespaceRG, tenantAndNamespace);
                 registeredNamespaces.add(namespaceRG);
             }
         }
@@ -377,9 +378,10 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
 
     private void unRegisterTenantsAndNamespaces(String[] topicStrings) throws Exception {
         for (String topicStr : topicStrings) {
-            TopicName topic = TopicName.get(topicStr);
-            String tenantRG = TopicToTenantRGName(topic);
-            String namespaceRG = TopicToNamespaceRGName(topic);
+            final TopicName topic = TopicName.get(topicStr);
+            final String tenantRG = TopicToTenantRGName(topic);
+            final String namespaceRG = TopicToNamespaceRGName(topic);
+            final String tenantAndNamespace = topic.getNamespace();;
 
             // The tenant name and namespace name parts of the topic are the same as their corresponding RG-names.
             // Hence, the arguments to unRegister look a little odd.
@@ -388,7 +390,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 registeredTenants.remove(tenantRG);
             }
             if (registeredNamespaces.contains(namespaceRG)) {
-                this.rgservice.unRegisterNameSpace(namespaceRG, namespaceRG);
+                this.rgservice.unRegisterNameSpace(namespaceRG, tenantAndNamespace);
                 registeredNamespaces.remove(namespaceRG);
             }
         }

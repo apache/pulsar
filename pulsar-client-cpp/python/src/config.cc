@@ -89,6 +89,13 @@ static ProducerConfiguration& ProducerConfiguration_setCryptoKeyReader(ProducerC
     return conf;
 }
 
+static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfiguration& conf,
+                                                                        py::object cryptoKeyReader) {
+    CryptoKeyReaderWrapper cryptoKeyReaderWrapper = py::extract<CryptoKeyReaderWrapper>(cryptoKeyReader);
+    conf.setCryptoKeyReader(cryptoKeyReaderWrapper.cryptoKeyReader);
+    return conf;
+}
+
 class LoggerWrapper: public Logger {
     PyObject* _pyLogger;
     Logger* fallbackLogger;
@@ -233,6 +240,8 @@ void export_config() {
             .def("block_if_queue_full", &ProducerConfiguration::setBlockIfQueueFull, return_self<>())
             .def("partitions_routing_mode", &ProducerConfiguration::getPartitionsRoutingMode)
             .def("partitions_routing_mode", &ProducerConfiguration::setPartitionsRoutingMode, return_self<>())
+            .def("lazy_start_partitioned_producers", &ProducerConfiguration::getLazyStartPartitionedProducers)
+            .def("lazy_start_partitioned_producers", &ProducerConfiguration::setLazyStartPartitionedProducers, return_self<>())
             .def("batching_enabled", &ProducerConfiguration::getBatchingEnabled, return_value_policy<copy_const_reference>())
             .def("batching_enabled", &ProducerConfiguration::setBatchingEnabled, return_self<>())
             .def("batching_max_messages", &ProducerConfiguration::getBatchingMaxMessages, return_value_policy<copy_const_reference>())
@@ -290,5 +299,6 @@ void export_config() {
             .def("subscription_role_prefix", &ReaderConfiguration::setSubscriptionRolePrefix)
             .def("read_compacted", &ReaderConfiguration::isReadCompacted)
             .def("read_compacted", &ReaderConfiguration::setReadCompacted)
+            .def("crypto_key_reader", &ReaderConfiguration_setCryptoKeyReader, return_self<>())
             ;
 }

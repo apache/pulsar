@@ -171,6 +171,17 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class ManagedLedgerFactoryClosedException extends ManagedLedgerException {
+
+        public ManagedLedgerFactoryClosedException() {
+            super("ManagedLedgerFactory is already closed.");
+        }
+
+        public ManagedLedgerFactoryClosedException(Throwable e) {
+            super(e);
+        }
+    }
+
     @Override
     public synchronized Throwable fillInStackTrace() {
         // Disable stack traces to be filled in

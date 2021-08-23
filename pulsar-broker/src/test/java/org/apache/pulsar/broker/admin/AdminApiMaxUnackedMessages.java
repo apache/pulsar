@@ -146,8 +146,6 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 50; i++) {
             producer.send("msg".getBytes());
         }
-        Awaitility.await().until(()
-                -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace));
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topic));
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, namespaceLevelPolicy);
