@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -221,7 +222,7 @@ public abstract class MockedPulsarServiceBaseTest {
             }
             bkExecutor = null;
         }
-        
+
     }
 
     protected abstract void setup() throws Exception;
@@ -246,13 +247,16 @@ public abstract class MockedPulsarServiceBaseTest {
         }
         this.pulsar = startBroker(conf);
 
-        brokerUrl = new URL(pulsar.getWebServiceAddress());
-        brokerUrlTls = new URL(pulsar.getWebServiceAddressTls());
+        brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
+        brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
         if (admin != null) {
             admin.close();
         }
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
+                ? brokerUrl.toString()
+                : brokerUrlTls.toString());
+        admin = spy(pulsarAdminBuilder.build());
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {

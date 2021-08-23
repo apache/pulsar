@@ -1251,12 +1251,15 @@ public class PulsarService implements AutoCloseable {
             LOG.info("Starting function worker service");
 
             WorkerConfig workerConfig = functionWorkerService.get().getWorkerConfig();
-            if (workerConfig.isUseTls()) {
+            if (workerConfig.isUseTls() || brokerServiceUrl == null) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
+            } else {
+                workerConfig.setPulsarServiceUrl(brokerServiceUrl);
+            }
+            if (workerConfig.isUseTls() || webServiceAddress == null) {
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddressTls);
             } else {
-                workerConfig.setPulsarServiceUrl(brokerServiceUrl);
                 workerConfig.setPulsarWebServiceUrl(webServiceAddress);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddress);
             }

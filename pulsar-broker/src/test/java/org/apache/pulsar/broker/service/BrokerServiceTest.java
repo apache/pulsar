@@ -566,6 +566,38 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testTlsEnabledWithoutNonTlsServicePorts() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic";
+        final String subName = "newSub";
+
+        conf.setAuthenticationEnabled(false);
+        conf.setBrokerServicePort(Optional.empty());
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePort(Optional.empty());
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
+        restartBroker();
+
+        // Access with TLS (Allow insecure TLS connection)
+        try {
+            pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscribe();
+
+        } catch (Exception e) {
+            fail("should not fail");
+        } finally {
+            pulsarClient.close();
+        }
+    }
+
     @SuppressWarnings("deprecation")
     @Test
     public void testTlsAuthAllowInsecure() throws Exception {
