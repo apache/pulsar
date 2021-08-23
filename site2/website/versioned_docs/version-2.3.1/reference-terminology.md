@@ -47,7 +47,7 @@ modes (exclusive, shared, and failover).
 
 #### Pub-Sub
 
-A messaging pattern in which [producer](#producer) proccesses publish messages on [topics](#topic) that
+A messaging pattern in which [producer](#producer) processes publish messages on [topics](#topic) that
 are then consumed (processed) by [consumer](#consumer) processes.
 
 #### Producer
