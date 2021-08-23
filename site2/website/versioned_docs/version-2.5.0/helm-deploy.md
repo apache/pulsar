@@ -339,7 +339,7 @@ The `prepare_helm_release` creates following resources:
 
 - A k8s namespace for installing the Pulsar release
 - Create a secret for storing the username and password of control center administrator. The username and password can be passed to `prepare_helm_release.sh` through flags `--control-center-admin` and `--control-center-password`. The username and password is used for logging into Grafana dashboard and Pulsar Manager.
-- Create the JWT secret keys and tokens for three superusers: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates asymmeric pubic/private key pair. You can choose to generate symmeric secret key by specifying `--symmetric`.
+- Create the JWT secret keys and tokens for three superusers: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates asymmetric pubic/private key pair. You can choose to generate symmeric secret key by specifying `--symmetric`.
     - `proxy-admin` role is used for proxies to communicate to brokers.
     - `broker-admin` role is used for inter-broker communications.
     - `admin` role is used by the admin tools.
