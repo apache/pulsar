@@ -233,7 +233,7 @@ When you create a new Pulsar producer, the operation will block (waiting on a go
         producer.SendAsync(ctx, asyncMsg, <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">(msg pulsar.ProducerMessage, err error)</span></span> {
             <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> { log.Fatal(err) }
 
-            fmt.Printf(<span class="hljs-string">"Message %s succesfully published"</span>, msg.ID())
+            fmt.Printf(<span class="hljs-string">"Message %s successfully published"</span>, msg.ID())
         })
     }
 }

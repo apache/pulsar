@@ -170,7 +170,7 @@ helm upgrade &lt;pulsar-release-name&gt; charts/pulsar -f pulsar.yaml
 <pre><code class="hljs css language-bash">helm delete &lt;pulsar-release-name&gt;
 </code></pre>
 <p>For the purposes of continuity, these charts have some Kubernetes objects that are not removed when performing <code>helm delete</code>.
-These items we require you to <em>conciously</em> remove them, as they affect re-deployment should you choose to.</p>
+These items we require you to <em>consciously</em> remove them, as they affect re-deployment should you choose to.</p>
 <ul>
 <li>PVCs for stateful data, which you must <em>consciously</em> remove
 <ul>
