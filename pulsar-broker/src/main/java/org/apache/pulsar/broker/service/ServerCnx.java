@@ -2572,7 +2572,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void execute(Runnable runnable) {
-        ctx.channel().eventLoop().execute(runnable);
+        ctx().channel().eventLoop().execute(runnable);
     }
 
     @Override

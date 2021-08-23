@@ -503,9 +503,15 @@ public class PersistentTopic extends AbstractTopic
             // fence topic when failed to write a message to BK
             fence();
             // close all producers
-            List<CompletableFuture<Void>> futures = Lists.newArrayList();
-            producers.values().forEach(producer -> futures.add(producer.disconnect()));
-            FutureUtil.waitForAll(futures).handle((BiFunction<Void, Throwable, Void>) (aVoid, throwable) -> {
+            CompletableFuture<Void> disconnectProducersFuture;
+            if (producers.size() > 0) {
+                List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                producers.forEach((__, producer) -> futures.add(producer.disconnect()));
+                disconnectProducersFuture = FutureUtil.waitForAll(futures);
+            } else {
+                disconnectProducersFuture = CompletableFuture.completedFuture(null);
+            }
+            disconnectProducersFuture.handle((BiFunction<Void, Throwable, Void>) (aVoid, throwable) -> {
                 decrementPendingWriteOpsAndCheck();
                 return null;
             });
