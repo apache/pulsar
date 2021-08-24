@@ -105,7 +105,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                 .setProducerName("test")
                 .setSequenceId(0);
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(0);
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.heapBuffer(0);
 
         payload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
                     msgMetadata, payload);
