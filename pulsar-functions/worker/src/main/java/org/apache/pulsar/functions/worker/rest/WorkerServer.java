@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
+import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -33,7 +34,6 @@ import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
@@ -52,7 +52,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
 
@@ -113,11 +112,7 @@ public class WorkerServer {
             workerConfig.isAuthenticateMetricsEndpoint(), authenticationService));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
-        Slf4jRequestLog requestLog = new Slf4jRequestLog();
-        requestLog.setExtended(true);
-        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
-        requestLog.setLogLatency(true);
-        requestLogHandler.setRequestLog(requestLog);
+        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
         handlers.add(0, new ContextHandlerCollection());
         handlers.add(requestLogHandler);
 
