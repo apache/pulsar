@@ -103,7 +103,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private final ConsumerStatsRecorder stats;
-    private final UnAckedMessageTracker unAckedMessageTracker;
+    private UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
     private volatile BatchMessageIdImpl startMessageId = null;
@@ -543,7 +543,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public CompletableFuture<Void> closeAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
-            unAckedMessageTracker.close();
+            if (unAckedMessageTracker != null) {
+                unAckedMessageTracker.close();
+            }
             return CompletableFuture.completedFuture(null);
         }
         setState(State.Closing);
@@ -580,7 +582,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void cleanupMultiConsumer() {
-        unAckedMessageTracker.close();
+        if (unAckedMessageTracker != null) {
+            unAckedMessageTracker.close();
+            unAckedMessageTracker = null;
+        }
+        if (partitionsAutoUpdateTimeout != null) {
+            partitionsAutoUpdateTimeout.cancel();
+            partitionsAutoUpdateTimeout = null;
+        }
         client.cleanupConsumer(this);
     }
 
