@@ -129,7 +129,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
     }
 }
 
-ClientImpl::~ClientImpl() { shutdown(); }
+ClientImpl::~ClientImpl() {}
 
 const ClientConfiguration& ClientImpl::conf() const { return clientConfiguration_; }
 
@@ -567,10 +567,15 @@ void ClientImpl::shutdown() {
         }
     }
 
+    LOG_DEBUG(producers.size() << " producers and " << consumers.size() << " consumers have been shutdown.");
     pool_.close();
+    LOG_DEBUG("ConnectionPool is closed");
     ioExecutorProvider_->close();
+    LOG_DEBUG("ioExecutorProvider_ is closed");
     listenerExecutorProvider_->close();
+    LOG_DEBUG("listenerExecutorProvider_ is closed");
     partitionListenerExecutorProvider_->close();
+    LOG_DEBUG("partitionListenerExecutorProvider_ is closed");
 }
 
 uint64_t ClientImpl::newProducerId() {

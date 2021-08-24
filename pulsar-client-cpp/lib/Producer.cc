@@ -24,7 +24,6 @@
 #include "ProducerImpl.h"
 
 namespace pulsar {
-DECLARE_LOG_OBJECT()
 
 static const std::string EMPTY_STRING;
 
