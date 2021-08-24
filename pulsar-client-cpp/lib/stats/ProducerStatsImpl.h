@@ -50,17 +50,17 @@ typedef boost::accumulators::accumulator_set<
 
 class ProducerStatsImpl : public std::enable_shared_from_this<ProducerStatsImpl>, public ProducerStatsBase {
    private:
-    unsigned long numMsgsSent_;
-    unsigned long numBytesSent_;
+    std::string producerStr_;
+
+    unsigned long numMsgsSent_ = 0;
+    unsigned long numBytesSent_ = 0;
     std::map<Result, unsigned long> sendMap_;
     LatencyAccumulator latencyAccumulator_;
 
-    unsigned long totalMsgsSent_;
-    unsigned long totalBytesSent_;
+    unsigned long totalMsgsSent_ = 0;
+    unsigned long totalBytesSent_ = 0;
     std::map<Result, unsigned long> totalSendMap_;
     LatencyAccumulator totalLatencyAccumulator_;
-
-    std::string producerStr_;
 
     ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;

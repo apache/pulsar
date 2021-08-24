@@ -107,7 +107,7 @@ class PulsarTest(TestCase):
     def test_client_logger(self):
         logger = logging.getLogger("pulsar")
         Client(self.serviceUrl, logger=logger)
-        
+
     def test_connect_error(self):
         with self.assertRaises(pulsar.ConnectError):
             client = Client('fakeServiceUrl')
@@ -380,10 +380,10 @@ class PulsarTest(TestCase):
         reader = client.create_reader(topic=topic,
                                       start_message_id=MessageId.earliest,
                                       crypto_key_reader=crypto_key_reader)
-        producer.send('hello')
+        producer.send(b'hello')
         msg = consumer.receive(TM)
         self.assertTrue(msg)
-        self.assertEqual(msg.value(), 'hello')
+        self.assertEqual(msg.value(), b'hello')
         consumer.unsubscribe()
 
         msg = reader.read_next(TM)

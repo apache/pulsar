@@ -48,7 +48,7 @@ struct ListenerWrapper {
 
         try {
             py::call<void>(_pyListener, py::object(&consumer), py::object(&msg));
-        } catch (py::error_already_set e) {
+        } catch (const py::error_already_set& e) {
             PyErr_Print();
         }
 
@@ -106,7 +106,7 @@ class LoggerWrapper: public Logger {
 
         try {
             _currentPythonLogLevel = py::call_method<int>(_pyLogger, "getEffectiveLevel");
-        } catch (py::error_already_set e) {
+        } catch (const py::error_already_set& e) {
             PyErr_Print();
         }
 
@@ -161,7 +161,7 @@ class LoggerWrapper: public Logger {
                         break;
                 }
 
-            } catch (py::error_already_set e) {
+            } catch (const py::error_already_set& e) {
                 PyErr_Print();
             }
 
@@ -213,7 +213,7 @@ void export_config() {
             .def("log_conf_file_path", &ClientConfiguration::setLogConfFilePath, return_self<>())
             .def("use_tls", &ClientConfiguration::isUseTls)
             .def("use_tls", &ClientConfiguration::setUseTls, return_self<>())
-            .def("tls_trust_certs_file_path", &ClientConfiguration::getTlsTrustCertsFilePath)
+            .def("tls_trust_certs_file_path", &ClientConfiguration::getTlsTrustCertsFilePath, return_value_policy<copy_const_reference>())
             .def("tls_trust_certs_file_path", &ClientConfiguration::setTlsTrustCertsFilePath, return_self<>())
             .def("tls_allow_insecure_connection", &ClientConfiguration::isTlsAllowInsecureConnection)
             .def("tls_allow_insecure_connection", &ClientConfiguration::setTlsAllowInsecureConnection, return_self<>())

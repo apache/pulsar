@@ -74,14 +74,14 @@ class PULSAR_PUBLIC SchemaInfoImpl {
    public:
     const std::string name_;
     const std::string schema_;
-    const SchemaType type_;
+    const SchemaType type_ = BYTES;
     const std::map<std::string, std::string> properties_;
 
-    SchemaInfoImpl() : name_("BYTES"), schema_(), type_(BYTES), properties_() {}
+    SchemaInfoImpl() : name_("BYTES") {}
 
     SchemaInfoImpl(SchemaType schemaType, const std::string &name, const std::string &schema,
                    const StringMap &properties)
-        : type_(schemaType), name_(name), schema_(schema), properties_(properties) {}
+        : name_(name), schema_(schema), type_(schemaType), properties_(properties) {}
 };
 
 SchemaInfo::SchemaInfo() : impl_(std::make_shared<SchemaInfoImpl>()) {}

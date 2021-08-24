@@ -84,7 +84,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     const std::string subscriptionName_;
     const TopicNamePtr topicName_;
     unsigned int numPartitions_;
-    unsigned int numConsumersCreated_;
+    unsigned int numConsumersCreated_ = 0;
     const ConsumerConfiguration conf_;
     typedef std::vector<ConsumerImplPtr> ConsumerList;
     ConsumerList consumers_;
@@ -92,8 +92,8 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     mutable std::mutex consumersMutex_;
     mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
-    PartitionedConsumerState state_;
-    unsigned int unsubscribedSoFar_;
+    PartitionedConsumerState state_ = Pending;
+    unsigned int unsubscribedSoFar_ = 0;
     BlockingQueue<Message> messages_;
     ExecutorServicePtr listenerExecutor_;
     MessageListener messageListener_;
@@ -104,7 +104,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     DeadlineTimerPtr partitionsUpdateTimer_;
     boost::posix_time::time_duration partitionsUpdateInterval_;
     LookupServicePtr lookupServicePtr_;
-    /* methods */
+
     unsigned int getNumPartitions() const;
     unsigned int getNumPartitionsWithLock() const;
     ConsumerConfiguration getSinglePartitionConsumerConfig() const;

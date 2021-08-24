@@ -28,15 +28,15 @@ namespace pulsar {
 
 class ConsumerStatsImpl : public ConsumerStatsBase {
    private:
-    unsigned long numBytesRecieved_;
+    std::string consumerStr_;
+
+    unsigned long numBytesRecieved_ = 0;
     std::map<Result, unsigned long> receivedMsgMap_;
     std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long> ackedMsgMap_;
 
-    unsigned long totalNumBytesRecieved_;
+    unsigned long totalNumBytesRecieved_ = 0;
     std::map<Result, unsigned long> totalReceivedMsgMap_;
     std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long> totalAckedMsgMap_;
-
-    std::string consumerStr_;
 
     ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;

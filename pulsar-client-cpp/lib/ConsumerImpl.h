@@ -197,7 +197,7 @@ class ConsumerImpl : public ConsumerImplBase,
     uint64_t consumerId_;
     std::string consumerName_;
     std::string consumerStr_;
-    int32_t partitionIndex_;
+    int32_t partitionIndex_ = -1;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
     std::atomic_bool messageListenerRunning_;
     CompressionCodecProvider compressionCodecProvider_;
