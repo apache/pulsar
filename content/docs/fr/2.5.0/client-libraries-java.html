@@ -426,7 +426,7 @@ Consumer consumer2 = client.newConsumer()
 (<span class="hljs-string">"key-3"</span>, <span class="hljs-string">"message-3-1"</span>)
 (<span class="hljs-string">"key-4"</span>, <span class="hljs-string">"message-4-1"</span>)
 </code></pre>
-<p>consumer2 receives the follwoing information.</p>
+<p>consumer2 receives the following information.</p>
 <pre><code class="hljs">(<span class="hljs-string">"key-1"</span>, <span class="hljs-string">"message-1-2"</span>)
 (<span class="hljs-string">"key-2"</span>, <span class="hljs-string">"message-2-1"</span>)
 (<span class="hljs-string">"key-2"</span>, <span class="hljs-string">"message-2-3"</span>)
@@ -450,14 +450,14 @@ Consumer consumer2 = client.newConsumer()
 <span class="hljs-comment">//Both consumer1 and consumer2 are active consumers.</span>
 </code></pre>
 <p><code>Key_Shared</code> subscription is like <code>Shared</code> subscription, all consumers can attach to the same subscription. But it is different from <code>Key_Shared</code> subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).</p>
-<p>consumer1 receives the follwoing information.</p>
+<p>consumer1 receives the following information.</p>
 <pre><code class="hljs">(<span class="hljs-string">"key-1"</span>, <span class="hljs-string">"message-1-1"</span>)
 (<span class="hljs-string">"key-1"</span>, <span class="hljs-string">"message-1-2"</span>)
 (<span class="hljs-string">"key-1"</span>, <span class="hljs-string">"message-1-3"</span>)
 (<span class="hljs-string">"key-3"</span>, <span class="hljs-string">"message-3-1"</span>)
 (<span class="hljs-string">"key-3"</span>, <span class="hljs-string">"message-3-2"</span>)
 </code></pre>
-<p>consumer2 receives the follwoing information.</p>
+<p>consumer2 receives the following information.</p>
 <pre><code class="hljs">(<span class="hljs-string">"key-2"</span>, <span class="hljs-string">"message-2-1"</span>)
 (<span class="hljs-string">"key-2"</span>, <span class="hljs-string">"message-2-2"</span>)
 (<span class="hljs-string">"key-2"</span>, <span class="hljs-string">"message-2-3"</span>)

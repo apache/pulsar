@@ -128,7 +128,7 @@ chmod 444 certs/ca.cert.pem
 <p>下面的命令向您询问一些问题，然后创建证书。 当问到通用名称（common name）时，您应该匹配 broker 的主机名。 您可以使用通配符来匹配一组 broker 主机名，例如 <code>*.brocher.usw.example.com</code>。 这将确保多台机器可以共同使用同一个证书。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>有时候匹配主机名是不可能的，或者是没有意义的，比如当您创建带有随机主机名的 broker 时，或者您计划通过他们的 IP 连接到主机时。 在这些情况下，您需要配置客户端来禁用 TLS 主机名验证。 更多信息，您可以在 <a href="#hostname-verification">客户端配置文档主机验证部分</a> 查看到。</p>
+<p>Sometimes matching the hostname is not possible or makes no sense, such as when you create the brokers with random hostnames, or you plan to connect to the hosts via their IP. 在这些情况下，您需要配置客户端来禁用 TLS 主机名验证。 更多信息，您可以在 <a href="#hostname-verification">客户端配置文档主机验证部分</a> 查看到。</p>
 </blockquote>
 <ol>
 <li>输入下面的命令来生成密钥。</li>

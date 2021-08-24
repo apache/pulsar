@@ -159,7 +159,7 @@ helm upgrade &lt;pulsar-release-name&gt; apache/pulsar -f pulsar.yaml
 <p>如果需要卸载 Pulsar Helm chart，请执行以下命令：</p>
 <pre><code class="hljs css language-bash">helm delete &lt;pulsar-release-name&gt;
 </code></pre>
-<p>为了保持连续性，有些包含了 Kubernetes 对象的 charts 在执行<code>helm delete</code> 命令后无法被清除。 我们还是推荐你<em>主动</em>去移除这些组件，因为它们会影响重新部署。</p>
+<p>为了保持连续性，有些包含了 Kubernetes 对象的 charts 在执行<code>helm delete</code> 命令后无法被清除。 It is recommended to <em>consciously</em> remove these items, as they affect re-deployment.</p>
 <ul>
 <li>有状态服务的 PVC：<em>主动地</em>去移除。
 <ul>

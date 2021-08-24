@@ -124,7 +124,7 @@
 <tr><td>compactionRate</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
 <tr><td>isThrottleByBytes</td><td>Throttle compaction by bytes or by entries.</td><td>false</td></tr>
 <tr><td>compactionRateByEntries</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
-<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction will readd entries. The unit is bytes added per second.</td><td>1000000</td></tr>
+<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction reads entries. The unit is bytes added per second.</td><td>1000000</td></tr>
 <tr><td>journalMaxSizeMB</td><td>Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.</td><td>2048</td></tr>
 <tr><td>journalMaxBackups</td><td>The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
 <tr><td>journalPreAllocSizeMB</td><td>How space to pre-allocate at a time in the journal.</td><td>16</td></tr>
@@ -165,7 +165,7 @@
 <tr><td>diskUsageThreshold</td><td>For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partitions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).</td><td>0.95</td></tr>
 <tr><td>diskCheckInterval</td><td>Disk check interval in milli seconds, interval to check the ledger dirs usage.</td><td>10000</td></tr>
 <tr><td>auditorPeriodicCheckInterval</td><td>Interval at which the auditor will do a check of all ledgers in the cluster. By default this runs once a week. The interval is set in seconds. To disable the periodic check completely, set this to 0. Note that periodic checking will put extra load on the cluster, so it should not be run more frequently than once a day.</td><td>604800</td></tr>
-<tr><td>sortedLedgerStorageEnabled</td><td>Whether sorted-ledger storage is enabled.</td><td>ture</td></tr>
+<tr><td>sortedLedgerStorageEnabled</td><td>Whether sorted-ledger storage is enabled.</td><td>true</td></tr>
 <tr><td>auditorPeriodicBookieCheckInterval</td><td>The interval between auditor bookie checks. The auditor bookie check, checks ledger metadata to see which bookies should contain entries for each ledger. If a bookie which should contain entries is unavailable, thea the ledger containing that entry is marked for recovery. Setting this to 0 disabled the periodic check. Bookie checks will still run when a bookie fails. The interval is specified in seconds.</td><td>86400</td></tr>
 <tr><td>numAddWorkerThreads</td><td>The number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.</td><td>0</td></tr>
 <tr><td>numReadWorkerThreads</td><td>The number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.</td><td>8</td></tr>
@@ -311,7 +311,7 @@
 <tr><td>offloadersDirectory</td><td>The directory for all the offloader implementations.</td><td>./offloaders</td></tr>
 <tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>. The metadata service uri list can also be semicolon separated values like below: <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to use when connecting to bookies</td><td></td></tr>
-<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementatation specifics parameters name and values</td><td></td></tr>
+<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementation specifics parameters name and values</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParameters</td><td></td><td></td></tr>
 <tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BK add / read operations</td><td>30</td></tr>
 <tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads</td><td>0</td></tr>

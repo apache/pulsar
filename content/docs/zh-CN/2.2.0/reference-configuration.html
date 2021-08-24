@@ -116,7 +116,7 @@
 <tr><td>compactionRate</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
 <tr><td>isThrottleByBytes</td><td>以字节或条目为单位进行阈值压缩</td><td>false</td></tr>
 <tr><td>compactionRateByEntries</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
-<tr><td>compactionRateByBytes</td><td>设置压缩过程中重新添加条目的频率，以每秒添加的字节数为单位。</td><td>1000000</td></tr>
+<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction reads entries. The unit is bytes added per second.</td><td>1000000</td></tr>
 <tr><td>journalMaxSizeMB</td><td>日记文件的最大文件大小，以兆为单位。当旧文件达到文件大小限制时，将创建新的日志文件。</td><td>2048</td></tr>
 <tr><td>journalMaxBackups</td><td>The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
 <tr><td>journalPreAllocSizeMB</td><td>每次在日志中预分配的空间大小。</td><td>16</td></tr>
@@ -137,10 +137,10 @@
 <tr><td>zkTimeout</td><td>ZooKeeper 客户端会话超时时间，以毫秒为单位。Bookie 服务器如果收到 SESSION_EXPIRED，将退出，因为它从 ZooKeeper 进行分区超过了会话超时时间。JVM 垃圾收集和磁盘 I/O 会导致 SESSION_EXPIRED。 增加这个值可以帮助避免这个问题</td><td>30000</td></tr>
 <tr><td>serverTcpNoDelay</td><td>此设置用于启用/禁用 Nagle 的算法，该算法能通过减少通过网络发送的数据包数量来提高 TCP/IP 网络效率。 如果你正在发送许多小消息，这样在单个 IP 数据包中就可以放入不止一个消息，设置 server.tcpnodelay 为 false 来启用 Nagle 算法可以提供更好的性能。</td><td>true</td></tr>
 <tr><td>openFileLimit</td><td>在 bookie 服务器上可以打开 ledger 索引文件的最大数量。如果 ledger 索引文件数量达到这个限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 过于频繁的交换会影响性能。 你可以根据你的要求调整这个数字以获得性能提升。</td><td>0</td></tr>
-<tr><td>pageSize</td><td>ledger 缓存中索引页的大小，以字节为单位。一个大的索引页可以改善将页写入磁盘的性能。当你有少量有 ledger 并且这些 ledger 有着相似数量的条目时，会很高效。 如果你有大量的 ledger，而每个 ledger 都有较少的条目，较小的索引页面将会提高内存使用率。</td><td>8192</td></tr>
-<tr><td>pageLimit</td><td>在 ledger 缓存中提供多少索引页面。如果索引页面数量达到此限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 当你发现交换变得更频繁时，可以增加这个值。 但请确认 pageLimit*page 的大小不应超过 JVM 最大内存限制，否则你将会得到 OutOfMemoryException。 总的来说，使用更小的索引页面可以在 ledger 量大而条目数量少的情况下获得更好的性能。如果 pageLimit 为 -1, bookie 服务器会使用 1/3 的 JVM 内存来计算索引页面的限制数量。</td><td>0</td></tr>
+<tr><td>pageSize</td><td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. 如果你有大量的 ledger，而每个 ledger 都有较少的条目，较小的索引页面将会提高内存使用率。</td><td>8192</td></tr>
+<tr><td>pageLimit</td><td>在 ledger 缓存中提供多少索引页面。如果索引页面数量达到此限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 当你发现交换变得更频繁时，可以增加这个值。 但请确认 pageLimit*page 的大小不应超过 JVM 最大内存限制，否则你将会得到 OutOfMemoryException。 In general, incrementing pageLimit, using smaller index page would gain better performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.</td><td>0</td></tr>
 <tr><td>readOnlyModeEnabled</td><td>如果所有已配置的 ledger 目录已满，则只支持客户的读取请求。 如果 “readOnlyModeEnabled=true” 那么当所有的 ledger 磁盘满时，bookie 会被转换为只读模式并只处理读请求。 否则 bookie 将被关闭。 默认情况下，这会被禁用。</td><td>true</td></tr>
-<tr><td>diskUsageThreshold</td><td>对于每个 ledger 目录，可使用的最大磁盘空间。 默认值为 0.95f。 比如，最多只能使用 95% 的磁盘，此后不会将任何内容写入该分区。 如果所有 ledger 目录分区已满，并且设置了“readOnlyModeEnabled=true”，那么 bookie 将会转为只读模式。 有效值应在 0 和 1 之间(不包含端点)。</td><td>0.95</td></tr>
+<tr><td>diskUsageThreshold</td><td>对于每个 ledger 目录，可使用的最大磁盘空间。 默认值为 0.95f。 比如，最多只能使用 95% 的磁盘，此后不会将任何内容写入该分区。 If all ledger dir partitions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. 有效值应在 0 和 1 之间(不包含端点)。</td><td>0.95</td></tr>
 <tr><td>diskCheckInterval</td><td>磁盘检查间隔，以毫秒为单位，检查 ledger 目录使用情况的时间间隔。</td><td>10000</td></tr>
 <tr><td>auditorPeriodicCheckInterval</td><td>审查者对集群内所有 ledger 进行核对的时间间隔。 默认情况下，每周运行一次。 间隔以秒为单位。 要完全禁用定期检查，请将此设置为 0。 请注意，定期检查会给集群带来额外的负荷，因此每天的运行次数不应超过一次。</td><td>604800</td></tr>
 <tr><td>auditorPeriodicBookieCheckInterval</td><td>审查者 bookie 检查的时间间隔。 审查者 bookie 检查，检查 ledger 的元数据来查看哪些 bookie 应该包含各个 ledger 的条目。 如果本应包含条目的 bookie 不可用，包含该条目的 ledger 会被标记去做恢复。 设置为 0 会禁用定期检查。 当 bookie 失效时，bookie 检查仍然会进行。 间隔以秒为单位。</td><td>86400</td></tr>
@@ -220,7 +220,7 @@
 <tr><td>brokerClientAuthenticationParameters</td><td></td><td></td></tr>
 <tr><td>athenzDomainNames</td><td>Supported Athenz provider domain names(comma separated) for authentication</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to use when connecting to bookies</td><td></td></tr>
-<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementatation specifics parameters name and values</td><td></td></tr>
+<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementation specifics parameters name and values</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParameters</td><td></td><td></td></tr>
 <tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BK add / read operations</td><td>30</td></tr>
 <tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads</td><td>0</td></tr>
@@ -461,7 +461,7 @@
 <tr><td>brokerClientAuthenticationParameters</td><td>Pulsar代理用于对Pulsar Brokers进行身份验证的参数</td><td></td></tr>
 <tr><td>brokerClientTrustCertsFilePath</td><td>Pulsar代理用于对Pulsar Brokers进行身份验证的可信证书的路径</td><td></td></tr>
 <tr><td>superUserRoles</td><td>“超级用户”的角色名，这意味着它们将能够执行所有管理</td><td></td></tr>
-<tr><td>forwardAuthorizationCredentials</td><td>客户端授权凭据是否转发给broker以进行重新授权。必须通过AuthenticationEnabled=true启用身份验证才能生效。</td><td>false</td></tr>
+<tr><td>forwardAuthorizationCredentials</td><td>Whether client authorization credentials are forwarded to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.</td><td>false</td></tr>
 <tr><td>maxConcurrentInboundConnections</td><td>最大进站并发连接数， 代理将拒绝超出此范围的请求。</td><td>10000</td></tr>
 <tr><td>maxConcurrentLookupRequests</td><td>最大出站并发连接数。代理将错误地输出超过此范围的请求。</td><td>50000</td></tr>
 <tr><td>tlsEnabledInProxy</td><td>是否为代理启用TLS</td><td>false</td></tr>

@@ -124,7 +124,7 @@
 <tr><td>compactionRate</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
 <tr><td>isThrottleByBytes</td><td>以字节或条目为单位进行阈值压缩</td><td>false</td></tr>
 <tr><td>compactionRateByEntries</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
-<tr><td>compactionRateByBytes</td><td>设置做压缩时读取数据的速率。 单位是每秒读取的字节数。</td><td>1000000</td></tr>
+<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction reads entries. 单位是每秒读取的字节数。</td><td>1000000</td></tr>
 <tr><td>journalMaxSizeMB</td><td>日志（journal）文件的最大大小，单位是MB。 当日志（journal）文件达到本参数设置的大小后，会自动创建一个新的日志文件。</td><td>2048</td></tr>
 <tr><td>journalMaxBackups</td><td>The max number of old journal files to keep. 保留一定数量的日志文件，可以方便某些特殊情况下的数据恢复。</td><td>5</td></tr>
 <tr><td>journalPreAllocSizeMB</td><td>每次在日志中预分配的空间大小。</td><td>16</td></tr>
@@ -165,7 +165,7 @@
 <tr><td>diskUsageThreshold</td><td>对于每个 ledger 目录，可使用的最大磁盘空间。 默认值为 0.95f。 比如，最多只能使用 95% 的磁盘，此后不会将任何内容写入该分区。 If all ledger dir partitions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. 有效值应在 0 和 1 之间(不包含端点)。</td><td>0.95</td></tr>
 <tr><td>diskCheckInterval</td><td>磁盘检查间隔，以毫秒为单位，检查 ledger 目录使用情况的时间间隔。</td><td>10000</td></tr>
 <tr><td>auditorPeriodicCheckInterval</td><td>审查者对集群内所有 ledger 进行核对的时间间隔。 默认情况下，每周运行一次。 间隔以秒为单位。 要完全禁用定期检查，请将此设置为 0。 请注意，定期检查会给集群带来额外的负荷，因此每天的运行次数不应超过一次。</td><td>604800</td></tr>
-<tr><td>sortedLedgerStorageEnabled</td><td>Whether sorted-ledger storage is enabled.</td><td>ture</td></tr>
+<tr><td>sortedLedgerStorageEnabled</td><td>Whether sorted-ledger storage is enabled.</td><td>true</td></tr>
 <tr><td>auditorPeriodicBookieCheckInterval</td><td>审查者 bookie 检查的时间间隔。 审查者 bookie 检查，检查 ledger 的元数据来查看哪些 bookie 应该包含各个 ledger 的条目。 如果本应包含条目的 bookie 不可用，包含该条目的 ledger 会被标记去做恢复。 设置为 0 会禁用定期检查。 当 bookie 失效时，bookie 检查仍然会进行。 间隔以秒为单位。</td><td>86400</td></tr>
 <tr><td>numAddWorkerThreads</td><td>The number of threads that should handle write requests. 如果设置为 0，写入请求将直接被 nerry 线程进行处理。</td><td>0</td></tr>
 <tr><td>numReadWorkerThreads</td><td>The number of threads that should handle read requests. 如果设置为 0，读取请求将直接被 netty 线程处理。</td><td>8</td></tr>
@@ -311,7 +311,7 @@
 <tr><td>offloadersDirectory</td><td>The directory for all the offloader implementations.</td><td>./offloaders</td></tr>
 <tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. 例如： <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>。 The metadata service uri list can also be semicolon separated values like below: <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to use when connecting to bookies</td><td></td></tr>
-<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementatation specifics parameters name and values</td><td></td></tr>
+<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementation specifics parameters name and values</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParameters</td><td></td><td></td></tr>
 <tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BK add / read operations</td><td>30</td></tr>
 <tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads</td><td>0</td></tr>

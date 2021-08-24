@@ -218,7 +218,7 @@ Hello world!
   --namespace default \
   --name exclamation
 </code></pre>
-<p>If you see <code>Deleted successfully</code> in the output, then you've succesfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.</p>
+<p>If you see <code>Deleted successfully</code> in the output, then you've successfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.</p>
 <h2><a class="anchor" aria-hidden="true" id="writing-and-running-a-new-function"></a><a href="#writing-and-running-a-new-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Writing and running a new function</h2>
 <blockquote>
 <p>In order to write and run the <a href="/docs/zh-CN/2.3.0/functions-api#functions-for-python">Python</a> function below, you'll need to install a few dependencies:</p>
@@ -258,7 +258,7 @@ Hello world!
 <p>For python functions requiring dependencies to be deployable in pulsar worker instances in an offline manner, we need to package the artifacts as below.</p>
 <h4><a class="anchor" aria-hidden="true" id="client-requirements"></a><a href="#client-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client Requirements</h4>
 <p>Following programs are required to be installed on the client machine</p>
-<pre><code class="hljs">pip \\ rquired for getting python dependencies
+<pre><code class="hljs">pip \\ required for getting python dependencies
 zip \\ for building zip archives
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="python-dependencies"></a><a href="#python-dependencies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python Dependencies</h4>
@@ -274,7 +274,7 @@ zip \\ for building zip archives
 --implementation cp \
 --abi cp27m -r requirements.txt -d deps
 </code></pre>
-<p>Sample ouptut</p>
+<p>Sample output</p>
 <pre><code class="hljs">Collecting sh==1.12.14 (from -r requirements.txt (line 1))
   Using cached https://files.pythonhosted.org/packages/4a/22/17b22ef5b049f12080f5815c41bf94de3c229217609e469001a8f80c1b3d/sh-1.12.14-py2.py3-none-any.whl
   Saved ./deps/sh-1.12.14-py2.py3-none-any.whl
