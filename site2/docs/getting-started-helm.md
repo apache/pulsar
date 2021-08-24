@@ -78,7 +78,7 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
         -c
     ```
 
-4. Use the Pulsar Helm chart to install a Pulsar cluster to Kubernetes. Check the [hardware settings](getting-started-standalone.md#requirements) before you start.
+4. Use the Pulsar Helm chart to install a Pulsar cluster to Kubernetes. 
 
    > **Note**  
    > You need to specify `--set initialize=true` when installing Pulsar the first time. This command installs and starts Apache Pulsar.

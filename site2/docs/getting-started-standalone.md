@@ -4,56 +4,24 @@ title: Set up a standalone Pulsar locally
 sidebar_label: Run Pulsar locally
 ---
 
-## Preparation
-
-### Requirements
-
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
-
-> **Note**  
-> Broker is only supported on 64-bit JVM.
-
-> **Tip**  
-> By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
-
 For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
-
-> **Note**  
-> You can reuse existing Zookeeper clusters.
 
 > **Pulsar in production?**  
 > If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal.md) guide.
 
-### Hardware considerations
-
-This section provides you the minimum and the recommended hardware settings in different usecases.
-
-1. The minimum hardware settings (250 Pulsar topics)
-  - Broker
-    - CPU: 0.2
-    - Memory: 256MB
-  - Bookie
-    - CPU: 0.2
-    - Memory: 256MB
-    - Storage: 
-      - Journal: 8GB, PD-SSD
-      - Ledger: 16GB, PD-STANDARD
-
-2. The recommended hardware settings (1000 Pulsar topics)
-
-  - Broker
-    - CPU: 8
-    - Memory: 8GB
-  - Bookie
-    - CPU: 4
-    - Memory: 8GB
-    - Storage: 
-      - Journal: 256GB, PD-SSD
-      - Ledger: 2TB, PD-STANDARD
-
 ## Install Pulsar standalone
 
-This section guides you through every step of installing Pulsar locally.
+This tutorial guides you through every step of installing Pulsar locally.
+
+### System requirements
+
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+
+> **Tip**  
+> By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
+
+> **Note**  
+> Broker is only supported on 64-bit JVM.
 
 ### Install Pulsar using binary release
 
