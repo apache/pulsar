@@ -352,11 +352,18 @@ public class CmdTopics extends CmdBase {
     private class PartitionedLookup extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/partitionedTopic", required = true)
         private java.util.List<String> params;
+        @Parameter(names = { "-s",
+                                "--sort-by-broker" }, description = "Sort partitioned-topic by Broker Url")
+        private boolean sortByBroker = false;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getAdmin().lookups().lookupPartitionedTopic(topic));
+            if (sortByBroker) {
+                print(getAdmin().lookups().lookupPartitionedTopicSortByBroker(topic));
+            } else {
+                print(getAdmin().lookups().lookupPartitionedTopic(topic));
+            }
         }
     }
 

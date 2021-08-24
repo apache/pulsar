@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -94,6 +95,28 @@ public class LookupImpl extends BaseResource implements Lookup {
     }
 
     @Override
+    public Map<String, List<String>> lookupPartitionedTopicSortByBroker(String topic) throws PulsarAdminException {
+        try {
+            Map<String, List<String>> result = new LinkedHashMap<>();
+            Map<String, String> partitionLookup = lookupPartitionedTopicAsync(topic).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            for (Map.Entry<String, String> entry : partitionLookup.entrySet()) {
+                    List<String> topics = result.getOrDefault(entry.getValue(), new ArrayList<String>());
+                    topics.add(entry.getKey());
+                    result.put(entry.getValue(), topics);
+            }
+            return result;
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Map<String, String>> lookupPartitionedTopicAsync(String topic) {
         CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
         topics.getPartitionedTopicMetadataAsync(topic).thenAccept(partitionedTopicMetadata -> {
@@ -134,7 +157,6 @@ public class LookupImpl extends BaseResource implements Lookup {
 
         return future;
     }
-
 
     @Override
     public String getBundleRange(String topic) throws PulsarAdminException {

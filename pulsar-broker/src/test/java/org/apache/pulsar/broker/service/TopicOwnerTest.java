@@ -310,17 +310,32 @@ public class TopicOwnerTest {
         Assert.assertEquals(partitions, allPartitionMap.size());
 
         Map<String, String> partitionedMap = new LinkedHashMap<>();
-        for(int i = 0; i < partitions; i++) {
+        for (int i = 0; i < partitions; i++) {
            String partitionTopicName = topic + "-partition-" + i;
            partitionedMap.put(partitionTopicName, pulsarAdmins[0].lookups().lookupTopic(partitionTopicName));
         }
 
         Assert.assertEquals(allPartitionMap.size(), partitionedMap.size());
 
-        for(Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
+        for (Map.Entry<String, String> entry : allPartitionMap.entrySet()) {
             Assert.assertTrue(entry.getValue().equalsIgnoreCase(partitionedMap.get(entry.getKey())));
         }
 
+    }
+
+    @Test
+    public void testLookupPartitionedTopicSortByBroker() throws Exception {
+        final int partitions = 5;
+        final String topic = "persistent://my-tenant/my-ns/partitionedTopic";
+
+        pulsarAdmins[0].topics().createPartitionedTopic(topic, partitions);
+
+        Map<String, List<String>> allPartitionMap = pulsarAdmins[0].lookups().lookupPartitionedTopicSortByBroker(topic);
+        int size = 0;
+        for (Map.Entry<String, List<String>> entry: allPartitionMap.entrySet()) {
+            size += entry.getValue().size();
+        }
+        Assert.assertEquals(partitions, size);
     }
 
     @Test

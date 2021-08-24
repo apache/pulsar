@@ -2588,6 +2588,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Map<String, String> lookupDataList = lookup.lookupPartitionedTopic(topic1);
         assertEquals(numOfPartitions, lookupDataList.keySet().size());
 
+        // partitioned topic lookup by Broker URL
+        Map<String, List<String>> lookupTopicByBroker = lookup.lookupPartitionedTopicSortByBroker(topic1);
+        int size = 0;
+        for (Map.Entry<String, List<String>> entry: lookupTopicByBroker.entrySet()) {
+            size += entry.getValue().size();
+        }
+        assertEquals(numOfPartitions, size);
+
         // (3) Get Topic Stats
         final CompletableFuture<TopicStats> urlStats = new CompletableFuture<>();
         // (a) Url encoding
