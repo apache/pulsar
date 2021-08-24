@@ -15,4 +15,4 @@ website/static/swagger/master/*
 website/static/swagger/restApiVersions.json
 website/static/swagger/*/v*/*.json
 
-website-tmp/
+website-tmp*/
