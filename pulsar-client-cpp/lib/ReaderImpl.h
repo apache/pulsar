@@ -60,6 +60,8 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
     void seekAsync(const MessageId& msgId, ResultCallback callback);
     void seekAsync(uint64_t timestamp, ResultCallback callback);
 
+    void getLastMessageIdAsync(GetLastMessageIdCallback callback);
+
     ReaderImplWeakPtr getReaderImplWeakPtr();
 
     bool isConnected() const;

@@ -117,4 +117,19 @@ Result Reader::seek(uint64_t timestamp) {
 
 bool Reader::isConnected() const { return impl_ && impl_->isConnected(); }
 
+void Reader::getLastMessageIdAsync(GetLastMessageIdCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized, MessageId());
+        return;
+    }
+    impl_->getLastMessageIdAsync(callback);
+}
+
+Result Reader::getLastMessageId(MessageId& messageId) {
+    Promise<Result, MessageId> promise;
+
+    getLastMessageIdAsync(WaitForCallbackValue<MessageId>(promise));
+    return promise.getFuture().get(messageId);
+}
+
 }  // namespace pulsar

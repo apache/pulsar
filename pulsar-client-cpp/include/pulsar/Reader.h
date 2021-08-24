@@ -29,6 +29,7 @@ class PulsarFriend;
 class ReaderImpl;
 
 typedef std::function<void(Result result, bool hasMessageAvailable)> HasMessageAvailableCallback;
+typedef std::function<void(Result result, MessageId messageId)> GetLastMessageIdCallback;
 
 /**
  * A Reader can be used to scan through all the messages currently available in a topic.
@@ -136,6 +137,17 @@ class PULSAR_PUBLIC Reader {
      * @return Whether the reader is currently connected to the broker
      */
     bool isConnected() const;
+
+    /**
+     * Asynchronously get an ID of the last available message or a message ID with -1 as an entryId if the
+     * topic is empty.
+     */
+    void getLastMessageIdAsync(GetLastMessageIdCallback callback);
+
+    /**
+     * Get an ID of the last available message or a message ID with -1 as an entryId if the topic is empty.
+     */
+    Result getLastMessageId(MessageId& messageId);
 
    private:
     typedef std::shared_ptr<ReaderImpl> ReaderImplPtr;
