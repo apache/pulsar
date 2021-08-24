@@ -106,6 +106,10 @@ public class RateLimiter implements AutoCloseable{
                 renewTask.cancel(false);
             }
             isClosed = true;
+            // If there is a ratelimit function registered, invoke it to unblock.
+            if (rateLimitFunction != null) {
+                rateLimitFunction.apply();
+            }
         }
     }
 
