@@ -137,6 +137,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
+            this.recycle();
         }
     }
 
@@ -180,15 +181,10 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         // Remove this entry from the head of the pending queue
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
         if (firstInQueue == null) {
-            // The pending op might been polled by others such as cleanup pending op when create Ledger failed.
-            ReferenceCountUtil.release(data);
-            this.recycle();
             return;
         }
         if (this != firstInQueue) {
             firstInQueue.failed(new ManagedLedgerException("Unexpected add entry op when complete the add entry op."));
-            ReferenceCountUtil.release(data);
-            this.recycle();
             return;
         }
 
