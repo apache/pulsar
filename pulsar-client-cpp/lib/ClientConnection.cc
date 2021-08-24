@@ -155,8 +155,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
                                    ExecutorServicePtr executor,
                                    const ClientConfiguration& clientConfiguration,
                                    const AuthenticationPtr& authentication)
-    : state_(Pending),
-      operationsTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())),
+    : operationsTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())),
       authentication_(authentication),
       serverProtocolVersion_(ProtocolVersion_MIN),
       executor_(executor),
@@ -172,21 +171,13 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
       cnxString_("[<none> -> " + physicalAddress + "] "),
-      error_(boost::system::error_code()),
       incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-      incomingCmd_(),
       connectTimeoutTask_(std::make_shared<PeriodicTask>(executor_->getIOService(),
                                                          clientConfiguration.getConnectionTimeout())),
-      pendingWriteBuffers_(),
-      pendingWriteOperations_(0),
       outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-      outgoingCmd_(),
-      havePendingPingRequest_(false),
-      keepAliveTimer_(),
-      maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()),
       consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
-      numOfPendingLookupRequest_(0),
-      isTlsAllowInsecureConnection_(false) {
+      maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()) {
+
     LOG_INFO(cnxString_ << "Create ClientConnection, timeout=" << clientConfiguration.getConnectionTimeout());
     if (clientConfiguration.isUseTls()) {
 #if BOOST_VERSION >= 105400

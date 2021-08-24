@@ -77,16 +77,28 @@ set(Boost_NO_BOOST_CMAKE ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
 
-if (MSVC)
-    # Visual Studio compiler flags
+# Compiler specific configuration:
+# https://stackoverflow.com/questions/10046114/in-cmake-how-can-i-test-if-the-compiler-is-clang
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOGDI -D_WIN32_WINNT=0x0501 -D_CRT_SECURE_NO_WARNINGS)
     add_compile_options(/wd4244 /wd4267 /wd4018 /wd4715 /wd4251 /wd4275)
-else()
-    add_compile_options(-Werror=switch -Wno-deprecated-declarations)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    # ?? Don't have this to test with
+else() # GCC or Clang are mostly compatible:
+    # Turn on warnings and enable warnings-as-errors:
+    add_compile_options(-Wall -Wformat-security -Wvla -Werror) 
+    # Turn off certain warnings that are too much pain for too little gain:
+    add_compile_options(-Wno-sign-compare -Wno-deprecated-declarations -Wno-error=cpp)
     if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
         add_compile_options(-msse4.2 -mpclmul)
     endif()
-endif(MSVC)
+    # Options unique to Clang or GCC:
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-Qunused-arguments) 
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
+        add_compile_options(-Wno-stringop-truncation)
+    endif()
+endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -229,6 +241,8 @@ if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
     MESSAGE(STATUS "Using Boost::Regex")
 else()
     MESSAGE(STATUS "Using std::regex")
+    # Turn on color error messages and show additional help with errors (only available in GCC v4.9+):
+    add_compile_options(-fdiagnostics-show-option -fdiagnostics-color)
 endif()
 
 if(BUILD_PERF_TOOLS)
@@ -285,7 +299,10 @@ if (NOT APPLE AND NOT MSVC)
     # we don't set options below to build _pulsar.so
     set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
     # Hide all non-exported symbols to avoid conflicts
-    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
+    add_compile_options(-fvisibility=hidden) 
+    if (CMAKE_COMPILER_IS_GNUCC)
+        add_compile_options(-Wl,--exclude-libs,ALL)
+    endif ()
 endif ()
 
 if (LIB_ZSTD)

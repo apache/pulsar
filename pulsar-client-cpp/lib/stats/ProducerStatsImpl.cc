@@ -43,34 +43,27 @@ std::string ProducerStatsImpl::latencyToString(const LatencyAccumulator& obj) {
 
 ProducerStatsImpl::ProducerStatsImpl(std::string producerStr, ExecutorServicePtr executor,
                                      unsigned int statsIntervalInSeconds)
-    : numMsgsSent_(0),
-      numBytesSent_(0),
-      totalMsgsSent_(0),
-      totalBytesSent_(0),
+    : producerStr_(producerStr),
+      latencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs),
+      totalLatencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs),
       executor_(executor),
       timer_(executor->createDeadlineTimer()),
-      producerStr_(producerStr),
-      statsIntervalInSeconds_(statsIntervalInSeconds),
-      mutex_(),
-      latencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs),
-      totalLatencyAccumulator_(boost::accumulators::tag::extended_p_square::probabilities = probs) {
+      statsIntervalInSeconds_(statsIntervalInSeconds) {
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
     timer_->async_wait(std::bind(&pulsar::ProducerStatsImpl::flushAndReset, this, std::placeholders::_1));
 }
 
 ProducerStatsImpl::ProducerStatsImpl(const ProducerStatsImpl& stats)
-    : numMsgsSent_(stats.numMsgsSent_),
+    : producerStr_(stats.producerStr_),
+      numMsgsSent_(stats.numMsgsSent_),
       numBytesSent_(stats.numBytesSent_),
+      sendMap_(stats.sendMap_),
+      latencyAccumulator_(stats.latencyAccumulator_),
       totalMsgsSent_(stats.totalMsgsSent_),
       totalBytesSent_(stats.totalBytesSent_),
-      sendMap_(stats.sendMap_),
       totalSendMap_(stats.totalSendMap_),
-      timer_(),
-      producerStr_(stats.producerStr_),
-      statsIntervalInSeconds_(stats.statsIntervalInSeconds_),
-      mutex_(),
-      latencyAccumulator_(stats.latencyAccumulator_),
-      totalLatencyAccumulator_(stats.totalLatencyAccumulator_) {}
+      totalLatencyAccumulator_(stats.totalLatencyAccumulator_),
+      statsIntervalInSeconds_(stats.statsIntervalInSeconds_) {}
 
 void ProducerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
     if (ec) {
