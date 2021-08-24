@@ -26,12 +26,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import java.util.Collections;
-import java.util.concurrent.TimeUnit;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.Unpooled;
+import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -55,7 +53,7 @@ import org.testng.annotations.Test;
 import org.testng.collections.Sets;
 
 @Test(groups = "broker")
-public class TransactionMarkerDeleteTest extends BrokerTestBase{
+public class TransactionMarkerDeleteTest extends BrokerTestBase {
 
     @BeforeMethod
     @Override
@@ -96,7 +94,6 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
     }
 
 
-
     @Test
     public void testMarkerDelete() throws Exception {
 
@@ -108,7 +105,7 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(0);
 
         payload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
-                    msgMetadata, payload);
+                msgMetadata, payload);
 
         ManagedLedger managedLedger = pulsar.getManagedLedgerFactory().open("test");
         PersistentTopic topic = mock(PersistentTopic.class);
@@ -119,15 +116,16 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, "test",
                 managedLedger.openCursor("test"), false);
 
-        Position position1 = managedLedger.addEntry(payload.array());
-        Position markerPosition1 = managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1).array());
+        byte[] payloadBytes = toBytes(payload);
+        Position position1 = managedLedger.addEntry(payloadBytes);
+        Position markerPosition1 = managedLedger.addEntry(toBytes(Markers
+                .newTxnCommitMarker(1, 1, 1)));
 
-        Position position2 = managedLedger.addEntry(payload.array());
-        Position markerPosition2 = managedLedger.addEntry(Markers
-                .newTxnAbortMarker(1, 1, 1).array());
+        Position position2 = managedLedger.addEntry(payloadBytes);
+        Position markerPosition2 = managedLedger.addEntry(toBytes(Markers
+                .newTxnAbortMarker(1, 1, 1)));
 
-        Position position3 = managedLedger.addEntry(payload.array());
+        Position position3 = managedLedger.addEntry(payloadBytes);
 
         assertEquals(cursor.getNumberOfEntriesInBacklog(true), 5);
         assertTrue(((PositionImpl) cursor.getMarkDeletedPosition()).compareTo((PositionImpl) position1) < 0);
@@ -150,14 +148,14 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                         .compareTo((PositionImpl) markerPosition2) == 0);
 
         // add consequent marker
-        managedLedger.addEntry(Markers
-                .newTxnCommitMarker(1, 1, 1).array());
+        managedLedger.addEntry(toBytes(Markers
+                .newTxnCommitMarker(1, 1, 1)));
 
-        managedLedger.addEntry(Markers
-                .newTxnAbortMarker(1, 1, 1).array());
+        managedLedger.addEntry(toBytes(Markers
+                .newTxnAbortMarker(1, 1, 1)));
 
-        Position markerPosition3 = managedLedger.addEntry(Markers
-                .newTxnAbortMarker(1, 1, 1).array());
+        Position markerPosition3 = managedLedger.addEntry(toBytes(Markers
+                .newTxnAbortMarker(1, 1, 1)));
 
         // ack with transaction, then commit this transaction
         persistentSubscription.transactionIndividualAcknowledge(new TxnID(0, 0),
@@ -170,5 +168,12 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase{
                 ((PositionImpl) persistentSubscription.getCursor().getMarkDeletedPosition())
                         .compareTo((PositionImpl) markerPosition3) == 0);
 
+    }
+
+    static byte[] toBytes(ByteBuf byteBuf) {
+        byte[] buf = new byte[byteBuf.readableBytes()];
+        byteBuf.readBytes(buf);
+        byteBuf.release();
+        return buf;
     }
 }

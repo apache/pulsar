@@ -1312,7 +1312,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <argLine> -Xmx1G -XX:+UseG1GC
-            -Dpulsar.allocator.pooled=false
+            -Dpulsar.allocator.pooled=true
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
             -Dio.netty.tryReflectionSetAccessible=true
