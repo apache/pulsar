@@ -42,6 +42,8 @@ var searchData=
   ['getkey',['getKey',['../classpulsar_1_1_encryption_key_info.html#af737e7bb9906c8a046b29583b3369489',1,'pulsar::EncryptionKeyInfo']]],
   ['getkeysharedmode',['getKeySharedMode',['../classpulsar_1_1_key_shared_policy.html#a4b5c2785bbd7d3c9fd751d87bb777353',1,'pulsar::KeySharedPolicy']]],
   ['getkeysharedpolicy',['getKeySharedPolicy',['../classpulsar_1_1_consumer_configuration.html#acaad0def412bb4d3bd41f5da4f48e458',1,'pulsar::ConsumerConfiguration']]],
+  ['getlastmessageid',['getLastMessageId',['../classpulsar_1_1_reader.html#a80a0a4dbbe3cf8a9fb074c7556715823',1,'pulsar::Reader']]],
+  ['getlastmessageidasync',['getLastMessageIdAsync',['../classpulsar_1_1_reader.html#a1f863d880dc85400e7e50fcd831d7f5e',1,'pulsar::Reader']]],
   ['getlastsequenceid',['getLastSequenceId',['../classpulsar_1_1_producer.html#ad5f958205d95c8a556bfbc1dc7b7596c',1,'pulsar::Producer']]],
   ['getlazystartpartitionedproducers',['getLazyStartPartitionedProducers',['../classpulsar_1_1_producer_configuration.html#a0979f5ce5bba98eb2c859dd8f5209966',1,'pulsar::ProducerConfiguration']]],
   ['getlength',['getLength',['../classpulsar_1_1_message.html#a287c9e5fd5ee3bf094377060bdf33970',1,'pulsar::Message']]],

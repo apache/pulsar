@@ -127,6 +127,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:addec61dc54aba2959c06a2017bea7c32"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa8d2b38a8fe60438a4a3c4ea9bc4def8"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#aa8d2b38a8fe60438a4a3c4ea9bc4def8">isConnected</a> () const </td></tr>
 <tr class="separator:aa8d2b38a8fe60438a4a3c4ea9bc4def8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1f863d880dc85400e7e50fcd831d7f5e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#a1f863d880dc85400e7e50fcd831d7f5e">getLastMessageIdAsync</a> (GetLastMessageIdCallback callback)</td></tr>
+<tr class="separator:a1f863d880dc85400e7e50fcd831d7f5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a80a0a4dbbe3cf8a9fb074c7556715823"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#a80a0a4dbbe3cf8a9fb074c7556715823">getLastMessageId</a> (<a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;messageId)</td></tr>
+<tr class="separator:a80a0a4dbbe3cf8a9fb074c7556715823"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -200,6 +204,40 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>ReaderTest</b></td><
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a class="anchor" id="a80a0a4dbbe3cf8a9fb074c7556715823"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Reader::getLastMessageId </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td>
+          <td class="paramname"><em>messageId</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get an ID of the last available message or a message ID with -1 as an entryId if the topic is empty. </p>
+
+</div>
+</div>
+<a class="anchor" id="a1f863d880dc85400e7e50fcd831d7f5e"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::Reader::getLastMessageIdAsync </td>
+          <td>(</td>
+          <td class="paramtype">GetLastMessageIdCallback&#160;</td>
+          <td class="paramname"><em>callback</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Asynchronously get an ID of the last available message or a message ID with -1 as an entryId if the topic is empty. </p>
 
 </div>
 </div>
