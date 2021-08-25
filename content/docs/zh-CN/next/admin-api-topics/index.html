@@ -152,14 +152,14 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>storageSize</strong>：当前 topic 对应 ledger 存储大小之和。 用于存储该主题消息的空间。</p></li>
 <li><p><strong>bytesInCounter</strong>: 发布到 topic 的字节数。</p></li>
 <li><p><strong>msgInCounter</strong>: 已发布的消息总数。</p></li>
-<li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumers.</p></li>
-<li><p><strong>msgOutCounter</strong>: Total messages delivered to consumers.</p></li>
-<li><p><strong>msgChunkPublished</strong>: Topic has chunked message published on it.</p></li>
-<li><p><strong>backlogSize</strong>: Estimated total unconsumed or backlog size (in bytes).</p></li>
-<li><p><strong>offloadedStorageSize</strong>: Space used to store the offloaded messages for the topic (in bytes).</p></li>
-<li><p><strong>waitingPublishers</strong>: The number of publishers waiting in a queue in exclusive access mode.</p></li>
-<li><p><strong>deduplicationStatus</strong>: The status of message deduplication for the topic.</p></li>
-<li><p><strong>topicEpoch</strong>: The topic epoch or empty if not set.</p></li>
+<li><p><strong>bytesOutCounter</strong>: 发送到消费者的总字节数。</p></li>
+<li><p><strong>msgOutCounter</strong>: 已向消费者发布的消息总数。</p></li>
+<li><p><strong>msgChunkPublished</strong>: Topic上发布了消息块。</p></li>
+<li><p><strong>backlogSize</strong>: 估计的未消费或积压的总大小（字节）。</p></li>
+<li><p><strong>offloadedStorageSize</strong>: 用于存储该离载topic的信息的空间（以字节为单位）。</p></li>
+<li><p><strong>waitingPublishers</strong>: 在排他性访问模式下，在队列中等待的生产者数量。</p></li>
+<li><p><strong>deduplicationStatus</strong>: topic的消息重复处理的状态。</p></li>
+<li><p><strong>topicEpoch</strong>: 如果没有设置，topic默认或者为空</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>publishers</strong>: The list of all local publishers into the topic. 该列表的范围从零到千不等。</p>
