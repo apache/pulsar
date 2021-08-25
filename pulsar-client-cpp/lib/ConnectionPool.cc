@@ -41,7 +41,12 @@ ConnectionPool::ConnectionPool(const ClientConfiguration& conf, ExecutorServiceP
       poolConnections_(poolConnections),
       mutex_() {}
 
-void ConnectionPool::close() {
+bool ConnectionPool::close() {
+    bool expectedState = false;
+    if (!closed_.compare_exchange_strong(expectedState, true)) {
+        return false;
+    }
+
     std::unique_lock<std::mutex> lock(mutex_);
     if (poolConnections_) {
         for (auto cnxIt = pool_.begin(); cnxIt != pool_.end(); cnxIt++) {
@@ -52,10 +57,17 @@ void ConnectionPool::close() {
         }
         pool_.clear();
     }
+    return true;
 }
 
 Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
     const std::string& logicalAddress, const std::string& physicalAddress) {
+    if (closed_) {
+        Promise<Result, ClientConnectionWeakPtr> promise;
+        promise.setFailed(ResultAlreadyClosed);
+        return promise.getFuture();
+    }
+
     std::unique_lock<std::mutex> lock(mutex_);
 
     if (poolConnections_) {

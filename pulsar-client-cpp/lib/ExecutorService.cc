@@ -62,6 +62,11 @@ DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
 }
 
 void ExecutorService::close() {
+    bool expectedState = false;
+    if (!closed_.compare_exchange_strong(expectedState, true)) {
+        return;
+    }
+
     io_service_->stop();
     work_.reset();
     // Detach the worker thread instead of join to avoid potential deadlock
@@ -95,6 +100,8 @@ ExecutorServicePtr ExecutorServiceProvider::get() {
 }
 
 void ExecutorServiceProvider::close() {
+    Lock lock(mutex_);
+
     for (ExecutorList::iterator it = executors_.begin(); it != executors_.end(); ++it) {
         if (*it != NULL) {
             (*it)->close();
