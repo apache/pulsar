@@ -248,6 +248,7 @@ public class UnAckedMessageTracker implements Closeable {
         try {
             if (timeout != null && !timeout.isCancelled()) {
                 timeout.cancel();
+                timeout = null;
             }
             this.clear();
         } finally {

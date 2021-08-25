@@ -70,7 +70,7 @@ All exchanges via the WebSocket API use JSON.
 
 ### Authentication
 
-#### Broswer javascript WebSocket client
+#### Browser javascript WebSocket client
 
 Use the query param `token` transport the authentication token.
 

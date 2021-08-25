@@ -40,7 +40,6 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.DefaultCryptoKeyReader;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -221,6 +220,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
             }
         }
         conf.setKeyHashRanges(Arrays.asList(ranges));
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> poolMessages(boolean poolMessages) {
+        conf.setPoolMessages(poolMessages);
         return this;
     }
 }

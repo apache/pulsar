@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.Objects;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -60,9 +59,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     public static NamespaceName get(String namespace) {
-        try {
-            checkNotNull(namespace);
-        } catch (NullPointerException e) {
+        if (namespace == null || namespace.isEmpty()) {
             throw new IllegalArgumentException("Invalid null namespace: " + namespace);
         }
         try {
@@ -93,10 +90,6 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     private NamespaceName(String namespace) {
-        if (namespace == null || namespace.isEmpty()) {
-            throw new IllegalArgumentException("Invalid null namespace: " + namespace);
-        }
-
         // Verify it's a proper namespace
         // The namespace name is composed of <tenant>/<namespace>
         // or in the legacy format with the cluster name:
@@ -158,13 +151,11 @@ public class NamespaceName implements ServiceUnitId {
      * @return
      */
     String getTopicName(TopicDomain domain, String topic) {
-        try {
-            checkNotNull(domain);
-            NamedEntity.checkName(topic);
-            return String.format("%s://%s/%s", domain.toString(), namespace, topic);
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("Null pointer is invalid as domain for topic.", e);
+        if (domain == null) {
+            throw new IllegalArgumentException("invalid null domain");
         }
+        NamedEntity.checkName(topic);
+        return String.format("%s://%s/%s", domain.toString(), namespace, topic);
     }
 
     @Override
@@ -188,37 +179,23 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     public static void validateNamespaceName(String tenant, String namespace) {
-        try {
-            checkNotNull(tenant);
-            checkNotNull(namespace);
-            if (tenant.isEmpty() || namespace.isEmpty()) {
-                throw new IllegalArgumentException(
-                        String.format("Invalid namespace format. namespace: %s/%s", tenant, namespace));
-            }
-            NamedEntity.checkName(tenant);
-            NamedEntity.checkName(namespace);
-        } catch (NullPointerException e) {
+        if ((tenant == null || tenant.isEmpty()) || (namespace == null || namespace.isEmpty())) {
             throw new IllegalArgumentException(
-                    String.format("Invalid namespace format. namespace: %s/%s", tenant, namespace), e);
+                    String.format("Invalid namespace format. namespace: %s/%s", tenant, namespace));
         }
+        NamedEntity.checkName(tenant);
+        NamedEntity.checkName(namespace);
     }
 
     public static void validateNamespaceName(String tenant, String cluster, String namespace) {
-        try {
-            checkNotNull(tenant);
-            checkNotNull(cluster);
-            checkNotNull(namespace);
-            if (tenant.isEmpty() || cluster.isEmpty() || namespace.isEmpty()) {
-                throw new IllegalArgumentException(
-                        String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace));
-            }
-            NamedEntity.checkName(tenant);
-            NamedEntity.checkName(cluster);
-            NamedEntity.checkName(namespace);
-        } catch (NullPointerException e) {
+        if ((tenant == null || tenant.isEmpty()) || (cluster == null || cluster.isEmpty())
+                || (namespace == null || namespace.isEmpty())) {
             throw new IllegalArgumentException(
-                    String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace), e);
+                    String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace));
         }
+        NamedEntity.checkName(tenant);
+        NamedEntity.checkName(cluster);
+        NamedEntity.checkName(namespace);
     }
 
     @Override

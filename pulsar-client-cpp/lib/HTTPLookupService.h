@@ -32,19 +32,22 @@ class HTTPLookupService : public LookupService, public std::enable_shared_from_t
         ~CurlInitializer();
     };
     static CurlInitializer curlInitializer;
+
     enum RequestType
     {
         Lookup,
         PartitionMetaData
     };
+
     typedef Promise<Result, LookupDataResultPtr> LookupPromise;
+
     ExecutorServiceProviderPtr executorProvider_;
     std::string adminUrl_;
     AuthenticationPtr authenticationPtr_;
     int lookupTimeoutInSeconds_;
-    bool tlsAllowInsecure_;
-    bool isUseTls_;
     std::string tlsTrustCertsFilePath_;
+    bool isUseTls_;
+    bool tlsAllowInsecure_;
     bool tlsValidateHostname_;
 
     static LookupDataResultPtr parsePartitionData(const std::string&);

@@ -46,7 +46,7 @@ public class EntryCacheManager {
 
     private final long maxSize;
     private final long evictionTriggerThreshold;
-    private final double cacheEvictionWatermak;
+    private final double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
     private final ConcurrentMap<String, EntryCache> caches = Maps.newConcurrentMap();
     private final EntryCacheEvictionPolicy evictionPolicy;
@@ -64,7 +64,7 @@ public class EntryCacheManager {
     public EntryCacheManager(ManagedLedgerFactoryImpl factory) {
         this.maxSize = factory.getConfig().getMaxCacheSize();
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
-        this.cacheEvictionWatermak = factory.getConfig().getCacheEvictionWatermark();
+        this.cacheEvictionWatermark = factory.getConfig().getCacheEvictionWatermark();
         this.evictionPolicy = new EntryCacheDefaultEvictionPolicy();
         this.mlFactory = factory;
         this.mlFactoryMBean = factory.mbean;
@@ -109,7 +109,7 @@ public class EntryCacheManager {
             mlFactory.scheduledExecutor.execute(safeRun(() -> {
                 // Trigger a new cache eviction cycle to bring the used memory below the cacheEvictionWatermark
                 // percentage limit
-                long sizeToEvict = currentSize - (long) (maxSize * cacheEvictionWatermak);
+                long sizeToEvict = currentSize - (long) (maxSize * cacheEvictionWatermark);
                 long startTime = System.nanoTime();
                 log.info("Triggering cache eviction. total size: {} Mb -- Need to discard: {} Mb", currentSize / MB,
                         sizeToEvict / MB);

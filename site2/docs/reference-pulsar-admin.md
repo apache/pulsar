@@ -1124,7 +1124,9 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`-l`, `--limit`|The backlog size limit (for example `10M` or `16G`)||
+|`-lt`, `--limitTime`|Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)||
 |`-p`, `--policy`|The retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
+|`-t`, `--type`|Backlog quota type to set. The valid options are: `destination_storage`, `message_age` |destination_storage|
 
 Example
 ```bash
@@ -1133,8 +1135,19 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
 --policy producer_request_hold
 ```
 
+```bash
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
+--limitTime 3600 \
+--policy producer_request_hold \
+--type message_age
+```
+
 ### `remove-backlog-quota`
 Remove a backlog quota policy from a namespace
+
+|Flag|Description|Default|
+|---|---|---|
+|`-t`, `--type`|Backlog quota type to remove. The valid options are: `destination_storage`, `message_age` |destination_storage|
 
 Usage
 ```bash
@@ -2351,13 +2364,38 @@ $ pulsar-admin topics get-backlog-quotas tenant/namespace/topic
 ### `set-backlog-quota`
 Set a backlog quota policy for a topic.
 
+|Flag|Description|Default|
+|----|---|---|
+|`-l`, `--limit`|The backlog size limit (for example `10M` or `16G`)||
+|`-lt`, `--limitTime`|Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)||
+|`-p`, `--policy`|The retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
+|`-t`, `--type`|Backlog quota type to set. The valid options are: `destination_storage`, `message_age` |destination_storage|
+
 Usage
 ```bash
 $ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
 ```
 
+Example
+```bash
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
+--limit 2G \
+--policy producer_request_hold
+```
+
+```bash
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
+--limitTime 3600 \
+--policy producer_request_hold \
+--type message_age
+```
+
 ### `remove-backlog-quota`
 Remove a backlog quota policy from a topic.
+
+|Flag|Description|Default|
+|---|---|---|
+|`-t`, `--type`|Backlog quota type to remove. The valid options are: `destination_storage`, `message_age` |destination_storage|
 
 Usage
 ```bash
@@ -2385,7 +2423,7 @@ Options
 |----|---|---|
 |`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|0|
 |`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
-|`-a`, `--bookkeeper-ack-quorum`|Number of acks (garanteed copies) to wait for each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|Number of acks (guaranteed copies) to wait for each entry|0|
 |`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
 
 ### `remove-persistence`
@@ -2579,7 +2617,7 @@ Options
 
 
 ### `reset-namespace-bundle-quota`
-Reset the specifed namespace bundle's resource quota to a default value.
+Reset the specified namespace bundle's resource quota to a default value.
 
 Usage
 ```bash

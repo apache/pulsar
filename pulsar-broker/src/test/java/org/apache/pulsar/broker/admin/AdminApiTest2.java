@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.Response.Status;
 import lombok.Cleanup;
@@ -87,6 +89,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -322,9 +325,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void nonPersistentTopics() throws Exception {
         final String topicName = "nonPersistentTopic";
 
-        final String persistentTopicName = "non-persistent://prop-xyz/ns1/" + topicName;
+        final String nonPersistentTopicName = "non-persistent://prop-xyz/ns1/" + topicName;
         // Force to create a topic
-        publishMessagesOnTopic("non-persistent://prop-xyz/ns1/" + topicName, 0, 0);
+        publishMessagesOnTopic(nonPersistentTopicName, 0, 0);
 
         // create consumer and subscription
         @Cleanup
@@ -332,28 +335,27 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
-        Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
+        Consumer<byte[]> consumer = client.newConsumer().topic(nonPersistentTopicName).subscriptionName("my-sub")
                 .subscribe();
 
-        publishMessagesOnTopic("non-persistent://prop-xyz/ns1/" + topicName, 10, 0);
+        publishMessagesOnTopic(nonPersistentTopicName, 10, 0);
 
-        TopicStats topicStats = admin.topics().getStats(persistentTopicName);
+        NonPersistentTopicStats topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);
         assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
         assertEquals(topicStats.getSubscriptions().get("my-sub").getConsumers().size(), 1);
+        assertEquals(topicStats.getSubscriptions().get("my-sub").getMsgDropRate(), 0);
         assertEquals(topicStats.getPublishers().size(), 0);
+        assertEquals(topicStats.getMsgDropRate(), 0);
 
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(nonPersistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
 
         consumer.close();
-
-        topicStats = admin.topics().getStats(persistentTopicName);
+        topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);
         assertTrue(topicStats.getSubscriptions().containsKey("my-sub"));
         assertEquals(topicStats.getPublishers().size(), 0);
-
         // test partitioned-topic
         final String partitionedTopicName = "non-persistent://prop-xyz/ns1/paritioned";
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
         admin.topics().createPartitionedTopic(partitionedTopicName, 5);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 5);
     }
@@ -1469,6 +1471,60 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.schemas().getSchemaInfo(topic);
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 404);
+        }
+    }
+
+    @Test
+    public void testDistinguishTopicTypeWhenForceDeleteNamespace() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
+        final String ns = "prop-xyz/distinguish-topic-type-ns";
+        final String exNs = "prop-xyz/ex-distinguish-topic-type-ns";
+        admin.namespaces().createNamespace(ns, 2);
+        admin.namespaces().createNamespace(exNs, 2);
+
+        final String p1 = "persistent://" + ns + "/p1";
+        final String p5 = "persistent://" + ns + "/p5";
+        final String np = "persistent://" + ns + "/np";
+
+        admin.topics().createPartitionedTopic(p1, 1);
+        admin.topics().createPartitionedTopic(p5, 5);
+        admin.topics().createNonPartitionedTopic(np);
+
+        final String exNp = "persistent://" + exNs + "/np";
+        admin.topics().createNonPartitionedTopic(exNp);
+        // insert an invalid topic name
+        pulsar.getLocalMetadataStore().put(
+                "/managed-ledgers/" + exNs + "/persistent/", "".getBytes(), Optional.empty()).join();
+
+        List<String> topics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(ns)).get();
+        List<String> exTopics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(exNs)).get();
+
+        // ensure that the topic list contains all the topics
+        List<String> allTopics = new ArrayList<>(Arrays.asList(np, TopicName.get(p1).getPartition(0).toString()));
+        for (int i = 0; i < 5; i++) {
+            allTopics.add(TopicName.get(p5).getPartition(i).toString());
+        }
+        Assert.assertEquals(allTopics.stream().filter(t -> !topics.contains(t)).count(), 0);
+        Assert.assertTrue(exTopics.contains("persistent://" + exNs + "/"));
+        // partition num = p1 + p5 + np
+        Assert.assertEquals(topics.size(), 1 + 5 + 1);
+        Assert.assertEquals(exTopics.size(), 1 + 1);
+
+        admin.namespaces().deleteNamespace(ns, true);
+        Arrays.asList(p1, p5, np).forEach(t -> {
+            try {
+                admin.schemas().getSchemaInfo(t);
+            } catch (PulsarAdminException e) {
+                // all the normal topics' schemas have been deleted
+                Assert.assertEquals(e.getStatusCode(), 404);
+            }
+        });
+
+        try {
+            admin.namespaces().deleteNamespace(exNs, true);
+            fail("Should fail due to invalid topic");
+        } catch (Exception e) {
+            //ok
         }
     }
 

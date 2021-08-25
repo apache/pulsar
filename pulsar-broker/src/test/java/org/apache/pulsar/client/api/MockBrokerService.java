@@ -58,6 +58,8 @@ import org.apache.pulsar.common.api.proto.CommandFlow;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -246,6 +248,16 @@ public class MockBrokerService {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             log.warn("Got exception", cause);
             ctx.close();
+        }
+
+        @Override
+        final protected void handlePing(CommandPing ping) {
+            // Immediately reply success to ping requests
+            ctx.writeAndFlush(Commands.newPong());
+        }
+
+        @Override
+        final protected void handlePong(CommandPong pong) {
         }
     }
 

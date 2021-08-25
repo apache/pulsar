@@ -73,7 +73,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     private static final String TENANT = "tnx";
     private static final String NAMESPACE1 = TENANT + "/ns1";
-
+    private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
         setBrokerCount(1);
@@ -89,7 +89,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
 
         if (pulsarClient != null) {
             pulsarClient.shutdown();
@@ -102,19 +102,8 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
         Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores();
-        Awaitility.await().until(() -> {
-            if (stores.size() == 16) {
-                for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
-                    if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()
-                            != TransactionMetadataStoreState.State.Ready) {
-                        return false;
-                    }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        });
+        // wait tc init success to ready state
+        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
     }
 
     @AfterMethod(alwaysRun = true)

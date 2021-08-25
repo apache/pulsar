@@ -90,6 +90,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -373,6 +374,62 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer2.receive(1);
 
         consumer3.receive(1);
+    }
+
+    @Test
+    public void testReplicationWithSchema() throws Exception {
+        PulsarClient client1 = pulsar1.getClient();
+        PulsarClient client2 = pulsar2.getClient();
+        PulsarClient client3 = pulsar3.getClient();
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/testReplicationWithSchema"));
+
+        final String subName = "my-sub";
+
+        @Cleanup
+        Producer<Schemas.PersonOne> producer1 = client1.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .create();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer2 = client2.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .create();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer3 = client3.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .create();
+
+        List<Producer<Schemas.PersonOne>> producers = Lists.newArrayList(producer1, producer2, producer3);
+
+        @Cleanup
+        Consumer<Schemas.PersonOne> consumer1 = client1.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<Schemas.PersonOne> consumer2 = client2.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<Schemas.PersonOne> consumer3 = client3.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 3; i++) {
+            producers.get(i).send(new Schemas.PersonOne(i));
+            Message<Schemas.PersonOne> msg1 = consumer1.receive();
+            Message<Schemas.PersonOne> msg2 = consumer2.receive();
+            Message<Schemas.PersonOne> msg3 = consumer3.receive();
+            assertTrue(msg1 != null && msg2 != null && msg3 != null);
+            assertTrue(msg1.getValue().equals(msg2.getValue()) && msg2.getValue().equals(msg3.getValue()));
+            consumer1.acknowledge(msg1);
+            consumer2.acknowledge(msg2);
+            consumer3.acknowledge(msg3);
+        }
     }
 
     @Test

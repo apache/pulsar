@@ -61,6 +61,8 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private transient List<Range> keyHashRanges;
 
+    private boolean poolMessages = false;
+
     @JsonIgnore
     public String getTopicName() {
         if (topicNames.size() > 1) {

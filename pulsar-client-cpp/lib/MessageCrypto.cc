@@ -111,8 +111,7 @@ void MessageCrypto::removeExpiredDataKey() {
 
     auto dataKeyCacheIter = dataKeyCache_.begin();
     while (dataKeyCacheIter != dataKeyCache_.end()) {
-        auto dataKeyEntry = dataKeyCacheIter->second;
-        boost::posix_time::time_duration td = now - dataKeyEntry.second;
+        const auto dataKeyEntry = dataKeyCacheIter->second;
 
         if ((now - dataKeyEntry.second) > expireTime) {
             dataKeyCache_.erase(dataKeyCacheIter++);

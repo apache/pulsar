@@ -68,7 +68,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -782,41 +781,25 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies have not been initialized yet.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies have not been initialized yet");
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setOffloadPolicies(offloadPolicies);
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                .thenCompose((res) -> {
-                    //The policy update is asynchronous. Cache at this step may not be updated yet.
-                    //So we need to set the loader by the incoming offloadPolicies instead of topic policies cache.
-                    PartitionedTopicMetadata metadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
-                    if (metadata.partitions > 0) {
-                        List<CompletableFuture<Void>> futures = new ArrayList<>(metadata.partitions);
-                        for (int i = 0; i < metadata.partitions; i++) {
-                            futures.add(internalUpdateOffloadPolicies(offloadPolicies, topicName.getPartition(i)));
-                        }
-                        return FutureUtil.waitForAll(futures);
-                    } else {
-                        return internalUpdateOffloadPolicies(offloadPolicies, topicName);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+            .thenCompose(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                topicPolicies.setOffloadPolicies(offloadPolicies);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+            }).thenCompose(__ -> {
+                //The policy update is asynchronous. Cache at this step may not be updated yet.
+                //So we need to set the loader by the incoming offloadPolicies instead of topic policies cache.
+                PartitionedTopicMetadata metadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
+                if (metadata.partitions > 0) {
+                    List<CompletableFuture<Void>> futures = new ArrayList<>(metadata.partitions);
+                    for (int i = 0; i < metadata.partitions; i++) {
+                        futures.add(internalUpdateOffloadPolicies(offloadPolicies, topicName.getPartition(i)));
                     }
-                })
-                .whenComplete((result, e) -> {
-                    if (e != null) {
-                        completableFuture.completeExceptionally(e);
-                    } else {
-                        completableFuture.complete(null);
-                    }
-                });
-        return completableFuture;
+                    return FutureUtil.waitForAll(futures);
+                } else {
+                    return internalUpdateOffloadPolicies(offloadPolicies, topicName);
+                }
+            });
     }
 
     protected CompletableFuture<InactiveTopicPolicies> internalGetInactiveTopicPolicies(boolean applied) {
@@ -835,19 +818,12 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetInactiveTopicPolicies(InactiveTopicPolicies inactiveTopicPolicies) {
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies have not been initialized yet.", topicName);
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Policies have not been initialized yet"));
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setInactiveTopicPolicies(inactiveTopicPolicies);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+            .thenCompose(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                topicPolicies.setInactiveTopicPolicies(inactiveTopicPolicies);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+            });
     }
 
     private CompletableFuture<Void> internalUpdateOffloadPolicies(OffloadPoliciesImpl offloadPolicies,
@@ -898,18 +874,12 @@ public class PersistentTopicsBase extends AdminResource {
                     "maxUnackedNum must be 0 or more");
         }
 
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies have not been initialized yet.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies have not been initialized yet");
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setMaxUnackedMessagesOnSubscription(maxUnackedNum);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+            .thenCompose(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                topicPolicies.setMaxUnackedMessagesOnSubscription(maxUnackedNum);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+            });
     }
 
     protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnConsumer(boolean applied) {
@@ -930,19 +900,12 @@ public class PersistentTopicsBase extends AdminResource {
                     "maxUnackedNum must be 0 or more");
         }
 
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies have not been initialized yet.", topicName);
-            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                    "Policies have not been initialized yet"));
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setMaxUnackedMessagesOnConsumer(maxUnackedNum);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+            .thenCompose(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                topicPolicies.setMaxUnackedMessagesOnConsumer(maxUnackedNum);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+            });
     }
 
     protected CompletableFuture<Void> internalSetDeduplicationSnapshotInterval(Integer interval) {
@@ -1300,7 +1263,8 @@ public class PersistentTopicsBase extends AdminResource {
                         try {
                             stats.add(statFuture.get());
                             if (perPartition) {
-                                stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                                stats.getPartitions().put(topicName.getPartition(i).toString(),
+                                        (TopicStatsImpl) statFuture.get());
                             }
                         } catch (Exception e) {
                             asyncResponse.resume(new RestException(e));
@@ -1313,7 +1277,7 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
                         if (zkPathExists) {
-                            stats.partitions.put(topicName.toString(), new TopicStatsImpl());
+                            stats.getPartitions().put(topicName.toString(), new TopicStatsImpl());
                         } else {
                             asyncResponse.resume(
                                     new RestException(Status.NOT_FOUND,
@@ -2713,14 +2677,17 @@ public class PersistentTopicsBase extends AdminResource {
                     quotaMap = getNamespacePolicies(namespaceName).backlog_quota_map;
                     if (quotaMap.isEmpty()) {
                         String namespace = namespaceName.toString();
-                        quotaMap.put(
-                                BacklogQuota.BacklogQuotaType.destination_storage,
-                                namespaceBacklogQuota(namespace, AdminResource.path(POLICIES, namespace))
-                        );
+                        for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
+                            quotaMap.put(
+                                    backlogQuotaType,
+                                    namespaceBacklogQuota(namespace,
+                                            AdminResource.path(POLICIES, namespace), backlogQuotaType)
+                            );
+                        }
                     }
                 }
                 return quotaMap;
-            });
+        });
     }
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
@@ -2776,18 +2743,12 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetDeduplication(Boolean enabled) {
-        TopicPolicies topicPolicies = null;
-        try {
-            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.error("Topic {} policies have not been initialized yet.", topicName);
-            throw new RestException(Status.PRECONDITION_FAILED, "Policies have not been initialized yet");
-        }
-        if (topicPolicies == null) {
-            topicPolicies = new TopicPolicies();
-        }
-        topicPolicies.setDeduplicationEnabled(enabled);
-        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+        return getTopicPoliciesAsyncWithRetry(topicName)
+            .thenCompose(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                topicPolicies.setDeduplicationEnabled(enabled);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+            });
     }
 
     protected CompletableFuture<Void> internalSetMessageTTL(Integer ttlInSecond) {
@@ -2842,21 +2803,21 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                BacklogQuota backlogQuota =
-                        topicPolicies.getBackLogQuotaMap()
-                                .get(BacklogQuota.BacklogQuotaType.destination_storage.name());
-                if (backlogQuota == null) {
-                    Policies policies = getNamespacePolicies(topicName.getNamespaceObject());
-                    backlogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
-                }
-                if (!checkBacklogQuota(backlogQuota, retention)) {
-                    log.warn(
-                            "[{}] Failed to update retention quota configuration for topic {}: "
-                                    + "conflicts with retention quota",
-                            clientAppId(), topicName);
-                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                            "Retention Quota must exceed configured backlog quota for topic. "
-                                    + "Please increase retention quota and retry"));
+                for (BacklogQuota.BacklogQuotaType backlogQuotaType : BacklogQuota.BacklogQuotaType.values()) {
+                    BacklogQuota backlogQuota = topicPolicies.getBackLogQuotaMap().get(backlogQuotaType.name());
+                    if (backlogQuota == null) {
+                        Policies policies = getNamespacePolicies(topicName.getNamespaceObject());
+                        backlogQuota = policies.backlog_quota_map.get(backlogQuotaType);
+                    }
+                    if (!checkBacklogQuota(backlogQuota, retention)) {
+                        log.warn(
+                                "[{}] Failed to update retention quota configuration for topic {}: "
+                                        + "conflicts with retention quota",
+                                clientAppId(), topicName);
+                        return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                "Retention Quota must exceed configured backlog quota for topic. "
+                                        + "Please increase retention quota and retry"));
+                    }
                 }
                 topicPolicies.setRetentionPolicies(retention);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
@@ -3812,9 +3773,9 @@ public class PersistentTopicsBase extends AdminResource {
         TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
         int oldPartition = metadata.partitions;
-        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
         for (String exsitingTopicName : existingTopicList) {
-            if (exsitingTopicName.contains(prefix)) {
+            if (exsitingTopicName.startsWith(prefix)) {
                 try {
                     long suffix = Long.parseLong(exsitingTopicName.substring(
                             exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
@@ -3829,7 +3790,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 clientAppId(),
                                 exsitingTopicName, topicName);
                         throw new RestException(Status.PRECONDITION_FAILED,
-                                "Already have non partition topic" + exsitingTopicName
+                                "Already have non partition topic " + exsitingTopicName
                                         + " which contains partition suffix '-partition-' "
                                         + "and end with numeric value and end with numeric value smaller than the new "
                                         + "number of partition. Update of partitioned topic "

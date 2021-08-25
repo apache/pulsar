@@ -140,6 +140,7 @@ public class FunctionConfigUtils {
                     bldr.setCryptoSpec(CryptoUtils.convert(consumerConf.getCryptoConfig()));
                 }
                 bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
+                bldr.setPoolMessages(consumerConf.isPoolMessages());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
@@ -360,6 +361,7 @@ public class FunctionConfigUtils {
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
+            consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         functionConfig.setInputSpecs(consumerConfigMap);

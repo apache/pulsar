@@ -353,28 +353,21 @@ TEST(AuthPluginTest, testOauth2) {
 }
 
 TEST(AuthPluginTest, testOauth2WrongSecret) {
-    try {
-        pulsar::AuthenticationDataPtr data;
+    pulsar::AuthenticationDataPtr data;
 
-        std::string params = R"({
-        "type": "client_credentials",
-        "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
-        "client_id": "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
-        "client_secret": "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ",
-        "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
+    std::string params = R"({
+    "type": "client_credentials",
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
+    "client_id": "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
+    "client_secret": "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ",
+    "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
 
-        int expectedTokenLength = 3379;
-        LOG_INFO("PARAMS: " << params);
-        pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
-        ASSERT_EQ(auth->getAuthMethodName(), "token");
+    LOG_INFO("PARAMS: " << params);
+    pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
+    ASSERT_EQ(auth->getAuthMethodName(), "token");
 
-        auth->getAuthData(data);
-
-        FAIL() << "Expected fail for wrong secret when to get token from server";
-
-    } catch (...) {
-        // expected
-    }
+    EXPECT_THROW(auth->getAuthData(data), std::runtime_error)
+        << "Expected fail for wrong secret when to get token from server";
 }
 
 TEST(AuthPluginTest, testOauth2CredentialFile) {

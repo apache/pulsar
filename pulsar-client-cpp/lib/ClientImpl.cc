@@ -52,7 +52,7 @@ namespace pulsar {
 
 static const char hexDigits[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                                  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-static std::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits));
+static std::uniform_int_distribution<> hexDigitsDist(0, sizeof(hexDigits) - 1);
 static std::mt19937 randomEngine =
     std::mt19937(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
@@ -514,7 +514,7 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     }
 
     if (*numberOfOpenHandlers == 0 && callback) {
-        callback(ResultOk);
+        handleClose(ResultOk, numberOfOpenHandlers, callback);
     }
 }
 
@@ -567,10 +567,21 @@ void ClientImpl::shutdown() {
         }
     }
 
-    pool_.close();
+    if (producers.size() + consumers.size() > 0) {
+        LOG_DEBUG(producers.size() << " producers and " << consumers.size()
+                                   << " consumers have been shutdown.");
+    }
+    if (!pool_.close()) {
+        // pool_ has already been closed. It means shutdown() has been called before.
+        return;
+    }
+    LOG_DEBUG("ConnectionPool is closed");
     ioExecutorProvider_->close();
+    LOG_DEBUG("ioExecutorProvider_ is closed");
     listenerExecutorProvider_->close();
+    LOG_DEBUG("listenerExecutorProvider_ is closed");
     partitionListenerExecutorProvider_->close();
+    LOG_DEBUG("partitionListenerExecutorProvider_ is closed");
 }
 
 uint64_t ClientImpl::newProducerId() {
@@ -586,6 +597,30 @@ uint64_t ClientImpl::newConsumerId() {
 uint64_t ClientImpl::newRequestId() {
     Lock lock(mutex_);
     return requestIdGenerator_++;
+}
+
+uint64_t ClientImpl::getNumberOfProducers() {
+    Lock lock(mutex_);
+    uint64_t numberOfAliveProducers = 0;
+    for (const auto& producer : producers_) {
+        const auto& producerImpl = producer.lock();
+        if (producerImpl) {
+            numberOfAliveProducers += producerImpl->getNumberOfConnectedProducer();
+        }
+    }
+    return numberOfAliveProducers;
+}
+
+uint64_t ClientImpl::getNumberOfConsumers() {
+    Lock lock(mutex_);
+    uint64_t numberOfAliveConsumers = 0;
+    for (const auto& consumer : consumers_) {
+        const auto consumerImpl = consumer.lock();
+        if (consumerImpl) {
+            numberOfAliveConsumers += consumerImpl->getNumberOfConnectedConsumer();
+        }
+    }
+    return numberOfAliveConsumers;
 }
 
 const ClientConfiguration& ClientImpl::getClientConfig() const { return clientConfiguration_; }

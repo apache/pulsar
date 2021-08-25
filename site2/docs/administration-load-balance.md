@@ -6,8 +6,7 @@ sidebar_label: Load balance
 
 ## Load balance across Pulsar brokers
 
-Pulsar is an horizontally scalable messaging system, so the traffic
-in a logical cluster must be spread across all the available Pulsar brokers as evenly as possible, which is a core requirement.
+Pulsar is an horizontally scalable messaging system, so the traffic in a logical cluster must be balanced across all the available Pulsar brokers as evenly as possible, which is a core requirement.
 
 You can use multiple settings and tools to control the traffic distribution which require a bit of context to understand how the traffic is managed in Pulsar. Though, in most cases, the core requirement mentioned above is true out of the box and you should not worry about it. 
 
@@ -35,11 +34,9 @@ Instead of individual topic or partition assignment, each broker takes ownership
 
 The namespace is the "administrative" unit: many config knobs or operations are done at the namespace level.
 
-For assignment, a namespaces is sharded into a list of "bundles", with each bundle comprising
-a portion of overall hash range of the namespace.
+For assignment, a namespaces is sharded into a list of "bundles", with each bundle comprising a portion of overall hash range of the namespace.
 
-Topics are assigned to a particular bundle by taking the hash of the topic name and checking in which
-bundle the hash falls into.
+Topics are assigned to a particular bundle by taking the hash of the topic name and checking in which bundle the hash falls into.
 
 Each bundle is independent of the others and thus is independently assigned to different brokers.
 
@@ -67,8 +64,7 @@ On the same note, it is beneficial to start with more bundles than the number of
 
 ### Unload topics and bundles
 
-You can "unload" a topic in Pulsar with admin operation. Unloading means to close the topics,
-release ownership and reassign the topics to a new broker, based on current load.
+You can "unload" a topic in Pulsar with admin operation. Unloading means to close the topics, release ownership and reassign the topics to a new broker, based on current load.
 
 When unloading happens, the client experiences a small latency blip, typically in the order of tens of milliseconds, while the topic is reassigned.
 
@@ -88,9 +84,11 @@ pulsar-admin namespaces unload tenant/namespace
 
 ### Split namespace bundles 
 
-Since the load for the topics in a bundle might change over time, or predicting upfront might just be hard, brokers can split bundles into two. The new smaller bundles can be reassigned to different brokers.
+Since the load for the topics in a bundle might change over time and predicting the load might be hard, bundle split is designed to deal with these issues. The broker splits a bundle into two and the new smaller bundles can be reassigned to different brokers.
 
-The splitting happens based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution.
+The splitting is based on some tunable thresholds. Any existing bundle that exceeds any of the threshold is a candidate to be split. By default the newly split bundles are also immediately offloaded to other brokers, to facilitate the traffic distribution. 
+
+You can split namespace bundles in two ways, by setting `supportedNamespaceBundleSplitAlgorithms` to `range_equally_divide` or `topic_count_equally_divide` in `broker.conf` file. The former splits the bundle into two parts with the same hash range size; the latter splits the bundle into two parts with the same number of topics. You can also configure other parameters for namespace bundles.
 
 ```properties
 # enable/disable namespace bundle auto split
@@ -117,15 +115,13 @@ loadBalancerNamespaceMaximumBundles=128
 
 ### Shed load automatically
 
-The support for automatic load shedding is avaliable in the load manager of Pulsar. This means that whenever the system recognizes a particular broker is overloaded, the system forces some traffic to be reassigned to less loaded brokers.
+The support for automatic load shedding is available in the load manager of Pulsar. This means that whenever the system recognizes a particular broker is overloaded, the system forces some traffic to be reassigned to less loaded brokers.
 
-When a broker is identified as overloaded, the broker forces to "unload" a subset of the bundles, the
-ones with higher traffic, that make up for the overload percentage.
+When a broker is identified as overloaded, the broker forces to "unload" a subset of the bundles, the ones with higher traffic, that make up for the overload percentage.
 
 For example, the default threshold is 85% and if a broker is over quota at 95% CPU usage, then the broker unloads the percent difference plus a 5% margin: `(95% - 85%) + 5% = 15%`.
 
-Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network
-and memory), broker unloads bundles for at least 15% of traffic.
+Given the selection of bundles to offload is based on traffic (as a proxy measure for cpu, network and memory), broker unloads bundles for at least 15% of traffic.
 
 The automatic load shedding is enabled by default and you can disable the automatic load shedding with this setting:
 
@@ -158,9 +154,7 @@ loadBalancerBrokerOverloadedThresholdPercentage=85
 
 Pulsar gathers the usage stats from the system metrics.
 
-In case of network utilization, in some cases the network interface speed that Linux reports is
-not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps
-NIC speed for which the OS reports 10Gbps speed.
+In case of network utilization, in some cases the network interface speed that Linux reports is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS reports 10Gbps speed.
 
 Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact the broker already uses all the bandwidth and the traffic is slowed down.
 

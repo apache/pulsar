@@ -118,7 +118,7 @@ loadBalancerNamespaceMaximumBundles=128
 
 ### Shed load automatically
 
-The support for automatic load shedding is avaliable in the load manager of Pulsar. This means that whenever the system recognizes a particular broker is overloaded, the system forces some traffic to be reassigned to less loaded brokers.
+The support for automatic load shedding is available in the load manager of Pulsar. This means that whenever the system recognizes a particular broker is overloaded, the system forces some traffic to be reassigned to less loaded brokers.
 
 When a broker is identified as overloaded, the broker forces to "unload" a subset of the bundles, the
 ones with higher traffic, that make up for the overload percentage.

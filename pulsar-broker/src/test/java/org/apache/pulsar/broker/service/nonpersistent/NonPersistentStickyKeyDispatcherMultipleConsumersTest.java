@@ -58,6 +58,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
@@ -118,6 +119,8 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     @Test(timeOut = 10000)
     public void testSendMessage() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
+        when(consumerMock.getAvailablePermits()).thenReturn(1000);
+        when(consumerMock.isWritable()).thenReturn(true);
         nonpersistentDispatcher.addConsumer(consumerMock);
 
         List<Entry> entries = new ArrayList<>();
@@ -143,6 +146,37 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
             fail("Failed to sendMessages.", e);
         }
         verify(consumerMock, times(1)).sendMessages(any(List.class), any(EntryBatchSizes.class),
+                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+    }
+
+    @Test(timeOut = 10000)
+    public void testSendMessageRespectFlowControl() throws BrokerServiceException {
+        Consumer consumerMock = mock(Consumer.class);
+        nonpersistentDispatcher.addConsumer(consumerMock);
+
+        List<Entry> entries = new ArrayList<>();
+        entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
+        entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
+        doAnswer(invocationOnMock -> {
+            ChannelPromise mockPromise = mock(ChannelPromise.class);
+            List<Entry> receivedEntries = invocationOnMock.getArgument(0, List.class);
+            for (int index = 1; index <= receivedEntries.size(); index++) {
+                Entry entry = receivedEntries.get(index - 1);
+                assertEquals(entry.getLedgerId(), 1);
+                assertEquals(entry.getEntryId(), index);
+                ByteBuf byteBuf = entry.getDataBuffer();
+                MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
+                assertEquals(byteBuf.toString(UTF_8), "message" + index);
+            };
+            return mockPromise;
+        }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
+                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        try {
+            nonpersistentDispatcher.sendMessages(entries);
+        } catch (Exception e) {
+            fail("Failed to sendMessages.", e);
+        }
+        verify(consumerMock, times(0)).sendMessages(any(List.class), any(EntryBatchSizes.class),
                 eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
     }
 
