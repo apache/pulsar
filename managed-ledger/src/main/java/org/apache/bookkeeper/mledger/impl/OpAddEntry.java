@@ -119,6 +119,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
             data.release();
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
+            this.recycle();
         }
     }
 
@@ -161,7 +162,13 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     public void safeRun() {
         // Remove this entry from the head of the pending queue
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
-        checkArgument(this == firstInQueue);
+        if (firstInQueue == null) {
+            return;
+        }
+        if (this != firstInQueue) {
+            firstInQueue.failed(new ManagedLedgerException("Unexpected add entry op when complete the add entry op."));
+            return;
+        }
 
         ManagedLedgerImpl.NUMBER_OF_ENTRIES_UPDATER.incrementAndGet(ml);
         ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
