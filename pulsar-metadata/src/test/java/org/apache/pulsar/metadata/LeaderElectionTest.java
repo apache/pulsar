@@ -19,15 +19,13 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-
+import java.util.function.Supplier;
 import lombok.Cleanup;
-
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -42,9 +40,10 @@ import org.testng.annotations.Test;
 public class LeaderElectionTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
-    public void basicTest(String provider, String url) throws Exception {
+    public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -74,16 +73,18 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void multipleMembers(String provider, String url) throws Exception {
+    public void multipleMembers(String provider, Supplier<String> urlSupplier) throws Exception {
         if (provider.equals("Memory")) {
             // There are no multiple session in local mem provider
             return;
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
 
         @Cleanup
@@ -129,9 +130,10 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void leaderNodeIsDeletedExternally(String provider, String url) throws Exception {
+    public void leaderNodeIsDeletedExternally(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -156,9 +158,10 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void closeAll(String provider, String url) throws Exception {
+    public void closeAll(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
         CoordinationService cs = new CoordinationServiceImpl(store);
@@ -185,9 +188,10 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
 
     @Test(dataProvider = "impl")
-    public void revalidateLeaderWithinSameSession(String provider, String url) throws Exception {
+    public void revalidateLeaderWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
@@ -209,12 +213,15 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void revalidateLeaderWithDifferentSessionsSameValue(String provider, String url) throws Exception {
+    public void revalidateLeaderWithDifferentSessionsSameValue(String provider, Supplier<String> urlSupplier)
+            throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
@@ -237,17 +244,20 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
 
     @Test(dataProvider = "impl")
-    public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, String url) throws Exception {
+    public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, Supplier<String> urlSupplier)
+            throws Exception {
         if (provider.equals("Memory")) {
             // There are no multiple sessions for the local memory provider
             return;
         }
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         String path = newKey();
 
