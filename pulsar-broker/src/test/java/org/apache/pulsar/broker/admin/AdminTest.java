@@ -100,6 +100,7 @@ import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -813,6 +814,36 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(exception.getMessage(), message);
 
     }
+
+
+    @Test
+    public void testUpdatePartitionedTopicCoontainedInOldTopic() throws Exception {
+
+        final String property = "prop-xyz";
+        final String cluster = "use";
+        final String namespace = "ns";
+        final String partitionedTopicName = "old-special-topic";
+        final String partitionedTopicName2 = "special-topic";
+
+        ZkUtils.createFullPathOptimistic(mockZooKeeperGlobal, PulsarWebResource.path(POLICIES, property, cluster, namespace),
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new Policies()), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT);
+
+        AsyncResponse response1 = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response1, property, cluster, namespace, partitionedTopicName, 5, false);
+        verify(response1, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        AsyncResponse response2 = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response2, property, cluster, namespace, partitionedTopicName2, 2, false);
+        verify(response2, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        persistentTopics.updatePartitionedTopic(property, cluster, namespace, partitionedTopicName2, false, false, 10);
+    }
+
 
     static class TestAsyncResponse implements AsyncResponse {
 
