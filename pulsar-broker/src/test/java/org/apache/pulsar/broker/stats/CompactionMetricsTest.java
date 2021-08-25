@@ -85,7 +85,6 @@ public class CompactionMetricsTest extends BrokerTestBase {
 
         pulsar.getCompactor(true).compact(topic).get();
         List<Metrics> list2 = metrics.generate();
-        System.out.println(list2);
         Assert.assertEquals(list2.get(0).getMetrics().get(compactionRemovedEventCountKey), 990.0D);
         Assert.assertEquals(list2.get(0).getMetrics().get(compactionSucceedCountKey), 1.0);
         Assert.assertEquals(list2.get(0).getMetrics().get(compactionFailedCountKey), 0.0);

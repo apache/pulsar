@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.compaction.CompactedTopicImpl;
+import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.compaction.CompactorMXBeanImpl;
@@ -108,7 +108,7 @@ public class CompactionMetrics extends AbstractMetrics {
                     Optional<Topic> topicOp = BrokerService.extractTopic(topicHandle);
                     if (topicOp.isPresent()) {
                         PersistentTopic persistentTopic = (PersistentTopic) topicOp.get();
-                        Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext = persistentTopic
+                        Optional<CompactedTopicContext> compactedTopicContext = persistentTopic
                                 .getCompactedTopicContext();
                         if (compactedTopicContext.isPresent()) {
                             LedgerHandle ledger = compactedTopicContext.get().getLedger();

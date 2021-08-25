@@ -149,6 +149,7 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
@@ -1991,9 +1992,9 @@ public class PersistentTopic extends AbstractTopic
         info.entries = -1;
         info.size = -1;
 
-        Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext = getCompactedTopicContext();
+        Optional<CompactedTopicContext> compactedTopicContext = getCompactedTopicContext();
         if (compactedTopicContext.isPresent()) {
-            CompactedTopicImpl.CompactedTopicContext ledgerContext = compactedTopicContext.get();
+            CompactedTopicContext ledgerContext = compactedTopicContext.get();
             info.ledgerId = ledgerContext.getLedger().getId();
             info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
             info.size = ledgerContext.getLedger().getLength();
@@ -2115,7 +2116,7 @@ public class PersistentTopic extends AbstractTopic
         return statFuture;
     }
 
-    public Optional<CompactedTopicImpl.CompactedTopicContext> getCompactedTopicContext() {
+    public Optional<CompactedTopicContext> getCompactedTopicContext() {
         try {
             return ((CompactedTopicImpl) compactedTopic).getCompactedTopicContext();
         } catch (ExecutionException | InterruptedException e) {
