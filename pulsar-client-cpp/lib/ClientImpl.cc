@@ -129,7 +129,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
     }
 }
 
-ClientImpl::~ClientImpl() {}
+ClientImpl::~ClientImpl() { shutdown(); }
 
 const ClientConfiguration& ClientImpl::conf() const { return clientConfiguration_; }
 
@@ -567,8 +567,14 @@ void ClientImpl::shutdown() {
         }
     }
 
-    LOG_DEBUG(producers.size() << " producers and " << consumers.size() << " consumers have been shutdown.");
-    pool_.close();
+    if (producers.size() + consumers.size() > 0) {
+        LOG_DEBUG(producers.size() << " producers and " << consumers.size()
+                                   << " consumers have been shutdown.");
+    }
+    if (!pool_.close()) {
+        // pool_ has already been closed. It means shutdown() has been called before.
+        return;
+    }
     LOG_DEBUG("ConnectionPool is closed");
     ioExecutorProvider_->close();
     LOG_DEBUG("ioExecutorProvider_ is closed");
