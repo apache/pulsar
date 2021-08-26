@@ -190,10 +190,8 @@ consumer.negativeAcknowledge(msg);
 If a message is not consumed successfully, and you want the broker to redeliver this message automatically, then you can enable automatic redelivery mechanism for  unacknowledged messages. With automatic redelivery enabled, the client tracks the unacknowledged messages within the entire `acktimeout` time range, and sends a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
 
 > **Note**  
-> If batching is enabled, all messages in one batch are redelivered to the consumer.
-
-> **Note**    
-> The negative acknowledgement is preferable over the acknowledgement timeout since negative acknowledgement controls the redelivery of individual messages more precisely and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
+> - If batching is enabled, all messages in one batch are redelivered to the consumer.  
+> - The negative acknowledgement is preferable over the acknowledgement timeout, since negative acknowledgement controls the redelivery of individual messages more precisely and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
 
 ### Dead letter topic
 
@@ -297,7 +295,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 ![Subscription modes](assets/pulsar-subscription-modes.png)
 
-> **Pub-Sub or Queuing**
+> **Pub-Sub or Queuing**  
 > In Pulsar, you can use different subscriptions flexibly.
 > * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is exclusive subscription mode.
 > * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
@@ -345,15 +343,43 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 In *Key_Shared* mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 
+![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
+
+Note that when the consumers are using the Key_Shared subscription mode, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based batching is necessary for Key_Shared subscription mode:
+1. The broker dispatches messages according to the keys of the messages, but the default batching approach might fail to pack the messages with the same key to the same batch. 
+2. Since it is the consumers instead of the broker who dispatch the messages from the batches, the key of the first message in one batch is considered as the key of all messages in this batch, thereby leading to context errors. 
+
+The key-based batching aims at resolving the above-mentioned issues. This batching method ensures that the producers pack the messages with the same key to the same batch. The messages without a key are packed into one batch and this batch has no key. When the broker dispatches messages from this batch, it uses `NON_KEY` as the key. In addition, each consumer is associated with **only one** key and should receive **only one message batch** for the connected key. By default, you can limit batching by configuring the number of messages that producers are allowed to send. 
+
+Below are examples of enabling the key-based batching under the Key_Shared subscription mode, with `client` being the Pulsar client that you created.
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--Java-->
+```
+Producer<byte[]> producer = client.newProducer()
+        .topic("my-topic")
+        .batcherBuilder(BatcherBuilder.KEY_BASED)
+        .create();
+```
+
+<!--C++-->
+```
+ProducerConfiguration producerConfig;
+producerConfig.setBatchingType(ProducerConfiguration::BatchingType::KeyBasedBatching);
+Producer producer;
+client.createProducer("my-topic", producerConfig, producer);
+```
+
+<!--Python-->
+```
+producer = client.create_producer(topic='my-topic', batching_type=pulsar.BatchingType.KeyBased)
+```
+<!--END_DOCUSAURUS_CODE_TABS-->
+
 > **Limitations of Key_Shared mode**  
 > When you use Key_Shared mode, be aware that:
 > * You need to specify a key or orderingKey for messages.
 > * You cannot use cumulative acknowledgment with Key_Shared mode.
-> * Your producers should disable batching or use a key-based batch builder.
-
-![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
-
-**You can disable Key_Shared subscription in the `broker.config` file.**
 
 ## Multi-topic subscriptions
 
