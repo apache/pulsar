@@ -33,6 +33,21 @@ module.exports = {
           label: "GitHub",
           position: "right",
         },
+        {
+          label: "Version",
+          to: "docs",
+          position: "right",
+          items: [
+            {
+              label: "2.8.0",
+              to: "docs/",
+            },
+            {
+              label: "2.7.3",
+              to: "docs/2.7.3/",
+            },
+          ],
+        },
       ],
     },
     footer: {
@@ -43,7 +58,7 @@ module.exports = {
           items: [
             {
               label: "Docs",
-              to: "/docs/intro",
+              to: "/docs",
             },
             {
               label: "Blog",
