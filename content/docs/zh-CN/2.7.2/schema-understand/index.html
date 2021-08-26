@@ -159,10 +159,10 @@
 <tr><td><code>BYTES</code></td><td>8 位无符号字节序列</td></tr>
 <tr><td><code>STRING</code></td><td>Unicode 字符序列</td></tr>
 <tr><td><code>TIMESTAMP</code> (<code>DATE</code>, <code>TIME</code>)</td><td>表示特定时间点的逻辑类型（精度为毫秒）。 以 <code>INT64</code> 值 <br>存储自 <code>1970年1月1日，00:00:00 GMT</code> 起的毫秒数。</td></tr>
-<tr><td>INSTANT</td><td>A single instantaneous point on the time-line with nanoseconds precision</td></tr>
-<tr><td>LOCAL_DATE</td><td>An immutable date-time object that represents a date, often viewed as year-month-day</td></tr>
-<tr><td>LOCAL_TIME</td><td>An immutable date-time object that represents a time, often viewed as hour-minute-second. Time is represented to nanosecond precision.</td></tr>
-<tr><td>LOCAL_DATE_TIME</td><td>An immutable date-time object that represents a date-time, often viewed as year-month-day-hour-minute-second</td></tr>
+<tr><td>INSTANT</td><td>以毫秒级精度表示时间线上的瞬时点</td></tr>
+<tr><td>LOCAL_DATE</td><td>表示日期的不可变对象，通常为“年-月-日”的格式</td></tr>
+<tr><td>LOCAL_TIME</td><td>表示时间的不可变对象，通常为“时-分-秒”的格式。 时间可精确到毫秒</td></tr>
+<tr><td>LOCAL_DATE_TIME</td><td>用来表示日期及时间的不可变对象，通常为“年-月-日-时-分-秒”格式</td></tr>
 </tbody>
 </table>
 <p>对于原始类型，Pulsar 不在 <code>SchemaInfo</code> 中存储任何 schema 数据。 <code>SchemaInfo</code> 中的<code>类型</code>用于决定如何序列化和反序列化数据。</p>
