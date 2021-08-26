@@ -57,15 +57,15 @@ public class AlluxioAbstractConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The alluxio directory from which files should be read from or written to")
+        help = "The Alluxio directory from which files should be read from or written to")
     private String alluxioDir;
 
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "When alluxio.security.authentication.type is set to SIMPLE or CUSTOM, user application uses"
+        help = "When `alluxio.security.authentication.type` is set to `SIMPLE` or `CUSTOM`, user application uses"
             + " this property to indicate the user requesting Alluxio service. If it is not set explicitly,"
-            + " the OS login user will be used")
+            + " the OS login user is used")
     private String securityLoginUser;
 
     public void validate() {

@@ -19,16 +19,25 @@
 package org.apache.pulsar.io.alluxio.sink;
 
 import alluxio.AlluxioURI;
-import alluxio.Configuration;
-import alluxio.PropertyKey;
 import alluxio.client.WriteType;
 import alluxio.client.file.FileOutStream;
 import alluxio.client.file.FileSystem;
-import alluxio.client.file.options.CreateFileOptions;
+import alluxio.conf.InstancedConfiguration;
+import alluxio.conf.PropertyKey;
 import alluxio.exception.AlluxioException;
+import alluxio.grpc.CreateFilePOptions;
+import alluxio.grpc.WritePType;
+import alluxio.util.FileSystemOptions;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
@@ -59,7 +68,7 @@ public class AlluxioSink implements Sink<GenericObject> {
 
     private FileSystem fileSystem;
     private FileOutStream fileOutStream;
-    private CreateFileOptions createFileOptions;
+    private CreateFilePOptions.Builder optionsBuilder;
     private long recordsNum;
     private String tmpFilePath;
     private String fileDirPath;
@@ -69,6 +78,10 @@ public class AlluxioSink implements Sink<GenericObject> {
     private long rotationInterval;
     private AlluxioSinkConfig alluxioSinkConfig;
     private AlluxioState alluxioState;
+
+    private InstancedConfiguration configuration = InstancedConfiguration.defaults();
+
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     private List<Record<GenericObject>> recordsToAck;
 
@@ -80,12 +93,12 @@ public class AlluxioSink implements Sink<GenericObject> {
         // initialize FileSystem
         String alluxioMasterHost = alluxioSinkConfig.getAlluxioMasterHost();
         int alluxioMasterPort = alluxioSinkConfig.getAlluxioMasterPort();
-        Configuration.set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
-        Configuration.set(PropertyKey.MASTER_RPC_PORT, alluxioMasterPort);
+        InstancedConfiguration.defaults().set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
+        configuration.set(PropertyKey.MASTER_RPC_PORT, alluxioMasterPort);
         if (alluxioSinkConfig.getSecurityLoginUser() != null) {
-            Configuration.set(PropertyKey.SECURITY_LOGIN_USERNAME, alluxioSinkConfig.getSecurityLoginUser());
+            configuration.set(PropertyKey.SECURITY_LOGIN_USERNAME, alluxioSinkConfig.getSecurityLoginUser());
         }
-        fileSystem = FileSystem.Factory.get();
+        fileSystem = FileSystem.Factory.create(configuration);
 
         // initialize alluxio dirs
         String alluxioDir = alluxioSinkConfig.getAlluxioDir();
@@ -102,7 +115,7 @@ public class AlluxioSink implements Sink<GenericObject> {
             fileSystem.createDirectory(tmpAlluxioDirPath);
         }
 
-        createFileOptions = CreateFileOptions.defaults();
+        optionsBuilder = FileSystemOptions.createFileDefaults(configuration).toBuilder();
 
         recordsNum = 0;
         recordsToAck = Lists.newArrayList();
@@ -197,16 +210,16 @@ public class AlluxioSink implements Sink<GenericObject> {
         String fileExtension = alluxioSinkConfig.getFileExtension();
         tmpFilePath = tmpFileDirPath + "/" + id.toString() + "_tmp" + fileExtension;
         if (alluxioSinkConfig.getWriteType() != null) {
-            WriteType writeType;
+            WritePType writePType;
             try {
-                writeType = WriteType.valueOf(alluxioSinkConfig.getWriteType().toUpperCase());
+                writePType = WritePType.valueOf(alluxioSinkConfig.getWriteType().toUpperCase());
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("Illegal write type when creating Alluxio files, valid values are: "
                     + Arrays.asList(WriteType.values()));
             }
-            createFileOptions.setWriteType(writeType);
+            optionsBuilder.setWriteType(writePType);
         }
-        fileOutStream = fileSystem.createFile(new AlluxioURI(tmpFilePath), createFileOptions);
+        fileOutStream = fileSystem.createFile(new AlluxioURI(tmpFilePath), optionsBuilder.build());
     }
 
     private void closeAndCommitTmpFile() throws AlluxioException, IOException {
@@ -271,10 +284,50 @@ public class AlluxioSink implements Sink<GenericObject> {
         return bytes;
     }
 
-    public KeyValue<String, String> extractKeyValue(Record<GenericObject> record) {
-        String key = record.getKey().orElseGet(() -> String.valueOf(record.getValue()));
-        return new KeyValue<>(key, String.valueOf(record.getValue()));
-    };
+    public KeyValue<String, String> extractKeyValue(Record<GenericObject> record) throws JsonProcessingException {
+        // just ignore the key
+        if (alluxioSinkConfig.isSchemaEnable()) {
+            GenericObject recordValue = null;
+            Schema<?> valueSchema = null;
+            if (record.getSchema() != null && record.getSchema() instanceof KeyValueSchema) {
+                KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) record.getSchema();
+                valueSchema = keyValueSchema.getValueSchema();
+                org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject> keyValue =
+                        (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>) record.getValue().getNativeObject();
+                recordValue = keyValue.getValue();
+            } else {
+                valueSchema = record.getSchema();
+                recordValue = record.getValue();
+            }
+
+            String value = null;
+            if (recordValue != null) {
+                if (valueSchema != null) {
+                    value = stringifyValue(valueSchema, recordValue);
+                } else {
+                    if (recordValue.getNativeObject() instanceof byte[]) {
+                        value = new String((byte[]) recordValue.getNativeObject(), StandardCharsets.UTF_8);
+                    } else {
+                        value = recordValue.getNativeObject().toString();
+                    }
+                }
+            }
+            return new KeyValue<>(null, value);
+        } else {
+            return new KeyValue<>(null, new String(record.getMessage()
+                            .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
+                            .getData(), StandardCharsets.UTF_8));
+        }
+    }
+
+    public String stringifyValue(Schema<?> schema, Object val) throws JsonProcessingException {
+        // just support json schema
+        if (schema.getSchemaInfo().getType() == SchemaType.JSON) {
+            JsonNode jsonNode = (JsonNode) ((GenericRecord) val).getNativeObject();
+            return objectMapper.writeValueAsString(jsonNode);
+        }
+        throw new UnsupportedOperationException("Unsupported value schemaType=" + schema.getSchemaInfo().getType());
+    }
 
     private enum AlluxioState {
         WRITE_STARTED,

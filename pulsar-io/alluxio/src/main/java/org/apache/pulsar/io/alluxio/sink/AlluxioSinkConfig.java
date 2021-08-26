@@ -48,8 +48,8 @@ public class AlluxioSinkConfig extends AlluxioAbstractConfig implements Serializ
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The prefix of the files to create in the Alluxio directory (e.g. a value of 'TopicA' will"
-            + " result in files named topicA-, topicA-, etc being produced)")
+        help = "The prefix of the files to create in the Alluxio directory (e.g. a value of 'TopicA' results"
+            + " in files named topicA-, topicA-, etc being produced)")
     private String filePrefix;
 
     @FieldDoc(
@@ -62,28 +62,35 @@ public class AlluxioSinkConfig extends AlluxioAbstractConfig implements Serializ
         required = false,
         defaultValue = "",
         help = "The character used to separate records in a text file. If no value is provided then the content"
-            + " from all of the records will be concatenated together in one continuous byte array")
+            + " from all of the records is concatenated together in one continuous byte array")
     private char lineSeparator;
 
     @FieldDoc(
         required = false,
         defaultValue = "10000L",
-        help = "The number records of alluxio file rotation")
+        help = "The number records of Alluxio file rotation")
     private long rotationRecords = 10000L;
 
     @FieldDoc(
         required = false,
         defaultValue = "-1L",
-        help = "The interval (in milliseconds) to rotate a alluxio file")
+        help = "The interval to rotate a Alluxio file (in milliseconds)")
     private long rotationInterval = -1L;
 
     @FieldDoc(
         required = false,
         defaultValue = "MUST_CACHE",
-        help = "Default write type when creating Alluxio files. Valid options are `MUST_CACHE` (write will only go to"
+        help = "Default write type when creating Alluxio files. Valid options are `MUST_CACHE` (write only goes to"
             + " Alluxio and must be stored in Alluxio), `CACHE_THROUGH` (try to cache, write to UnderFS synchronously),"
             + " `THROUGH` (no cache, write to UnderFS synchronously)")
     private String writeType = "MUST_CACHE";
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "Sets whether the Sink has to take into account the Schema or if it should simply copy the raw message to Alluxio"
+    )
+    private boolean schemaEnable = false;
 
     public static AlluxioSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

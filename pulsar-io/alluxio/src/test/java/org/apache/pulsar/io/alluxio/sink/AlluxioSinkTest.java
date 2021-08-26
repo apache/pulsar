@@ -19,37 +19,45 @@
 package org.apache.pulsar.io.alluxio.sink;
 
 import alluxio.AlluxioURI;
-import alluxio.Configuration;
-import alluxio.PropertyKey;
 import alluxio.client.WriteType;
 import alluxio.client.file.FileSystem;
 import alluxio.client.file.URIStatus;
+import alluxio.conf.PropertyKey;
+import alluxio.conf.ServerConfiguration;
 import alluxio.master.LocalAlluxioCluster;
-import com.google.common.io.Resources;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
- * Alluxio String Sink test
+ * Alluxio Sink test
  */
 @Slf4j
 public class AlluxioSinkTest {
-
-    private static final String ALLUXIO_WEB_APTH = "core/server/common/src/main/webapp";
 
     @Mock
     protected SinkContext mockSinkContext;
@@ -57,17 +65,57 @@ public class AlluxioSinkTest {
     protected Map<String, Object> map;
     protected AlluxioSink sink;
 
+    @Mock
+    protected Record<GenericObject> mockRecord;
+
+    static Schema kvSchema;
+    static Schema<Foobar> valueSchema;
+    static GenericSchema<GenericRecord> genericSchema;
+    static GenericRecord fooBar;
+
+    @BeforeClass
+    public static void init() {
+        valueSchema = Schema.JSON(Foobar.class);
+        genericSchema = Schema.generic(valueSchema.getSchemaInfo());
+        fooBar = genericSchema.newRecordBuilder()
+                .set("name", "foo")
+                .set("address", "foobar")
+                .set("age", 20)
+                .build();
+        kvSchema = Schema.KeyValue(Schema.STRING, genericSchema, KeyValueEncodingType.SEPARATED);
+    }
+
     @BeforeMethod
-    public final void setUp() throws Exception {
+    public final void setUp() {
         map = new HashMap<>();
         map.put("alluxioMasterHost", "localhost");
         map.put("alluxioMasterPort", "19998");
         map.put("alluxioDir", "/pulsar");
         map.put("filePrefix", "prefix");
+        map.put("schemaEnable", "true");
 
+        mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);
 
-        createAlluxioWebPath();
+        when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
+            int count = 0;
+            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+                return Optional.of( "key-" + count++);
+            }});
+
+        when(mockRecord.getValue()).thenAnswer((Answer<GenericObject>) invocation -> new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return SchemaType.KEY_VALUE;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return new KeyValue<String, GenericObject>((String) fooBar.getField("address"), fooBar);
+            }
+        });
+
+        when(mockRecord.getSchema()).thenAnswer((Answer<Schema<KeyValue<String, Foobar>>>) invocation -> kvSchema);
     }
 
     @Test
@@ -92,6 +140,9 @@ public class AlluxioSinkTest {
         String alluxioTmpDir = FilenameUtils.concat(alluxioDir, "tmp");
         AlluxioURI alluxioTmpURI = new AlluxioURI(alluxioTmpDir);
         Assert.assertTrue(client.exists(alluxioTmpURI));
+
+        sink.close();
+        cluster.stop();
     }
 
     @Test
@@ -99,8 +150,9 @@ public class AlluxioSinkTest {
         map.put("filePrefix", "TopicA");
         map.put("fileExtension", ".txt");
         map.put("lineSeparator", "\n");
-        map.put("rotationRecords", "100");
+        map.put("rotationRecords", "1");
         map.put("writeType", "THROUGH");
+        map.put("alluxioDir", "/pulsar");
 
         String alluxioDir = "/pulsar";
 
@@ -109,79 +161,60 @@ public class AlluxioSinkTest {
         sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
 
-        List<Record<GenericObject>> records = SinkRecordHelper.buildBatch(10);
-        records.forEach(record -> sink.write(record));
+        sink.write(() -> new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return SchemaType.KEY_VALUE;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return new KeyValue<>((String) fooBar.getField("address"), fooBar);
+            }
+        });
 
         FileSystem client = cluster.getClient();
 
         AlluxioURI alluxioURI = new AlluxioURI(alluxioDir);
         Assert.assertTrue(client.exists(alluxioURI));
-        List<URIStatus> listAlluxioDirStatus = client.listStatus(alluxioURI);
-
-        Assert.assertEquals(listAlluxioDirStatus.size(), 1);
 
         String alluxioTmpDir = FilenameUtils.concat(alluxioDir, "tmp");
         AlluxioURI alluxioTmpURI = new AlluxioURI(alluxioTmpDir);
         Assert.assertTrue(client.exists(alluxioTmpURI));
-        List<URIStatus> listAlluxioTmpDirStatus = client.listStatus(alluxioTmpURI);
 
-        Assert.assertEquals(listAlluxioTmpDirStatus.size(), 1);
+        List<URIStatus> listAlluxioDirStatus = client.listStatus(alluxioURI);
+
+        List<String> pathList = listAlluxioDirStatus.stream().map(URIStatus::getPath).collect(Collectors.toList());
+
+        Assert.assertEquals(pathList.size(), 2);
+
+        for (String path : pathList) {
+            if (path.contains("tmp")) {
+                Assert.assertEquals(path, "/pulsar/tmp");
+            } else {
+                Assert.assertTrue(path.startsWith("/pulsar/TopicA-"));
+            }
+        }
 
         sink.close();
         cluster.stop();
     }
 
-    @Test
-    public void rotateTest() throws Exception {
-        map.put("filePrefix", "TopicA");
-        map.put("fileExtension", ".txt");
-        map.put("lineSeparator", "\n");
-        map.put("rotationRecords", "10");
-        map.put("writeType", "THROUGH");
-
-        String alluxioDir = "/pulsar";
-
-        LocalAlluxioCluster cluster = setupSingleMasterCluster();
-
-        sink = new AlluxioSink();
-        sink.open(map, mockSinkContext);
-
-        List<Record<GenericObject>> records = SinkRecordHelper.buildBatch(13);
-        records.forEach(record -> sink.write(record));
-
-        FileSystem client = cluster.getClient();
-
-        AlluxioURI alluxioURI = new AlluxioURI(alluxioDir);
-        Assert.assertTrue(client.exists(alluxioURI));
-        List<URIStatus> listAlluxioDirStatus = client.listStatus(alluxioURI);
-
-        Assert.assertEquals(listAlluxioDirStatus.size(), 2);
-
-        String alluxioTmpDir = FilenameUtils.concat(alluxioDir, "tmp");
-        AlluxioURI alluxioTmpURI = new AlluxioURI(alluxioTmpDir);
-        Assert.assertTrue(client.exists(alluxioTmpURI));
-        List<URIStatus> listAlluxioTmpDirStatus = client.listStatus(alluxioTmpURI);
-
-        Assert.assertEquals(listAlluxioTmpDirStatus.size(), 1);
-    }
-
     private LocalAlluxioCluster setupSingleMasterCluster() throws Exception {
         // Setup and start the local alluxio cluster
         LocalAlluxioCluster cluster = new LocalAlluxioCluster();
-        cluster.initConfiguration();
-        Configuration.set(PropertyKey.USER_FILE_WRITE_TYPE_DEFAULT, WriteType.MUST_CACHE);
+        cluster.initConfiguration(getTestName(getClass().getSimpleName(), LocalAlluxioCluster.DEFAULT_TEST_NAME));
+        ServerConfiguration.set(PropertyKey.USER_FILE_WRITE_TYPE_DEFAULT, WriteType.MUST_CACHE);
         cluster.start();
         return cluster;
     }
 
-    private void createAlluxioWebPath() throws Exception {
-        // Create alluxio web path if not exist
-        String classPath = Resources.getResource("").getPath();
-        String parentPath = new File(classPath).getParentFile().getAbsolutePath();
-        String alluxioWebPath = FilenameUtils.concat(parentPath, ALLUXIO_WEB_APTH);
-        File alluxioWebFile = new File(alluxioWebPath);
-        if (!alluxioWebFile.exists()) {
-            alluxioWebFile.mkdirs();
-        }
+    public String getTestName(String className, String methodName) {
+        String testName = className + "-" + methodName;
+        // cannot use these characters in the name/path: . [ ]
+        testName = testName.replace(".", "-");
+        testName = testName.replace("[", "-");
+        testName = testName.replace("]", "");
+        return testName;
     }
 }

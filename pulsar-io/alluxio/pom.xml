@@ -29,125 +29,82 @@
     </parent>
 
     <properties>
-        <alluxio.version>1.8.1</alluxio.version>
-        <jetty.version>9.2.16.v20160414</jetty.version>
+        <alluxio.version>2.5.0</alluxio.version>
+        <metrics.version>4.1.11</metrics.version>
+        <grpc.version>1.37.0</grpc.version>
     </properties>
 
     <artifactId>pulsar-io-alluxio</artifactId>
     <name>Pulsar IO :: Alluxio</name>
 
     <dependencies>
-        <dependency>
-            <groupId>${project.parent.groupId}</groupId>
-            <artifactId>pulsar-io-core</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
+
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-functions-instance</artifactId>
+            <artifactId>pulsar-io-core</artifactId>
             <version>${project.version}</version>
+            <scope>provided</scope>
         </dependency>
+
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-client-original</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
+
         <dependency>
             <groupId>org.alluxio</groupId>
             <artifactId>alluxio-core-client-fs</artifactId>
             <version>${alluxio.version}</version>
+            <exclusions>
+                <exclusion>
+                    <artifactId>grpc-netty</artifactId>
+                    <groupId>io.grpc</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
+
         <dependency>
             <groupId>org.alluxio</groupId>
             <artifactId>alluxio-minicluster</artifactId>
             <version>${alluxio.version}</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-            <version>3.4</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-collections</groupId>
-            <artifactId>commons-collections</artifactId>
-            <version>3.2.2</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.glassfish</groupId>
+                    <artifactId>javax.el</artifactId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>grpc-netty</artifactId>
+                    <groupId>io.grpc</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
-        <!-- alluxio guava dependency need lower version -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>15.0</version>
         </dependency>
 
-        <!-- jersey dependencies for alluxio local cluster test -->
+        <!-- alluxio grpc dependency need higher version -->
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-http</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+            <version>${grpc.version}</version>
         </dependency>
+
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-io</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
+            <groupId>io.dropwizard.metrics</groupId>
+            <artifactId>metrics-jvm</artifactId>
+            <version>${metrics.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-security</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-server</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-jsp</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-webapp</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-xml</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-util</artifactId>
-            <version>${jetty.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jersey.bundles.repackaged</groupId>
-            <artifactId>jersey-guava</artifactId>
-            <version>2.22</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jersey.inject</groupId>
-            <artifactId>jersey-hk2</artifactId>
-            <version>2.27</version>
-            <scope>test</scope>
-        </dependency>
+
     </dependencies>
 
     <build>
