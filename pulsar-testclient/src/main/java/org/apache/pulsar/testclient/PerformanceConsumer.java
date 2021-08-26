@@ -223,9 +223,7 @@ public class PerformanceConsumer {
             PerfClientUtils.exit(-1);
         }
 
-        if (arguments.subscriptionType != SubscriptionType.Exclusive &&
-                arguments.subscriptions != null &&
-                arguments.subscriptions.size() != arguments.numConsumers) {
+        if (arguments.subscriptions != null && arguments.subscriptions.size() != arguments.numSubscriptions) {
             // keep compatibility with the previous version
             if (arguments.subscriptions.size() == 1) {
                 List<String> defaultSubscriptions = Lists.newArrayList();
@@ -234,7 +232,7 @@ public class PerformanceConsumer {
                 }
                 arguments.subscriptions = defaultSubscriptions;
             } else {
-                System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
+                System.out.println("The size of subscriptions list should be equal to --num-subscriptions");
                 jc.usage();
                 PerfClientUtils.exit(-1);
             }
