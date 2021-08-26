@@ -230,6 +230,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-dependency-plugin.version>3.1.2</maven-dependency-plugin.version>
     <maven-shade-plugin>3.2.4</maven-shade-plugin>
     <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
+    <properties-maven-plugin.version>1.0.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
@@ -1754,6 +1755,11 @@ flexible messaging model and an intuitive client API.</description>
                 <version>${spotbugs.version}</version>
               </dependency>
             </dependencies>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>properties-maven-plugin</artifactId>
+          <version>${properties-maven-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
