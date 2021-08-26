@@ -147,7 +147,11 @@ public class Producer {
     public boolean equals(Object obj) {
         if (obj instanceof Producer) {
             Producer other = (Producer) obj;
-            return Objects.equals(producerName, other.producerName) && Objects.equals(topic, other.topic);
+            return Objects.equals(producerName, other.producerName)
+                    && Objects.equals(topic, other.topic)
+                    && producerId == other.producerId
+                    && epoch == other.epoch
+                    && Objects.equals(cnx, other.cnx);
         }
 
         return false;
