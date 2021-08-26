@@ -29,7 +29,6 @@ import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Auto;
 import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
@@ -39,10 +38,8 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -50,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -252,7 +248,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     protected Queue<OpSendMsg> createPendingMessagesQueue() {
-        return new ArrayDeque<>();
+        if (conf.getMaxPendingMessages() > 0) {
+            return Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
+        }
+        return Queues.newLinkedBlockingDeque();
     }
 
     public ConnectionHandler getConnectionHandler() {
