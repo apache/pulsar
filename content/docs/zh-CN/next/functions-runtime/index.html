@@ -117,6 +117,10 @@
 <p>当函数 worker 生成 Kubernetes manifests，应用这份 manifests 时，Kubernetes 就会开始工作。 如果你将函数运行在 Kubernetes 里面，你能够使用<code>serviceAccount</code> 去关联正在运行该函数的 Pod。 然后，可以将其配置为与 Kubernetes 集群进行通信。</p>
 <p>Mainifests 由函数 worker 生成，包含一个<code>StatefulSet</code>，一个<code>Service</code>（用于 pods 之间通信），和一个<code>Secret</code>（在需要的情况下，用于身份认证)。 默认情况下，<code>StatefulSet</code>只有一个 Pod，函数的 “并行度” 决定它的数量。 Pode 启动时， Pod 会下载函数的运行内容 （通过函数 worker 的REST API 下载）。 Pod 的容器镜像是可以配置的，但是必须先有函数运行时。</p>
 <p>Kubernetes 运行时是支持 secrets 的，所以你能够创建一个 Kubernetes secret，并将其作为环境变量在 Pod 内可见。 Kubernetes 运行时是可扩展的，你可以实现类并定制，比如：如何生成 Kubernetes manifests、如果 传递认证数据给pod，如何整合 secrets等。</p>
+<blockquote>
+<p><strong>提示</strong></p>
+<p>For the rules of translating Pulsar object names into Kubernetes resource labels, see <a href="/docs/zh-CN/next/admin-api-overview#how-to-define-pulsar-resource-names-when-running-pulsar-in-kubernetes">here</a>.</p>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="基础配置"></a><a href="#基础配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>基础配置</h3>
 <p>It is easy to configure Kubernetes runtime. You can just uncomment the settings of <code>kubernetesContainerFactory</code> in the <code>functions_worker.yaml</code> file. The following is an example.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">functionRuntimeFactoryClassName:</span> <span class="hljs-string">org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory</span>
@@ -280,8 +284,8 @@ io.kubernetes.client.ApiException: Forbidden
 <p>使用 Token 身份认证时，函数 worker 会获取到 token，并将其用于部署或者更新函数。 Token 通过 secret 的方式挂载到 pod 里面。</p>
 <p>自定义的认证方式或者TLS， 你必须去实现上面的接口或者使用替代机制实现身份认证。 如果你在集群中使用 Token 身份认证和 TLS 加密实现安全通信，Pulsar 会将证书授权(CA)传递给客户端，所以客户端就可以获取到集群认证所需的内容，同时信任集群所签发的证书。</p>
 <blockquote>
-<p><strong>注意</strong>  <br>
-如果你使用过期的 token 部署函数，那么这些令牌将不可用。</p>
+<p><strong>Note</strong>  <br>
+If you use tokens that expire when deploying functions, these tokens will expire.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="启用身份认证"></a><a href="#启用身份认证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用身份认证</h3>
 <p>当您在启用了身份认证的集群中独立运行函数 worker 时, 你必须配置函数 worker 和 broker 交互时传入身份认证信息。 所以你必须配置 broker 所需的身份认证和鉴权选项。</p>
@@ -301,8 +305,8 @@ io.kubernetes.client.ApiException: Forbidden
   <span class="hljs-attr">tokenPublicKey:</span> <span class="hljs-string">file:///etc/pulsar/jwt/public.key</span> <span class="hljs-comment"># if using public/private key tokens, key file must be DER-encoded</span>
 </code></pre>
 <blockquote>
-<p><strong>注意</strong>  <br>
-你必须在服务器上配置函数 worker 的身份认证和授权，以对请求进行身份认证，并在客户端配置相关信息，使其可以与broker进行通信。</p>
+<p><strong>Note</strong>  <br>
+You must configure both the Function Worker authorization or authentication for the server to authenticate requests and configure the client to be authenticated to communicate with the broker.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="定制-kubernetes-运行时"></a><a href="#定制-kubernetes-运行时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>定制 Kubernetes 运行时</h3>
 <p>Kubernetes 集成允许你实现类并自定义如何生成manifests. 你可以为配置文件<code>functions-worker.yml</code>的配置项<code>runtimeCustomizerClassName</code>指定一个全路径的类名。 这个类必须实现<code>org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer</code>接口。</p>
