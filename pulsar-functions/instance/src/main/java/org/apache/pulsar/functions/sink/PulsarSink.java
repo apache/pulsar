@@ -49,13 +49,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
@@ -364,10 +362,7 @@ public class PulsarSink<T> implements Sink<T> {
         SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(sinkRecord);
 
-        if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema &&
-                ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {
-            msg.key(record.getKey().get());
-        }
+        record.getKey().ifPresent(msg::key);
 
         msg.value(record.getValue());
 
