@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.web;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -74,6 +75,9 @@ public class RestException extends WebApplicationException {
     private static Response getResponse(Throwable t) {
         if (t instanceof WebApplicationException) {
             WebApplicationException e = (WebApplicationException) t;
+            return e.getResponse();
+        }else if(t.getCause() instanceof WebApplicationException){
+            WebApplicationException e = (WebApplicationException) t.getCause();
             return e.getResponse();
         } else {
             return Response

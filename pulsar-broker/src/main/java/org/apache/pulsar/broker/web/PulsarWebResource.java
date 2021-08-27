@@ -69,6 +69,7 @@ import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyReso
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.common.naming.Constants;
@@ -961,7 +962,7 @@ public abstract class PulsarWebResource {
                             }
                             if (children != null && !children.isEmpty()) {
                                 checkNs.completeExceptionally(
-                                        new RestException(Status.PRECONDITION_FAILED, "Tenant has active namespace"));
+                                        new RestException(Status.CONFLICT, "The tenant still has active namespace"));
                                 return;
                             }
                             String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
@@ -971,8 +972,8 @@ public abstract class PulsarWebResource {
                             // add it to the list
                             namespaceResources().getAsync(path(POLICIES, namespace)).thenApply(data -> {
                                 if (data.isPresent()) {
-                                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
-                                            "Tenant has active namespace"));
+                                    checkNs.completeExceptionally(new RestException(Status.CONFLICT,
+                                            "The tenant still has active namespace"));
                                 } else {
                                     checkNs.complete(null);
                                 }
