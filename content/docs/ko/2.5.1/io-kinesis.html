@@ -29,7 +29,7 @@
 <tr><td>awsEndpoint</td><td><code>true</code></td><td>null</td><td>kinesis end-point url can be found at : <a href="https://docs.aws.amazon.com/general/latest/gr/rande.html">https://docs.aws.amazon.com/general/latest/gr/rande.html</a></td></tr>
 <tr><td>awsRegion</td><td><code>true</code></td><td>null</td><td>appropriate aws region eg: us-west-1, us-west-2</td></tr>
 <tr><td>awsKinesisStreamName</td><td><code>true</code></td><td>null</td><td>kinesis stream name</td></tr>
-<tr><td>awsCredentialPluginName</td><td><code>false</code></td><td>null</td><td>Fully-Qualified class name of implementation of <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java"><code>AwsCredentialProviderPlugin</code></a>
+<tr><td>awsCredentialPluginName</td><td><code>false</code></td><td>null</td><td>Fully-Qualified class name of implementation of <a href="https://github.com/apache/pulsar/tree/master//pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java"><code>AwsCredentialProviderPlugin</code></a>
 . It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink. If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map of credentials in <code>awsCredentialPluginParam</code></td></tr>
 <tr><td>awsCredentialPluginParam</td><td><code>false</code></td><td>null</td><td>json-parameters to initialize <code>AwsCredentialsProviderPlugin</code></td></tr>
 <tr><td>messageFormat</td><td><code>true</code></td><td><code>ONLY_RAW_PAYLOAD</code></td><td>Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams</td></tr>

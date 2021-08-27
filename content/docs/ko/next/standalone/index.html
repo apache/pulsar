@@ -76,18 +76,18 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">로컬 독립형 Pulsar 구성</h1></header><article><div><span><p>로컬 개발 및 테스트를 위해 여러분의 컴퓨터에서 Pulsar를 독립형 모드로 실행할 수 있습니다. 독립형 모드에는 Pulsar 브로커와 별도의 JVM (Java Virtual Machine) 프로세스에서 실행되는 필수 구성 요소인 Zookeeper 및 BookKeeper 가 있습니다.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="pulsar를-프로덕션에서-사용하려면"></a><a href="#pulsar를-프로덕션에서-사용하려면" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar를 프로덕션에서 사용하려면?</h4>
-<p>만약 프로덕션에서 실행되는 완전한 Pulsar를 설치하려는 경우, <a href="/docs/ko/next/deploy-bare-metal">Deploying a Pulsar instance</a> 가이드를 참고 하십시오.</p>
+<p><strong>Pulsar in production?</strong>  <br>
+If you're looking to run a full production Pulsar installation, see the <a href="/docs/ko/next/deploy-bare-metal">Deploying a Pulsar instance</a> guide.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="독립형-pulsar-설치"></a><a href="#독립형-pulsar-설치" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>독립형 Pulsar 설치</h2>
-<p>이 튜토리얼 가이드는 설치 프로세스의 모든 단계를 안내합니다.</p>
+<p>This tutorial guides you through every step of installing Pulsar locally.</p>
 <h3><a class="anchor" aria-hidden="true" id="system-requirements"></a><a href="#system-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>System requirements</h3>
 <p>Currently, Pulsar is available for 64-bit <strong>macOS</strong>, <strong>Linux</strong>, and <strong>Windows</strong>. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>기본적으로 Pulsar는 2G JVM 힙 메모리를 할당하여 시작합니다. 이것은 <code>conf/pulsar_env.sh</code> 파일의 <code>PULSAR_MEM</code> 에서 변경 할 수 있습니다. 이것은 JVM으로 전달되는 추가 옵션입니다.</p>
-<p><strong>Note</strong></p>
-<p>Broker is only supported on 64-bit JVM.</p>
+<p><strong>Tip</strong>  <br>
+By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in <code>conf/pulsar_env.sh</code> file under <code>PULSAR_MEM</code>. This is extra options passed into JVM.</p>
+<p><strong>Note</strong>  <br>
+Broker is only supported on 64-bit JVM.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="binary-release를-이용한-pulsar-설치"></a><a href="#binary-release를-이용한-pulsar-설치" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Binary release를 이용한 Pulsar 설치</h3>
 <p>Pulsar를 시작하려면 다음 방법 중 하나로 바이너리 tarball 릴리스를 다운로드하십시오.</p>
@@ -129,8 +129,8 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 </tbody>
 </table>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：</p>
+<p><strong>Tip</strong>  <br>
+If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：</p>
 <ul>
 <li><a href="#install-builtin-connectors-optional">빌트인 커넥터 설치 (optional)</a></li>
 <li><a href="#install-tiered-storage-offloaders-optional">계층형 스토리지 오프로더 설치 (optional)</a></li>
@@ -156,7 +156,7 @@ pulsar-io-aerospike-2.8.0.nar
 ...
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p><strong>Note</strong></p>
 <ul>
 <li><p>If you are running Pulsar in a bare metal cluster, make sure <code>connectors</code> tarball is unzipped in every pulsar directory of the broker (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).</p></li>
 <li><p>If you are <a href="/docs/ko/next/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/ko/next/deploy-kubernetes">K8S</a> or <a href="/docs/ko/next/deploy-dcos">DCOS</a>), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/docs/ko/next/io-overview#working-with-connectors">all builtin connectors</a>.</p></li>
@@ -164,8 +164,10 @@ pulsar-io-aerospike-2.8.0.nar
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="계층형-스토리지-오프로더-설치-optional"></a><a href="#계층형-스토리지-오프로더-설치-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>계층형 스토리지 오프로더 설치 (optional)</h3>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>Since <code>2.2.0</code> release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders. To enable tiered storage feature, follow the instructions below; otherwise skip this section.</p>
+<p><strong>Tip</strong></p>
+<ul>
+<li>Since <code>2.2.0</code> release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders. - To enable tiered storage feature, follow the instructions below; otherwise skip this section.</li>
+</ul>
 </blockquote>
 <p><a href="/docs/ko/next/concepts-tiered-storage">계층적 스토리지 오프로더</a>를 시작하려면, 다음중 한 방법으로 모든 브로커 노드에 오프로더 tarball 릴리즈를 다운로드 해야합니다:</p>
 <ul>
@@ -189,7 +191,7 @@ tiered-storage-jcloud-2.8.0.nar
 </code></pre>
 <p>계층적 저장소 구성에 관한 자세한 정보는 <a href="/docs/ko/next/cookbooks-tiered-storage">Tiered storage cookbook</a>를 참고하십시오.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="note-1"></a><a href="#note-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p><strong>Note</strong></p>
 <ul>
 <li><p>If you are running Pulsar in a bare metal cluster, make sure that <code>offloaders</code> tarball is unzipped in every broker's pulsar directory.</p></li>
 <li><p>If you are <a href="/docs/ko/next/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/ko/next/deploy-kubernetes">K8S</a> or <a href="/docs/ko/next/deploy-dcos">DCOS</a>), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p></li>
@@ -205,7 +207,7 @@ tiered-storage-jcloud-2.8.0.nar
 21:59:34.576 [main] INFO  org.apache.pulsar.websocket.WebSocketService - Pulsar WebSocket Service started
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p><strong>Tip</strong></p>
 <ul>
 <li><p>The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.<br>
 You can also run the service as a background process using the <code>pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
@@ -223,8 +225,8 @@ You can also run the service as a background process using the <code>pulsar-daem
 <pre><code class="hljs">22:17:16.781 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully consumed
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-4"></a><a href="#tip-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.</p>
+<p><strong>Tip</strong>  <br>
+As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="메시지-생산"></a><a href="#메시지-생산" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>메시지 생산</h3>
 <p>다음 명령은 <code>my-topic</code> topic에 <code>hello-pulsar</code>라는 메시지를 프로듀스 합니다.</p>
@@ -236,8 +238,8 @@ You can also run the service as a background process using the <code>pulsar-daem
 <h2><a class="anchor" aria-hidden="true" id="독립형-pulsar-중지"></a><a href="#독립형-pulsar-중지" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>독립형 Pulsar 중지</h2>
 <p>로컬 독립형 Pulsar 중지를 하려면 <code>Ctrl+C</code>를 누르십시오.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="tip-5"></a><a href="#tip-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<p>If the service runs as a background process using the <code>pulsar-daemon start standalone</code> command, then use the <code>pulsar-daemon stop standalone</code> command to stop the service.</p>
+<p><strong>Tip</strong>  <br>
+If the service runs as a background process using the <code>pulsar-daemon start standalone</code> command, then use the <code>pulsar-daemon stop standalone</code> command to stop the service.</p>
 <p>For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p>
 </blockquote>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-next button" href="/docs/ko/next/standalone-docker"><span>Docker에서 Pulsar 실행</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#독립형-pulsar-설치">독립형 Pulsar 설치</a><ul class="toc-headings"><li><a href="#system-requirements">System requirements</a></li><li><a href="#binary-release를-이용한-pulsar-설치">Binary release를 이용한 Pulsar 설치</a></li><li><a href="#빌트인-커넥터-설치-optional">빌트인 커넥터 설치 (optional)</a></li><li><a href="#계층형-스토리지-오프로더-설치-optional">계층형 스토리지 오프로더 설치 (optional)</a></li></ul></li><li><a href="#pulsar-독립형-모드-시작">Pulsar 독립형 모드 시작</a></li><li><a href="#독립형-pulsar-사용">독립형 Pulsar 사용</a><ul class="toc-headings"><li><a href="#메시지-소비">메시지 소비</a></li><li><a href="#메시지-생산">메시지 생산</a></li></ul></li><li><a href="#독립형-pulsar-중지">독립형 Pulsar 중지</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

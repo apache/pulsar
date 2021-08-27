@@ -93,8 +93,8 @@
 <h3><a class="anchor" aria-hidden="true" id="requirements"></a><a href="#requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Requirements</h3>
 <p>Currently, Pulsar is available for 64-bit <strong>macOS</strong>, <strong>Linux</strong>, and <strong>Windows</strong>. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.</p>
 <blockquote>
-<p><strong>Tips</strong></p>
-<p>You can reuse existing Zookeeper clusters.</p>
+<p><strong>Tips</strong>  <br>
+You can reuse existing Zookeeper clusters.</p>
 </blockquote>
 <p>To run Pulsar on bare metal, the following configuration is recommended:</p>
 <ul>
@@ -108,9 +108,7 @@
 <blockquote>
 <p><strong>Note</strong></p>
 <ul>
-<li>Broker is only supported on 64-bit JVM.</li>
-<li>If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.</li>
-<li>If you do not have a DNS server, you can use the multi-host format in the service URL instead. Each machine in your cluster needs to have <a href="https://adoptopenjdk.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptopenjdk.net/?variant=openjdk11">Java 11</a> installed.</li>
+<li>Broker is only supported on 64-bit JVM. * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run. * If you do not have a DNS server, you can use the multi-host format in the service URL instead. Each machine in your cluster needs to have <a href="https://adoptopenjdk.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptopenjdk.net/?variant=openjdk11">Java 11</a> installed.</li>
 </ul>
 </blockquote>
 <p>The following is a diagram showing the basic setup:</p>
@@ -125,6 +123,47 @@
 <ul>
 <li>Fast CPUs and 10Gbps <a href="https://en.wikipedia.org/wiki/Network_interface_controller">NIC</a> (for Pulsar brokers)</li>
 <li>Small and fast <a href="https://en.wikipedia.org/wiki/Solid-state_drive">solid-state drives</a> (SSDs) or <a href="https://en.wikipedia.org/wiki/Hard_disk_drive">hard disk drives</a> (HDDs) with a <a href="https://en.wikipedia.org/wiki/RAID">RAID</a> controller and a battery-backed write cache (for BookKeeper bookies)</li>
+</ul>
+<p>To start a Pulsar instance, below are the minimum and the recommended hardware settings.</p>
+<ol>
+<li>The minimum hardware settings (250 Pulsar topics)</li>
+</ol>
+<ul>
+<li>Broker
+<ul>
+<li>CPU: 0.2</li>
+<li>Memory: 256MB</li>
+</ul></li>
+<li>Bookie
+<ul>
+<li>CPU: 0.2</li>
+<li>Memory: 256MB</li>
+<li>Storage:
+<ul>
+<li>Journal: 8GB, PD-SSD</li>
+<li>Ledger: 16GB, PD-STANDARD</li>
+</ul></li>
+</ul></li>
+</ul>
+<ol start="2">
+<li>The recommended hardware settings (1000 Pulsar topics)</li>
+</ol>
+<ul>
+<li>Broker
+<ul>
+<li>CPU: 8</li>
+<li>Memory: 8GB</li>
+</ul></li>
+<li>Bookie
+<ul>
+<li>CPU: 4</li>
+<li>Memory: 8GB</li>
+<li>Storage:
+<ul>
+<li>Journal: 256GB, PD-SSD</li>
+<li>Ledger: 2TB, PD-STANDARD</li>
+</ul></li>
+</ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="install-the-pulsar-binary-package"></a><a href="#install-the-pulsar-binary-package" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Install the Pulsar binary package</h2>
 <blockquote>

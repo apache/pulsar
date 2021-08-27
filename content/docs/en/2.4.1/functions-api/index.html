@@ -18,7 +18,7 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/incubator-pulsar/edit/master/site2/docs/functions-api.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">The Pulsar Functions API</h1></header><article><div><span><p><a href="/docs/en/2.4.1/functions-overview">Pulsar Functions</a> provides an easy-to-use API that developers can use to create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in <a href="#functions-for-java">Java</a> or <a href="#functions-for-python">Python</a> and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.</p>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/pulsar/edit/master/site2/docs/functions-api.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">The Pulsar Functions API</h1></header><article><div><span><p><a href="/docs/en/2.4.1/functions-overview">Pulsar Functions</a> provides an easy-to-use API that developers can use to create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in <a href="#functions-for-java">Java</a> or <a href="#functions-for-python">Python</a> and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.</p>
 <blockquote>
 <p>For a more in-depth overview of the Pulsar Functions feature, see the <a href="/docs/en/2.4.1/functions-overview">Pulsar Functions overview</a>.</p>
 </blockquote>
@@ -195,10 +195,10 @@
 </code></pre>
 <p>In general, you should use native functions when you don't need access to the function's <a href="#context">context</a>. If you <em>do</em> need access to the function's context, then we recommend using the <a href="#java-sdk-functions">Pulsar Functions Java SDK</a>.</p>
 <h4><a class="anchor" aria-hidden="true" id="java-native-examples"></a><a href="#java-native-examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java native examples</h4>
-<p>There is one example Java native function in this <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples">folder</a>
+<p>There is one example Java native function in this <a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples">folder</a>
 :</p>
 <ul>
-<li><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclamationFunction.java"><code>JavaNativeExclamationFunction</code></a>
+<li><a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclamationFunction.java"><code>JavaNativeExclamationFunction</code></a>
 </li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="java-sdk-functions"></a><a href="#java-sdk-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java SDK functions</h3>
@@ -207,7 +207,7 @@
 <p>An easy way to get up and running with Pulsar Functions in Java is to clone the <a href="https://github.com/streamlio/pulsar-functions-java-starter"><code>pulsar-functions-java-starter</code></a> repo and follow the instructions there.</p>
 </blockquote>
 <h4><a class="anchor" aria-hidden="true" id="java-sdk-examples"></a><a href="#java-sdk-examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java SDK examples</h4>
-<p>There are several example Java SDK functions in this <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples">folder</a>
+<p>There are several example Java SDK functions in this <a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples">folder</a>
 :</p>
 <table>
 <thead>
@@ -472,16 +472,16 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </code></pre>
 <p>In general, you should use native functions when you don't need access to the function's <a href="#context">context</a>. If you <em>do</em> need access to the function's context, then we recommend using the <a href="#python-sdk-functions">Pulsar Functions Python SDK</a>.</p>
 <h4><a class="anchor" aria-hidden="true" id="python-native-examples"></a><a href="#python-native-examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python native examples</h4>
-<p>There is one example Python native function in this <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/python-examples">folder</a>
+<p>There is one example Python native function in this <a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/python-examples">folder</a>
 :</p>
 <ul>
-<li><a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/python-examples/native_exclamation_function.py"><code>native_exclamation_function.py</code></a>
+<li><a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/python-examples/native_exclamation_function.py"><code>native_exclamation_function.py</code></a>
 </li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="python-sdk-functions"></a><a href="#python-sdk-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python SDK functions</h3>
 <p>To get started developing Pulsar Functions using the Python SDK, you'll need to install the <a href="/api/python/2.4.1"><code>pulsar-client</code></a> library using the instructions <a href="#getting-started">above</a>.</p>
 <h4><a class="anchor" aria-hidden="true" id="python-sdk-examples"></a><a href="#python-sdk-examples" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python SDK examples</h4>
-<p>There are several example Python functions in this <a href="https://github.com/apache/incubator-pulsar/tree/master//pulsar-functions/python-examples">folder</a>
+<p>There are several example Python functions in this <a href="https://github.com/apache/pulsar/tree/master//pulsar-functions/python-examples">folder</a>
 :</p>
 <table>
 <thead>

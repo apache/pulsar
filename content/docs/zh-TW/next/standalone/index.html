@@ -76,18 +76,18 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">安裝 Pulsar 單機模式</h1></header><article><div><span><p>對於本地開發和測試，你可以在自己的電腦上以單機模式來運行 Pulsar。 單機模式包含一個 Pulsar broker、必須的 Zookeeper 和 BookKeeper 組件，它們運行在一個單獨的 Java 虛擬機（JVM）進程之中。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="pulsar-運行在生產環境"></a><a href="#pulsar-運行在生產環境" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 運行在生產環境？</h4>
-<p>如果你想在生產環境運行完整的 Pulsar，請參考 <a href="/docs/zh-TW/next/deploy-bare-metal">Pulsar 的集群部署</a>。</p>
+<p><strong>Pulsar in production?</strong>  <br>
+If you're looking to run a full production Pulsar installation, see the <a href="/docs/zh-TW/next/deploy-bare-metal">Deploying a Pulsar instance</a> guide.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="安裝-pulsar-單機模式"></a><a href="#安裝-pulsar-單機模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安裝 Pulsar 單機模式</h2>
-<p>本教程將講解安裝過程的每個步驟。</p>
+<p>This tutorial guides you through every step of installing Pulsar locally.</p>
 <h3><a class="anchor" aria-hidden="true" id="系統要求"></a><a href="#系統要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>系統要求</h3>
 <p>Currently, Pulsar is available for 64-bit <strong>macOS</strong>, <strong>Linux</strong>, and <strong>Windows</strong>. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>預設情況下，Pulsar 分配 2G JVM heap 內存來啟動。可以透過修改在<code>conf/pulsar_env.sh</code>文件中的<code>PULSAR_MEM</code> 參數來調整內存分配大小。這是傳遞給 JVM 的額外選項。</p>
-<p><strong>Note</strong></p>
-<p>Broker is only supported on 64-bit JVM.</p>
+<p><strong>Tip</strong>  <br>
+By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in <code>conf/pulsar_env.sh</code> file under <code>PULSAR_MEM</code>. This is extra options passed into JVM.</p>
+<p><strong>Note</strong>  <br>
+Broker is only supported on 64-bit JVM.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="使用二進制發行版安裝-pulsar"></a><a href="#使用二進制發行版安裝-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用二進制發行版安裝 Pulsar</h3>
 <p>要開始使用 Pulsar，請透過以下方式下載二進制 tarball 版本：</p>
@@ -129,8 +129,8 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.8.0
 </tbody>
 </table>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>如果要使用內建連接器和分層存儲卸載插件，可以按照以下說明進行安裝：</p>
+<p><strong>Tip</strong>  <br>
+If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：</p>
 <ul>
 <li><a href="#install-builtin-connectors-optional">安裝內建連接器（可選）</a></li>
 <li><a href="#install-tiered-storage-offloaders-optional">安裝分層存儲卸載插件（可選）</a></li>
@@ -156,16 +156,18 @@ pulsar-io-aerospike-2.8.0.nar
 ...
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="注意"></a><a href="#注意" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>注意</h4>
+<p><strong>Note</strong></p>
 <ul>
-<li>如果在裸機集群中運行 Pulsar，請確保將` connectors &lt;/ code&gt; tarball 解壓縮到 broker 上面的 pulsar 目錄（如果正在為 Pulsar Functions 運行單獨的工作程序集群，則解壓縮到 function-worker 的 pulsar 目錄中）。</p></li></li>
+<li><p>If you are running Pulsar in a bare metal cluster, make sure <code>connectors</code> tarball is unzipped in every pulsar directory of the broker (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).</p></li>
+<li><p>If you are <a href="/docs/zh-TW/next/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/zh-TW/next/deploy-kubernetes">K8S</a> or <a href="/docs/zh-TW/next/deploy-dcos">DCOS</a>), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled <a href="/docs/zh-TW/next/io-overview#working-with-connectors">all builtin connectors</a>.</p></li>
 </ul>
 </blockquote>
-  <li><p>如果<a href="getting-started-docker.md">在 Docker 中運行 Pulsar </a>或使用 Docker 鏡像部署 Pulsar（例如<a href="deploy-kubernetes.md"> K8S </ a >或<a href="deploy-dcos.md"> DCOS </a>），則可以使用<code> apachepulsar/pulsar-all `鏡像代替` apachepulsar/pulsar `鏡像。 `apachepulsar/pulsar-all` 鏡像己經包含了[所有內建連接器](/docs/zh-TW/next/io-overview#working-with-connectors)。
 <h3><a class="anchor" aria-hidden="true" id="安裝分層存儲卸載插件可選"></a><a href="#安裝分層存儲卸載插件可選" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安裝分層存儲卸載插件（可選）</h3>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>自從<code>2.1.0-incubating</code> 版本，Pulsar 會為不同的 Source/Sink 連接器發布了一個單獨的二進制版。你可依實際的需要去下載這些<code>內建</code>的連接器。 要啟用分層存儲功能，請按照以下說明進行操作；否則請跳過本節。</p>
+<p><strong>Tip</strong></p>
+<ul>
+<li>Since <code>2.2.0</code> release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders. - To enable tiered storage feature, follow the instructions below; otherwise skip this section.</li>
+</ul>
 </blockquote>
 <p>要開始使用 <a href="/docs/zh-TW/next/concepts-tiered-storage">分層存儲卸載插件</a>，你需要透過以下任一種方式在每個 broker 節點安裝這個插件：</p>
 <ul>
@@ -189,10 +191,10 @@ tiered-storage-jcloud-2.8.0.nar
 </code></pre>
 <p>有關如何配置分層存儲的更多內容，請參見 <a href="/docs/zh-TW/next/cookbooks-tiered-storage">分層存儲指南</a>。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="注意-1"></a><a href="#注意-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>注意</h4>
+<p><strong>Note</strong></p>
 <ul>
-<li><p>如果在裸機集群中運行 Pulsar，請確保在每個 broker 的 pulsar 目錄中將<code>offloaders</code> tarball 解壓縮。</p></li>
-<li><p>如果<a href="/docs/zh-TW/next/standalone-docker">在 Docker 中運行 Pulsar </a>或使用 Docker 鏡像部署 Pulsar（例如<a href="/docs/zh-TW/next/deploy-kubernetes"> K8S </a>或<a href="/docs/zh-TW/next/deploy-dcos"> DCOS </a>），則可以使用<code>apachepulsar/pulsar-all</code>鏡像代替<code>apachepulsar/pulsar</code>鏡像。 <code>apachepulsar/pulsar-all</code> 鏡像己經包含了所有內建連接器。</p></li>
+<li><p>If you are running Pulsar in a bare metal cluster, make sure that <code>offloaders</code> tarball is unzipped in every broker's pulsar directory.</p></li>
+<li><p>If you are <a href="/docs/zh-TW/next/standalone-docker">running Pulsar in Docker</a> or deploying Pulsar using a docker image (e.g. <a href="/docs/zh-TW/next/deploy-kubernetes">K8S</a> or <a href="/docs/zh-TW/next/deploy-dcos">DCOS</a>), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p></li>
 </ul>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="啟動-pulsar-單機模式"></a><a href="#啟動-pulsar-單機模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>啟動 Pulsar 單機模式</h2>
@@ -205,11 +207,12 @@ tiered-storage-jcloud-2.8.0.nar
 21:59:34.576 [main] INFO  org.apache.pulsar.websocket.WebSocketService - Pulsar WebSocket Service started
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="提示-3"></a><a href="#提示-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
+<p><strong>Tip</strong></p>
 <ul>
-<li><p>該服務在你可以直接控制的終端上運行。 如果需要使用其他命令，請打開一個新的終端窗口。你還可以使用<code>pulsar-daemon start standalone</code>命令將服務作為後台進程運行。 有關更多信息，請參見<a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon"> pulsar-daemon </a>。</p></li>
-<li><p>預設配置沒有啟用加密、身份驗證或授權。 因此無需授權即可從遠端來訪問 Apache Pulsar。 請詳閱<a href="/docs/zh-TW/next/security-overview">安全概述</a>文檔來保護所部署的 Pulsar。</p></li>
-<li><p>啟動本地單機群集時，Pulsar 會自動創建一個 <code>public/default</code> <a href="/docs/zh-TW/next/concepts-messaging#namespaces">的命名空間</a>。 這個預設的命名空間主要用於開發。 所有 Pulsar 的 topics 都在命名空間內進行管理。 更多相關內容请参考 <a href="/docs/zh-TW/next/concepts-messaging#topics">Topics</a>。</p></li>
+<li><p>The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.<br>
+You can also run the service as a background process using the <code>pulsar-daemon start standalone</code> command. For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p></li>
+<li><p>By default, there is no encryption, authentication, or authorization configured. 因此無需授權即可從遠端來訪問 Apache Pulsar。 請詳閱<a href="/docs/zh-TW/next/security-overview">安全概述</a>文檔來保護所部署的 Pulsar。</p></li>
+<li><p>When you start a local standalone cluster, a <code>public/default</code> <a href="/docs/zh-TW/next/concepts-messaging#namespaces">namespace</a> is created automatically. 這個預設的命名空間主要用於開發。 All Pulsar topics are managed within namespaces. 更多相關內容请参考 <a href="/docs/zh-TW/next/concepts-messaging#topics">Topics</a>。</p></li>
 </ul>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-單機模式的操作"></a><a href="#pulsar-單機模式的操作" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar 單機模式的操作</h2>
@@ -222,8 +225,8 @@ tiered-storage-jcloud-2.8.0.nar
 <pre><code class="hljs">22:17:16.781 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully consumed
 </code></pre>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="提示-4"></a><a href="#提示-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>如你所見，對於我們要消費的 topic 並沒有事先地去創建。 當要從不存在的 topic 消費一條信息時，Pulsar 會自動創建該 topic。 對發佈信息到不存在的 topic 時，Pulsar 也會自動創建該 topic。</p>
+<p><strong>Tip</strong>  <br>
+As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we consume the message. 當要從不存在的 topic 消費一條信息時，Pulsar 會自動創建該 topic。 對發佈信息到不存在的 topic 時，Pulsar 也會自動創建該 topic。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="產生一條信息"></a><a href="#產生一條信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>產生一條信息</h3>
 <p>以下命令將發送一條簡單的信息 <code>hello-pulsar</code> 給 <code>my-topic</code> 主題:</p>
@@ -235,8 +238,8 @@ tiered-storage-jcloud-2.8.0.nar
 <h2><a class="anchor" aria-hidden="true" id="停止-pulsar-單機模式"></a><a href="#停止-pulsar-單機模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>停止 Pulsar 單機模式</h2>
 <p>按 <code>Ctrl+C</code> 停止單機模式運行的 Pulsar。</p>
 <blockquote>
-<h4><a class="anchor" aria-hidden="true" id="提示-5"></a><a href="#提示-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>如果使用<code>pulsar-daemon start standalone</code>命令將該服務作為後台進程運行，請使用<code>pulsar-daemon stop standalone</code>命令停止該服務。</p>
+<p><strong>Tip</strong>  <br>
+If the service runs as a background process using the <code>pulsar-daemon start standalone</code> command, then use the <code>pulsar-daemon stop standalone</code> command to stop the service.</p>
 <p>有關更多說明，請參見<a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon"> pulsar-daemon </a>。</p>
 </blockquote>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-next button" href="/docs/zh-TW/next/standalone-docker"><span>在Docker中運行Pulsar</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安裝-pulsar-單機模式">安裝 Pulsar 單機模式</a><ul class="toc-headings"><li><a href="#系統要求">系統要求</a></li><li><a href="#使用二進制發行版安裝-pulsar">使用二進制發行版安裝 Pulsar</a></li><li><a href="#安裝內建-sourcesink-連接器可選">安裝內建 Source/Sink 連接器（可選）</a></li><li><a href="#安裝分層存儲卸載插件可選">安裝分層存儲卸載插件（可選）</a></li></ul></li><li><a href="#啟動-pulsar-單機模式">啟動 Pulsar 單機模式</a></li><li><a href="#pulsar-單機模式的操作">Pulsar 單機模式的操作</a><ul class="toc-headings"><li><a href="#消費一條信息">消費一條信息</a></li><li><a href="#產生一條信息">產生一條信息</a></li></ul></li><li><a href="#停止-pulsar-單機模式">停止 Pulsar 單機模式</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
