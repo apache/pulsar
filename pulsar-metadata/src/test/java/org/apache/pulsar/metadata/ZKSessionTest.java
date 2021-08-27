@@ -130,7 +130,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.waitAtMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             assertFalse(lock.getLockExpiredFuture().isDone());
         });
 
