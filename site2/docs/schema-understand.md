@@ -476,8 +476,9 @@ GenericRecord record = msg.getValue();
 
 ### Native Avro Schema
 
-When migrating or ingesting event/message data from external systems such as Kafka and Cassandra, the events are often already serialized in Avro format. The schemas have been validated and stored by those systems or a dedicated service such as a schema registry. In such cases, a Pulsar producer doesn't need to repeat the schema validation step when sending the ingested events to a topic. 
-Hence, we provide `Schema.NATIVE_AVRO` to turn an `org.apache.avro.Schema` object into a schema instance of Pulsar that accepts a serialized Avro payload without validating it against the schema specified.
+When migrating or ingesting event or message data from external systems (such as Kafka and Cassandra), the events are often already serialized in Avro format. The applications producing the data typically have validated the data against their schemas (including compatibility checks) and stored them in a database or a dedicated service (such as a schema registry). The schema of each serialized data record is usually retrievable by some metadata attached to that record. In such cases, a Pulsar producer doesn't need to repeat the schema validation step when sending the ingested events to a topic. All it needs to do is passing each message or event with its schema to Pulsar.
+
+Hence, we provide `Schema.NATIVE_AVRO` to wrap a native Avro schema of type `org.apache.avro.Schema`. The result is a schema instance of Pulsar that accepts a serialized Avro payload without validating it against the wrapped Avro schema.
 
 **Example**
 
