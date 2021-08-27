@@ -150,7 +150,6 @@ public class Producer {
             return Objects.equals(producerName, other.producerName)
                     && Objects.equals(topic, other.topic)
                     && producerId == other.producerId
-                    && epoch == other.epoch
                     && Objects.equals(cnx, other.cnx);
         }
 
