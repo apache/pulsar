@@ -20,10 +20,10 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.PARTITIONED_TOPICS_ROOT;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.MANAGED_LEDGER_ROOT;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.OWNER_INFO_ROOT;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
@@ -309,14 +309,19 @@ public abstract class NamespacesBase extends AdminResource {
 
             try {
                 final String globalPartitionedPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString());
+                final String managedLedgerPath = joinPath(MANAGED_LEDGER_ROOT, namespaceName.toString());
                 // check whether partitioned topics znode exist
                 if (namespaceResources().exists(globalPartitionedPath)) {
                     deleteRecursive(namespaceResources(), globalPartitionedPath);
                 }
 
                 try {
-                    pulsar().getPulsarResources().getTopicResources().clearDomainPersistence(namespaceName).get();
-                    pulsar().getPulsarResources().getTopicResources().clearNamespacePersistence(namespaceName).get();
+                    if (namespaceResources().exists(managedLedgerPath)) {
+                        pulsar().getPulsarResources().getTopicResources()
+                                .clearDomainPersistence(namespaceName).get();
+                        pulsar().getPulsarResources().getTopicResources()
+                                .clearNamespacePersistence(namespaceName).get();
+                    }
                 } catch (ExecutionException | InterruptedException e) {
                     // warn level log here since this failure has no side effect besides left a un-used metadata
                     // and also will not affect the re-creation of namespace
@@ -328,7 +333,13 @@ public abstract class NamespacesBase extends AdminResource {
                 final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 final String namespacePath = joinPath(OWNER_INFO_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
-                namespaceResources().delete(namespacePath);
+
+                try {
+                    namespaceResources().delete(namespacePath);
+                } catch (NotFoundException e) {
+                    // If the z-node with the modified information is not there anymore, we're already good
+                }
+
                 try {
                     getLocalPolicies().delete(localZkPolicyPath);
                 } catch (NotFoundException nne) {
@@ -521,7 +532,12 @@ public abstract class NamespacesBase extends AdminResource {
                 final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
                 final String namespacePath = joinPath(OWNER_INFO_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
-                namespaceResources().delete(namespacePath);
+
+                try {
+                    namespaceResources().delete(namespacePath);
+                } catch (NotFoundException e) {
+                    // If the z-node with the modified information is not there anymore, we're already good
+                }
 
                 try {
                     getLocalPolicies().delete(localZkPolicyPath);
