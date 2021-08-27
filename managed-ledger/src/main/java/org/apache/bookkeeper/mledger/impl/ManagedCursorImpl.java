@@ -622,9 +622,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
 
-        PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
-        ledger.asyncReadEntries(op);
+        if (op.readPosition != null) {
+            PENDING_READ_OPS_UPDATER.incrementAndGet(this);
+            ledger.asyncReadEntries(op);
+        }
     }
 
     @Override
@@ -762,6 +764,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         } else {
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
                     ctx, maxPosition);
+            if (op.readPosition == null) {
+                return;
+            }
 
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
