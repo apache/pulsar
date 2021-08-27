@@ -48,11 +48,11 @@ class PULSAR_PUBLIC BinaryProtoLookupService : public LookupService {
 
    private:
     std::mutex mutex_;
-    uint64_t requestIdGenerator_;
+    uint64_t requestIdGenerator_ = 0;
 
     std::string serviceUrl_;
-    ConnectionPool& cnxPool_;
     std::string listenerName_;
+    ConnectionPool& cnxPool_;
 
     void sendTopicLookupRequest(const std::string& topicName, bool authoritative,
                                 const std::string& listenerName, Result result,

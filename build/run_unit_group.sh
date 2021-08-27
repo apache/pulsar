@@ -53,6 +53,10 @@ function broker_client_impl() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-impl'
 }
 
+function broker_jdk8() {
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-jdk8' -Dpulsar.allocator.pooled=true
+}
+
 # prints summaries of failed tests to console
 # by using the targer/surefire-reports files
 # works only when testForkCount > 1 since that is when surefire will create reports for individual test classes
@@ -175,6 +179,10 @@ case $TEST_GROUP in
 
   OTHER)
     other
+    ;;
+
+  BROKER_JDK8)
+    broker_jdk8
     ;;
 
   *)

@@ -145,7 +145,11 @@ public class TopicSchema {
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, ConsumerConfig conf) {
         switch (type) {
         case NONE:
-            return (Schema<T>) Schema.BYTES;
+            if (ByteBuffer.class.isAssignableFrom(clazz)) {
+                return (Schema<T>) Schema.BYTEBUFFER;
+            } else {
+                return (Schema<T>) Schema.BYTES;
+            }
 
         case AUTO_CONSUME:
         case AUTO:

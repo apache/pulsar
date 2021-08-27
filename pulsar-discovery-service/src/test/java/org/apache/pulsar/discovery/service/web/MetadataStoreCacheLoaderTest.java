@@ -19,6 +19,7 @@
 package org.apache.pulsar.discovery.service.web;
 
 import static org.apache.pulsar.broker.resources.MetadataStoreCacheLoader.LOADBALANCE_BROKERS_ROOT;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
@@ -34,6 +35,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.KeeperException;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -73,19 +75,14 @@ public class MetadataStoreCacheLoaderTest extends BaseZKStarterTest {
                 LoadManagerReport report = i % 2 == 0 ? getSimpleLoadManagerLoadReport(brokers.get(i))
                         : getModularLoadManagerLoadReport(brokers.get(i));
                 zkStore.put(LOADBALANCE_BROKERS_ROOT + "/" + brokers.get(i),
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), Optional.of(-1L));
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), Optional.of(-1L))
+                        .join();
             } catch (Exception e) {
                 fail("failed while creating broker znodes");
             }
         }
 
-        // strategically wait for cache to get sync
-        for (int i = 0; i < 5; i++) {
-            if (zkLoader.getAvailableBrokers().size() == 3 || i == 4) {
-                break;
-            }
-            Thread.sleep(1000);
-        }
+        Awaitility.await().untilAsserted(() -> assertEquals(zkLoader.getAvailableBrokers().size(), 3));
 
         // 2. get available brokers from ZookeeperCacheLoader
         List<LoadManagerReport> list = zkLoader.getAvailableBrokers();
@@ -100,7 +97,8 @@ public class MetadataStoreCacheLoaderTest extends BaseZKStarterTest {
         final String newBroker = "broker-4:15000";
         LoadManagerReport report = getSimpleLoadManagerLoadReport(newBroker);
         zkStore.put(LOADBALANCE_BROKERS_ROOT + "/" + newBroker,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), Optional.of(-1L));
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(report), Optional.of(-1L))
+                .join();
         brokers.add(newBroker);
 
         Thread.sleep(100); // wait for 100 msec: to get cache updated

@@ -66,7 +66,6 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -548,7 +547,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             try {
-                consumer.acknowledgeCumulativeAsync(DefaultImplementation
+                consumer.acknowledgeCumulativeAsync(DefaultImplementation.getDefaultImplementation()
                         .newMessageId(((MessageIdImpl) message.getMessageId()).getLedgerId(),
                                 ((MessageIdImpl) message.getMessageId()).getEntryId() - 1, -1),
                         abortTxn).get();

@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
@@ -129,4 +131,14 @@ public interface MetaStore {
      * @throws MetaStoreException
      */
     Iterable<String> getManagedLedgers() throws MetaStoreException;
+
+    /**
+     * Check ledger exists.
+     *
+     * @param ledgerName {@link String}
+     * @return a future represents the result of the operation.
+     *         an instance of {@link Boolean} is returned
+     *         if the operation succeeds.
+     */
+    CompletableFuture<Boolean> asyncExists(String ledgerName);
 }

@@ -193,7 +193,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             admin.schemas().createSchema(topicName, foo1SchemaInfo);
             fail("Should have failed");
         } catch (PulsarAdminException.ConflictException e) {
-            assertTrue(e.getMessage().contains("HTTP 409 Conflict"));
+            assertTrue(e.getMessage().contains("HTTP 409"));
         }
 
         namespace = "schematest/testnotfound";
@@ -203,7 +203,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             admin.schemas().createSchema(topicName, fooSchemaInfo);
             fail("Should have failed");
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+            assertTrue(e.getMessage().contains("HTTP 404"));
         }
     }
 

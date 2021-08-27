@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -576,7 +577,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
         try {
-            return getPulsarResources().getTopicResources().getExistingPartitions(topicName).join();
+            return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
                     namespaceName.toString(), e);

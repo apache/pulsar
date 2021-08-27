@@ -5,35 +5,29 @@ sidebar_label: Bare metal
 ---
 
 
-> ### Tips
+> **Tips**
 >
-> 1. Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you are interested in experimenting with
-> Pulsar or using Pulsar in a startup or on a single team, it is simplest to opt for a single cluster. If you do need to run a multi-cluster Pulsar instance,
-> see the guide [here](deploy-bare-metal-multi-cluster.md).
+> 1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
 >
-> 2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
-> package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
-> have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+> 2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
 >
-> 3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`
-> package and install `apache-pulsar-offloaders` under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
-> this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
+> 3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
-Deploying a Pulsar cluster involves doing the following (in order):
+Deploying a Pulsar cluster consists of the following steps:
 
-* Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)
-* Initialize [cluster metadata](#initialize-cluster-metadata)
-* Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster
-* Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)
+1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)  
+2. Initialize [cluster metadata](#initialize-cluster-metadata)  
+3. Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster  
+4. Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)  
 
 ## Preparation
 
 ### Requirements
 
-Currently, Pulsar is available for 64-bit **macOS*, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
-> If you already have an existing ZooKeeper cluster and want to reuse it, you do not need to prepare the machines
-> for running ZooKeeper.
+>**Tips**  
+> You can reuse existing Zookeeper clusters.
 
 To run Pulsar on bare metal, the following configuration is recommended:
 
@@ -42,30 +36,25 @@ To run Pulsar on bare metal, the following configuration is recommended:
   * 3 for running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
-> **Note**
->
-> Broker is only supported on 64-bit JVM.
-
-> If you do not have enough machines, or to try out Pulsar in cluster mode (and expand the cluster later),
-> you can deploy a full Pulsar configuration on one node, where Zookeeper, the bookie and broker are run on the same machine.
-
-> If you do not have a DNS server, you can use the multi-host format in the service URL instead.
-
+> **Note**  
+> * Broker is only supported on 64-bit JVM.
+> * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.
+> * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
 Each machine in your cluster needs to have [Java 8](https://adoptopenjdk.net/?variant=openjdk8) or [Java 11](https://adoptopenjdk.net/?variant=openjdk11) installed.
 
 The following is a diagram showing the basic setup:
 
 ![alt-text](assets/pulsar-basic-setup.png)
 
-In this diagram, connecting clients need to be able to communicate with the Pulsar cluster using a single URL. In this case, `pulsar-cluster.acme.com` abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.
+In this diagram, connecting clients need to communicate with the Pulsar cluster using a single URL. In this case, `pulsar-cluster.acme.com` abstracts over all of the message-handling brokers. Pulsar message brokers run on machines alongside BookKeeper bookies; brokers and bookies, in turn, rely on ZooKeeper.
 
 ### Hardware considerations
 
-When you deploy a Pulsar cluster, keep in mind the following basic better choices when you do the capacity planning.
+If you deploy a Pulsar cluster, keep in mind the following basic better choices when you do the capacity planning.
 
 #### ZooKeeper
 
-For machines running ZooKeeper, is is recommended to use less powerful machines or VMs. Pulsar uses ZooKeeper only for periodic coordination-related and configuration-related tasks, *not* for basic operations. If you run Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance might likely suffice.
+For machines running ZooKeeper, it is recommended to use less powerful machines or VMs. Pulsar uses ZooKeeper only for periodic coordination-related and configuration-related tasks, not for basic operations. If you run Pulsar on [Amazon Web Services](https://aws.amazon.com/) (AWS), for example, a [t2.small](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/t2-instances.html) instance might likely suffice.
 
 #### Bookies and Brokers
 
@@ -74,16 +63,41 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 * Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) (for Pulsar brokers)
 * Small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache (for BookKeeper bookies)
 
+To start a Pulsar instance, below are the minimum and the recommended hardware settings.
+
+1. The minimum hardware settings (250 Pulsar topics)
+  - Broker
+    - CPU: 0.2
+    - Memory: 256MB
+  - Bookie
+    - CPU: 0.2
+    - Memory: 256MB
+    - Storage: 
+      - Journal: 8GB, PD-SSD
+      - Ledger: 16GB, PD-STANDARD
+
+2. The recommended hardware settings (1000 Pulsar topics)
+
+  - Broker
+    - CPU: 8
+    - Memory: 8GB
+  - Bookie
+    - CPU: 4
+    - Memory: 8GB
+    - Storage: 
+      - Journal: 256GB, PD-SSD
+      - Ledger: 2TB, PD-STANDARD
+
 ## Install the Pulsar binary package
 
-> You need to install the Pulsar binary package on *each machine in the cluster*, including machines running [ZooKeeper](#deploy-a-zookeeper-cluster) and [BookKeeper](#deploy-a-bookkeeper-cluster).
+> You need to install the Pulsar binary package on each machine in the cluster, including machines running ZooKeeper and BookKeeper.
 
 To get started deploying a Pulsar cluster on bare metal, you need to download a binary tarball release in one of the following ways:
 
 * By clicking on the link below directly, which automatically triggers a download:
   * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
 * From the Pulsar [downloads page](pulsar:download_page_url)
-* From the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest) on [GitHub](https://github.com)
+* From the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest) on GitHub
 * Using [wget](https://www.gnu.org/software/wget):
 
 ```bash
@@ -110,10 +124,9 @@ Directory | Contains
 ## [Install Builtin Connectors (optional)]( https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional)
 
 > Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `builtin` connectors.
-> If you want to enable those `builtin` connectors, you can follow the instructions as below; otherwise you can
-> skip this section for now.
+> To enable the `builtin` connectors (optional), you can follow the instructions below.
 
-To get started using builtin connectors, you need to download the connectors tarball release on every broker node in one of the following ways:
+To use `builtin` connectors, you need to download the connectors tarball release on every broker node in one of the following ways :
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
@@ -145,7 +158,7 @@ pulsar-io-aerospike-{{pulsar:version}}.nar
 > If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
 > skip this section for now.
 
-To get started using tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:
+To use tiered storage offloaders, you need to download the offloaders tarball release on every broker node in one of the following ways:
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
@@ -159,7 +172,7 @@ To get started using tiered storage offloaders, you need to download the offload
   $ wget pulsar:offloader_release_url
   ```
 
-Once you download the tarball, in the pulsar directory, untar the offloaders package and copy the offloaders as `offloaders` in the pulsar directory:
+Once you download the tarball, in the Pulsar directory, untar the offloaders package and copy the offloaders as `offloaders` in the Pulsar directory:
 
 ```bash
 $ tar xvfz apache-pulsar-offloaders-{{pulsar:version}}-bin.tar.gz
@@ -178,9 +191,9 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 ## Deploy a ZooKeeper cluster
 
-> If you already have an exsiting zookeeper cluster and want to use it, you can skip this section.
+> If you already have an existing zookeeper cluster and want to use it, you can skip this section.
 
-[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first (before all other components). A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
+[ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.
 
 To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) (in the Pulsar directory that you create [above](#install-the-pulsar-binary-package)). The following is an example:
 
@@ -246,7 +259,7 @@ Flag | Description
 
 > If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
 >
-> ```properties
+> ```shell
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
@@ -255,7 +268,7 @@ Flag | Description
 
 > If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
 >
-> ```properties
+> ```shell
 > --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
@@ -382,7 +395,7 @@ You can start a broker in the background using the [`pulsar-daemon`](reference-c
 $ bin/pulsar-daemon start broker
 ```
 
-Once you succesfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!
+Once you successfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!
 
 ## Connect to the running cluster
 
