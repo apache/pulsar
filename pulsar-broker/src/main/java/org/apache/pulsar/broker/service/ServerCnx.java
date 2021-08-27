@@ -42,6 +42,7 @@ import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -1400,6 +1401,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             commandSender.sendErrorResponse(requestId, ServerError.MetadataError, "Consumer not found");
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ServerCnx other = (ServerCnx) o;
+        return Objects.equals(ctx().channel().id(), other.ctx().channel().id());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(ctx().channel().id());
     }
 
     @Override
