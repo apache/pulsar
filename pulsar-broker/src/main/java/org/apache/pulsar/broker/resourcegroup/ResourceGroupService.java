@@ -445,10 +445,12 @@ public class ResourceGroupService {
 
         try {
             boolean statsUpdated = this.incrementUsage(tenantString, nsString, monClass, bmDiff);
-            log.debug("updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
-                            + "by {} bytes, {} mesgs",
-                    topicName, monClass, statsUpdated, tenantString, nsString,
-                    bmDiff.bytes, bmDiff.messages);
+            if (log.isDebugEnabled()) {
+                log.debug("updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
+                                + "by {} bytes, {} mesgs",
+                        topicName, monClass, statsUpdated, tenantString, nsString,
+                        bmDiff.bytes, bmDiff.messages);
+            }
             hm.put(topicName, bmNewCount);
         } catch (Throwable t) {
             log.error("updateStatsWithDiff: got ex={} while aggregating for {} side",
@@ -553,7 +555,9 @@ public class ResourceGroupService {
                     ResourceGroupMonitoringClass.Dispatch);
         }
         double diffTimeSeconds = aggrUsageTimer.observeDuration();
-        log.debug("aggregateResourceGroupLocalUsages took {} milliseconds", diffTimeSeconds * 1000);
+        if (log.isDebugEnabled()) {
+            log.debug("aggregateResourceGroupLocalUsages took {} milliseconds", diffTimeSeconds * 1000);
+        }
 
         // Check any re-scheduling requirements for next time.
         // Use the same period as getResourceUsagePublishIntervalInSecs;
@@ -610,12 +614,30 @@ public class ResourceGroupService {
                             globUsageMessagesArray);
 
                     BytesAndMessagesCount oldBMCount = resourceGroup.updateLocalQuota(monClass, updatedQuota);
-                    rgCalculatedQuotaMessages.labels(rgName, monClass.name()).inc(updatedQuota.messages);
-                    rgCalculatedQuotaBytes.labels(rgName, monClass.name()).inc(updatedQuota.bytes);
-                    long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
-                    long bytesIncrement = updatedQuota.bytes - oldBMCount.bytes;
-                    log.debug("calculateQuota for RG {} [class {}]: bytes incremented by {}, messages by {}",
-                            rgName, monClass, messagesIncrement, bytesIncrement);
+                    // Guard against unconfigured quota settings, for which computeLocalQuota will return negative.
+                    if (updatedQuota.messages >= 0) {
+                        rgCalculatedQuotaMessages.labels(rgName, monClass.name()).inc(updatedQuota.messages);
+                    }
+                    if (updatedQuota.bytes >= 0) {
+                        rgCalculatedQuotaBytes.labels(rgName, monClass.name()).inc(updatedQuota.bytes);
+                    }
+                    if (oldBMCount != null) {
+                        long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
+                        long bytesIncrement = updatedQuota.bytes - oldBMCount.bytes;
+                        if (log.isDebugEnabled()) {
+                            log.debug("calculateQuota for RG={} [class {}]: "
+                                            + "updatedlocalBytes={}, updatedlocalMesgs={}; "
+                                            + "old bytes={}, old mesgs={};  incremented bytes by {}, messages by {}",
+                                    rgName, monClass, updatedQuota.bytes, updatedQuota.messages,
+                                    oldBMCount.bytes, oldBMCount.messages,
+                                    bytesIncrement, messagesIncrement);
+                        }
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("calculateQuota for RG={} [class {}]: got back null from updateLocalQuota",
+                                    rgName, monClass);
+                        }
+                    }
                 } catch (Throwable t) {
                     log.error("Got exception={} while calculating new quota for monitoring-class={} of RG={}",
                             t.getMessage(), monClass, rgName);
@@ -623,7 +645,9 @@ public class ResourceGroupService {
             }
         });
         double diffTimeSeconds = quotaCalcTimer.observeDuration();
-        log.debug("calculateQuotaForAllResourceGroups took {} milliseconds", diffTimeSeconds * 1000);
+        if (log.isDebugEnabled()) {
+            log.debug("calculateQuotaForAllResourceGroups took {} milliseconds", diffTimeSeconds * 1000);
+        }
 
         // Check any re-scheduling requirements for next time.
         // Use the same period as getResourceUsagePublishIntervalInSecs;
