@@ -163,7 +163,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             try {
                 this.provider = new UrlJwkProvider(new URL(this.jwkUrl));
             } catch (MalformedURLException e){
-                e.printStackTrace();
                 throw new MalformedURLException("Url is malformed");
             }
         } else {
