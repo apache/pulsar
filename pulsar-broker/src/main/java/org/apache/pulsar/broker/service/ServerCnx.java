@@ -382,8 +382,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, String subscriptionName,
                                                                TopicOperation operation) {
-        CompletableFuture<Boolean> isProxyAuthorizedFuture;
-        CompletableFuture<Boolean> isAuthorizedFuture;
         if (service.isAuthorizationEnabled()) {
             if (authenticationData == null) {
                 authenticationData = new AuthenticationDataCommand("", subscriptionName);
@@ -395,20 +393,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             return isTopicOperationAllowed(topicName, operation);
         } else {
-            isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-            isAuthorizedFuture = CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(true);
         }
-        return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
-            if (!isProxyAuthorized) {
-                log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}, subscription {}",
-                    originalPrincipal, operation, topicName, subscriptionName);
-            }
-            if (!isAuthorized) {
-                log.warn("Role {} is not authorized to perform operation {} on topic {}, subscription {}",
-                    authRole, operation, topicName, subscriptionName);
-            }
-            return isProxyAuthorized && isAuthorized;
-        });
     }
 
     @Override
@@ -638,7 +624,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (authState.isComplete()) {
             // Authentication has completed. It was either:
-            // 1. the 1st time the authentication process was done, in which case we'll
+            // 1. the 1st time the authentication process was done, in which case we'll send
             //    a `CommandConnected` response
             // 2. an authentication refresh, in which case we need to refresh authenticationData
 
