@@ -451,14 +451,15 @@ Options
 |`--instance-id-offset`|Start the instanceIds from this offset|0|
 |`--inputs`|The function's input topic or topics (multiple topics can be specified as a comma-separated list)||
 |`--log-topic`|The topic to which the function's logs are produced||
-|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
+|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--name`|The function's name||
 |`--namespace`|The function's namespace||
 |`--output`|The function's output topic (If none is specified, no output is written)||
 |`--output-serde-classname`|The SerDe class to be used for messages output by the function||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
 |`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
-|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python)||
+|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
+|`--go`|Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
@@ -502,14 +503,15 @@ Options
 |`--function-config-file`|The path to a YAML config file specifying the function's configuration||
 |`--inputs`|The function's input topic or topics (multiple topics can be specified as a comma-separated list)||
 |`--log-topic`|The topic to which the function's logs are produced||
-|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
+|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--name`|The function's name||
 |`--namespace`|The function’s namespace||
 |`--output`|The function's output topic (If none is specified, no output is written)||
 |`--output-serde-classname`|The SerDe class to be used for messages output by the function||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
 |`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
-|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python)||
+|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
+|`--go`|Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
@@ -567,14 +569,15 @@ Options
 |`--function-config-file`|The path to a YAML config file specifying the function's configuration||
 |`--inputs`|The function's input topic or topics (multiple topics can be specified as a comma-separated list)||
 |`--log-topic`|The topic to which the function's logs are produced||
-|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.||
+|`--jar`|Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--name`|The function's name||
 |`--namespace`|The function’s namespace||
 |`--output`|The function's output topic (If none is specified, no output is written)||
 |`--output-serde-classname`|The SerDe class to be used for messages output by the function||
 |`--parallelism`|The function’s parallelism factor, i.e. the number of instances of the function to run|1|
 |`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
-|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python)||
+|`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
+|`--go`|Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
