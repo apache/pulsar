@@ -29,7 +29,7 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>stevlog</artifactId>
+  <artifactId>structured-event-log</artifactId>
   <name>Structured event logger</name>
 
   <dependencies>
