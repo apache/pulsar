@@ -33,7 +33,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
-               bin/pulsar zookeeper"
+               exec bin/pulsar zookeeper"
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
     volumes:
@@ -49,7 +49,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
-               bin/pulsar zookeeper"
+               exec bin/pulsar zookeeper"
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
     volumes:
@@ -65,7 +65,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
-               bin/pulsar zookeeper"
+               exec bin/pulsar zookeeper"
     environment:
       ZOOKEEPER_SERVERS: zk1,zk2,zk3
     volumes:
@@ -102,7 +102,7 @@ services:
                bin/apply-config-from-env.py conf/bookkeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zkServers -p /initialized-$$clusterName -w && \
-               bin/pulsar bookie"
+               exec bin/pulsar bookie"
     environment:
       clusterName: test
       zkServers: zk1:2181,zk2:2181,zk3:2181
@@ -128,7 +128,7 @@ services:
                bin/apply-config-from-env.py conf/bookkeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zkServers -p /initialized-$$clusterName -w && \
-               bin/pulsar bookie"
+               exec bin/pulsar bookie"
     environment:
       clusterName: test
       zkServers: zk1:2181,zk2:2181,zk3:2181
@@ -155,7 +155,7 @@ services:
                bin/apply-config-from-env.py conf/bookkeeper.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zkServers -p /initialized-$$clusterName -w && \
-               bin/pulsar bookie"
+               exec bin/pulsar bookie"
     environment:
       clusterName: test
       zkServers: zk1:2181,zk2:2181,zk3:2181
@@ -182,7 +182,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/broker.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
-               bin/pulsar broker"
+               exec bin/pulsar broker"
     environment:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
@@ -211,7 +211,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/broker.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
-               bin/pulsar broker"
+               exec bin/pulsar broker"
     environment:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
@@ -241,7 +241,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/broker.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
-               bin/pulsar broker"
+               exec bin/pulsar broker"
     environment:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
@@ -272,7 +272,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/proxy.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
-               bin/pulsar proxy"
+               exec bin/pulsar proxy"
     environment:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
@@ -305,7 +305,7 @@ services:
       bash -c "bin/apply-config-from-env.py conf/websocket.conf && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
-               bin/pulsar websocket"
+               exec bin/pulsar websocket"
     environment:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
@@ -335,7 +335,7 @@ services:
                bin/gen-yml-from-env.py conf/functions_worker.yml && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
-               bin/pulsar functions-worker"
+               exec bin/pulsar functions-worker"
     environment:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
@@ -371,7 +371,7 @@ services:
       bash -c "bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ conf/presto/catalog/pulsar.properties && \
                bin/apply-config-from-env.py conf/pulsar_env.sh && \
                bin/watch-znode.py -z $$zookeeperServers -p /initialized-$$clusterName -w && \
-               bin/pulsar sql-worker run"
+               exec bin/pulsar sql-worker run"
     environment:
       clusterName: test
       zookeeperServers: zk1:2181,zk2:2181,zk3:2181
