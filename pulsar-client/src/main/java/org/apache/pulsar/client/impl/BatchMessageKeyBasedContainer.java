@@ -224,6 +224,15 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         private void addMsg(MessageImpl<?> msg, SendCallback callback) {
             if (messages.size() == 0) {
                 sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
+                if (msg.hasKey()) {
+                    messageMetadata.setPartitionKey(msg.getKey());
+                    if (msg.hasBase64EncodedKey()) {
+                        messageMetadata.setPartitionKeyB64Encoded(true);
+                    }
+                }
+                if (msg.hasOrderingKey()) {
+                    messageMetadata.setOrderingKey(Arrays.copyOf(msg.getOrderingKey(), msg.getOrderingKey().length));
+                }
                 batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
                         .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
                 firstCallback = callback;
