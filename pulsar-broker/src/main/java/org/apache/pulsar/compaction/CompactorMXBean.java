@@ -29,63 +29,14 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 public interface CompactorMXBean {
 
     /**
-     * @return the removed event count of last compaction
-     */
-    long getLastCompactionRemovedEventCount(String topic);
-
-    /**
-     * @return the timestamp of last succeed compaction
-     */
-    long getLastCompactionSucceedTimestamp(String topic);
-
-    /**
-     * @return the timestamp of last failed compaction
-     */
-    long getLastCompactionFailedTimestamp(String topic);
-
-    /**
-     * @return the duration time of last compaction
-     */
-    long getLastCompactionDurationTimeInMills(String topic);
-
-    /**
      *  Remove metrics about this topic.
      * @param topic
      */
     void removeTopic(String topic);
 
     /**
-     * @return the removed event count of compaction
+     *  Get the compaction record of the topic.
+     * @param topic
      */
-    long getCompactionRemovedEventCount(String topic);
-
-    /**
-     * @return the succeed count of compaction
-     */
-    long getCompactionSucceedCount(String topic);
-
-    /**
-     * @return the failed count of compaction
-     */
-    long getCompactionFailedCount(String topic);
-
-    /**
-     * @return the duration time of compaction
-     */
-    long getCompactionDurationTimeInMills(String topic);
-
-    /**
-     * @return the latency buckets
-     */
-    long[] getCompactionLatencyBuckets(String topic);
-
-    /**
-     * @return the read throughput of compaction
-     */
-    double getCompactionReadThroughput(String topic);
-
-    /**
-     * @return the write throughput of compaction
-     */
-    double getCompactionWriteThroughput(String topic);
+    CompactionRecord getCompactionRecordForTopic(String topic);
 }

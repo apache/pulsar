@@ -151,6 +151,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
+import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -1907,14 +1908,19 @@ public class PersistentTopic extends AbstractTopic
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
         stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
         Optional<CompactorMXBean> mxBean = getCompactorMXBean();
-        stats.compaction.lastCompactionRemovedEventCount = mxBean.map(stat ->
-                stat.getLastCompactionRemovedEventCount(topic)).orElse(0L);
-        stats.compaction.lastCompactionSucceedTimestamp = mxBean.map(stat ->
-                stat.getLastCompactionSucceedTimestamp(topic)).orElse(0L);
-        stats.compaction.lastCompactionFailedTimestamp = mxBean.map(stat ->
-                stat.getLastCompactionFailedTimestamp(topic)).orElse(0L);
-        stats.compaction.lastCompactionDurationTimeInMills = mxBean.map(stat ->
-                stat.getLastCompactionDurationTimeInMills(topic)).orElse(0L);
+
+        stats.compaction.lastCompactionRemovedEventCount = 0L;
+        stats.compaction.lastCompactionSucceedTimestamp = 0L;
+        stats.compaction.lastCompactionFailedTimestamp = 0L;
+        stats.compaction.lastCompactionDurationTimeInMills = 0L;
+        if (mxBean.isPresent()) {
+            CompactionRecord compactionRecord = mxBean.get().getCompactionRecordForTopic(topic);
+            stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
+            stats.compaction.lastCompactionSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
+            stats.compaction.lastCompactionFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
+            stats.compaction.lastCompactionDurationTimeInMills =
+                    compactionRecord.getLastCompactionDurationTimeInMills();
+        }
 
         return stats;
     }

@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.compaction.CompactedTopicContext;
+import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.compaction.CompactorMXBeanImpl;
@@ -82,26 +83,27 @@ public class CompactionMetrics extends AbstractMetrics {
                 List<String> topics = entry.getValue();
                 tempAggregatedMetricsMap.clear();
                 for (String topic : topics) {
+                    CompactionRecord compactionRecord = compactorMXBean.getCompactionRecordForTopic(topic);
                     populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_compaction_removedEventCount",
-                            compactorMXBean.getCompactionRemovedEventCount(topic));
+                            compactionRecord.getCompactionRemovedEventCount());
 
                     populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_compaction_succeedCount",
-                            compactorMXBean.getCompactionSucceedCount(topic));
+                            compactionRecord.getCompactionSucceedCount());
 
                     populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_compaction_failedCount",
-                            compactorMXBean.getCompactionFailedCount(topic));
+                            compactionRecord.getCompactionFailedCount());
 
                     populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_compaction_durationTimeInMills",
-                            compactorMXBean.getCompactionDurationTimeInMills(topic));
+                            compactionRecord.getCompactionDurationTimeInMills());
 
                     populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_compaction_readThroughput",
-                            compactorMXBean.getCompactionReadThroughput(topic));
+                            compactionRecord.getCompactionReadThroughput());
 
                     populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_compaction_writeThroughput",
-                            compactorMXBean.getCompactionWriteThroughput(topic));
+                            compactionRecord.getCompactionWriteThroughput());
 
                     BRK_COMPACTION_LATENCY_BUCKETS.populateBucketEntries(tempAggregatedMetricsMap,
-                            compactorMXBean.getCompactionLatencyBuckets(topic),
+                            compactionRecord.getCompactionLatencyBuckets(),
                             statsPeriodSeconds);
 
                     CompletableFuture<Optional<Topic>> topicHandle = pulsar.getBrokerService().getTopicIfExists(topic);
@@ -159,10 +161,6 @@ public class CompactionMetrics extends AbstractMetrics {
     }
 
     private void populateDimensionMap(Map<Metrics, List<String>> topicsByDimensionMap, Metrics metrics, String topic) {
-        if (!topicsByDimensionMap.containsKey(metrics)) {
-            topicsByDimensionMap.put(metrics, Lists.newArrayList(topic));
-        } else {
-            topicsByDimensionMap.get(metrics).add(topic);
-        }
+        topicsByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList(topic)).add(topic);
     }
 }

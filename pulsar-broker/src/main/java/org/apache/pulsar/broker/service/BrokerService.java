@@ -1594,8 +1594,6 @@ public class BrokerService implements Closeable {
         });
     }
 
-
-
     public BacklogQuotaManager getBacklogQuotaManager() {
         return this.backlogQuotaManager;
     }
