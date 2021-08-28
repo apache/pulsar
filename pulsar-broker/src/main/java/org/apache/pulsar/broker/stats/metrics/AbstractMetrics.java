@@ -214,7 +214,7 @@ abstract class AbstractMetrics {
     }
 
     protected void populateAggregationMap(Map<String, List<Double>> map, String mkey, double value) {
-        map.computeIfAbsent(mkey, __ -> Lists.newArrayList(value)).add(value);
+        map.computeIfAbsent(mkey, __ -> Lists.newArrayList()).add(value);
     }
 
     protected void populateAggregationMapWithSum(Map<String, Double> map, String mkey, double value) {
@@ -238,11 +238,11 @@ abstract class AbstractMetrics {
      */
     protected void populateDimensionMap(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics,
             ManagedLedgerImpl ledger) {
-        ledgersByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList(ledger)).add(ledger);
+        ledgersByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList()).add(ledger);
     }
 
     protected void populateDimensionMap(Map<Metrics, List<TopicStats>> topicsStatsByDimensionMap,
             Metrics metrics, TopicStats destStats) {
-        topicsStatsByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList(destStats)).add(destStats);
+        topicsStatsByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList()).add(destStats);
     }
 }

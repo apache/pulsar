@@ -161,6 +161,6 @@ public class CompactionMetrics extends AbstractMetrics {
     }
 
     private void populateDimensionMap(Map<Metrics, List<String>> topicsByDimensionMap, Metrics metrics, String topic) {
-        topicsByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList(topic)).add(topic);
+        topicsByDimensionMap.computeIfAbsent(metrics, __ -> Lists.newArrayList()).add(topic);
     }
 }
