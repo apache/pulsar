@@ -21,6 +21,6 @@ Please answer the following questions before submitting your doc issue. Thanks!
 
 (For example, website links, etc)?
 
-# Can you fix this issue?
+# Would you like to fix this issue?
 
 (Welcome to contribute docs! Pulsar grows from a tiny seed to a big tree with every little effort by us! Your contribution is the sunlight, water, and air!)
