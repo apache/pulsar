@@ -373,6 +373,15 @@ public class FunctionConfigUtils {
 
         functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());
+
+        // Set subscription position
+        Function.SubscriptionPosition subPosition = functionDetails.getSource().getSubscriptionPosition();
+        if (subPosition == Function.SubscriptionPosition.EARLIEST) {
+            functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        } else {
+            functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
+        }
+
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             functionConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
         }

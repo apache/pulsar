@@ -286,6 +286,15 @@ public class SinkConfigUtils {
             sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
         sinkConfig.setAutoAck(functionDetails.getAutoAck());
+
+        // Set subscription position
+        Function.SubscriptionPosition subPosition = functionDetails.getSource().getSubscriptionPosition();
+        if (subPosition == Function.SubscriptionPosition.EARLIEST) {
+            sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        } else {
+            sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Latest);
+        }
+
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
         }
