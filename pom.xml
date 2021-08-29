@@ -1973,6 +1973,8 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
 
+        <module>structured-event-log</module>
+
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
 

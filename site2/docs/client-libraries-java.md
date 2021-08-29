@@ -100,34 +100,35 @@ PulsarClient client = PulsarClient.builder()
 
 If you create a client, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
 
-| Type | Name | <div style="width:260px">Description</div> | Default
+| Name | Type |  <div style="width:260px">Description</div> | Default
 |---|---|---|---
-String | `serviceUrl` |Service URL provider for Pulsar service | None
-String | `authPluginClassName` | Name of the authentication plugin | None
-String | `authParams` | String represents parameters for the authentication plugin <br/><br/>**Example**<br/> key1:val1,key2:val2|None
-long|`operationTimeoutMs`|Operation timeout |30000
-long|`statsIntervalSeconds`|Interval between each stats info<br/><br/>Stats is activated with positive `statsInterval`<br/><br/>Set `statsIntervalSeconds` to 1 second at least |60
-int|`numIoThreads`| The number of threads used for handling connections to brokers | 1 
-int|`numListenerThreads`|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
-boolean|`useTcpNoDelay`|Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
-boolean |`useTls` |Whether to use TLS encryption on the connection| false
-string | `tlsTrustCertsFilePath` |Path to the trusted TLS certificate file|None
-boolean|`tlsAllowInsecureConnection`|Whether the Pulsar client accepts untrusted TLS certificate from broker | false
-boolean | `tlsHostnameVerificationEnable` | Whether to enable TLS hostname verification|false
-int|`concurrentLookupRequest`|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
-int|`maxLookupRequest`|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
-int|`maxNumberOfRejectedRequestPerConnection`|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
-int|`keepAliveIntervalSeconds`|Seconds of keeping alive interval for each client broker connection|30
-int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be established <br/><br/>If the duration passes without a response from a broker, the connection attempt is dropped|10000
-int|`requestTimeoutMs`|Maximum duration for completing a request |60000
-int|`defaultBackoffIntervalNanos`| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100);
-long|`maxBackoffIntervalNanos`|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)
-SocketAddress|`socks5ProxyAddress`|SOCKS5 proxy address | None
-String|`socks5ProxyUsername`|SOCKS5 proxy username | None
-String|`socks5ProxyPassword`|SOCKS5 proxy password | None
+`serviceUrl` | String | Service URL provider for Pulsar service | None
+`authPluginClassName` | String | Name of the authentication plugin | None
+ `authParams` | String | String represents parameters for the authentication plugin <br/><br/>**Example**<br/> key1:val1,key2:val2|None
+`operationTimeoutMs`|long|`operationTimeoutMs`|Operation timeout |30000
+`statsIntervalSeconds`|long|Interval between each stats info<br/><br/>Stats is activated with positive `statsInterval`<br/><br/>Set `statsIntervalSeconds` to 1 second at least |60
+`numIoThreads`| int| The number of threads used for handling connections to brokers | 1 
+`numListenerThreads`|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
+`useTcpNoDelay`| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
+`useTls` |boolean |Whether to use TLS encryption on the connection| false
+ `tlsTrustCertsFilePath` |string |Path to the trusted TLS certificate file|None
+`tlsAllowInsecureConnection`|boolean|Whether the Pulsar client accepts untrusted TLS certificate from broker | false
+`tlsHostnameVerificationEnable` |boolean |  Whether to enable TLS hostname verification|false
+`concurrentLookupRequest`|int|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
+`maxLookupRequest`|int|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
+`maxNumberOfRejectedRequestPerConnection`|int|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+`keepAliveIntervalSeconds`|int|Seconds of keeping alive interval for each client broker connection|30
+`connectionTimeoutMs`|int|Duration of waiting for a connection to a broker to be established <br/><br/>If the duration passes without a response from a broker, the connection attempt is dropped|10000
+`requestTimeoutMs`|int|Maximum duration for completing a request |60000
+`defaultBackoffIntervalNanos`|int| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100);
+`maxBackoffIntervalNanos`|long|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)
+`socks5ProxyAddress`|SocketAddress|SOCKS5 proxy address | None
+`socks5ProxyUsername`|String|SOCKS5 proxy username | None
+`socks5ProxyPassword`|String|SOCKS5 proxy password | None
+
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
-> In addition to client-level configuration, you can also apply [producer](#configuring-producers) and [consumer](#configuring-consumers) specific configuration as described in sections below.
+> In addition to client-level configuration, you can also apply [producer](#Configure producer) and [consumer](#Configure consumer) specific configuration as described in sections below.
 
 ## Producer
 
@@ -142,7 +143,7 @@ Producer<byte[]> producer = client.newProducer()
 producer.send("My message".getBytes());
 ```
 
-By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message [schema](#schemas).
+By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message schema.
 
 ```java
 Producer<String> stringProducer = client.newProducer(Schema.STRING)
@@ -170,25 +171,25 @@ stringProducer.send("My message");
 
 ### Configure producer
 
-If you instantiate a `Producer` object by specifying only a topic name as the example above, use the default configuration for producer. 
+If you instantiate a `Producer` object by specifying only a topic name as the example above, the default configuration of producer is used.. 
 
 If you create a producer, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
 
-Type | Name| <div style="width:300px">Description</div>|  Default
+Name| Type |  <div style="width:300px">Description</div>|  Default
 |---|---|---|---
-String|	`topicName`|	Topic name| null|
-String|`producerName`|Producer name| null
-long|`sendTimeoutMs`|Message send timeout in ms.<br/><br/>If a message is not acknowledged by a server before the `sendTimeout` expires, an error occurs.|30000
-boolean|`blockIfQueueFull`|If it is set to `true`, when the outgoing message queue is full, the `Send` and `SendAsync` methods of producer block, rather than failing and throwing errors. <br/><br>If it is set to `false`, when the outgoing message queue is full, the `Send` and `SendAsync` methods of producer fail and `ProducerQueueIsFullError` exceptions occur.<br/><br/>The `MaxPendingMessages` parameter determines the size of the outgoing message queue.|false
-int|`maxPendingMessages`|The maximum size of a queue holding pending messages.<br/><br/>For example, a message waiting to receive an acknowledgment from a [broker](reference-terminology.md#broker). <br/><br/>By default, when the queue is full, all calls to the `Send` and `SendAsync` methods fail **unless** you set `BlockIfQueueFull` to `true`.|1000
-int|`maxPendingMessagesAcrossPartitions`|The maximum number of pending messages across partitions. <br/><br/>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000
-MessageRoutingMode|`messageRoutingMode`|Message routing logic for producers on [partitioned topics](concepts-architecture-overview.md#partitioned-topics).<br/><br/> Apply the logic only when setting no key on messages. <br/><br/>Available options are as follows: <br/><br/><li>`pulsar.RoundRobinDistribution`: round robin<br/><br/> <li>`pulsar.UseSinglePartition`: publish all messages to a single partition<br/><br/><li>`pulsar.CustomPartition`: a custom partitioning scheme|`pulsar.RoundRobinDistribution`
-HashingScheme|`hashingScheme`|Hashing function determining the partition where you publish a particular message (**partitioned topics only**).<br/><br/>Available options are as follows:<br/><br/><li> `pulsar.JavaStringHash`: the equivalent of `String.hashCode()` in Java<br/><br/><li> `pulsar.Murmur3_32Hash`: applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash) hashing function<br/><br/><li>`pulsar.BoostHash`: applies the hashing function from C++'s [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library |`HashingScheme.JavaStringHash`
-ProducerCryptoFailureAction|`cryptoFailureAction`|Producer should take action when encryption fails.<br/><br/><li>**FAIL**: if encryption fails, unencrypted messages fail to send.</li><br/><li> **SEND**: if encryption fails, unencrypted messages are sent. |`ProducerCryptoFailureAction.FAIL`
-long|`batchingMaxPublishDelayMicros`|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1)
-int|batchingMaxMessages|The maximum number of messages permitted in a batch.|1000
-boolean|`batchingEnabled`|Enable batching of messages. |true
-CompressionType|`compressionType`|Message data compression type used by a producer. <br/><br/>Available options:<li>[`LZ4`](https://github.com/lz4/lz4)<br/><li>[`ZLIB`](https://zlib.net/)<br/><li>[`ZSTD`](https://facebook.github.io/zstd/)<br/><li>[`SNAPPY`](https://google.github.io/snappy/)| No compression
+`topicName`| String|		Topic name| null|
+`producerName`| String|Producer name| null
+`sendTimeoutMs`| long|Message send timeout in ms.<br/><br/>If a message is not acknowledged by a server before the `sendTimeout` expires, an error occurs.|30000
+`blockIfQueueFull`|boolean|If it is set to `true`, when the outgoing message queue is full, the `Send` and `SendAsync` methods of producer block, rather than failing and throwing errors. <br/><br>If it is set to `false`, when the outgoing message queue is full, the `Send` and `SendAsync` methods of producer fail and `ProducerQueueIsFullError` exceptions occur.<br/><br/>The `MaxPendingMessages` parameter determines the size of the outgoing message queue.|false
+`maxPendingMessages`| int|The maximum size of a queue holding pending messages.<br/><br/>For example, a message waiting to receive an acknowledgment from a [broker](reference-terminology.md#broker). <br/><br/>By default, when the queue is full, all calls to the `Send` and `SendAsync` methods fail **unless** you set `BlockIfQueueFull` to `true`.|1000
+`maxPendingMessagesAcrossPartitions`|int|The maximum number of pending messages across partitions. <br/><br/>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000
+`messageRoutingMode`| MessageRoutingMode|Message routing logic for producers on [partitioned topics](concepts-architecture-overview.md#partitioned-topics).<br/><br/> Apply the logic only when setting no key on messages. <br/><br/>Available options are as follows: <br/><br/><li>`pulsar.RoundRobinDistribution`: round robin<br/><br/> <li>`pulsar.UseSinglePartition`: publish all messages to a single partition<br/><br/><li>`pulsar.CustomPartition`: a custom partitioning scheme|`pulsar.RoundRobinDistribution`
+`hashingScheme`| HashingScheme|Hashing function determining the partition where you publish a particular message (**partitioned topics only**).<br/><br/>Available options are as follows:<br/><br/><li> `pulsar.JavaStringHash`: the equivalent of `String.hashCode()` in Java<br/><br/><li> `pulsar.Murmur3_32Hash`: applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash) hashing function<br/><br/><li>`pulsar.BoostHash`: applies the hashing function from C++'s [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library |`HashingScheme.JavaStringHash`
+`cryptoFailureAction`| ProducerCryptoFailureAction|Producer should take action when encryption fails.<br/><br/><li>**FAIL**: if encryption fails, unencrypted messages fail to send.</li><br/><li> **SEND**: if encryption fails, unencrypted messages are sent. |`ProducerCryptoFailureAction.FAIL`
+`atchingMaxPublishDelayMicros`| long|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1)
+`batchingMaxMessages` |int|The maximum number of messages permitted in a batch.|1000
+`batchingEnabled`| boolean|Enable batching of messages. |true
+`compressionType`|CompressionType|Message data compression type used by a producer. <br/><br/>Available options:<li>[`LZ4`](https://github.com/lz4/lz4)<br/><li>[`ZLIB`](https://zlib.net/)<br/><li>[`ZSTD`](https://facebook.github.io/zstd/)<br/><li>[`SNAPPY`](https://google.github.io/snappy/)| No compression
 
 You can configure parameters if you do not want to use the default configuration.
 
