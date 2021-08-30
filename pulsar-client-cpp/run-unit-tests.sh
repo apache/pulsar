@@ -73,9 +73,12 @@ if [ $RES -eq 0 ]; then
     cp *_test.py /tmp
     pushd /tmp
 
-    python custom_logger_test.py
-    RES=$?
-    echo "custom_logger_test.py: $RES"
+    # TODO: this test requires asyncio module that is supported by Python >= 3.3.
+    #  Hoeever, CI doesn't support Python3 yet, we should uncomment following
+    #  lines after Python3 CI script is added.
+    #python custom_logger_test.py
+    #RES=$?
+    #echo "custom_logger_test.py: $RES"
 
     python pulsar_test.py
     RES=$?
