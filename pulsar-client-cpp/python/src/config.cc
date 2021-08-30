@@ -144,6 +144,10 @@ class LoggerWrapper: public Logger {
         Py_INCREF(_pyLogger);
     }
 
+    LoggerWrapper(LoggerWrapper&&) noexcept = delete;
+    LoggerWrapper& operator=(const LoggerWrapper&) = delete;
+    LoggerWrapper& operator=(LoggerWrapper&&) = delete;
+
     virtual ~LoggerWrapper() {
         Py_XDECREF(_pyLogger);
     }
