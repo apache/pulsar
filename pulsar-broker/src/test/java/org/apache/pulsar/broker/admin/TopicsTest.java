@@ -43,13 +43,13 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
 import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -103,9 +103,8 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(TopicDomain.persistent.value()).when(topics).domain();
         doReturn("test-app").when(topics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(topics).clientAuthData();
-        admin.clusters().createCluster(testLocalCluster, new ClusterData("http://broker-use.com:8080"));
-        admin.tenants().createTenant(testTenant,
-                new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster)));
+        admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
+        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster)));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace,
                 Sets.newHashSet(testLocalCluster));
     }
@@ -557,7 +556,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        Schema keyValueSchema = KeyValueSchema.of(StringSchema.utf8(), StringSchema.utf8(),
+        Schema keyValueSchema = KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(),
                                                 KeyValueEncodingType.SEPARATED);
         Producer producer = pulsarClient.newProducer(keyValueSchema)
                                         .topic(topicName)
@@ -617,7 +616,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        Schema keyValueSchema = KeyValueSchema.of(StringSchema.utf8(), StringSchema.utf8(),
+        Schema keyValueSchema = KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(),
                 KeyValueEncodingType.SEPARATED);
         Consumer consumer = pulsarClient.newConsumer(keyValueSchema)
                 .topic(topicName)

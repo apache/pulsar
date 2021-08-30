@@ -60,8 +60,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -517,9 +518,9 @@ public class TopicsBase extends PersistentTopicsBase {
     // Build schemaData from passed in schema string.
     private SchemaData getSchemaData(String keySchema, String valueSchema) {
         try {
-            SchemaInfo valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
-                    ? StringSchema.utf8().getSchemaInfo() : ObjectMapperFactory.getThreadLocal()
-                    .readValue(valueSchema, SchemaInfo.class);
+            SchemaInfoImpl valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
+                    ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() : ObjectMapperFactory.getThreadLocal()
+                    .readValue(valueSchema, SchemaInfoImpl.class);
             if (null == valueSchemaInfo.getName()) {
                 valueSchemaInfo.setName(valueSchemaInfo.getType().toString());
             }
@@ -535,8 +536,8 @@ public class TopicsBase extends PersistentTopicsBase {
                         .build();
             } else {
                 // Key_Value schema
-                SchemaInfo keySchemaInfo = ObjectMapperFactory.getThreadLocal()
-                        .readValue(keySchema, SchemaInfo.class);
+                SchemaInfoImpl keySchemaInfo = ObjectMapperFactory.getThreadLocal()
+                        .readValue(keySchema, SchemaInfoImpl.class);
                 if (null == keySchemaInfo.getName()) {
                     keySchemaInfo.setName(keySchemaInfo.getType().toString());
                 }
@@ -576,8 +577,7 @@ public class TopicsBase extends PersistentTopicsBase {
     }
 
     // Build pulsar message from REST request.
-    private List<Message> buildMessage(ProducerMessages producerMessages, Schema schema,
-                                       String producerName) {
+    private List<Message> buildMessage(ProducerMessages producerMessages, Schema schema, String producerName) {
         List<ProducerMessage> messages;
         List<Message> pulsarMessages = new ArrayList<>();
 
@@ -603,7 +603,7 @@ public class TopicsBase extends PersistentTopicsBase {
             if (null != message.getKey()) {
                 // If has key schema, encode partition key, else use plain text.
                 if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-                    KeyValueSchema kvSchema = (KeyValueSchema) schema;
+                    KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
                     messageMetadata.setPartitionKey(
                             Base64.getEncoder().encodeToString(encodeWithSchema(message.getKey(),
                                     kvSchema.getKeySchema())));
@@ -626,13 +626,13 @@ public class TopicsBase extends PersistentTopicsBase {
                 messageMetadata.setDeliverAtTime(messageMetadata.getEventTime() + message.getDeliverAfterMs());
             }
             if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-                KeyValueSchema kvSchema = (KeyValueSchema) schema;
+                KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
                 pulsarMessages.add(MessageImpl.create(messageMetadata,
                         ByteBuffer.wrap(encodeWithSchema(message.getPayload(), kvSchema.getValueSchema())),
-                        schema));
+                        schema, null));
             } else {
                 pulsarMessages.add(MessageImpl.create(messageMetadata,
-                        ByteBuffer.wrap(encodeWithSchema(message.getPayload(), schema)), schema));
+                        ByteBuffer.wrap(encodeWithSchema(message.getPayload(), schema)), schema, null));
             }
         }
 
