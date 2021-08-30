@@ -19,10 +19,7 @@
 #include "utils.h"
 #include <pulsar/ConsoleLoggerFactory.h>
 #include "lib/Utils.h"
-#include <atomic>
 #include <memory>
-#include <mutex>
-#include <unordered_map>
 
 template<typename T>
 struct ListenerWrapper {
@@ -102,48 +99,24 @@ static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfigu
 }
 
 class LoggerWrapper: public Logger {
-    const std::string _filename;
     PyObject* const _pyLogger;
-    std::shared_ptr<Logger> _fallbackLogger;
-    Optional<int> _pythonLogLevel{Optional<int>::of(_getLogLevelValue(Logger::LEVEL_INFO))};
+    int _pythonLogLevel;
+    std::unique_ptr<Logger> _fallbackLogger;
 
-    void _updateCurrentPythonLogLevel() {
-        PyGILState_STATE state = PyGILState_Ensure();
-
-        try {
-            int level = py::call_method<int>(_pyLogger, "getEffectiveLevel");
-            _pythonLogLevel = Optional<int>::of(level);
-        } catch (const py::error_already_set& e) {
-            // Failed to get log level from _pyLogger, set it to empty to fallback to _fallbackLogger
-            _pythonLogLevel = Optional<int>::empty();
-            PyErr_Print();
-        }
-
-        PyGILState_Release(state);
-    };
-
-    int _getLogLevelValue(Level level) {
+    static constexpr int _getLogLevelValue(Level level) {
         return 10 + (level * 10);
     }
 
    public:
 
-    LoggerWrapper(const std::string &filename, PyObject* pyLogger, Logger* fallbackLogger)
-        : _filename(filename),
-          _pyLogger(pyLogger),
+    LoggerWrapper(PyObject* pyLogger, int pythonLogLevel, Logger* fallbackLogger)
+        : _pyLogger(pyLogger),
+          _pythonLogLevel(pythonLogLevel),
           _fallbackLogger(fallbackLogger) {
         Py_XINCREF(_pyLogger);
-        _updateCurrentPythonLogLevel();
     }
 
-    LoggerWrapper(const LoggerWrapper& rhs)
-        : _filename(rhs._filename),
-          _pyLogger(rhs._pyLogger),
-          _fallbackLogger(rhs._fallbackLogger),
-          _pythonLogLevel(rhs._pythonLogLevel) {
-        Py_INCREF(_pyLogger);
-    }
-
+    LoggerWrapper(const LoggerWrapper&) = delete;
     LoggerWrapper(LoggerWrapper&&) noexcept = delete;
     LoggerWrapper& operator=(const LoggerWrapper&) = delete;
     LoggerWrapper& operator=(LoggerWrapper&&) = delete;
@@ -153,12 +126,11 @@ class LoggerWrapper: public Logger {
     }
 
     bool isEnabled(Level level) {
-        return _pythonLogLevel.is_present() ? (_getLogLevelValue(level) >= _pythonLogLevel.value())
-                                            : _fallbackLogger->isEnabled(level);
+        return _getLogLevelValue(level) >= _pythonLogLevel;
     }
 
     void log(Level level, int line, const std::string& message) {
-        if (!_pythonLogLevel.is_present() || Py_IsInitialized() != true) {
+        if (!Py_IsInitialized()) {
             // Python logger is unavailable - fallback to console logger
             _fallbackLogger->log(level, line, message);
         } else {
@@ -181,6 +153,7 @@ class LoggerWrapper: public Logger {
                 }
 
             } catch (const py::error_already_set& e) {
+                _fallbackLogger->log(level, line, message);
                 PyErr_Print();
             }
 
@@ -192,13 +165,27 @@ class LoggerWrapper: public Logger {
 class LoggerWrapperFactory : public LoggerFactory {
     std::unique_ptr<LoggerFactory> _fallbackLoggerFactory{new ConsoleLoggerFactory};
     PyObject* _pyLogger;
-    std::unordered_map<std::string, LoggerWrapper*> _loggers;
-    mutable std::mutex _mutex;
+    Optional<int> _pythonLogLevel{Optional<int>::empty()};
+
+    void initializePythonLogLevel() {
+        PyGILState_STATE state = PyGILState_Ensure();
+
+        try {
+            int level = py::call_method<int>(_pyLogger, "getEffectiveLevel");
+            _pythonLogLevel = Optional<int>::of(level);
+        } catch (const py::error_already_set& e) {
+            // Failed to get log level from _pyLogger, set it to empty to fallback to _fallbackLogger
+            PyErr_Print();
+        }
+
+        PyGILState_Release(state);
+    }
 
    public:
     LoggerWrapperFactory(py::object pyLogger) {
         _pyLogger = pyLogger.ptr();
         Py_XINCREF(_pyLogger);
+        initializePythonLogLevel();
     }
 
     virtual ~LoggerWrapperFactory() {
@@ -206,16 +193,11 @@ class LoggerWrapperFactory : public LoggerFactory {
     }
 
     Logger* getLogger(const std::string &fileName) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        auto iter = _loggers.find(fileName);
-        if (iter == _loggers.end()) {
-            const auto logger =
-                new LoggerWrapper(fileName, _pyLogger, _fallbackLoggerFactory->getLogger(fileName));
-            _loggers.emplace(fileName, logger);
-            return logger;
+        const auto fallbackLogger = _fallbackLoggerFactory->getLogger(fileName);
+        if (_pythonLogLevel.is_present()) {
+            return new LoggerWrapper(_pyLogger, _pythonLogLevel.value(), fallbackLogger);
         } else {
-            // reuse the python level to avoid calling py::call_method
-            return new LoggerWrapper(*(iter->second));
+            return fallbackLogger;
         }
     }
 };
