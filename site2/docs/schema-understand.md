@@ -474,6 +474,25 @@ Message<GenericRecord> msg = consumer.receive() ;
 GenericRecord record = msg.getValue();
 ```
 
+### Native Avro Schema
+
+When migrating or ingesting event or message data from external systems (such as Kafka and Cassandra), the events are often already serialized in Avro format. The applications producing the data typically have validated the data against their schemas (including compatibility checks) and stored them in a database or a dedicated service (such as a schema registry). The schema of each serialized data record is usually retrievable by some metadata attached to that record. In such cases, a Pulsar producer doesn't need to repeat the schema validation step when sending the ingested events to a topic. All it needs to do is passing each message or event with its schema to Pulsar.
+
+Hence, we provide `Schema.NATIVE_AVRO` to wrap a native Avro schema of type `org.apache.avro.Schema`. The result is a schema instance of Pulsar that accepts a serialized Avro payload without validating it against the wrapped Avro schema.
+
+**Example**
+
+```java
+org.apache.avro.Schema nativeAvroSchema = … ;
+
+Producer<byte[]> producer = pulsarClient.newProducer().topic("ingress").create();
+
+byte[] content = … ;
+
+producer.newMessage(Schema.NATIVE_AVRO(nativeAvroSchema)).value(content).send();
+
+```
+
 ## Schema version
 
 Each `SchemaInfo` stored with a topic has a version. Schema version manages schema changes happening within a topic. 
