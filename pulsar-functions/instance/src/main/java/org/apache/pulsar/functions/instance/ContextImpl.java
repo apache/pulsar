@@ -167,7 +167,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         if (useThreadLocalProducers) {
             tlPublishProducers = new ThreadLocal<>();
         } else {
-            publishProducers = new HashMap<>();
+            publishProducers = new ConcurrentHashMap<>();
         }
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
