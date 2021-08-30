@@ -73,7 +73,7 @@ if [ $RES -eq 0 ]; then
     cp *_test.py /tmp
     pushd /tmp
 
-    python python/custom_logger_test.py
+    python custom_logger_test.py
     RES=$?
     echo "custom_logger_test.py: $RES"
 
