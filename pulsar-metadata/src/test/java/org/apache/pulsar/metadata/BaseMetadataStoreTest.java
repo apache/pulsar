@@ -19,23 +19,26 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
-
 import java.util.concurrent.CompletionException;
-
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
-public abstract class BaseMetadataStoreTest {
+public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     protected TestZKServer zks;
 
     @BeforeClass(alwaysRun = true)
-    void setup() throws Exception {
+    @Override
+    protected void setup() throws Exception {
+        incrementSetupNumber();
         zks = new TestZKServer();
     }
 
     @AfterClass(alwaysRun = true)
-    void teardown() throws Exception {
+    @Override
+    protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         zks.close();
     }
 

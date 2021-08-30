@@ -52,11 +52,13 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private static final Logger log = LoggerFactory.getLogger(MLTransactionLogImpl.class);
 
-    private final ManagedLedger managedLedger;
+    private final ManagedLedgerFactory managedLedgerFactory;
+    private final ManagedLedgerConfig managedLedgerConfig;
+    private ManagedLedger managedLedger;
 
     public static final String TRANSACTION_LOG_PREFIX = "__transaction_log_";
 
-    private final ManagedCursor cursor;
+    private ManagedCursor cursor;
 
     public static final String TRANSACTION_SUBSCRIPTION_NAME = "transaction.subscription";
 
@@ -70,16 +72,48 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     public MLTransactionLogImpl(TransactionCoordinatorID tcID,
                                 ManagedLedgerFactory managedLedgerFactory,
-                                ManagedLedgerConfig managedLedgerConfig) throws Exception {
+                                ManagedLedgerConfig managedLedgerConfig) {
         this.topicName = TopicName.get(TopicDomain.persistent.value(),
                 NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + tcID.getId());
         this.tcId = tcID.getId();
         this.mlTransactionLogInterceptor = new MLTransactionLogInterceptor();
         managedLedgerConfig.setManagedLedgerInterceptor(this.mlTransactionLogInterceptor);
-        this.managedLedger = managedLedgerFactory.open(topicName.getPersistenceNamingEncoding(), managedLedgerConfig);
-        this.cursor =  managedLedger.openCursor(TRANSACTION_SUBSCRIPTION_NAME,
-                CommandSubscribe.InitialPosition.Earliest);
+        this.managedLedgerFactory = managedLedgerFactory;
+        this.managedLedgerConfig = managedLedgerConfig;
         this.entryQueue = new SpscArrayQueue<>(2000);
+    }
+
+    @Override
+    public CompletableFuture<Void> initialize() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(),
+                managedLedgerConfig,
+                new AsyncCallbacks.OpenLedgerCallback() {
+                    @Override
+                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                        MLTransactionLogImpl.this.managedLedger = ledger;
+
+                        managedLedger.asyncOpenCursor(TRANSACTION_SUBSCRIPTION_NAME,
+                                CommandSubscribe.InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
+                                    @Override
+                                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                                        MLTransactionLogImpl.this.cursor = cursor;
+                                        future.complete(null);
+                                    }
+
+                                    @Override
+                                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                                        future.completeExceptionally(exception);
+                                    }
+                                }, null);
+                    }
+
+                    @Override
+                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null, null);
+        return future;
     }
 
     @Override

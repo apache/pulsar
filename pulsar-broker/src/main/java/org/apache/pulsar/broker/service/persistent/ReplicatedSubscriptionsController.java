@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -123,10 +124,16 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
-        topic.publishMessage(subscriptionUpdate, this);
+        writeMarker(subscriptionUpdate);
     }
 
     private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
+        // if replicator producer is already closed, restart it to send snapshot response
+        Replicator replicator = topic.getReplicators().get(request.getSourceCluster());
+        if (!replicator.isConnected()) {
+            topic.startReplProducers();
+        }
+
         // Send response containing the current last written message id. The response
         // marker we're publishing locally and then replicating will have a higher
         // message id.
@@ -140,8 +147,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 request.getSourceCluster(),
                 localCluster,
                 lastMsgId.getLedgerId(), lastMsgId.getEntryId());
-
-        topic.publishMessage(marker, this);
+        writeMarker(marker);
     }
 
     private void receivedSnapshotResponse(Position position, ReplicatedSubscriptionsSnapshotResponse response) {
@@ -276,7 +282,11 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     void writeMarker(ByteBuf marker) {
-        topic.publishMessage(marker, this);
+        try {
+            topic.publishMessage(marker, this);
+        } finally {
+            marker.release();
+        }
     }
 
     /**

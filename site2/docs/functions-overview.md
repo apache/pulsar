@@ -34,7 +34,7 @@ Pulsar Functions provide a wide range of functionality, and the core programming
 
   * Apply some processing logic to the input and write output to:
     * An **output topic** in Pulsar
-    * [Apache BookKeeper](#state-storage)
+    * [Apache BookKeeper](functions-develop.md#state-storage)
   * Write logs to a **log topic** (potentially for debugging purposes)
   * Increment a [counter](#word-count-example)
 

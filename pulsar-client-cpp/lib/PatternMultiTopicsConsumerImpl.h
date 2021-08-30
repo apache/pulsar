@@ -20,11 +20,18 @@
 #define PULSAR_PATTERN_MULTI_TOPICS_CONSUMER_HEADER
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
-#include <regex>
 #include <lib/TopicName.h>
 #include <lib/NamespaceName.h>
 #include "MultiTopicsConsumerImpl.h"
 #include <memory>
+
+#ifdef PULSAR_USE_BOOST_REGEX
+#include <boost/regex.hpp>
+#define PULSAR_REGEX_NAMESPACE boost
+#else
+#include <regex>
+#define PULSAR_REGEX_NAMESPACE std
+#endif
 
 namespace pulsar {
 
@@ -41,13 +48,13 @@ class PatternMultiTopicsConsumerImpl : public MultiTopicsConsumerImpl {
                                    const std::string& subscriptionName, const ConsumerConfiguration& conf,
                                    const LookupServicePtr lookupServicePtr_);
 
-    const std::regex getPattern();
+    const PULSAR_REGEX_NAMESPACE::regex getPattern();
 
     void autoDiscoveryTimerTask(const boost::system::error_code& err);
 
     // filter input `topics` with given `pattern`, return matched topics
     static NamespaceTopicsPtr topicsPatternFilter(const std::vector<std::string>& topics,
-                                                  const std::regex& pattern);
+                                                  const PULSAR_REGEX_NAMESPACE::regex& pattern);
 
     // Find out topics, which are in `list1` but not in `list2`.
     static NamespaceTopicsPtr topicsListsMinus(std::vector<std::string>& list1,
@@ -59,7 +66,7 @@ class PatternMultiTopicsConsumerImpl : public MultiTopicsConsumerImpl {
 
    private:
     const std::string patternString_;
-    const std::regex pattern_;
+    const PULSAR_REGEX_NAMESPACE::regex pattern_;
     typedef std::shared_ptr<boost::asio::deadline_timer> TimerPtr;
     TimerPtr autoDiscoveryTimer_;
     bool autoDiscoveryRunning_;

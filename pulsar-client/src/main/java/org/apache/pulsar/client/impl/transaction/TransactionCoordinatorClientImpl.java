@@ -134,11 +134,13 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
             LOG.warn("The transaction meta store is closing or closed, doing nothing.");
             result.complete(null);
         } else {
-            for (TransactionMetaStoreHandler handler : handlers) {
-                try {
-                    handler.close();
-                } catch (IOException e) {
-                    LOG.warn("Close transaction meta store handler error", e);
+            if (handlers != null) {
+                for (TransactionMetaStoreHandler handler : handlers) {
+                    try {
+                        handler.close();
+                    } catch (IOException e) {
+                        LOG.warn("Close transaction meta store handler error", e);
+                    }
                 }
             }
             this.handlers = null;

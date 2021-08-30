@@ -166,7 +166,7 @@ class PULSAR_PUBLIC ClientConfiguration {
     /**
      * @return the path to the trusted TLS certificate file
      */
-    std::string getTlsTrustCertsFilePath() const;
+    const std::string& getTlsTrustCertsFilePath() const;
 
     /**
      * Configure whether the Pulsar client accepts untrusted TLS certificates from brokers.
@@ -243,6 +243,22 @@ class PULSAR_PUBLIC ClientConfiguration {
      * Get partitions update interval in seconds.
      */
     unsigned int getPartitionsUpdateInterval() const;
+
+    /**
+     * Set the duration of time to wait for a connection to a broker to be established. If the duration passes
+     * without a response from the broker, the connection attempt is dropped.
+     *
+     * Default: 10000
+     *
+     * @param timeoutMs the duration in milliseconds
+     * @return
+     */
+    ClientConfiguration& setConnectionTimeout(int timeoutMs);
+
+    /**
+     * The getter associated with setConnectionTimeout().
+     */
+    int getConnectionTimeout() const;
 
     friend class ClientImpl;
     friend class PulsarWrapper;

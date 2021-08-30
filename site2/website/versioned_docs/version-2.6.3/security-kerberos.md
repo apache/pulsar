@@ -194,7 +194,7 @@ You must ensure that the operating system user who starts pulsar client can reac
 
 #### Configure CLI tools
 
-If you use a command-line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need to preform the following steps:
+If you use a command-line tool (such as `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`), you need to perform the following steps:
 
 Step 1. Enter the command below to configure your `client.conf`.
 ```shell
@@ -219,7 +219,7 @@ With the above configuration, client and broker can do authentication using Kerb
 
 A client that connects to Pulsar Proxy is a little different. Pulsar Proxy (as a SASL Server in Kerberos) authenticates Client (as a SASL client in Kerberos) first; and then Pulsar broker authenticates Pulsar Proxy. 
 
-Now in comparision with the above configuration between client and broker, we show you how to configure Pulsar Proxy as follows. 
+Now in comparison with the above configuration between client and broker, we show you how to configure Pulsar Proxy as follows. 
 
 ### Create principal for Pulsar Proxy in Kerberos
 
@@ -239,7 +239,7 @@ sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabnam
 
 ### Add a section in JAAS configuration file for Pulsar Proxy
 
-In comparision with the above configuration, add a new section for Pulsar Proxy in JAAS configuration file.
+In comparison with the above configuration, add a new section for Pulsar Proxy in JAAS configuration file.
 
 Here is an example named `pulsar_jaas.conf`:
 

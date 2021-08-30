@@ -4,13 +4,23 @@ title: Managing Namespaces
 sidebar_label: Namespaces
 ---
 
+> **Important**
+>
+> This page only shows **some frequently used operations**.
+>
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> 
+> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+> 
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+
 Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of [topics](reference-terminology.md#topic).
 
 Namespaces can be managed via:
 
-* The [`namespaces`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
+* The `namespaces` command of the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool
 * The `/admin/v2/namespaces` endpoint of the admin {@inject: rest:REST:/} API
-* The `namespaces` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
+* The `namespaces` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 ## Namespaces resources
 
@@ -29,7 +39,9 @@ $ pulsar-admin namespaces create test-tenant/test-namespace
 
 <!--REST API-->
 
+```
 {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/createNamespace?version=[[pulsar:version_number]]}
+```
 
 <!--Java-->
 
@@ -74,7 +86,9 @@ $ pulsar-admin namespaces policies test-tenant/test-namespace
 
 <!--REST API-->
 
+```
 {@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace|operation/getPolicies?version=[[pulsar:version_number]]}
+```
 
 <!--Java-->
 
@@ -100,7 +114,9 @@ test-tenant/ns2
 
 <!--REST API-->
 
+```
 {@inject: endpoint|GET|/admin/v2/namespaces/:tenant|operation/getTenantNamespaces?version=[[pulsar:version_number]]}
+```
 
 <!--Java-->
 
@@ -124,7 +140,9 @@ $ pulsar-admin namespaces delete test-tenant/ns1
 
 <!--REST API-->
 
+```
 {@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace|operation/deleteNamespace?version=[[pulsar:version_number]]}
+```
 
 <!--Java-->
 
@@ -137,7 +155,7 @@ admin.namespaces().deleteNamespace(namespace);
 
 #### Set replication cluster
 
-It sets replication clusters for a namespace, so Pulsar can internally replicate publish message from one colo to another colo.
+You can set replication clusters for a namespace to enable Pulsar to internally replicate the published messages from one colocation facility to another.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -162,7 +180,7 @@ admin.namespaces().setNamespaceReplicationClusters(namespace, clusters);
 
 #### Get replication cluster
 
-It gives a list of replication clusters for a given namespace.
+You can get the list of replication clusters for a given namespace.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -194,23 +212,19 @@ admin.namespaces().getNamespaceReplicationClusters(namespace)
 
 Backlog quota helps the broker to restrict bandwidth/storage of a namespace once it reaches a certain threshold limit. Admin can set the limit and take corresponding action after the limit is reached.
 
-  1.  producer_request_hold: broker will hold and not persist produce request payload
+  1.  producer_request_hold: broker holds but not persists produce request payload
 
-  2.  producer_exception: broker disconnects with the client by giving an exception.
+  2.  producer_exception: broker disconnects with the client by giving an exception
 
-  3.  consumer_backlog_eviction: broker will start discarding backlog messages
+  3.  consumer_backlog_eviction: broker starts discarding backlog messages
 
-  Backlog quota restriction can be taken care by defining restriction of backlog-quota-type: destination_storage
+Backlog quota restriction can be taken care by defining restriction of backlog-quota-type: destination_storage.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 
 ```
 $ pulsar-admin namespaces set-backlog-quota --limit 10G --limitTime 36000 --policy producer_request_hold test-tenant/ns1
-```
-
-```
-N/A
 ```
 
 <!--REST API-->
@@ -228,7 +242,7 @@ admin.namespaces().setBacklogQuota(namespace, new BacklogQuota(limit, limitTime,
 
 #### Get backlog quota policies
 
-It shows a configured backlog quota for a given namespace.
+You can get a configured backlog quota for a given namespace.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -261,17 +275,13 @@ admin.namespaces().getBacklogQuotaMap(namespace);
 
 #### Remove backlog quota policies
 
-It removes backlog quota policies for a given namespace
+You can remove backlog quota policies for a given namespace.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 
 ```
 $ pulsar-admin namespaces remove-backlog-quota test-tenant/ns1
-```
-
-```
-N/A
 ```
 
 <!--REST API-->
@@ -291,7 +301,7 @@ admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 
 #### Set persistence policies
 
-Persistence policies allow to configure persistency-level for all topic messages under a given namespace.
+Persistence policies allow users to configure persistency-level for all topic messages under a given namespace.
 
   -   Bookkeeper-ack-quorum: Number of acks (guaranteed copies) to wait for each entry, default: 0
 
@@ -306,10 +316,6 @@ Persistence policies allow to configure persistency-level for all topic messages
 
 ```
 $ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-tenant/ns1
-```
-
-```
-N/A
 ```
 
 <!--REST API-->
@@ -327,7 +333,7 @@ admin.namespaces().setPersistence(namespace,new PersistencePolicies(bookkeeperEn
 
 #### Get persistence policies
 
-It shows the configured persistence policies of a given namespace.
+You can get the configured persistence policies of a given namespace.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -371,10 +377,6 @@ The namespace bundle is a virtual group of topics which belong to the same names
 $ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/ns1
 ```
 
-```
-N/A
-```
-
 <!--REST API-->
 
 ```
@@ -390,18 +392,13 @@ admin.namespaces().unloadNamespaceBundle(namespace, bundle)
 
 #### Split namespace bundles
 
-Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
-If a single bundle is creating an excessive load on a broker, an admin splits the bundle using this command permitting one or more of the new bundles to be unloaded thus spreading the load across the brokers.
+One namespace bundle can contain multiple topics but can be served by only one broker. If a single bundle is creating an excessive load on a broker, an admin can split the bundle using the command below, permitting one or more of the new bundles to be unloaded, thus balancing the load across the brokers.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 
 ```
 $ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
-```
-
-```
-N/A
 ```
 
 <!--REST API-->
@@ -421,17 +418,13 @@ admin.namespaces().splitNamespaceBundle(namespace, bundle)
 
 #### Set message-ttl
 
-It configures message’s time to live (in seconds) duration.
+You can configure the time to live (in seconds) duration for messages. In the example below, the message-ttl is set as 100s.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 
 ```
 $ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-tenant/ns1
-```
-
-```
-N/A
 ```
 
 <!--REST API-->
@@ -449,7 +442,7 @@ admin.namespaces().setNamespaceMessageTTL(namespace, messageTTL)
 
 #### Get message-ttl
 
-It gives a message ttl of configured namespace.
+When the message-ttl for a namespace is set, you can use the command below to get the configured value. This example comtinues the example of the command `set message-ttl`, so the returned value is 100(s).
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
@@ -468,11 +461,20 @@ $ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 {@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
 ```
 
+```
+100
+```
+
 <!--Java-->
 
 ```java
 admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
+
+```
+100
+```
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 #### Remove message-ttl
@@ -484,10 +486,6 @@ Remove a message TTL of the configured namespace.
 
 ```
 $ pulsar-admin namespaces remove-message-ttl test-tenant/ns1
-```
-
-```
-100
 ```
 
 <!--REST API-->
@@ -517,10 +515,6 @@ It clears all message backlog for all the topics that belong to a specific names
 $ pulsar-admin namespaces clear-backlog --sub my-subscription test-tenant/ns1
 ```
 
-```
-N/A
-```
-
 <!--REST API-->
 
 ```
@@ -543,10 +537,6 @@ It clears all message backlog for all the topics that belong to a specific Names
 
 ```
 $ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-tenant/ns1
-```
-
-```
-N/A
 ```
 
 <!--REST API-->
@@ -572,11 +562,7 @@ Each namespace contains multiple topics and the retention size (storage size) of
 <!--pulsar-admin-->
 
 ```
-$ pulsar-admin set-retention --size 100 --time 10 test-tenant/ns1
-```
-
-```
-N/A
+$ pulsar-admin namespaces set-retention --size 100 --time 10 test-tenant/ns1
 ```
 
 <!--REST API-->
@@ -634,9 +620,9 @@ disables the throttling.
 
 > **Note**
 > - If neither `clusterDispatchRate` nor `topicDispatchRate` is configured, dispatch throttling is disabled.
-> >
+>
 > - If `topicDispatchRate` is not configured, `clusterDispatchRate` takes effect.
-> > 
+>
 > - If `topicDispatchRate` is configured, `topicDispatchRate` takes effect.
 
 <!--DOCUSAURUS_CODE_TABS-->
@@ -905,7 +891,7 @@ admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
 
 ### Namespace isolation
 
-Coming soon.
+You can use the [Pulsar isolation policy](administration-isolation.md) to allocate resources (broker and bookie) for a namespace. 
 
 ### Unload namespaces from a broker
 

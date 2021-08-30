@@ -69,11 +69,10 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         setReader(new ProtobufReader<>(protoMessageInstance));
         setWriter(new ProtobufWriter<>());
         // update properties with protobuf related properties
-        Map<String, String> allProperties = new HashMap<>();
-        allProperties.putAll(schemaInfo.getProperties());
         // set protobuf parsing info
+        Map<String, String> allProperties = new HashMap<>(schemaInfo.getProperties());
         allProperties.put(PARSING_INFO_PROPERTY, getParsingInfo(protoMessageInstance));
-        schemaInfo.setProperties(allProperties);
+        ((SchemaInfoImpl)schemaInfo).setProperties(allProperties);
     }
 
     private String getParsingInfo(T protoMessageInstance) {
@@ -111,7 +110,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
                     + " is not assignable from " + pojo.getName());
         }
 
-            SchemaInfo schemaInfo = SchemaInfo.builder()
+            SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
                     .type(SchemaType.PROTOBUF)
                     .name("")

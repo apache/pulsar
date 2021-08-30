@@ -14,6 +14,8 @@ Package | Description | Maven Artifact
 :-------|:------------|:--------------
 [`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{pulsar:version}}%7Cjar)
 [`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C{{pulsar:version}}%7Cjar)
+`org.apache.pulsar.client.all` |Includes both `pulsar-client` and `pulsar-client-admin`<br></br> Both `pulsar-client` and `pulsar-client-admin` are shaded packages and they shade dependencies independently. Consequently, the applications using both `pulsar-client` and `pulsar-client-admin` have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules. <br></br> In this case, you can use `pulsar-client-all`, which shades dependencies only one time and reduces the size of dependencies.  |[org.apache.pulsar:pulsar-client-all:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C{{pulsar:version}}%7Cjar)
+
 
 This document focuses only on the client API for producing and consuming messages on Pulsar topics. For how to use the Java admin client, see [Pulsar admin interface](admin-api-overview.md).
 
@@ -121,7 +123,9 @@ int|`connectionTimeoutMs`|Duration of waiting for a connection to a broker to be
 int|`requestTimeoutMs`|Maximum duration for completing a request |60000
 int|`defaultBackoffIntervalNanos`| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100);
 long|`maxBackoffIntervalNanos`|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30)
-
+SocketAddress|`socks5ProxyAddress`|SOCKS5 proxy address | None
+String|`socks5ProxyUsername`|SOCKS5 proxy username | None
+String|`socks5ProxyPassword`|SOCKS5 proxy password | None
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
 > In addition to client-level configuration, you can also apply [producer](#configuring-producers) and [consumer](#configuring-consumers) specific configuration as described in sections below.
@@ -264,6 +268,25 @@ while (true) {
       consumer.negativeAcknowledge(msg);
   }
 }
+```
+        
+If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
+
+```java
+MessageListener myMessageListener = (consumer, msg) -> {
+  try {
+      System.out.println("Message received: " + new String(msg.getData()));
+      consumer.acknowledge(msg);
+  } catch (Exception e) {
+      consumer.negativeAcknowledge(msg);
+  }
+}
+
+Consumer consumer = client.newConsumer()
+     .topic("my-topic")
+     .subscriptionName("my-subscription")
+     .messageListener(myMessageListener)
+     .subscribe();
 ```
 
 ### Configure consumer
@@ -570,7 +593,7 @@ If a broker dispatches only one message at a time, consumer1 receives the follow
 ("key-4", "message-4-1")
 ```
 
-consumer2 receives the follwoing information.
+consumer2 receives the following information.
 
 ```
 ("key-1", "message-1-2")
@@ -603,7 +626,7 @@ Consumer consumer2 = client.newConsumer()
 
 `Key_Shared` subscription is like `Shared` subscription, all consumers can attach to the same subscription. But it is different from `Key_Shared` subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
 
-consumer1 receives the follwoing information.
+consumer1 receives the following information.
 
 ```
 ("key-1", "message-1-1")
@@ -613,7 +636,7 @@ consumer1 receives the follwoing information.
 ("key-3", "message-3-2")
 ```
 
-consumer2 receives the follwoing information.
+consumer2 receives the following information.
 
 ```
 ("key-2", "message-2-1")
@@ -712,7 +735,7 @@ Producer<byte[]> producer = client.newProducer()
 
 The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](reference-terminology.md#topic).
 
-### Schema example
+### AvroBaseStructSchema example
 
 Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
 
@@ -795,6 +818,10 @@ The following schema formats are currently available for Java:
         .topic("some-avro-topic")
         .create();
   ```
+
+### ProtobufNativeSchema example
+
+For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](schema-understand.md#complex-type).
 
 ## Authentication
 

@@ -39,6 +39,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -85,7 +86,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -102,6 +102,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -161,7 +162,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
-        doReturn(mockZooKeeper).when(namespaces).localZk();
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
@@ -805,7 +805,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return bundle.getNamespaceObject().equals(testNs);
             }
         }));
-        doReturn(Optional.of(new NamespaceEphemeralData())).when(nsSvc)
+        doReturn(Optional.of(mock(NamespaceEphemeralData.class))).when(nsSvc)
                 .getOwner(Mockito.argThat(new ArgumentMatcher<NamespaceBundle>() {
                     @Override
                     public boolean matches(NamespaceBundle bundle) {
@@ -1247,20 +1247,19 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // Subscribe Rate Limiter is enabled, will limited by broker
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        Thread.sleep(1000L);
-        assertFalse(consumer.isConnected());
+        Awaitility.await().untilAsserted(() -> assertFalse(consumer.isConnected()));
 
         // Out of limit period
-        Thread.sleep(6000L);
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        assertTrue(consumer.isConnected());
+        Awaitility.await()
+                .pollDelay(Duration.ofSeconds(6))
+                .untilAsserted(() -> assertTrue(consumer.isConnected()));
 
         // Disable Subscribe Rate Limiter
         subscribeRate = new SubscribeRate(0, 10);
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         pulsarClient.updateServiceUrl(lookupUrl.toString());
-        Thread.sleep(1000L);
-        assertTrue(consumer.isConnected());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
         pulsar.getConfiguration().setAuthorizationEnabled(true);
         admin.topics().deletePartitionedTopic(topicName, true);
         admin.namespaces().deleteNamespace(namespace);

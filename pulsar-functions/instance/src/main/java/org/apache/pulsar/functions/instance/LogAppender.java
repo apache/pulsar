@@ -19,7 +19,10 @@
 package org.apache.pulsar.functions.instance;
 
 import java.nio.charset.StandardCharsets;
-import org.apache.logging.log4j.core.*;
+import org.apache.logging.log4j.core.Appender;
+import org.apache.logging.log4j.core.ErrorHandler;
+import org.apache.logging.log4j.core.Layout;
+import org.apache.logging.log4j.core.LogEvent;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -35,14 +38,16 @@ public class LogAppender implements Appender {
     private PulsarClient pulsarClient;
     private String logTopic;
     private String fqn;
+    private String instance;
     private State state;
     private ErrorHandler errorHandler;
     private Producer<byte[]> producer;
 
-    public LogAppender(PulsarClient pulsarClient, String logTopic, String fqn) {
+    public LogAppender(PulsarClient pulsarClient, String logTopic, String fqn, String instance) {
         this.pulsarClient = pulsarClient;
         this.logTopic = logTopic;
         this.fqn = fqn;
+        this.instance = instance;
     }
 
     @Override
@@ -50,6 +55,8 @@ public class LogAppender implements Appender {
         producer.newMessage()
                 .value(logEvent.getMessage().getFormattedMessage().getBytes(StandardCharsets.UTF_8))
                 .property("loglevel", logEvent.getLevel().name())
+                .property("instance", instance)
+                .property("fqn", fqn)
                 .sendAsync();
     }
 

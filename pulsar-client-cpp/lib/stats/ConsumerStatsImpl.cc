@@ -30,24 +30,17 @@ ConsumerStatsImpl::ConsumerStatsImpl(std::string consumerStr, ExecutorServicePtr
     : consumerStr_(consumerStr),
       executor_(executor),
       timer_(executor_->createDeadlineTimer()),
-      statsIntervalInSeconds_(statsIntervalInSeconds),
-      receivedMsgMap_(),
-      ackedMsgMap_(),
-      totalReceivedMsgMap_(),
-      totalAckedMsgMap_(),
-      totalNumBytesRecieved_(0),
-      numBytesRecieved_(0),
-      mutex_() {
+      statsIntervalInSeconds_(statsIntervalInSeconds) {
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
     timer_->async_wait(std::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, std::placeholders::_1));
 }
 
 ConsumerStatsImpl::ConsumerStatsImpl(const ConsumerStatsImpl& stats)
     : consumerStr_(stats.consumerStr_),
-      totalNumBytesRecieved_(stats.totalNumBytesRecieved_),
       numBytesRecieved_(stats.numBytesRecieved_),
       receivedMsgMap_(stats.receivedMsgMap_),
       ackedMsgMap_(stats.ackedMsgMap_),
+      totalNumBytesRecieved_(stats.totalNumBytesRecieved_),
       totalReceivedMsgMap_(stats.totalReceivedMsgMap_),
       totalAckedMsgMap_(stats.totalAckedMsgMap_),
       statsIntervalInSeconds_(stats.statsIntervalInSeconds_) {}

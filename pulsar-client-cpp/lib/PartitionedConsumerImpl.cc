@@ -31,14 +31,10 @@ PartitionedConsumerImpl::PartitionedConsumerImpl(ClientImplPtr client, const std
       subscriptionName_(subscriptionName),
       topicName_(topicName),
       numPartitions_(numPartitions),
-      numConsumersCreated_(0),
       conf_(conf),
-      state_(Pending),
-      unsubscribedSoFar_(0),
       messages_(1000),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
-      pendingReceives_(),
       topic_(topicName->toString()) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[Partitioned Consumer: " << topic_ << "," << subscriptionName << ","
@@ -633,6 +629,19 @@ bool PartitionedConsumerImpl::isConnected() const {
         }
     }
     return true;
+}
+
+uint64_t PartitionedConsumerImpl::getNumberOfConnectedConsumer() {
+    uint64_t numberOfConnectedConsumer = 0;
+    Lock consumersLock(consumersMutex_);
+    const auto consumers = consumers_;
+    consumersLock.unlock();
+    for (const auto& consumer : consumers) {
+        if (consumer->isConnected()) {
+            numberOfConnectedConsumer++;
+        }
+    }
+    return numberOfConnectedConsumer;
 }
 
 }  // namespace pulsar

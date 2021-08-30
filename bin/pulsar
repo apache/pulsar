@@ -276,6 +276,9 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 # directory)
 OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
 
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
+
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
 if [ $COMMAND == "bookie" ]; then

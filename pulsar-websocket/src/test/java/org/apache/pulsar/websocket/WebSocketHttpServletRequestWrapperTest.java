@@ -21,7 +21,7 @@ package org.apache.pulsar.websocket;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.eclipse.jetty.websocket.servlet.UpgradeHttpServletRequest;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -45,8 +45,9 @@ public class WebSocketHttpServletRequestWrapperTest {
 
         WebSocketHttpServletRequestWrapper webSocketHttpServletRequestWrapper =
                 new WebSocketHttpServletRequestWrapper(httpServletRequest);
-        Assert.assertEquals(BEARER_TOKEN,
-                webSocketHttpServletRequestWrapper.getHeader(WebSocketHttpServletRequestWrapper.HTTP_HEADER_NAME));
+        Assert.assertEquals(
+                webSocketHttpServletRequestWrapper.getHeader(WebSocketHttpServletRequestWrapper.HTTP_HEADER_NAME),
+                BEARER_TOKEN);
     }
 
     @Test
@@ -57,8 +58,9 @@ public class WebSocketHttpServletRequestWrapperTest {
 
         WebSocketHttpServletRequestWrapper webSocketHttpServletRequestWrapper =
                 new WebSocketHttpServletRequestWrapper(httpServletRequest);
-        Assert.assertEquals(BEARER_TOKEN,
-                webSocketHttpServletRequestWrapper.getHeader(WebSocketHttpServletRequestWrapper.HTTP_HEADER_NAME));
+        Assert.assertEquals(
+                webSocketHttpServletRequestWrapper.getHeader(WebSocketHttpServletRequestWrapper.HTTP_HEADER_NAME),
+                BEARER_TOKEN);
     }
 
     @Test
@@ -79,7 +81,8 @@ public class WebSocketHttpServletRequestWrapperTest {
         WebSocketHttpServletRequestWrapper webSocketHttpServletRequestWrapper =
                 new WebSocketHttpServletRequestWrapper(httpServletRequest);
 
-        Assert.assertEquals("test-user", service.getAuthenticationService().authenticateHttpRequest(webSocketHttpServletRequestWrapper));
+        Assert.assertEquals(service.getAuthenticationService().authenticateHttpRequest(webSocketHttpServletRequestWrapper),
+                "test-user");
     }
 
 }

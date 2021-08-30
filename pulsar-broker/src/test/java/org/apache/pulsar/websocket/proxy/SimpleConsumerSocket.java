@@ -79,15 +79,19 @@ public class SimpleConsumerSocket {
     public synchronized void onMessage(String msg) throws JsonParseException, IOException {
         receivedMessages.incrementAndGet();
         JsonObject message = new Gson().fromJson(msg, JsonObject.class);
-        String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
-        consumerBuffer.add(messageId);
-        if (customMessageHandler != null) {
-            this.getRemote().sendString(customMessageHandler.handle(messageId, message));
+        if (message.get(X_PULSAR_MESSAGE_ID) != null) {
+            String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
+            consumerBuffer.add(messageId);
+            if (customMessageHandler != null) {
+                this.getRemote().sendString(customMessageHandler.handle(messageId, message));
+            } else {
+                JsonObject ack = new JsonObject();
+                ack.add("messageId", new JsonPrimitive(messageId));
+                // Acking the proxy
+                this.getRemote().sendString(ack.toString());
+            }
         } else {
-            JsonObject ack = new JsonObject();
-            ack.add("messageId", new JsonPrimitive(messageId));
-            // Acking the proxy
-            this.getRemote().sendString(ack.toString());
+            consumerBuffer.add(message.toString());
         }
     }
 

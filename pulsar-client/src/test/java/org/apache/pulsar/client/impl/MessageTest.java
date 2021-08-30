@@ -39,7 +39,7 @@ public class MessageTest {
         String from = "ClusterNameOfReplicatedFrom";
         MessageMetadata builder = new MessageMetadata().setReplicatedFrom(from);
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
 
         assertTrue(msg.isReplicated());
         assertEquals(msg.getReplicatedFrom(), from);
@@ -49,7 +49,7 @@ public class MessageTest {
     public void testMessageImplNoReplicatedInfo() {
         MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
 
         assertFalse(msg.isReplicated());
         assertNull(msg.getReplicatedFrom());
@@ -61,7 +61,7 @@ public class MessageTest {
         String topicName = "myTopic";
         MessageMetadata builder = new MessageMetadata().setReplicatedFrom(from);
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
         TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
 
@@ -74,7 +74,7 @@ public class MessageTest {
         String topicName = "myTopic";
         MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        MessageImpl<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
         msg.setMessageId(new MessageIdImpl(-1, -1, -1));
         TopicMessageImpl<byte[]> topicMessage = new TopicMessageImpl<>(topicName, topicName, msg, null);
 

@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
@@ -268,12 +269,26 @@ public interface Brokers {
      *
      * @throws PulsarAdminException if the healthcheck fails.
      */
+    @Deprecated
     void healthcheck() throws PulsarAdminException;
 
     /**
      * Run a healthcheck on the broker asynchronously.
      */
+    @Deprecated
     CompletableFuture<Void> healthcheckAsync();
+
+    /**
+     * Run a healthcheck on the broker.
+     *
+     * @throws PulsarAdminException if the healthcheck fails.
+     */
+    void healthcheck(TopicVersion topicVersion) throws PulsarAdminException;
+
+    /**
+     * Run a healthcheck on the broker asynchronously.
+     */
+    CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion);
 
     /**
      * Get version of broker.

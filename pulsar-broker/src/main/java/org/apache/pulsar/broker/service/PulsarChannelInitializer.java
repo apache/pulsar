@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -129,7 +130,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
         ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ServerCnx cnx = new ServerCnx(pulsar);
+        ServerCnx cnx = newServerCnx(pulsar);
         ch.pipeline().addLast("handler", cnx);
 
         connections.put(ch.remoteAddress(), cnx);
@@ -144,4 +145,16 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             }
         });
     }
+
+    @VisibleForTesting
+    protected ServerCnx newServerCnx(PulsarService pulsar) throws Exception {
+        return new ServerCnx(pulsar);
+    }
+
+    public interface Factory {
+        PulsarChannelInitializer newPulsarChannelInitializer(PulsarService pulsar, boolean enableTLS) throws Exception;
+    }
+
+    public static final Factory DEFAULT_FACTORY =
+        (pulsar, tls) -> new PulsarChannelInitializer(pulsar, tls);
 }

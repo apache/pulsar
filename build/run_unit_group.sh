@@ -42,7 +42,7 @@ function broker_group_1() {
 }
 
 function broker_group_2() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,other'
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other'
 }
 
 function broker_client_api() {
@@ -51,6 +51,10 @@ function broker_client_api() {
 
 function broker_client_impl() {
   $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-impl'
+}
+
+function broker_jdk8() {
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='broker-jdk8' -Dpulsar.allocator.pooled=true
 }
 
 # prints summaries of failed tests to console
@@ -175,6 +179,10 @@ case $TEST_GROUP in
 
   OTHER)
     other
+    ;;
+
+  BROKER_JDK8)
+    broker_jdk8
     ;;
 
   *)

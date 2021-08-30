@@ -31,7 +31,6 @@
 
   <artifactId>pulsar-metadata</artifactId>
   <name>Pulsar Metadata</name>
-
   <dependencies>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
@@ -43,18 +42,24 @@
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
     </dependency>
-    
+
     <!-- zookeeper server -->
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
       <scope>test</scope>
     </dependency>
-    
+
     <!-- zookeeper server -->
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -68,11 +73,6 @@
       <artifactId>caffeine</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.awaitility</groupId>
-      <artifactId>awaitility</artifactId>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>

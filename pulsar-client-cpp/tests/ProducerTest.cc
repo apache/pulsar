@@ -18,11 +18,13 @@
  */
 #include <pulsar/Client.h>
 #include <gtest/gtest.h>
+#include <thread>
 
 #include "HttpHelper.h"
 
 #include "lib/Future.h"
 #include "lib/Utils.h"
+#include "lib/Latch.h"
 #include "lib/LogUtils.h"
 DECLARE_LOG_OBJECT()
 
@@ -125,4 +127,117 @@ TEST(ProducerTest, testIsConnected) {
     ASSERT_FALSE(producer.isConnected());
 
     client.close();
+}
+
+TEST(ProducerTest, testSendAsyncAfterCloseAsyncWithLazyProducers) {
+    Client client(serviceUrl);
+    const std::string partitionedTopic =
+        "testProducerIsConnectedPartitioned-" + std::to_string(time(nullptr));
+
+    int res = makePutRequest(
+        adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "10");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    ProducerConfiguration producerConfiguration;
+    producerConfiguration.setLazyStartPartitionedProducers(true);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfiguration, producer));
+
+    Message msg = MessageBuilder().setContent("test").build();
+
+    Promise<bool, Result> promiseClose;
+    producer.closeAsync(WaitForCallback(promiseClose));
+
+    Promise<Result, MessageId> promise;
+    producer.sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
+
+    MessageId mi;
+    ASSERT_EQ(ResultAlreadyClosed, promise.getFuture().get(mi));
+
+    Result result;
+    promiseClose.getFuture().get(result);
+    ASSERT_EQ(ResultOk, result);
+}
+
+TEST(ProducerTest, testSendAsyncCloseAsyncConcurrentlyWithLazyProducers) {
+    // run sendAsync and closeAsync concurrently and verify that all sendAsync callbacks are called
+    // and that messages sent after closeAsync is invoked receive ResultAlreadyClosed.
+    for (int run = 0; run < 20; run++) {
+        LOG_INFO("Start of run " << run);
+        Client client(serviceUrl);
+        const std::string partitionedTopic =
+            "testProducerIsConnectedPartitioned-" + std::to_string(time(nullptr));
+
+        int res = makePutRequest(
+            adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "10");
+        ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+        ProducerConfiguration producerConfiguration;
+        producerConfiguration.setLazyStartPartitionedProducers(true);
+        producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
+        producerConfiguration.setBatchingEnabled(true);
+        Producer producer;
+        ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfiguration, producer));
+
+        int sendCount = 100;
+        std::vector<Promise<Result, MessageId>> promises(sendCount);
+        Promise<bool, Result> promiseClose;
+
+        // only call closeAsync once at least 10 messages have been sent
+        Latch sendStartLatch(10);
+        Latch closeLatch(1);
+        int closedAt = 0;
+
+        std::thread t1([&]() {
+            for (int i = 0; i < sendCount; i++) {
+                sendStartLatch.countdown();
+                Message msg = MessageBuilder().setContent("test").build();
+
+                if (closeLatch.getCount() == 0 && closedAt == 0) {
+                    closedAt = i;
+                    LOG_INFO("closedAt set to " << closedAt)
+                }
+
+                producer.sendAsync(msg, WaitForCallbackValue<MessageId>(promises[i]));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        });
+
+        std::thread t2([&]() {
+            sendStartLatch.wait(std::chrono::milliseconds(1000));
+            LOG_INFO("Closing");
+            producer.closeAsync(WaitForCallback(promiseClose));
+            LOG_INFO("Close called");
+            closeLatch.countdown();
+            Result result;
+            promiseClose.getFuture().get(result);
+            ASSERT_EQ(ResultOk, result);
+            LOG_INFO("Closed");
+        });
+
+        t1.join();
+        t2.join();
+
+        // make sure that all messages after the moment when closeAsync was invoked
+        // return AlreadyClosed
+        for (int i = 0; i < sendCount; i++) {
+            LOG_DEBUG("Checking " << i)
+
+            // whether a message was sent successfully or not, it's callback
+            // must have been invoked
+            ASSERT_EQ(true, promises[i].isComplete());
+            MessageId mi;
+            Result res = promises[i].getFuture().get(mi);
+            LOG_DEBUG("Result is " << res);
+
+            // for the messages sent after closeAsync was invoked, they
+            // should all return ResultAlreadyClosed
+            if (i >= closedAt) {
+                ASSERT_EQ(ResultAlreadyClosed, res);
+            }
+        }
+
+        client.close();
+        LOG_INFO("End of run " << run);
+    }
 }

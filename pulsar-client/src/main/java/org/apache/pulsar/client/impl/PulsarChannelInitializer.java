@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import io.netty.handler.proxy.Socks5ProxyHandler;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ObjectCache;
@@ -50,6 +51,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     @Getter
     private final boolean tlsEnabled;
     private final boolean tlsEnabledWithKeyStore;
+    private final InetSocketAddress socks5ProxyAddress;
+    private final String socks5ProxyUsername;
+    private final String socks5ProxyPassword;
 
     private final Supplier<SslContext> sslContextSupplier;
     private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
@@ -61,6 +65,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         super();
         this.clientCnxSupplier = clientCnxSupplier;
         this.tlsEnabled = conf.isUseTls();
+        this.socks5ProxyAddress = conf.getSocks5ProxyAddress();
+        this.socks5ProxyUsername = conf.getSocks5ProxyUsername();
+        this.socks5ProxyPassword = conf.getSocks5ProxyPassword();
+
         this.tlsEnabledWithKeyStore = conf.isUseKeyStoreTls();
 
         if (tlsEnabled) {
@@ -146,6 +154,25 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         });
 
         return initTlsFuture;
+    }
+
+    CompletableFuture<Channel> initSocks5IfConfig(Channel ch) {
+        CompletableFuture<Channel> initSocks5Future = new CompletableFuture<>();
+        if (socks5ProxyAddress != null) {
+            ch.eventLoop().execute(() -> {
+                try {
+                    Socks5ProxyHandler socks5ProxyHandler = new Socks5ProxyHandler(socks5ProxyAddress, socks5ProxyUsername, socks5ProxyPassword);
+                    ch.pipeline().addFirst(socks5ProxyHandler.protocol(), socks5ProxyHandler);
+                    initSocks5Future.complete(ch);
+                } catch (Throwable t) {
+                    initSocks5Future.completeExceptionally(t);
+                }
+            });
+        } else {
+            initSocks5Future.complete(ch);
+        }
+
+        return initSocks5Future;
     }
 }
 

@@ -40,7 +40,7 @@ https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
  * A C++ compiler that supports C++11, like GCC >= 4.8
  * CMake >= 3.4
  * [Boost](http://www.boost.org/)
- * [Protocol Buffer](https://developers.google.com/protocol-buffers/)
+ * [Protocol Buffer](https://developers.google.com/protocol-buffers/) >= 3
  * [libcurl](https://curl.se/libcurl/)
  * [openssl](https://github.com/openssl/openssl)
 
@@ -189,13 +189,13 @@ ${PULSAR_PATH}/pulsar-client-cpp/perf/perfConsumer
 
 It's highly recommended to use `vcpkg` for C++ package management on Windows. It's easy to install and well supported by Visual Studio (2015/2017/2019) and CMake. See [here](https://github.com/microsoft/vcpkg#quick-start-windows) for quick start.
 
-Take 64 bits Windows as an example, you only need to run
+Take Windows 64-bit library as an example, you only need to run
 
 ```bash
 vcpkg install --feature-flags=manifests --triplet x64-windows
 ```
 
-> NOTE: The default triplet is `x86-windows`, see [here](https://github.com/microsoft/vcpkg/blob/master/docs/users/triplets.md) for more details.
+> NOTE: For Windows 32-bit library, change `x64-windows` to `x86-windows`, see [here](https://github.com/microsoft/vcpkg/blob/master/docs/users/triplets.md) for more details about the triplet concept in Vcpkg.
 
 The all dependencies, which are specified by [vcpkg.json](vcpkg.json), will be installed in `vcpkg_installed/` subdirectory,
 
@@ -214,10 +214,10 @@ cmake --build ./build --config Release
 
 Then all artifacts will be built into `build` subdirectory.
 
-> NOTE:
+> **NOTE**
 >
-> 1. Change `Release` to `Debug` if you want to build a debug version library.
-> 2. For 32 bits Windows, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x32-windows`.
+> 1. For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> 2. For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
 
 #### Install dependencies manually
 
@@ -235,6 +235,26 @@ ${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCM
 #This will generate pulsar-cpp.sln. Open this in Visual Studio and build the desired configurations.
 ```
 
+#### Checks
+
+##### Client libraries are available in the following places.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.lib
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.dll
+```
+
+#### Examples
+
+##### Add windows environment paths.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release
+${PULSAR_PATH}/pulsar-client-cpp/vcpkg_installed
+```
+
+##### Examples are available in.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/examples/Release
+```
 
 ## Tests
 ```shell

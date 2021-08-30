@@ -49,7 +49,7 @@ fi
 BINDIR=`dirname "$0"`
 BK_HOME=`cd -P $BINDIR/..;pwd`
 
-DEFAULT_CONF=$BK_HOME/conf/bookkeper.conf
+DEFAULT_CONF=$BK_HOME/conf/bookkeeper.conf
 DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml
 
 source $BK_HOME/conf/bkenv.sh
@@ -162,6 +162,9 @@ fi
 BOOKIE_CLASSPATH="$BOOKIE_JAR:$BOOKIE_CLASSPATH:$BOOKIE_EXTRA_CLASSPATH"
 BOOKIE_CLASSPATH="`dirname $BOOKIE_LOG_CONF`:$BOOKIE_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
+
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 

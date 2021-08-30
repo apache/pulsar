@@ -525,9 +525,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
             // Since only 1 out of 10 consumers is stuck, we should be able to receive ~90% messages,
             // plus or minus for some skew in the key distribution.
-            Thread.sleep(5000);
-
-            assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+            });
         } finally {
             for (PulsarClient c : clients) {
                 c.close();
@@ -906,14 +906,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
-                .messageListener(new MessageListener<Integer>() {
-                    @Override
-                    public void received(Consumer<Integer> consumer, Message<Integer> msg) {
-                        try {
-                            Thread.sleep(random.nextInt(5));
-                            received.add(msg);
-                        } catch (InterruptedException ignore) {
-                        }
+                .messageListener((MessageListener<Integer>) (consumer1, msg) -> {
+                    try {
+                        Thread.sleep(random.nextInt(5));
+                        received.add(msg);
+                    } catch (InterruptedException ignore) {
                     }
                 })
                 .subscribe();

@@ -22,12 +22,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.NameValueParameterSplitter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
@@ -152,12 +153,9 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
     }
 
     private List<String> validateList(List<String> list) {
-        for (int i = 0; i < list.size(); i++) {
-            if (list.get(i).isEmpty()) {
-                list.remove(i);
-            }
-        }
-        return list;
+        return list.stream()
+                .filter(StringUtils::isNotEmpty)
+                .collect(Collectors.toList());
     }
 
     private NamespaceIsolationData createNamespaceIsolationData(List<String> namespaces, List<String> primary,

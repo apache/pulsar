@@ -1,6 +1,6 @@
 {
   "version-2.5.0-docs": {
-    "Get started": [
+    "Get Started": [
       "version-2.5.0-pulsar-2.0",
       "version-2.5.0-standalone",
       "version-2.5.0-standalone-docker",
@@ -86,7 +86,7 @@
       "version-2.5.0-security-encryption",
       "version-2.5.0-security-extending"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.5.0-client-libraries-java",
       "version-2.5.0-client-libraries-go",
       "version-2.5.0-client-libraries-python",

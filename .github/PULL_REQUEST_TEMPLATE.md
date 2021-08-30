@@ -68,7 +68,20 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
-  - Does this pull request introduce a new feature? (yes / no)
-  - If yes, how is the feature documented? (not applicable / docs / JavaDocs / not documented)
-  - If a feature is not applicable for documentation, explain why?
-  - If a feature is not documented yet in this PR, please create a followup issue for adding the documentation
+Check the box below and label this PR (if you have committer privilege).
+
+Need to update docs? 
+
+- [ ] doc-required 
+  
+  (If you need help on updating docs, create a doc issue)
+  
+- [ ] no-need-doc 
+  
+  (Please explain why)
+  
+- [ ] doc 
+  
+  (If this PR contains doc changes)
+
+

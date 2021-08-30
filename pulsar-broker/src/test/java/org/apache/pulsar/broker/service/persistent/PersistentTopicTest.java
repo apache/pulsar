@@ -18,21 +18,21 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 
 import java.lang.reflect.Field;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -238,5 +238,37 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
         assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());
         assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
+    }
+
+    @Test
+    public void testPersistentPartitionedTopicUnload() throws Exception {
+        final String topicName = "persistent://prop/ns/failedUnload";
+        final String ns = "prop/ns";
+        final int partitions = 5;
+        final int producers = 1;
+        // ensure that the number of bundle is greater than 1
+        final int bundles = 2;
+
+        admin.namespaces().createNamespace(ns, bundles);
+        admin.topics().createPartitionedTopic(topicName, partitions);
+
+        List<Producer> producerSet = new ArrayList<>();
+        for (int i = 0; i < producers; i++) {
+            producerSet.add(pulsarClient.newProducer(Schema.STRING).topic(topicName).create());
+        }
+
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topicName));
+        pulsar.getBrokerService().getTopicIfExists(topicName).get();
+        assertTrue(pulsar.getBrokerService().getTopics().containsKey(topicName));
+
+        // ref of partitioned-topic name should be empty
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+        pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 5, TimeUnit.SECONDS).get();
+
+        for (Producer producer : producerSet) {
+            producer.close();
+        }
     }
 }

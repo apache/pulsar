@@ -33,6 +33,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -42,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -57,9 +59,9 @@ import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
+import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -1065,5 +1067,98 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
                 return false;
             }
         }, 50, 150));
+    }
+
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionMessagePooled() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // create a producer that creates a topic at broker
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespacePortion);
+        functionConfig.setName(functionName);
+        functionConfig.setParallelism(1);
+        functionConfig.setSubName(subscriptionName);
+        functionConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().poolMessages(true).build()));
+        functionConfig.setAutoAck(true);
+        functionConfig.setClassName(ByteBufferFunction.class.getName());
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setOutput(sinkTopic);
+        functionConfig.setCleanupSubscription(true);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        admin.functions().createFunctionWithUrl(functionConfig,
+                PulsarFunctionE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString());
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getStats(sinkTopic);
+            assertEquals(topicStats.getPublishers().size(), 1);
+            assertNotNull(topicStats.getPublishers().get(0).getMetadata());
+            assertTrue(topicStats.getPublishers().get(0).getMetadata().containsKey("id"));
+            assertEquals(topicStats.getPublishers().get(0).getMetadata().get("id"),
+                    String.format("%s/%s/%s", tenant, namespacePortion, functionName));
+        });
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // validate pulsar sink consumer has started on the topic
+            assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
+        });
+
+        int totalMsgs = 5;
+        for (int i = 0; i < totalMsgs; i++) {
+            String data = "my-message-" + i;
+            producer.newMessage().property(propertyKey, propertyValue).value(data).send();
+        }
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+            assertEquals(subStats.getUnackedMessages(), 0);
+        });
+
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+        if (msg == null) {
+            fail("Should have gotten a message");
+        }
+        String receivedPropertyValue = msg.getProperty(propertyKey);
+        assertEquals(propertyValue, receivedPropertyValue);
+
+        // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
+        // due to publish failure
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+                totalMsgs);
+
+        // delete functions
+        admin.functions().deleteFunction(tenant, namespacePortion, functionName);
+
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            // make sure subscriptions are cleanup
+            assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
+        });
+
+        tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
+    }
+
+    public static class ByteBufferFunction implements org.apache.pulsar.functions.api.Function<ByteBuffer, ByteBuffer> {
+        @Override
+        public ByteBuffer process(ByteBuffer input, Context context) throws Exception {
+            // make sure we are using pooled memory
+            assertTrue(input.isDirect());
+            return input;
+        }
     }
 }

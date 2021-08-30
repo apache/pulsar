@@ -24,10 +24,12 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -75,8 +77,10 @@ public class TenantsBase extends PulsarWebResource {
                 asyncResponse.resume(new RestException(e));
                 return;
             }
-            tenants.sort(null);
-            asyncResponse.resume(tenants);
+            // deep copy the tenants to avoid concurrent sort exception
+            List<String> deepCopy = new ArrayList<>(tenants);
+            deepCopy.sort(null);
+            asyncResponse.resume(deepCopy);
         });
     }
 
@@ -326,6 +330,15 @@ public class TenantsBase extends PulsarWebResource {
                     asyncResponse.resume(new RestException(exception.getCause()));
                 }
                 return null;
+            }
+
+
+            try {
+                pulsar().getPulsarResources().getTopicResources().clearTennantPersistence(tenant).get();
+            } catch (ExecutionException | InterruptedException e) {
+                // warn level log here since this failure has no side effect besides left a un-used metadata
+                // and also will not affect the re-creation of tenant
+                log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), tenant, e);
             }
             // delete tenant normally
             internalDeleteTenant(asyncResponse, tenant);

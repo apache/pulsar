@@ -46,7 +46,7 @@ public class StringSchema extends AbstractSchema<String> {
         // Ensure the ordering of the static initialization
         CHARSET_KEY = "__charset";
         DEFAULT_CHARSET = StandardCharsets.UTF_8;
-        DEFAULT_SCHEMA_INFO = new SchemaInfo()
+        DEFAULT_SCHEMA_INFO = new SchemaInfoImpl()
                 .setName("String")
                 .setType(SchemaType.STRING)
                 .setSchema(new byte[0]);
@@ -87,7 +87,7 @@ public class StringSchema extends AbstractSchema<String> {
         this.charset = charset;
         Map<String, String> properties = new HashMap<>();
         properties.put(CHARSET_KEY, charset.name());
-        this.schemaInfo = new SchemaInfo()
+        this.schemaInfo = new SchemaInfoImpl()
                 .setName(DEFAULT_SCHEMA_INFO.getName())
                 .setType(SchemaType.STRING)
                 .setSchema(DEFAULT_SCHEMA_INFO.getSchema())

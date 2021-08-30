@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.BaseContext;
 
 /**
  * Interface for a source connector providing information about environment where it is running.
@@ -31,7 +32,13 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface SourceContext extends ConnectorContext {
+public interface SourceContext extends BaseContext {
+    /**
+     * The name of the source that we are executing.
+     *
+     * @return The Source name
+     */
+    String getSourceName();
 
     /**
      * Get the output topic of the source.
@@ -39,13 +46,6 @@ public interface SourceContext extends ConnectorContext {
      * @return output topic name
      */
     String getOutputTopic();
-
-    /**
-     * The name of the source that we are executing.
-     *
-     * @return The Source name
-     */
-    String getSourceName();
 
     /**
      * New output message using schema for serializing to the topic

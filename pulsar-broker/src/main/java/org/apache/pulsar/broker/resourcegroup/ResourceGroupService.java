@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Summary;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
+import lombok.val;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
@@ -30,7 +34,9 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitor
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupRefTypes;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,18 +59,20 @@ public class ResourceGroupService {
         this.pulsar = pulsar;
         this.timeUnitScale = TimeUnit.SECONDS;
         this.quotaCalculator = new ResourceQuotaCalculatorImpl();
-        this.resourceUsageTransportMgr = pulsar.getResourceUsageTransportManager();
+        this.resourceUsageTransportManagerMgr = pulsar.getResourceUsageTransportManager();
+        this.rgConfigListener = new ResourceGroupConfigListener(this, pulsar);
         this.initialize();
     }
 
     // For testing only.
     public ResourceGroupService(PulsarService pulsar, TimeUnit timescale,
-                                ResourceUsageTransportManager transportMgr,
+                                ResourceUsageTopicTransportManager transportMgr,
                                 ResourceQuotaCalculator quotaCalc) {
         this.pulsar = pulsar;
         this.timeUnitScale = timescale;
-        this.resourceUsageTransportMgr = transportMgr;
+        this.resourceUsageTransportManagerMgr = transportMgr;
         this.quotaCalculator = quotaCalc;
+        this.rgConfigListener = new ResourceGroupConfigListener(this, pulsar);
         this.initialize();
     }
 
@@ -80,10 +88,11 @@ public class ResourceGroupService {
      *
      * @throws if RG with that name already exists.
      */
-    public void resourceGroupCreate(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
-        this.checkRGCreateParams(rgConfig);
-        ResourceGroup rg = new ResourceGroup(this, rgConfig);
-        resourceGroupsMap.put(rgConfig.getName(), rg);
+    public void resourceGroupCreate(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
+      throws PulsarAdminException {
+        this.checkRGCreateParams(rgName, rgConfig);
+        ResourceGroup rg = new ResourceGroup(this, rgName, rgConfig);
+        resourceGroupsMap.put(rgName, rg);
     }
 
     /**
@@ -91,12 +100,13 @@ public class ResourceGroupService {
      *
      * @throws if RG with that name already exists (even if the resource usage handlers are different).
      */
-    public void resourceGroupCreate(ResourceGroupConfigInfo rgConfig,
+    public void resourceGroupCreate(String rgName,
+                                    org.apache.pulsar.common.policies.data.ResourceGroup rgConfig,
                                     ResourceUsagePublisher rgPublisher,
                                     ResourceUsageConsumer rgConsumer) throws PulsarAdminException {
-        this.checkRGCreateParams(rgConfig);
-        ResourceGroup rg = new ResourceGroup(this, rgConfig, rgPublisher, rgConsumer);
-        resourceGroupsMap.put(rgConfig.getName(), rg);
+        this.checkRGCreateParams(rgName, rgConfig);
+        ResourceGroup rg = new ResourceGroup(this, rgName, rgConfig, rgPublisher, rgConsumer);
+        resourceGroupsMap.put(rgName, rg);
     }
 
     /**
@@ -117,17 +127,22 @@ public class ResourceGroupService {
      *
      * @throws if RG with that name does not exist.
      */
-    public void resourceGroupUpdate(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
-        try {
-            checkNotNull(rgConfig);
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroupConfigInfo");
+    public void resourceGroupUpdate(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
+      throws PulsarAdminException {
+        if (rgConfig == null) {
+            throw new IllegalArgumentException("ResourceGroupUpdate: Invalid null ResourceGroup config");
         }
-        ResourceGroup rg = this.getResourceGroupInternal(rgConfig.getName());
+
+        ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg == null) {
-            throw new PulsarAdminException("Resource group does not exist: " + rgConfig.getName());
+            throw new PulsarAdminException("Resource group does not exist: " + rgName);
         }
         rg.updateResourceGroup(rgConfig);
+        rgUpdates.labels(rgName).inc();
+    }
+
+    public Set<String> resourceGroupGetAll() {
+        return resourceGroupsMap.keySet();
     }
 
     /**
@@ -149,6 +164,8 @@ public class ResourceGroupService {
             throw new PulsarAdminException(errMesg);
         }
 
+        rg.resourceGroupPublishLimiter.close();
+        rg.resourceGroupPublishLimiter = null;
         resourceGroupsMap.remove(name);
     }
 
@@ -178,7 +195,7 @@ public class ResourceGroupService {
         }
 
         ResourceGroupOpStatus status = rg.registerUsage(tenantName, ResourceGroupRefTypes.Tenants, true,
-                                                        this.resourceUsageTransportMgr);
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
             String errMesg = "Tenant " + tenantName + " already references the resource group " + resourceGroupName;
             errMesg += "; this is unexpected";
@@ -187,6 +204,7 @@ public class ResourceGroupService {
 
         // Associate this tenant name with the RG.
         this.tenantToRGsMap.put(tenantName, rg);
+        rgTenantRegisters.labels(resourceGroupName).inc();
     }
 
     /**
@@ -200,7 +218,7 @@ public class ResourceGroupService {
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
         ResourceGroupOpStatus status = rg.registerUsage(tenantName, ResourceGroupRefTypes.Tenants, false,
-                                                        this.resourceUsageTransportMgr);
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
             String errMesg = "Tenant " + tenantName + " does not yet reference resource group " + resourceGroupName;
             throw new PulsarAdminException(errMesg);
@@ -208,58 +226,87 @@ public class ResourceGroupService {
 
         // Dissociate this tenant name from the RG.
         this.tenantToRGsMap.remove(tenantName, rg);
+        rgTenantUnRegisters.labels(resourceGroupName).inc();
     }
 
     /**
      * Registers a namespace as a user of a resource group.
      *
      * @param resourceGroupName
-     * @param namespaceName
+     * @param fqNamespaceName (i.e., in "tenant/Namespace" format)
      * @throws if the RG does not exist, or if the NS already references the RG.
      */
-    public void registerNameSpace(String resourceGroupName, String namespaceName) throws PulsarAdminException {
+    public void registerNameSpace(String resourceGroupName, String fqNamespaceName) throws PulsarAdminException {
+        // Check that it is a fully qualified NS (i.e., expect a '/' in it).
+        try {
+            val checkFqName = NamespaceName.get(fqNamespaceName);
+        } catch (RuntimeException rte) {
+            String errMesg = "Unexpected format found in fully-qualified namespace " + fqNamespaceName;
+            throw new PulsarAdminException(errMesg);
+        }
+
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
         // Check that the NS-name doesn't already have a RG association.
         // [If it does, that should be unregistered before putting a different association.]
-        ResourceGroup oldRG = this.namespaceToRGsMap.get(namespaceName);
+        ResourceGroup oldRG = this.namespaceToRGsMap.get(fqNamespaceName);
         if (oldRG != null) {
-            String errMesg = "Namespace " + namespaceName + " already references a resource group: " + oldRG.getID();
+            String errMesg = "Namespace " + fqNamespaceName + " already references a resource group: " + oldRG.getID();
             throw new PulsarAdminException(errMesg);
         }
 
-        ResourceGroupOpStatus status = rg.registerUsage(namespaceName, ResourceGroupRefTypes.Namespaces, true,
-                                                        this.resourceUsageTransportMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName, ResourceGroupRefTypes.Namespaces, true,
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.Exists) {
             String errMesg = String.format("Namespace {} already references the target resource group {}",
-                    namespaceName, resourceGroupName);
+                    fqNamespaceName, resourceGroupName);
             throw new PulsarAdminException(errMesg);
         }
 
         // Associate this NS-name with the RG.
-        this.namespaceToRGsMap.put(namespaceName, rg);
+        this.namespaceToRGsMap.put(fqNamespaceName, rg);
+        rgNamespaceRegisters.labels(resourceGroupName).inc();
     }
 
     /**
      * UnRegisters a namespace from a resource group.
      *
      * @param resourceGroupName
-     * @param namespaceName
+     * @param fqNamespaceName i.e., in "tenant/Namespace" format)
      * @throws if the RG does not exist, or if the NS does not references the RG yet.
      */
-    public void unRegisterNameSpace(String resourceGroupName, String namespaceName) throws PulsarAdminException {
+    public void unRegisterNameSpace(String resourceGroupName, String fqNamespaceName) throws PulsarAdminException {
+        // Check that it is a fully qualified NS (i.e., expect a '/' in it).
+        try {
+            val checkFqName = NamespaceName.get(fqNamespaceName);
+        } catch (RuntimeException rte) {
+            String errMesg = "Unexpected format found in fully-qualified namespace " + fqNamespaceName;
+            throw new PulsarAdminException(errMesg);
+        }
+
         ResourceGroup rg = checkResourceGroupExists(resourceGroupName);
 
-        ResourceGroupOpStatus status = rg.registerUsage(namespaceName, ResourceGroupRefTypes.Namespaces, false,
-                                                        this.resourceUsageTransportMgr);
+        ResourceGroupOpStatus status = rg.registerUsage(fqNamespaceName, ResourceGroupRefTypes.Namespaces, false,
+                                                        this.resourceUsageTransportManagerMgr);
         if (status == ResourceGroupOpStatus.DoesNotExist) {
             String errMesg = String.format("Namespace {} does not yet reference resource group {}",
-                namespaceName, resourceGroupName);
+                    fqNamespaceName, resourceGroupName);
             throw new PulsarAdminException(errMesg);
         }
 
         // Dissociate this NS-name from the RG.
-        this.namespaceToRGsMap.remove(namespaceName, rg);
+        this.namespaceToRGsMap.remove(fqNamespaceName, rg);
+        rgNamespaceUnRegisters.labels(resourceGroupName).inc();
+    }
+
+    /**
+     * Return the resource group associated with a namespace.
+     *
+     * @param namespaceName
+     * @throws if the RG does not exist, or if the NS already references the RG.
+     */
+    public ResourceGroup getNamespaceResourceGroup(String namespaceName) {
+        return this.namespaceToRGsMap.get(namespaceName);
     }
 
     /**
@@ -281,10 +328,11 @@ public class ResourceGroupService {
      * @param incStats
      * @returns true if the stats were updated; false if nothing was updated.
      */
-    public boolean incrementUsage(String tenantName, String nsName,
+    protected boolean incrementUsage(String tenantName, String nsName,
                                   ResourceGroupMonitoringClass monClass,
                                   BytesAndMessagesCount incStats) throws PulsarAdminException {
-        final ResourceGroup nsRG = this.namespaceToRGsMap.get(nsName);
+        final String tenantAndNsString = tenantName + "/" + nsName;
+        final ResourceGroup nsRG = this.namespaceToRGsMap.get(tenantAndNsString);
         final ResourceGroup tenantRG = this.tenantToRGsMap.get(tenantName);
         if (tenantRG == null && nsRG == null) {
             return false;
@@ -298,26 +346,36 @@ public class ResourceGroupService {
         }
 
         if (nsRG == tenantRG) {
-            // Update only once.
+            // Update only once in this case.
+            // Note that we will update both tenant and namespace RGs in other cases.
             nsRG.incrementLocalUsageStats(monClass, incStats);
+            rgLocalUsageMessages.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.messages);
+            rgLocalUsageBytes.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
             return true;
         }
 
         if (tenantRG != null) {
             tenantRG.incrementLocalUsageStats(monClass, incStats);
+            rgLocalUsageMessages.labels(tenantRG.resourceGroupName, monClass.name()).inc(incStats.messages);
+            rgLocalUsageBytes.labels(tenantRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
         }
         if (nsRG != null) {
             nsRG.incrementLocalUsageStats(monClass, incStats);
+            rgLocalUsageMessages.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.messages);
+            rgLocalUsageBytes.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
         }
 
         return true;
     }
 
     // Visibility for testing.
-    protected BytesAndMessagesCount getRGUsage(String rgName, ResourceGroupMonitoringClass monClass)
-                                                                                        throws PulsarAdminException {
+    protected BytesAndMessagesCount getRGUsage(String rgName, ResourceGroupMonitoringClass monClass,
+                                               boolean getCumulative) throws PulsarAdminException {
         final ResourceGroup rg = this.getResourceGroupInternal(rgName);
         if (rg != null) {
+            if (getCumulative) {
+                return rg.getLocalUsageStatsCumulative(monClass);
+            }
             return rg.getLocalUsageStats(monClass);
         }
 
@@ -331,9 +389,7 @@ public class ResourceGroupService {
      * Get the RG with the given name. For internal operations only.
      */
     private ResourceGroup getResourceGroupInternal(String resourceGroupName) {
-        try {
-            checkNotNull(resourceGroupName);
-        } catch (NullPointerException e) {
+        if (resourceGroupName == null) {
             throw new IllegalArgumentException("Invalid null resource group name: " + resourceGroupName);
         }
 
@@ -389,48 +445,115 @@ public class ResourceGroupService {
 
         try {
             boolean statsUpdated = this.incrementUsage(tenantString, nsString, monClass, bmDiff);
-            log.info("aggregateResourceGroupLocalUsages monclass={} statsUpdated={} for tenant={}, namespace={}; "
+            log.debug("updateStatsWithDiff for topic={}: monclass={} statsUpdated={} for tenant={}, namespace={}; "
                             + "by {} bytes, {} mesgs",
-                    monClass, statsUpdated, tenantString, nsString,
+                    topicName, monClass, statsUpdated, tenantString, nsString,
                     bmDiff.bytes, bmDiff.messages);
             hm.put(topicName, bmNewCount);
         } catch (Throwable t) {
-            log.error("aggregateResourceGroupLocalUsages got ex={} while aggregating for {}} side",
+            log.error("updateStatsWithDiff: got ex={} while aggregating for {} side",
                     t.getMessage(), monClass);
         }
+    }
+
+    // Visibility for testing.
+    protected BytesAndMessagesCount getPublishRateLimiters (String rgName) throws PulsarAdminException {
+        ResourceGroup rg = this.getResourceGroupInternal(rgName);
+        if (rg == null) {
+            throw new PulsarAdminException("Resource group does not exist: " + rgName);
+        }
+
+        return rg.getRgPublishRateLimiterValues();
+    }
+
+    // Visibility for testing.
+    protected static double getRgQuotaByteCount (String rgName, String monClassName) {
+        return rgCalculatedQuotaBytes.labels(rgName, monClassName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgQuotaMessageCount (String rgName, String monClassName) {
+        return rgCalculatedQuotaMessages.labels(rgName, monClassName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgLocalUsageByteCount (String rgName, String monClassName) {
+        return rgLocalUsageBytes.labels(rgName, monClassName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgLocalUsageMessageCount (String rgName, String monClassName) {
+        return rgLocalUsageMessages.labels(rgName, monClassName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgUpdatesCount (String rgName) {
+        return rgUpdates.labels(rgName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgTenantRegistersCount (String rgName) {
+        return rgTenantRegisters.labels(rgName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgTenantUnRegistersCount (String rgName) {
+        return rgTenantUnRegisters.labels(rgName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgNamespaceRegistersCount (String rgName) {
+        return rgNamespaceRegisters.labels(rgName).get();
+    }
+
+    // Visibility for testing.
+    protected static double getRgNamespaceUnRegistersCount (String rgName) {
+        return rgNamespaceUnRegisters.labels(rgName).get();
+    }
+
+    // Visibility for testing.
+    protected static Summary.Child.Value getRgUsageAggregationLatency() {
+        return rgUsageAggregationLatency.get();
+    }
+
+    // Visibility for testing.
+    protected static Summary.Child.Value getRgQuotaCalculationTime() {
+        return rgQuotaCalculationLatency.get();
     }
 
     // Periodically aggregate the usage from all topics known to the BrokerService.
     // Visibility for unit testing.
     protected void aggregateResourceGroupLocalUsages() {
-        long mSecsSinceEpochStart, mSecsSinceEpochEnd, diffMSecs;
-        mSecsSinceEpochStart = System.currentTimeMillis();
+        final Summary.Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
         BrokerService bs = this.pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
         for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
-            String topicName = entry.getKey();
-            TopicStatsImpl topicStats = entry.getValue();
-            TopicName topic = TopicName.get(topicName);
-            String tenantString = topic.getTenant();
-            String nsString = topic.getNamespacePortion();
+            final String topicName = entry.getKey();
+            final TopicStats topicStats = entry.getValue();
+            final TopicName topic = TopicName.get(topicName);
+            final String tenantString = topic.getTenant();
+            final String nsString = topic.getNamespacePortion();
+            final String fqNamespace = topic.getNamespace();
 
-            if (!this.tenantToRGsMap.containsKey(tenantString) && !this.namespaceToRGsMap.containsKey(nsString)) {
+            // Can't use containsKey here, as that checks for exact equality
+            // (we need a check for string-comparison).
+            val tenantRG = this.tenantToRGsMap.get(tenantString);
+            val namespaceRG = this.namespaceToRGsMap.get(fqNamespace);
+            if (tenantRG == null && namespaceRG == null) {
                 // This topic's NS/tenant are not registered to any RG.
                 continue;
             }
 
             this.updateStatsWithDiff(topicName, tenantString, nsString,
-                                    topicStats.bytesInCounter, topicStats.msgInCounter,
-                                    ResourceGroupMonitoringClass.Publish);
-
+                    topicStats.getBytesInCounter(), topicStats.getMsgInCounter(),
+                    ResourceGroupMonitoringClass.Publish);
             this.updateStatsWithDiff(topicName, tenantString, nsString,
-                                    topicStats.bytesOutCounter, topicStats.msgOutCounter,
-                                    ResourceGroupMonitoringClass.Dispatch);
+                    topicStats.getBytesOutCounter(), topicStats.getMsgOutCounter(),
+                    ResourceGroupMonitoringClass.Dispatch);
         }
-        mSecsSinceEpochEnd = System.currentTimeMillis();
-        diffMSecs = mSecsSinceEpochEnd - mSecsSinceEpochStart;
-        log.debug("aggregateResourceGroupLocalUsages took {} millisecs", diffMSecs);
+        double diffTimeSeconds = aggrUsageTimer.observeDuration();
+        log.debug("aggregateResourceGroupLocalUsages took {} milliseconds", diffTimeSeconds * 1000);
 
         // Check any re-scheduling requirements for next time.
         // Use the same period as getResourceUsagePublishIntervalInSecs;
@@ -459,10 +582,10 @@ public class ResourceGroupService {
 
     // Periodically calculate the updated quota for all RGs in the background,
     // from the reports received from other brokers.
-    private void calculateQuotaForAllResourceGroups() {
+    // [Visibility for unit testing.]
+    protected void calculateQuotaForAllResourceGroups() {
         // Calculate the quota for the next window for this RG, based on the observed usage.
-        long mSecsSinceEpochStart, mSecsSinceEpochEnd, diffMSecs;
-        mSecsSinceEpochStart = System.currentTimeMillis();
+        final Summary.Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
         BytesAndMessagesCount updatedQuota = new BytesAndMessagesCount();
         this.resourceGroupsMap.forEach((rgName, resourceGroup) -> {
             BytesAndMessagesCount globalUsageStats;
@@ -486,16 +609,21 @@ public class ResourceGroupService {
                             localUsageStats.messages,
                             globUsageMessagesArray);
 
-                    resourceGroup.updateLocalQuota(monClass, updatedQuota);
+                    BytesAndMessagesCount oldBMCount = resourceGroup.updateLocalQuota(monClass, updatedQuota);
+                    rgCalculatedQuotaMessages.labels(rgName, monClass.name()).inc(updatedQuota.messages);
+                    rgCalculatedQuotaBytes.labels(rgName, monClass.name()).inc(updatedQuota.bytes);
+                    long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
+                    long bytesIncrement = updatedQuota.bytes - oldBMCount.bytes;
+                    log.debug("calculateQuota for RG {} [class {}]: bytes incremented by {}, messages by {}",
+                            rgName, monClass, messagesIncrement, bytesIncrement);
                 } catch (Throwable t) {
                     log.error("Got exception={} while calculating new quota for monitoring-class={} of RG={}",
                             t.getMessage(), monClass, rgName);
                 }
             }
         });
-        mSecsSinceEpochEnd = System.currentTimeMillis();
-        diffMSecs = mSecsSinceEpochEnd - mSecsSinceEpochStart;
-        log.debug("calculateQuotaForAllResourceGroups took {} millisecs", diffMSecs);
+        double diffTimeSeconds = quotaCalcTimer.observeDuration();
+        log.debug("calculateQuotaForAllResourceGroups took {} milliseconds", diffTimeSeconds * 1000);
 
         // Check any re-scheduling requirements for next time.
         // Use the same period as getResourceUsagePublishIntervalInSecs;
@@ -509,7 +637,8 @@ public class ResourceGroupService {
                         this.resourceUsagePublishPeriodInSeconds, newPeriodInSeconds, timeUnitScale);
             } else {
                 boolean cancelStatus = this.calculateQuotaPeriodicTask.cancel(true);
-                log.info("Got status={} in cancel of periodic when publish period changed from {} to {} {}",
+                log.info("calculateQuotaForAllResourceGroups: Got status={} in cancel of periodic "
+                        + " when publish period changed from {} to {} {}",
                         cancelStatus, this.resourceUsagePublishPeriodInSeconds, newPeriodInSeconds, timeUnitScale);
             }
             this.calculateQuotaPeriodicTask = pulsar.getExecutor().scheduleAtFixedRate(
@@ -518,8 +647,8 @@ public class ResourceGroupService {
                         newPeriodInSeconds,
                         timeUnitScale);
             this.resourceUsagePublishPeriodInSeconds = newPeriodInSeconds;
-            this.maxIntervalForSuppressingReportsMSecs =
-                    this.resourceUsagePublishPeriodInSeconds * this.MaxUsageReportSuppressRounds;
+            maxIntervalForSuppressingReportsMSecs =
+                    this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
         }
     }
 
@@ -537,44 +666,50 @@ public class ResourceGroupService {
                     periodInSecs,
                     periodInSecs,
                     this.timeUnitScale);
-        this.maxIntervalForSuppressingReportsMSecs =
-                this.resourceUsagePublishPeriodInSeconds * this.MaxUsageReportSuppressRounds;
+        maxIntervalForSuppressingReportsMSecs =
+                this.resourceUsagePublishPeriodInSeconds * MaxUsageReportSuppressRounds;
+
     }
 
-    private void checkRGCreateParams(ResourceGroupConfigInfo rgConfig) throws PulsarAdminException {
-        try {
-            checkNotNull(rgConfig);
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroupConfigInfo");
+    private void checkRGCreateParams(String rgName, org.apache.pulsar.common.policies.data.ResourceGroup rgConfig)
+      throws PulsarAdminException {
+        if (rgConfig == null) {
+            throw new IllegalArgumentException("ResourceGroupCreate: Invalid null ResourceGroup config");
         }
 
-        if (rgConfig.getName().isEmpty()) {
+        if (rgName.isEmpty()) {
             throw new IllegalArgumentException("ResourceGroupCreate: can't create resource group with an empty name");
         }
 
-        ResourceGroup rg = getResourceGroupInternal(rgConfig.getName());
+        ResourceGroup rg = getResourceGroupInternal(rgName);
         if (rg != null) {
-            throw new PulsarAdminException("Resource group already exists:" + rgConfig.getName());
+            throw new PulsarAdminException("Resource group already exists:" + rgName);
         }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ResourceGroupService.class);
+
+    @Getter
     private final PulsarService pulsar;
+
     protected final ResourceQuotaCalculator quotaCalculator;
-    private ResourceUsageTransportManager resourceUsageTransportMgr;
+    private ResourceUsageTransportManager resourceUsageTransportManagerMgr;
+
+    // rgConfigListener is used only through its side effects in the ctors, to set up RG/NS loading in config-listeners.
+    private final ResourceGroupConfigListener rgConfigListener;
 
     // Given a RG-name, get the resource-group
     private ConcurrentHashMap<String, ResourceGroup> resourceGroupsMap = new ConcurrentHashMap<>();
 
-    // Given a tenant-name, get its associated resource-group
+    // Given a tenant-name, record its associated resource-group
     private ConcurrentHashMap<String, ResourceGroup> tenantToRGsMap = new ConcurrentHashMap<>();
 
-    // Given a NS-name, get its associated resource-group
+    // Given a qualified NS-name (i.e., in "tenant/namespace" format), record its associated resource-group
     private ConcurrentHashMap<String, ResourceGroup> namespaceToRGsMap = new ConcurrentHashMap<>();
 
     // Maps to maintain the usage per topic, in produce/consume directions.
-    private ConcurrentHashMap<String, BytesAndMessagesCount> topicProduceStats = new ConcurrentHashMap();
-    private ConcurrentHashMap<String, BytesAndMessagesCount> topicConsumeStats = new ConcurrentHashMap();
+    private ConcurrentHashMap<String, BytesAndMessagesCount> topicProduceStats = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, BytesAndMessagesCount> topicConsumeStats = new ConcurrentHashMap<>();
 
 
     // The task that periodically re-calculates the quota budget for local usage.
@@ -603,4 +738,72 @@ public class ResourceGroupService {
     // Setting this to 0 will also make us report in every round.
     // Don't set it to negative values; behavior will be "undefined".
     protected static final float UsageReportSuppressionTolerancePercentage = 5;
+
+    // Labels for the various counters used here.
+    private static final String[] resourceGroupLabel = {"ResourceGroup"};
+    private static final String[] resourceGroupMonitoringclassLabels = {"ResourceGroup", "MonitoringClass"};
+
+    private static final Counter rgCalculatedQuotaBytes = Counter.build()
+            .name("pulsar_resource_group_calculated_bytes_quota")
+            .help("Bytes quota calculated for resource group")
+            .labelNames(resourceGroupMonitoringclassLabels)
+            .register();
+    private static final Counter rgCalculatedQuotaMessages = Counter.build()
+            .name("pulsar_resource_group_calculated_messages_quota")
+            .help("Messages quota calculated for resource group")
+            .labelNames(resourceGroupMonitoringclassLabels)
+            .register();
+
+    private static final Counter rgLocalUsageBytes = Counter.build()
+            .name("pulsar_resource_group_bytes_used")
+            .help("Bytes locally used within this resource group during the last aggregation interval")
+            .labelNames(resourceGroupMonitoringclassLabels)
+            .register();
+    private static final Counter rgLocalUsageMessages = Counter.build()
+            .name("pulsar_resource_group_messages_used")
+            .help("Messages locally used within this resource group during the last aggregation interval")
+            .labelNames(resourceGroupMonitoringclassLabels)
+            .register();
+
+    private static final Counter rgUpdates = Counter.build()
+            .name("pulsar_resource_group_updates")
+            .help("Number of update operations on the given resource group")
+            .labelNames(resourceGroupLabel)
+            .register();
+
+    private static final Counter rgTenantRegisters = Counter.build()
+            .name("pulsar_resource_group_tenant_registers")
+            .help("Number of registrations of tenants")
+            .labelNames(resourceGroupLabel)
+            .register();
+    private static final Counter rgTenantUnRegisters = Counter.build()
+            .name("pulsar_resource_group_tenant_unregisters")
+            .help("Number of un-registrations of tenants")
+            .labelNames(resourceGroupLabel)
+            .register();
+
+    private static final Counter rgNamespaceRegisters = Counter.build()
+            .name("pulsar_resource_group_namespace_registers")
+            .help("Number of registrations of namespaces")
+            .labelNames(resourceGroupLabel)
+            .register();
+    private static final Counter rgNamespaceUnRegisters = Counter.build()
+            .name("pulsar_resource_group_namespace_unregisters")
+            .help("Number of un-registrations of namespaces")
+            .labelNames(resourceGroupLabel)
+            .register();
+
+    private static final Summary rgUsageAggregationLatency = Summary.build()
+            .quantile(0.5, 0.05)
+            .quantile(0.9, 0.01)
+            .name("pulsar_resource_group_aggregate_usage_secs")
+            .help("Time required to aggregate usage of all resource groups, in seconds.")
+            .register();
+
+    private static final Summary rgQuotaCalculationLatency = Summary.build()
+            .quantile(0.5, 0.05)
+            .quantile(0.9, 0.01)
+            .name("pulsar_resource_group_calculate_quota_secs")
+            .help("Time required to calculate quota of all resource groups, in seconds.")
+            .register();
 }

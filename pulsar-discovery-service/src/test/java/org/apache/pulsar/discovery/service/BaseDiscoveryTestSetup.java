@@ -80,4 +80,11 @@ public class BaseDiscoveryTestSetup {
                 && path.equals("/admin/partitioned-topics/test/local/ns/persistent/my-topic-2");
         });
     }
+
+    protected void simulateStoreErrorForNonPersistentTopic(String string, Code sessionexpired) {
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+            return op == MockZooKeeper.Op.GET
+                    && path.equals("/admin/partitioned-topics/test/local/ns/non-persistent/my-topic-2");
+        });
+    }
 }

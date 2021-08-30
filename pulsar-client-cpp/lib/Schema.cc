@@ -61,6 +61,8 @@ PULSAR_PUBLIC const char *strSchemaType(SchemaType schemaType) {
             return "AUTO_PUBLISH";
         case KEY_VALUE:
             return "KEY_VALUE";
+        case PROTOBUF_NATIVE:
+            return "PROTOBUF_NATIVE";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // Schema and miss them in the switch above we would like to get notified. Adding
@@ -72,14 +74,14 @@ class PULSAR_PUBLIC SchemaInfoImpl {
    public:
     const std::string name_;
     const std::string schema_;
-    const SchemaType type_;
+    const SchemaType type_ = BYTES;
     const std::map<std::string, std::string> properties_;
 
-    SchemaInfoImpl() : name_("BYTES"), schema_(), type_(BYTES), properties_() {}
+    SchemaInfoImpl() : name_("BYTES") {}
 
     SchemaInfoImpl(SchemaType schemaType, const std::string &name, const std::string &schema,
                    const StringMap &properties)
-        : type_(schemaType), name_(name), schema_(schema), properties_(properties) {}
+        : name_(name), schema_(schema), type_(schemaType), properties_(properties) {}
 };
 
 SchemaInfo::SchemaInfo() : impl_(std::make_shared<SchemaInfoImpl>()) {}

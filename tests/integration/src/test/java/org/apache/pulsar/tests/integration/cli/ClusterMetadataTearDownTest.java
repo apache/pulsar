@@ -199,6 +199,9 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         }
         List<String> clusterNodes = configStore.getChildren( "/admin/clusters").join();
         assertFalse(clusterNodes.contains(pulsarCluster.getClusterName()));
+
+        // Try delete again, should not fail
+        PulsarClusterMetadataTeardown.main(args);
     }
 
     private long getNumOfLedgers() {

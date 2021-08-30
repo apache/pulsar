@@ -284,7 +284,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     public Message<T> getMessage() {
         beforeSend();
-        return MessageImpl.create(msgMetadata, content, schema);
+        return MessageImpl.create(msgMetadata, content, schema, producer.topic);
     }
 
     public long getPublishTime() {

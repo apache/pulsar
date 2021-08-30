@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -45,6 +46,7 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
@@ -66,7 +68,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             }
         };
 
-        ResourceUsageTransportManager transportMgr = new ResourceUsageTransportManager(pulsar);
+        ResourceUsageTopicTransportManager transportMgr = new ResourceUsageTopicTransportManager(pulsar);
         this.rgs = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, transportMgr, dummyQuotaCalc);
     }
 
@@ -97,27 +99,21 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             public void acceptResourceUsage(String broker, ResourceUsage resourceUsage) {};
         };
 
-        ResourceGroupConfigInfo rgConfig = new ResourceGroupConfigInfo();
-        rgConfig.setName("runProduceConsume");
-        rgConfig.setPublishBytesPerPeriod(1500);
-        rgConfig.setPublishMessagesPerPeriod(100);
-        rgConfig.setDispatchBytesPerPeriod(4000);
-        rgConfig.setDispatchMessagesPerPeriod(500);
-        rgs.resourceGroupCreate(rgConfig, ruP, ruC);
+        org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
+          new org.apache.pulsar.common.policies.data.ResourceGroup();
+        final String rgName = "runProduceConsume";
+        rgConfig.setPublishRateInBytes(1500);
+        rgConfig.setPublishRateInMsgs(100);
+        rgConfig.setDispatchRateInBytes(4000);
+        rgConfig.setPublishRateInMsgs(500);
+        rgs.resourceGroupCreate(rgName, rgConfig, ruP, ruC);
 
         Producer<byte[]> producer = null;
         Consumer<byte[]> consumer = null;
 
-        this.pulsar.getBrokerService().getOrCreateTopic(topicString);
-
-        try {
-            producer = pulsarClient.newProducer()
-                    .topic(topicString)
-                    .create();
-        } catch (PulsarClientException p) {
-            final String errMesg = String.format("Got exception while building producer: ex={}", p.getMessage());
-            Assert.assertTrue(false, errMesg);
-        }
+        producer = pulsarClient.newProducer()
+                .topic(topicString)
+                .create();
 
         try {
             consumer = pulsarClient.newConsumer()
@@ -132,9 +128,9 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
         final TopicName myTopic = TopicName.get(topicString);
         final String tenantString = myTopic.getTenant();
-        final String nsString = myTopic.getNamespacePortion();
-        rgs.registerTenant(rgConfig.getName(), tenantString);
-        rgs.registerNameSpace(rgConfig.getName(), nsString);
+        final String nsString = myTopic.getNamespace();
+        rgs.registerTenant(rgName, tenantString);
+        rgs.registerNameSpace(rgName, nsString);
 
         final int NumMessagesToSend = 10;
         int sentNumBytes = 0;
@@ -149,7 +145,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 producer.send(mesg);
                 sentNumBytes += mesg.length;
                 sentNumMsgs++;
-                this.verfyStats(topicString, rgConfig.getName(), sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
+                this.verfyStats(topicString, rgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
             } catch (PulsarClientException p) {
                 final String errMesg = String.format("Got exception while sending {}-th time: ex={}", ix, p.getMessage());
                 Assert.assertTrue(false, errMesg);
@@ -157,7 +153,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         }
         producer.close();
 
-        this.verfyStats(topicString, rgConfig.getName(), sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
+        this.verfyStats(topicString, rgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
 
         Message<byte[]> message = null;
         while (recvdNumMsgs < sentNumMsgs) {
@@ -173,13 +169,13 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             recvdNumMsgs++;
         }
 
-        this.verfyStats(topicString, rgConfig.getName(), sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
+        this.verfyStats(topicString, rgName, sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, true);
 
         consumer.close();
 
-        rgs.unRegisterTenant(rgConfig.getName(), tenantString);
-        rgs.unRegisterNameSpace(rgConfig.getName(), nsString);
-        rgs.resourceGroupDelete(rgConfig.getName());
+        rgs.unRegisterTenant(rgName, tenantString);
+        rgs.unRegisterNameSpace(rgName, nsString);
+        rgs.resourceGroupDelete(rgName);
     }
 
     // Verify the app stats with what we see from the broker-service, and the resource-group (which in turn internally
@@ -208,13 +204,17 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
                 if (sentNumMsgs > 0 || recvdNumMsgs > 0) {
                     rgs.aggregateResourceGroupLocalUsages();  // hack to ensure aggregator calculation without waiting
-                    BytesAndMessagesCount prodCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish);
-                    BytesAndMessagesCount consCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch);
+                    BytesAndMessagesCount prodCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish,
+                                                         true);
+                    BytesAndMessagesCount consCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch,
+                                                         true);
 
                     // Re-do the getRGUsage.
                     // The counts should be equal, since there wasn't any intervening traffic on TEST_PRODUCE_CONSUME_TOPIC.
-                    BytesAndMessagesCount prodCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish);
-                    BytesAndMessagesCount consCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch);
+                    BytesAndMessagesCount prodCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish,
+                                                          true);
+                    BytesAndMessagesCount consCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch,
+                                                          true);
 
                     Assert.assertTrue(prodCounts.bytes == prodCounts1.bytes);
                     Assert.assertTrue(prodCounts.messages == prodCounts1.messages);

@@ -121,6 +121,7 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
                 // Skip if have not provide joda-time dependency.
             }
         }
+        reflectData.addLogicalTypeConversion(new Conversions.UUIDConversion());
     }
 
     public static class TimestampConversion extends Conversion<DateTime> {

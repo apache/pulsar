@@ -5,6 +5,10 @@ sidebar_label: Pulsar Admin CLI
 original_id: pulsar-admin
 ---
 
+> **Important**
+>
+> This page is deprecated and not updated anymore. For the latest and complete information about `pulsar-admin`, including commands, flags, descriptions, and more, see [pulsar-admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 
 Usage
@@ -2089,7 +2093,7 @@ $ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/t
 ```
 
 ### `permissions`
-Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
+Get the permissions on a topic. Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
 
 Usage
 ```bash
@@ -2394,7 +2398,7 @@ Options
 |----|---|---|
 |`-e`, `--bookkeeper-ensemble`|Number of bookies to use for a topic|0|
 |`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
-|`-a`, `--bookkeeper-ack-quorum`|Number of acks (garanteed copies) to wait for each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|Number of acks (guaranteed copies) to wait for each entry|0|
 |`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
 
 ### `remove-persistence`
@@ -2846,7 +2850,7 @@ Options
 
 
 ### `reset-namespace-bundle-quota`
-Reset the specifed namespace bundle's resource quota to a default value.
+Reset the specified namespace bundle's resource quota to a default value.
 
 Usage
 ```bash
