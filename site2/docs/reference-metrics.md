@@ -205,6 +205,16 @@ All the topic metrics are labelled with the following labels:
 | pulsar_in_messages_total | Counter | The total number of messages received for this topic |
 | pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
 | pulsar_out_messages_total | Counter | The total number of messages read from this topic |
+| pulsar_compaction_removed_event_count | Gauge | The removed event count of compaction |
+| pulsar_compaction_succeed_count | Gauge | The succeed count of compaction |
+| pulsar_compaction_failed_count | Gauge | The failed count of compaction |
+| pulsar_compaction_duration_time_in_mills | Gauge | The duration time of compaction |
+| pulsar_compaction_read_throughput | Gauge | The read throughput of compaction |
+| pulsar_compaction_write_throughput | Gauge | The write throughput of compaction |
+| pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
+| pulsar_compaction_compacted_entries_count | Gauge | The compacted entries count |
+| pulsar_compaction_compacted_entries_size |Gauge  | The compacted entries size |
+
 
 #### Replication metrics
 
@@ -428,28 +438,6 @@ All the connection metrics are labelled with the following labels:
 | pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
 | pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
 | pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
-
-### Compaction metrics
-
-All the compaction metrics are labelled with the following labels:
-
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
-- namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
-- quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
-
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_compaction_removedEventCount | Gauge | The removed event count of compaction |
-| pulsar_compaction_succeedCount | Gauge | The succeed count of compaction |
-| pulsar_compaction_failedCount | Gauge | The failed count of compaction |
-| pulsar_compaction_durationTimeInMills | Gauge | The duration time of compaction |
-| pulsar_compaction_readThroughput | Gauge | The read throughput of compaction |
-| pulsar_compaction_writeThroughput | Gauge | The write throughput of compaction |
-| pulsar_compaction_latencyBuckets | Histogram | The compaction latency with given quantile. <br> Available quantile: <br><ul><li>quantile="0.0_0.5" is latency between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is latency between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is latency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is latency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is latency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is latency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is latency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is latency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is latency between (200ms, 1000ms]</li></ul> |
-| pulsar_compaction_latencyBuckets_OVERFLOW | Gauge | The compaction latency > 1s |
-| pulsar_compaction_compactedEntriesCount | Gauge | The compacted entries count |
-| pulsar_compaction_compactedEntriesSize |Gauge  | The compacted entries size |
-
 
 ## Pulsar Functions
 

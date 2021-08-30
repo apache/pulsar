@@ -1909,10 +1909,7 @@ public class PersistentTopic extends AbstractTopic
         stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
         Optional<CompactorMXBean> mxBean = getCompactorMXBean();
 
-        stats.compaction.lastCompactionRemovedEventCount = 0L;
-        stats.compaction.lastCompactionSucceedTimestamp = 0L;
-        stats.compaction.lastCompactionFailedTimestamp = 0L;
-        stats.compaction.lastCompactionDurationTimeInMills = 0L;
+        stats.compaction.reset();
         if (mxBean.isPresent()) {
             CompactionRecord compactionRecord = mxBean.get().getCompactionRecordForTopic(topic);
             stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
