@@ -288,8 +288,7 @@ public class SinkConfigUtils {
         sinkConfig.setAutoAck(functionDetails.getAutoAck());
 
         // Set subscription position
-        Function.SubscriptionPosition subPosition = functionDetails.getSource().getSubscriptionPosition();
-        if (subPosition == Function.SubscriptionPosition.EARLIEST) {
+        if (Function.SubscriptionPosition.EARLIEST.equals(functionDetails.getSource().getSubscriptionPosition())) {
             sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Earliest);
         } else {
             sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Latest);

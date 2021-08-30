@@ -375,8 +375,7 @@ public class FunctionConfigUtils {
         functionConfig.setAutoAck(functionDetails.getAutoAck());
 
         // Set subscription position
-        Function.SubscriptionPosition subPosition = functionDetails.getSource().getSubscriptionPosition();
-        if (subPosition == Function.SubscriptionPosition.EARLIEST) {
+        if (Function.SubscriptionPosition.EARLIEST.equals(functionDetails.getSource().getSubscriptionPosition())) {
             functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
         } else {
             functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
