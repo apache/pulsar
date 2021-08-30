@@ -73,12 +73,18 @@ if [ $RES -eq 0 ]; then
     cp *_test.py /tmp
     pushd /tmp
 
+    python python/custom_logger_test.py
+    RES=$?
+    echo "custom_logger_test.py: $RES"
+
     python pulsar_test.py
     RES=$?
+    echo "pulsar_test.py: $RES"
 
     echo "---- Running Python Function Instance unit tests"
     bash $ROOT_DIR/pulsar-functions/instance/src/scripts/run_python_instance_tests.sh
     RES=$?
+    echo "run_python_instance_tests.sh: $RES"
 
     popd
     popd
