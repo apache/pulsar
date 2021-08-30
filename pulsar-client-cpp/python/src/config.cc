@@ -100,8 +100,8 @@ static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfigu
 
 class LoggerWrapper: public Logger {
     PyObject* const _pyLogger;
-    int _pythonLogLevel;
-    std::unique_ptr<Logger> _fallbackLogger;
+    const int _pythonLogLevel;
+    const std::unique_ptr<Logger> _fallbackLogger;
 
     static constexpr int _getLogLevelValue(Level level) {
         return 10 + (level * 10);
