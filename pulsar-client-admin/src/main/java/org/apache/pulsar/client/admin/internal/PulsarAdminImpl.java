@@ -21,7 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -192,10 +191,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
         this.serviceUrl = serviceUrl;
         ServiceURI serviceUri = ServiceURI.create(serviceUrl);
-        root = client.target(String.format("%s://%s"
-                , serviceUri.getServiceScheme()
-                , serviceUri.getServiceHosts()[ThreadLocalRandom.current()
-                        .nextInt(serviceUri.getServiceHosts().length)]));
+        root = client.target(serviceUri.selectOne());
 
         this.asyncHttpConnector = asyncConnectorProvider.getConnector(
                 Math.toIntExact(connectTimeoutUnit.toMillis(this.connectTimeout)),
