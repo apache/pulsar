@@ -2001,11 +2001,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeManagedCursorMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = "If true, export compaction metrics"
-    )
-    private boolean exposeCompactionMetricsInPrometheus = false;
-    @FieldContext(
-            category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
     private String jvmGCMetricsLoggerClassName;
 

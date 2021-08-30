@@ -45,7 +45,7 @@ public class CompactorMXBeanImpl implements CompactorMXBean {
 
     @Override
     public CompactionRecord getCompactionRecordForTopic(String topic) {
-        return compactionRecordOps.getOrDefault(topic, new CompactionRecord());
+        return compactionRecordOps.get(topic);
     }
 
     public Set<String> getTopics() {

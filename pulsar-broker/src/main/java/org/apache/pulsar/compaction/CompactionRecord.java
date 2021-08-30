@@ -114,6 +114,10 @@ public class CompactionRecord {
         return writeLatencyStats.getBuckets();
     }
 
+    public StatsBuckets getCompactionLatencyStats() {
+        return writeLatencyStats;
+    }
+
     public double getCompactionReadThroughput() {
         readRate.calculateRate();
         return readRate.getValueRate();
