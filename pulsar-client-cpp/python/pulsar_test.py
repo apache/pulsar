@@ -21,6 +21,7 @@
 
 import logging
 from unittest import TestCase, main
+import asyncio
 import time
 import os
 import pulsar
@@ -1185,6 +1186,28 @@ class PulsarTest(TestCase):
         t2 = time.time()
         self.assertGreater(t2 - t1, 1.0)
         self.assertLess(t2 - t1, 1.5) # 1.5 seconds is long enough
+        client.close()
+
+    def test_async_func_with_custom_logger(self):
+        # boost::python::call may fail in C++ destructors, even worse, calls
+        # to PyErr_Print could corrupt the Python interpreter.
+        # See https://github.com/boostorg/python/issues/374 for details.
+        # This test is to verify these functions won't be called in C++ destructors
+        # so that Python's async function works well.
+        client = Client(
+            self.serviceUrl,
+            logger=logging.getLogger('custom-logger')
+        )
+
+        async def async_get(value):
+            consumer = client.subscribe('test_async_get', 'sub')
+            consumer.close()
+            return value
+
+        value = 'foo'
+        result = asyncio.run(async_get(value))
+        self.assertEqual(value, result)
+
         client.close()
 
     def _check_value_error(self, fun):
