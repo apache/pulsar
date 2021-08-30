@@ -104,8 +104,7 @@ static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfigu
 class LoggerWrapper: public Logger {
     const std::string _filename;
     PyObject* const _pyLogger;
-    Logger* const _fallbackLogger;
-    std::shared_ptr<std::atomic_int> const _refcnt;  // the reference count for _fallbackLogger
+    std::shared_ptr<Logger> _fallbackLogger;
     Optional<int> _pythonLogLevel{Optional<int>::of(_getLogLevelValue(Logger::LEVEL_INFO))};
 
     void _updateCurrentPythonLogLevel() {
@@ -132,8 +131,7 @@ class LoggerWrapper: public Logger {
     LoggerWrapper(const std::string &filename, PyObject* pyLogger, Logger* fallbackLogger)
         : _filename(filename),
           _pyLogger(pyLogger),
-          _fallbackLogger(fallbackLogger),
-          _refcnt(std::make_shared<std::atomic_int>(1)) {
+          _fallbackLogger(fallbackLogger) {
         Py_XINCREF(_pyLogger);
         _updateCurrentPythonLogLevel();
     }
@@ -142,17 +140,12 @@ class LoggerWrapper: public Logger {
         : _filename(rhs._filename),
           _pyLogger(rhs._pyLogger),
           _fallbackLogger(rhs._fallbackLogger),
-          _refcnt(rhs._refcnt),
           _pythonLogLevel(rhs._pythonLogLevel) {
         Py_INCREF(_pyLogger);
-        ++(*_refcnt);
     }
 
     virtual ~LoggerWrapper() {
         Py_XDECREF(_pyLogger);
-        if (--(*_refcnt) <= 0) {
-            delete _fallbackLogger;
-        }
     }
 
     bool isEnabled(Level level) {
