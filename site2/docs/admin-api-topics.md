@@ -295,6 +295,10 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **replicated**: Mark that the subscription state is kept in sync across different regions.
 
+          -   **allowOutOfOrderDelivery**: Whether out of order delivery is allowed on the Key_Shared subscription.
+
+          -   **keySharedMode**: Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY.
+
           -   **consumersAfterMarkDeletePosition**: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.
 
           -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
@@ -440,6 +444,7 @@ The following is an example of a topic status.
         "connectedSince" : "2021-06-09T17:22:45.353+08:00",
         "clientVersion" : "2.9.0-SNAPSHOT"
       } ],
+      "allowOutOfOrderDelivery": false,
       "consumersAfterMarkDeletePosition" : { },
       "nonContiguousDeletedMessagesRanges" : 0,
       "nonContiguousDeletedMessagesRangesSerializedSize" : 0,
