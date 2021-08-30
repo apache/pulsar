@@ -24,10 +24,10 @@ dead-letter-topic | The topic where all messages that were not processed success
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
-go | Path to the main Go executable binary for the function (if the function is written in Go). |  |
+go | Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 hostname-verification-enabled | Enable hostname verification. | false
 inputs | The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list). | |
-jar | Path to the jar file for the function (if the function is written in Java). It also supports URL-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package. |  |
+jar | Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 instance-id-offset | Start the instanceIds from this offset. | 0
 log-topic | The topic to which the logs  a Pulsar Function are produced. |  |
 max-message-retries | How many times should we try to process a message before giving up. |  |
@@ -37,7 +37,7 @@ output | The output topic of a Pulsar Function (If none is specified, no output 
 output-serde-classname | The SerDe class to be used for messages output by the function. |  |
 parallelism | The parallelism factor of  a Pulsar Function (i.e. the number of function instances to run). |  |
 processing-guarantees | The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]. | ATLEAST_ONCE
-py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). |  |
+py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. | |
 schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
@@ -71,9 +71,9 @@ dead-letter-topic | The topic where all messages that were not processed success
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
-go | Path to the main Go executable binary for the function (if the function is written in Go). |  |
+go | Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 inputs | The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list). | |
-jar | Path to the jar file for the function (if the function is written in Java). It also supports URL-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package. |  |
+jar | Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 log-topic | The topic to which the logs of a Pulsar Function are produced. |  |
 max-message-retries | How many times should we try to process a message before giving up. |  |
 name | The name of a Pulsar Function. |  |
@@ -82,7 +82,7 @@ output | The output topic of a Pulsar Function (If none is specified, no output 
 output-serde-classname | The SerDe class to be used for messages output by the function. |  |
 parallelism | The parallelism factor of a Pulsar Function (i.e. the number of function instances to run). |  |
 processing-guarantees | The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]. | ATLEAST_ONCE
-py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). |  |
+py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. |  |
 schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
@@ -123,9 +123,9 @@ dead-letter-topic | The topic where all messages that were not processed success
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
-go | Path to the main Go executable binary for the function (if the function is written in Go). |  |
+go | Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 inputs | The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list). | |
-jar | Path to the jar file for the function (if the function is written in Java). It also supports URL-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package. |  |
+jar | Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 log-topic | The topic to which the logs of a Pulsar Function are produced. |  |
 max-message-retries | How many times should we try to process a message before giving up. |  |
 name | The name of a Pulsar Function. |  |
@@ -134,7 +134,7 @@ output | The output topic of a Pulsar Function (If none is specified, no output 
 output-serde-classname | The SerDe class to be used for messages output by the function. |  |
 parallelism | The parallelism factor of a Pulsar Function (i.e. the number of function instances to run). |  |
 processing-guarantees | The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]. | ATLEAST_ONCE
-py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). |  |
+py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
 ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
 retain-ordering | Function consumes and processes messages in order. |  |
 schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
