@@ -154,7 +154,6 @@ class LoggerWrapper: public Logger {
 
             } catch (const py::error_already_set& e) {
                 _fallbackLogger->log(level, line, message);
-                PyErr_Print();
             }
 
             PyGILState_Release(state);
@@ -175,7 +174,7 @@ class LoggerWrapperFactory : public LoggerFactory {
             _pythonLogLevel = Optional<int>::of(level);
         } catch (const py::error_already_set& e) {
             // Failed to get log level from _pyLogger, set it to empty to fallback to _fallbackLogger
-            PyErr_Print();
+            _pythonLogLevel = Optional<int>::empty();
         }
 
         PyGILState_Release(state);

@@ -50,4 +50,5 @@ class CustomLoggingTest(TestCase):
         client.close()
 
 if __name__ == '__main__':
+    logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
     main()
