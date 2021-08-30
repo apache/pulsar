@@ -401,14 +401,15 @@
 <tr><td><code>--instance-id-offset</code></td><td>Start the instanceIds from this offset</td><td>0</td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
-<tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python)</td><td></td></tr>
+<tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--go</code></td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
@@ -452,14 +453,15 @@
 <tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
-<tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python)</td><td></td></tr>
+<tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--go</code></td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
@@ -516,14 +518,15 @@
 <tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
-<tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python)</td><td></td></tr>
+<tr><td><code>--py</code></td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--go</code></td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>

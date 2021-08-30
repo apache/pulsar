@@ -94,10 +94,10 @@
 <tr><td>disk</td><td>The disk in bytes that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
 <tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
 <tr><td>function-config-file</td><td>The path to a YAML config file specifying the configuration of a Pulsar Function.</td><td></td></tr>
-<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go).</td><td></td></tr>
+<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>hostname-verification-enabled</td><td>Enable hostname verification.</td><td>false</td></tr>
 <tr><td>inputs</td><td>The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list).</td><td></td></tr>
-<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>instance-id-offset</td><td>Start the instanceIds from this offset.</td><td>0</td></tr>
 <tr><td>log-topic</td><td>The topic to which the logs  a Pulsar Function are produced.</td><td></td></tr>
 <tr><td>max-message-retries</td><td>How many times should we try to process a message before giving up.</td><td></td></tr>
@@ -107,7 +107,7 @@
 <tr><td>output-serde-classname</td><td>The SerDe class to be used for messages output by the function.</td><td></td></tr>
 <tr><td>parallelism</td><td>The parallelism factor of  a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
 <tr><td>processing-guarantees</td><td>The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE].</td><td>ATLEAST_ONCE</td></tr>
-<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python).</td><td></td></tr>
+<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>ram</td><td>The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime).</td><td></td></tr>
 <tr><td>retain-ordering</td><td>Function consumes and processes messages in order.</td><td></td></tr>
 <tr><td>schema-type</td><td>The builtin schema type or custom schema class name to be used for messages output by the function.</td><td><empty string></td></tr>
@@ -142,9 +142,9 @@
 <tr><td>disk</td><td>The disk in bytes that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
 <tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
 <tr><td>function-config-file</td><td>The path to a YAML config file specifying the configuration of a Pulsar Function.</td><td></td></tr>
-<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go).</td><td></td></tr>
+<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>inputs</td><td>The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list).</td><td></td></tr>
-<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
 <tr><td>max-message-retries</td><td>How many times should we try to process a message before giving up.</td><td></td></tr>
 <tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
@@ -153,7 +153,7 @@
 <tr><td>output-serde-classname</td><td>The SerDe class to be used for messages output by the function.</td><td></td></tr>
 <tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
 <tr><td>processing-guarantees</td><td>The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE].</td><td>ATLEAST_ONCE</td></tr>
-<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python).</td><td></td></tr>
+<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>ram</td><td>The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime).</td><td></td></tr>
 <tr><td>retain-ordering</td><td>Function consumes and processes messages in order.</td><td></td></tr>
 <tr><td>schema-type</td><td>The builtin schema type or custom schema class name to be used for messages output by the function.</td><td><empty string></td></tr>
@@ -198,9 +198,9 @@
 <tr><td>disk</td><td>The disk in bytes that need to be allocated per function instance (applicable only to docker runtime).</td><td></td></tr>
 <tr><td>fqfn</td><td>The Fully Qualified Function Name (FQFN) for the function.</td><td></td></tr>
 <tr><td>function-config-file</td><td>The path to a YAML config file specifying the configuration of a Pulsar Function.</td><td></td></tr>
-<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go).</td><td></td></tr>
+<tr><td>go</td><td>Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>inputs</td><td>The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list).</td><td></td></tr>
-<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
 <tr><td>max-message-retries</td><td>How many times should we try to process a message before giving up.</td><td></td></tr>
 <tr><td>name</td><td>The name of a Pulsar Function.</td><td></td></tr>
@@ -209,7 +209,7 @@
 <tr><td>output-serde-classname</td><td>The SerDe class to be used for messages output by the function.</td><td></td></tr>
 <tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
 <tr><td>processing-guarantees</td><td>The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE].</td><td>ATLEAST_ONCE</td></tr>
-<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python).</td><td></td></tr>
+<tr><td>py</td><td>Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>ram</td><td>The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime).</td><td></td></tr>
 <tr><td>retain-ordering</td><td>Function consumes and processes messages in order.</td><td></td></tr>
 <tr><td>schema-type</td><td>The builtin schema type or custom schema class name to be used for messages output by the function.</td><td><empty string></td></tr>
