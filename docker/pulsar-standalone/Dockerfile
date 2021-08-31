@@ -28,16 +28,20 @@ FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+RUN apt-get update \
+    && apt-get -y install wget gnupg && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main >> /etc/apt/sources.list.d/pgdg.list"
+
 # Note that the libpq-dev package is needed here in order to install
 # the required python psycopg2 package (for postgresql) later
 RUN apt-get update \
-    && apt-get -y install openjdk-11-jdk-headless python3 python3-dev python3-pip postgresql sudo nginx supervisor libpq-dev
+    && apt-get -y install openjdk-11-jdk-headless python3 python3-dev python3-pip postgresql-11 sudo nginx supervisor libpq-dev
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 RUN update-ca-certificates
 
 # Postgres configuration
-COPY --from=dashboard /etc/postgresql/11/main/postgresql.conf /etc/postgresql/12/main/postgresql.conf
+COPY --from=dashboard /etc/postgresql/11/main/postgresql.conf /etc/postgresql/11/main/postgresql.conf
 
 # Configure supervisor
 COPY --from=dashboard /etc/supervisor/conf.d/supervisor-app.conf /etc/supervisor/conf.d/supervisor-app.conf
