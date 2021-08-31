@@ -55,6 +55,7 @@ import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 
@@ -288,11 +289,8 @@ public class SinkConfigUtils {
         sinkConfig.setAutoAck(functionDetails.getAutoAck());
 
         // Set subscription position
-        if (Function.SubscriptionPosition.EARLIEST.equals(functionDetails.getSource().getSubscriptionPosition())) {
-            sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Earliest);
-        } else {
-            sinkConfig.setSourceSubscriptionPosition(SubscriptionInitialPosition.Latest);
-        }
+        sinkConfig.setSourceSubscriptionPosition(
+                convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
 
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
