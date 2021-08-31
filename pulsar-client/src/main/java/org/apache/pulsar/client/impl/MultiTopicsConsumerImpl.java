@@ -269,6 +269,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // recursion and stack overflow
                 internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
             }
+        }).exceptionally(ex -> {
+            log.error("Receive operation failed on consumer {} - Retrying later", consumer, ex);
+            internalPinnedExecutor.schedule(() -> receiveMessageFromConsumer(consumer), 10, TimeUnit.SECONDS);
+            return null;
         });
     }
 
