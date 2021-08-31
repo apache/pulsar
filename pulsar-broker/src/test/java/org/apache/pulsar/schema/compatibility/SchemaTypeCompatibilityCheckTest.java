@@ -81,7 +81,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
 
     @Test
     public void testSchemaCompatibilityStrategyInBrokerLevel() throws PulsarClientException {
-        conf.setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE.name());
+        conf.setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
 
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(),

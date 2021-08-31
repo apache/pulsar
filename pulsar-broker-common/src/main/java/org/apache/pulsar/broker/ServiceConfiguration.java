@@ -40,6 +40,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -1962,7 +1963,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The schema compatibility strategy in broker level. If this config in namespace policy is `UNDEFINED`"
                     + ", schema compatibility strategy check will use it in broker level."
     )
-    private String schemaCompatibilityStrategy = "UNDEFINED";
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.UNDEFINED;
 
     /**** --- WebSocket --- ****/
     @FieldContext(

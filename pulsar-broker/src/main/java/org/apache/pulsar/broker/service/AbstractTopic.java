@@ -545,8 +545,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected void setSchemaCompatibilityStrategy (Policies policies) {
         if (policies.schema_compatibility_strategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.valueOf(brokerService.pulsar()
-                    .getConfig().getSchemaCompatibilityStrategy());
+            schemaCompatibilityStrategy = brokerService.pulsar()
+                    .getConfig().getSchemaCompatibilityStrategy();
             if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
                 schemaCompatibilityStrategy = SchemaCompatibilityStrategy.FULL;
             }
