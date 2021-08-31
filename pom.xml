@@ -1623,13 +1623,6 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>maven-assembly-plugin</artifactId>
           <version>${maven-assembly-plugin.version}</version>
           <inherited>false</inherited>
-          <dependencies>
-              <dependency>
-                  <groupId>org.apache.apache.resources</groupId>
-                  <artifactId>apache-source-release-assembly-descriptor</artifactId>
-                  <version>1.0.6</version>
-              </dependency>
-          </dependencies>
           <executions>
               <execution>
                   <id>source-release-assembly-tar-gz</id>
@@ -1640,10 +1633,9 @@ flexible messaging model and an intuitive client API.</description>
                   <configuration>
                       <skipAssembly>${skipSourceReleaseAssembly}</skipAssembly>
                       <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
-                      <descriptorRefs>
-                          <!-- defined in Apache Parent Pom -->
-                          <descriptorRef>${sourceReleaseAssemblyDescriptor}</descriptorRef>
-                      </descriptorRefs>
+                      <descriptors>
+                        <descriptor>src/assembly-source-package.xml</descriptor>
+                      </descriptors>
                       <finalName>apache-pulsar-${project.version}-src</finalName>
                       <appendAssemblyId>false</appendAssemblyId>
                       <formats>
