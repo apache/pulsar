@@ -16,28 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.compaction;
 
-import java.util.Optional;
-import org.apache.bookkeeper.common.annotation.InterfaceAudience;
-import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import lombok.Getter;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 
-/**
- * JMX Bean interface for Compactor stats.
- */
-@InterfaceAudience.LimitedPrivate
-@InterfaceStability.Stable
-public interface CompactorMXBean {
+@Getter
+public class CompactedTopicContext {
 
-    /**
-     *  Remove metrics about this topic.
-     * @param topic
-     */
-    void removeTopic(String topic);
+    final LedgerHandle ledger;
+    final AsyncLoadingCache<Long, MessageIdData> cache;
 
-    /**
-     *  Get the compaction record of the topic.
-     * @param topic
-     */
-    Optional<CompactionRecord> getCompactionRecordForTopic(String topic);
+    public CompactedTopicContext(LedgerHandle ledger, AsyncLoadingCache<Long, MessageIdData> cache) {
+        this.ledger = ledger;
+        this.cache = cache;
+    }
 }

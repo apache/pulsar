@@ -204,6 +204,16 @@ All the topic metrics are labelled with the following labels:
 | pulsar_in_messages_total | Counter | The total number of messages received for this topic |
 | pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
 | pulsar_out_messages_total | Counter | The total number of messages read from this topic |
+| pulsar_compaction_removed_event_count | Gauge | The removed event count of compaction |
+| pulsar_compaction_succeed_count | Gauge | The succeed count of compaction |
+| pulsar_compaction_failed_count | Gauge | The failed count of compaction |
+| pulsar_compaction_duration_time_in_mills | Gauge | The duration time of compaction |
+| pulsar_compaction_read_throughput | Gauge | The read throughput of compaction |
+| pulsar_compaction_write_throughput | Gauge | The write throughput of compaction |
+| pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
+| pulsar_compaction_compacted_entries_count | Gauge | The compacted entries count |
+| pulsar_compaction_compacted_entries_size |Gauge  | The compacted entries size |
+
 
 #### Replication metrics
 
