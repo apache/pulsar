@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl"?>
+<rdf:RDF xml:lang="en"
+         xmlns="http://usefulinc.com/ns/doap#" 
+         xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" 
+         xmlns:asfext="http://projects.apache.org/ns/asfext#"
+         xmlns:foaf="http://xmlns.com/foaf/0.1/">
+<!--
+  =======================================================================
+
+   Copyright (c) 2011 The Apache Software Foundation.  
+   All rights reserved.
+
+  =======================================================================
+-->
+  <Project rdf:about="https://pulsar.apache.org/">
+    <created>2011-02-06</created>
+    <license rdf:resource="http://usefulinc.com/doap/licenses/asl20" />
+    <name>Apache Pulsar</name>
+    <homepage rdf:resource="https://pulsar.apache.org/" />
+    <asfext:pmc rdf:resource="https://pulsar.apache.org" />
+    <shortdesc>A distributed pub-sub messaging system.</shortdesc>
+    <description>Pulsar is a distributed pub-sub messaging platform with a very flexible messaging model and an intuitive client API..</description>
+    <bug-database rdf:resource="https://github.com/apache/pulsar/issues" />
+    <mailing-list rdf:resource="https://pulsar.apache.org/en/contact/" />
+    <download-page rdf:resource="http://pulsar.apache.org/en/download/" />
+    <programming-language>Java</programming-language>
+    <category rdf:resource="https://projects.apache.org/category/database" />
+
+    <repository>
+      <GitRepository>
+        <location rdf:resource="https://gitbox.apache.org/repos/asf/pulsar.git"/>
+        <browse rdf:resource="https://github.com/apache/pulsar"/>
+      </GitRepository>
+    </repository>
+    
+    <maintainer>
+      <foaf:Person>
+        <foaf:name>Apache Pulsar Community</foaf:name>
+        <foaf:mbox rdf:resource="mailto:dev@pulsar.apache.org"/>
+      </foaf:Person>
+    </maintainer>
+
+  </Project>
+</rdf:RDF>
