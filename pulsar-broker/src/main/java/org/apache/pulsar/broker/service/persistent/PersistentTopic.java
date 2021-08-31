@@ -149,6 +149,7 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
@@ -1912,15 +1913,16 @@ public class PersistentTopic extends AbstractTopic
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
         stats.lastOffloadFailureTimeStamp = ledger.getLastOffloadedFailureTimestamp();
         Optional<CompactorMXBean> mxBean = getCompactorMXBean();
-        stats.compaction.lastCompactionRemovedEventCount = mxBean.map(stat ->
-                stat.getLastCompactionRemovedEventCount(topic)).orElse(0L);
-        stats.compaction.lastCompactionSucceedTimestamp = mxBean.map(stat ->
-                stat.getLastCompactionSucceedTimestamp(topic)).orElse(0L);
-        stats.compaction.lastCompactionFailedTimestamp = mxBean.map(stat ->
-                stat.getLastCompactionFailedTimestamp(topic)).orElse(0L);
-        stats.compaction.lastCompactionDurationTimeInMills = mxBean.map(stat ->
-                stat.getLastCompactionDurationTimeInMills(topic)).orElse(0L);
 
+        stats.compaction.reset();
+        mxBean.flatMap(bean -> bean.getCompactionRecordForTopic(topic)).map(compactionRecord -> {
+            stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
+            stats.compaction.lastCompactionSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
+            stats.compaction.lastCompactionFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
+            stats.compaction.lastCompactionDurationTimeInMills =
+                    compactionRecord.getLastCompactionDurationTimeInMills();
+            return compactionRecord;
+        });
         return stats;
     }
 
@@ -1997,19 +1999,14 @@ public class PersistentTopic extends AbstractTopic
         info.entries = -1;
         info.size = -1;
 
-        try {
-            Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext =
-                    ((CompactedTopicImpl) compactedTopic)
-                            .getCompactedTopicContext();
-            if (compactedTopicContext.isPresent()) {
-                CompactedTopicImpl.CompactedTopicContext ledgerContext = compactedTopicContext.get();
-                info.ledgerId = ledgerContext.getLedger().getId();
-                info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
-                info.size = ledgerContext.getLedger().getLength();
-            }
-        } catch (ExecutionException | InterruptedException e) {
-            log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
+        Optional<CompactedTopicContext> compactedTopicContext = getCompactedTopicContext();
+        if (compactedTopicContext.isPresent()) {
+            CompactedTopicContext ledgerContext = compactedTopicContext.get();
+            info.ledgerId = ledgerContext.getLedger().getId();
+            info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
+            info.size = ledgerContext.getLedger().getLength();
         }
+
         stats.compactedLedger = info;
 
         stats.cursors = Maps.newTreeMap();
@@ -2124,6 +2121,15 @@ public class PersistentTopic extends AbstractTopic
             return null;
         });
         return statFuture;
+    }
+
+    public Optional<CompactedTopicContext> getCompactedTopicContext() {
+        try {
+            return ((CompactedTopicImpl) compactedTopic).getCompactedTopicContext();
+        } catch (ExecutionException | InterruptedException e) {
+            log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
+        }
+        return Optional.empty();
     }
 
     public long getBacklogSize() {
