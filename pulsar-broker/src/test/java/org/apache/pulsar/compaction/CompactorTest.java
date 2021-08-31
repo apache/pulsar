@@ -113,7 +113,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             m.close();
         }
         if (checkMetrics) {
-            CompactionRecord compactionRecord = compactor.getStats().getCompactionRecordForTopic(topic);
+            CompactionRecord compactionRecord = compactor.getStats().getCompactionRecordForTopic(topic).get();
             long compactedTopicRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
             long lastCompactSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
             long lastCompactFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();

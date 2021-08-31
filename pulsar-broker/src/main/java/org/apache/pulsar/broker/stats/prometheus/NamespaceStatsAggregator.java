@@ -66,7 +66,6 @@ public class NamespaceStatsAggregator {
         printDefaultBrokerStats(stream, cluster);
 
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
-
         LongAdder topicsCount = new LongAdder();
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
@@ -82,7 +81,7 @@ public class NamespaceStatsAggregator {
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
-                        TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats);
+                        TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats, compactorMXBean);
                     } else {
                         namespaceStats.updateStats(topicStats);
                     }
@@ -245,7 +244,7 @@ public class NamespaceStatsAggregator {
         });
 
         compactorMXBean
-                .map(mxBean -> mxBean.getCompactionRecordForTopic(topic.getName()))
+                .flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic.getName()))
                 .map(compactionRecord -> {
                     stats.compactionRemovedEventCount = compactionRecord.getCompactionRemovedEventCount();
                     stats.compactionSucceedCount = compactionRecord.getCompactionSucceedCount();

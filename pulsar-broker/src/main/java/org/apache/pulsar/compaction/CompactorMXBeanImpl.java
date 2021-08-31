@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -44,8 +45,8 @@ public class CompactorMXBeanImpl implements CompactorMXBean {
     }
 
     @Override
-    public CompactionRecord getCompactionRecordForTopic(String topic) {
-        return compactionRecordOps.get(topic);
+    public Optional<CompactionRecord> getCompactionRecordForTopic(String topic) {
+        return Optional.ofNullable(compactionRecordOps.get(topic));
     }
 
     public Set<String> getTopics() {

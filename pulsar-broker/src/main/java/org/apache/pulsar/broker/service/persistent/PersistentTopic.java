@@ -151,7 +151,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
-import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -1910,15 +1909,14 @@ public class PersistentTopic extends AbstractTopic
         Optional<CompactorMXBean> mxBean = getCompactorMXBean();
 
         stats.compaction.reset();
-        if (mxBean.isPresent()) {
-            CompactionRecord compactionRecord = mxBean.get().getCompactionRecordForTopic(topic);
+        mxBean.flatMap(bean -> bean.getCompactionRecordForTopic(topic)).map(compactionRecord -> {
             stats.compaction.lastCompactionRemovedEventCount = compactionRecord.getLastCompactionRemovedEventCount();
             stats.compaction.lastCompactionSucceedTimestamp = compactionRecord.getLastCompactionSucceedTimestamp();
             stats.compaction.lastCompactionFailedTimestamp = compactionRecord.getLastCompactionFailedTimestamp();
             stats.compaction.lastCompactionDurationTimeInMills =
                     compactionRecord.getLastCompactionDurationTimeInMills();
-        }
-
+            return compactionRecord;
+        });
         return stats;
     }
 

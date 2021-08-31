@@ -33,7 +33,7 @@ public class CompactorMXBeanImplTest {
         CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
         String topic = "topic1";
         mxBean.addCompactionStartOp(topic);
-        CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic);
+        CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic).get();
         assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);
         mxBean.addCompactionRemovedEvent(topic);
         assertEquals(compaction.getLastCompactionRemovedEventCount(), 0, 0);

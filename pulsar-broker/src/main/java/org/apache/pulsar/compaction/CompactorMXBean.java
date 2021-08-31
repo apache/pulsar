@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import java.util.Optional;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
@@ -38,5 +39,5 @@ public interface CompactorMXBean {
      *  Get the compaction record of the topic.
      * @param topic
      */
-    CompactionRecord getCompactionRecordForTopic(String topic);
+    Optional<CompactionRecord> getCompactionRecordForTopic(String topic);
 }
