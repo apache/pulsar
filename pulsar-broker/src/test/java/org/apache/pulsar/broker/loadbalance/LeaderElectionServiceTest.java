@@ -129,7 +129,9 @@ public class LeaderElectionServiceTest {
                     .create();
         } catch (PulsarClientException t) {
             Assert.assertTrue(t instanceof PulsarClientException.LookupException);
-            Assert.assertEquals(t.getMessage(), "java.lang.IllegalStateException: The leader election has not yet been completed!");
+            Assert.assertTrue(
+                    t.getMessage().contains(
+                            "java.lang.IllegalStateException: The leader election has not yet been completed!"));
         }
     }
 

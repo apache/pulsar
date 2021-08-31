@@ -159,10 +159,4 @@ public interface PendingAckHandle {
      */
     CompletableFuture<Void> close();
 
-    /**
-     * Is transaction ack present.
-     *
-     * @return the the boolean of transaction ack present.
-     */
-    boolean isTransactionAckPresent();
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.Map;
@@ -34,7 +35,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface ClientBuilder extends Cloneable {
+public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Construct the final {@link PulsarClient} instance.
@@ -216,6 +217,24 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit);
+
+    /**
+     * Set lookup timeout <i>(default: matches operation timeout)</i>
+     *
+     * Lookup operations have a different load pattern to other operations. They can be handled by any broker, are not
+     * proportional to throughput, and are harmless to retry. Given this, it makes sense to allow them to retry longer
+     * than normal operation, especially if they experience a timeout.
+     *
+     * By default this is set to match operation timeout. This is to maintain legacy behaviour. However, in practice
+     * it should be set to 5-10x the operation timeout.
+     *
+     * @param lookupTimeout
+     *            lookup timeout
+     * @param unit
+     *            time unit for {@code lookupTimeout}
+     * @return the client builder instance
+     */
+    ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit);
 
     /**
      * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.

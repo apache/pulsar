@@ -43,4 +43,9 @@ public interface Transaction {
      */
     CompletableFuture<Void> abort();
 
+    /**
+     * Get TxnID of the transaction.
+     *  @return {@link TxnID} the txnID.
+     */
+    TxnID getTxnID();
 }

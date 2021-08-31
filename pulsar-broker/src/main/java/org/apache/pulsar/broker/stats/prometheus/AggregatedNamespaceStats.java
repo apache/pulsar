@@ -65,6 +65,7 @@ public class AggregatedNamespaceStats {
         msgOutCounter += stats.msgOutCounter;
 
         managedLedgerStats.storageSize += stats.managedLedgerStats.storageSize;
+        managedLedgerStats.storageLogicalSize += stats.managedLedgerStats.storageLogicalSize;
         managedLedgerStats.backlogSize += stats.managedLedgerStats.backlogSize;
         managedLedgerStats.offloadedStorageUsed += stats.managedLedgerStats.offloadedStorageUsed;
         backlogQuotaLimit = Math.max(backlogQuotaLimit, stats.backlogQuotaLimit);
@@ -88,6 +89,9 @@ public class AggregatedNamespaceStats {
             replStats.msgThroughputIn += as.msgThroughputIn;
             replStats.msgThroughputOut += as.msgThroughputOut;
             replStats.replicationBacklog += as.replicationBacklog;
+            replStats.msgRateExpired += as.msgRateExpired;
+            replStats.connectedCount += as.connectedCount;
+            replStats.replicationDelayInSeconds += as.replicationDelayInSeconds;
         });
 
         stats.subscriptionStats.forEach((n, as) -> {

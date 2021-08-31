@@ -263,6 +263,27 @@ class PULSAR_PUBLIC ProducerConfiguration {
     HashingScheme getHashingScheme() const;
 
     /**
+     * This config affects producers of partitioned topics only. It controls whether
+     * producers register and connect immediately to the owner broker of each partition
+     * or start lazily on demand. The internal producer of one partition is always
+     * started eagerly, chosen by the routing policy, but the internal producers of
+     * any additional partitions are started on demand, upon receiving their first
+     * message.
+     * Using this mode can reduce the strain on brokers for topics with large numbers of
+     * partitions and when the SinglePartition routing policy is used without keyed messages.
+     * Because producer connection can be on demand, this can produce extra send latency
+     * for the first messages of a given partition.
+     * @param true/false as to whether to start partition producers lazily
+     * @return
+     */
+    ProducerConfiguration& setLazyStartPartitionedProducers(bool);
+
+    /**
+     * The getter associated with setLazyStartPartitionedProducers()
+     */
+    bool getLazyStartPartitionedProducers() const;
+
+    /**
      * The setter associated with getBlockIfQueueFull()
      */
     ProducerConfiguration& setBlockIfQueueFull(bool);

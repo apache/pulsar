@@ -194,7 +194,7 @@ func main() {
         producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
             if err != nil { log.Fatal(err) }
 
-            fmt.Printf("Message %s succesfully published", msg.ID())
+            fmt.Printf("Message %s successfully published", msg.ID())
         })
     }
 }
@@ -409,7 +409,7 @@ Parameter | Description | Default
 :---------|:------------|:-------
 `Topic` | The Pulsar [topic](reference-terminology.md#topic) on which the reader will establish a subscription and listen for messages |
 `Name` | The name of the reader |
-`StartMessageID` | THe initial reader position, i.e. the message at which the reader begins processing messages. The options are `pulsar.EarliestMessage` (the earliest available message on the topic), `pulsar.LatestMessage` (the latest available message on the topic), or a `MessageID` object for a position that isn't earliest or latest. |
+`StartMessageID` | The initial reader position, i.e. the message at which the reader begins processing messages. The options are `pulsar.EarliestMessage` (the earliest available message on the topic), `pulsar.LatestMessage` (the latest available message on the topic), or a `MessageID` object for a position that isn't earliest or latest. |
 `MessageChannel` | The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `Next`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000
 `SubscriptionRolePrefix` | The subscription role prefix. | `reader`

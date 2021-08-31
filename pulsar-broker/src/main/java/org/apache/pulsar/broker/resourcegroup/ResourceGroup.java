@@ -24,6 +24,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.Getter;
+import lombok.val;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupOpStatus;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
@@ -42,6 +44,7 @@ import org.slf4j.LoggerFactory;
  * publish, another one for dispatch, etc.
  */
 public class ResourceGroup {
+
     /**
      * Convenience class for bytes and messages counts, which are used together in a lot of the following code.
      */
@@ -78,6 +81,9 @@ public class ResourceGroup {
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
         this.setDefaultResourceUsageTransportHandlers();
+        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar().getExecutor());
+        log.info("attaching publish rate limiter {} to {} get {}", this.resourceGroupPublishLimiter.toString(), name,
+          this.getResourceGroupPublishLimiter());
     }
 
     // ctor for overriding the transport-manager fill/set buffer.
@@ -90,6 +96,7 @@ public class ResourceGroup {
         this.resourceGroupName = rgName;
         this.setResourceGroupMonitoringClassFields();
         this.setResourceGroupConfigParameters(rgConfig);
+        this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar().getExecutor());
         this.ruPublisher = rgPublisher;
         this.ruConsumer = rgConsumer;
     }
@@ -99,6 +106,7 @@ public class ResourceGroup {
     public ResourceGroup(ResourceGroup other) {
         this.resourceGroupName = other.resourceGroupName;
         this.rgs = other.rgs;
+        this.resourceGroupPublishLimiter = other.resourceGroupPublishLimiter;
         this.setResourceGroupMonitoringClassFields();
 
         // ToDo: copy the monitoring class fields, and ruPublisher/ruConsumer from other, if required.
@@ -133,6 +141,10 @@ public class ResourceGroup {
 
     protected void updateResourceGroup(org.apache.pulsar.common.policies.data.ResourceGroup rgConfig) {
         this.setResourceGroupConfigParameters(rgConfig);
+        val pubBmc = new BytesAndMessagesCount();
+        pubBmc.messages = rgConfig.getPublishRateInMsgs();
+        pubBmc.bytes = rgConfig.getPublishRateInBytes();
+        this.resourceGroupPublishLimiter.update(pubBmc);
     }
 
     protected long getResourceGroupNumOfNSRefs() {
@@ -265,6 +277,29 @@ public class ResourceGroup {
         return retval;
     }
 
+    protected BytesAndMessagesCount getLocalUsageStatsCumulative(ResourceGroupMonitoringClass monClass)
+            throws PulsarAdminException {
+        this.checkMonitoringClass(monClass);
+        BytesAndMessagesCount retval = new BytesAndMessagesCount();
+        final PerMonitoringClassFields monEntity = this.monitoringClassFields[monClass.ordinal()];
+        monEntity.localUsageStatsLock.lock();
+        try {
+            // If the total wasn't accumulated yet (i.e., a report wasn't sent yet), just return the
+            // partial accumulation in usedLocallySinceLastReport.
+            if (monEntity.totalUsedLocally.messages == 0) {
+                retval.bytes = monEntity.usedLocallySinceLastReport.bytes;
+                retval.messages = monEntity.usedLocallySinceLastReport.messages;
+            } else {
+                retval.bytes = monEntity.totalUsedLocally.bytes;
+                retval.messages = monEntity.totalUsedLocally.messages;
+            }
+        } finally {
+            monEntity.localUsageStatsLock.unlock();
+        }
+
+        return retval;
+    }
+
     protected BytesAndMessagesCount getGlobalUsageStats(ResourceGroupMonitoringClass monClass)
                                                                                         throws PulsarAdminException {
         this.checkMonitoringClass(monClass);
@@ -287,13 +322,14 @@ public class ResourceGroup {
     protected BytesAndMessagesCount updateLocalQuota(ResourceGroupMonitoringClass monClass,
                                                      BytesAndMessagesCount newQuota) throws PulsarAdminException {
         this.checkMonitoringClass(monClass);
-        BytesAndMessagesCount oldBMCount = new BytesAndMessagesCount();
+        BytesAndMessagesCount oldBMCount;
 
         final PerMonitoringClassFields monEntity = this.monitoringClassFields[monClass.ordinal()];
         monEntity.localUsageStatsLock.lock();
         oldBMCount = monEntity.quotaForNextPeriod;
         try {
             monEntity.quotaForNextPeriod = newQuota;
+            this.resourceGroupPublishLimiter.update(newQuota);
         } finally {
             monEntity.localUsageStatsLock.unlock();
         }
@@ -301,6 +337,20 @@ public class ResourceGroup {
                 this.resourceGroupName, monClass, newQuota.bytes, newQuota.messages);
 
         return oldBMCount;
+    }
+
+    protected BytesAndMessagesCount getRgPublishRateLimiterValues() {
+        BytesAndMessagesCount retVal;
+        final PerMonitoringClassFields monEntity =
+                                        this.monitoringClassFields[ResourceGroupMonitoringClass.Publish.ordinal()];
+        monEntity.localUsageStatsLock.lock();
+        try {
+            retVal = this.resourceGroupPublishLimiter.getResourceGroupPublishValues();
+        } finally {
+            monEntity.localUsageStatsLock.unlock();
+        }
+
+        return retVal;
     }
 
     // Visibility for unit testing
@@ -534,6 +584,10 @@ public class ResourceGroup {
             .help("Number of times local usage was reported (vs. suppressed due to negligible change)")
             .labelNames(resourceGroupMontoringclassLabels)
             .register();
+
+    // Publish rate limiter for the resource group
+    @Getter
+    protected ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
     protected static class PerMonitoringClassFields {
         // This lock covers all the "local" counts (i.e., except for the per-broker usage stats).

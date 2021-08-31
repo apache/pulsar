@@ -28,7 +28,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -45,6 +49,7 @@ import org.slf4j.LoggerFactory;
  * as well as MetadataStore read/write functions for a) lookup of a service unit ownership to a broker; b) take
  * ownership of a service unit by the local broker
  */
+@Slf4j
 public class OwnershipCache {
 
     private static final Logger LOG = LoggerFactory.getLogger(OwnershipCache.class);
@@ -258,7 +263,13 @@ public class OwnershipCache {
         CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(bundle);
 
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
-            return future.join();
+            try {
+                return future.get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            } catch (InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e.getCause());
+            }
         } else {
             return null;
         }

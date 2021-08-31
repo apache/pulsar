@@ -25,6 +25,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -96,10 +97,13 @@ public class NamespaceStatsAggregator {
             ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ml.getStats();
 
             stats.managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
+            stats.managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
             stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
-            stats.backlogQuotaLimit = topic.getBacklogQuota().getLimitSize();
-            stats.backlogQuotaLimitTime = topic.getBacklogQuota().getLimitTime();
+            stats.backlogQuotaLimit = topic
+                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize();
+            stats.backlogQuotaLimitTime = topic
+                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime();
 
             stats.managedLedgerStats.storageWriteLatencyBuckets
                     .addAll(mlStats.getInternalAddEntryLatencyBuckets());
@@ -210,6 +214,11 @@ public class NamespaceStatsAggregator {
             aggReplStats.msgRateOut += replStats.msgRateOut;
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
+            aggReplStats.msgRateIn += replStats.msgRateIn;
+            aggReplStats.msgThroughputIn += replStats.msgThroughputIn;
+            aggReplStats.msgRateExpired += replStats.msgRateExpired;
+            aggReplStats.connectedCount += replStats.connected ? 1 : 0;
+            aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
     }
 
@@ -225,6 +234,7 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, "pulsar_throughput_in", 0);
         metric(stream, cluster, "pulsar_throughput_out", 0);
         metric(stream, cluster, "pulsar_storage_size", 0);
+        metric(stream, cluster, "pulsar_storage_logical_size", 0);
         metric(stream, cluster, "pulsar_storage_write_rate", 0);
         metric(stream, cluster, "pulsar_storage_read_rate", 0);
         metric(stream, cluster, "pulsar_msg_backlog", 0);
@@ -253,6 +263,7 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_out_messages_total", stats.msgOutCounter);
 
         metric(stream, cluster, namespace, "pulsar_storage_size", stats.managedLedgerStats.storageSize);
+        metric(stream, cluster, namespace, "pulsar_storage_logical_size", stats.managedLedgerStats.storageLogicalSize);
         metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize);
         metric(stream, cluster, namespace, "pulsar_storage_offloaded_size",
                 stats.managedLedgerStats.offloadedStorageUsed);
@@ -327,6 +338,12 @@ public class NamespaceStatsAggregator {
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_connected_count", remoteCluster,
+                        replStats.connectedCount);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_rate_expired", remoteCluster,
+                        replStats.msgRateExpired);
+                metricWithRemoteCluster(stream, cluster, namespace, "pulsar_replication_delay_in_seconds",
+                        remoteCluster, replStats.replicationDelayInSeconds);
             });
         }
     }

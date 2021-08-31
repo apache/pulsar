@@ -70,6 +70,8 @@ class ProducerImpl : public HandlerBase,
     void triggerFlush() override;
     void flushAsync(FlushCallback callback) override;
     bool isConnected() const override;
+    uint64_t getNumberOfConnectedProducer() override;
+    bool isStarted() const;
 
     bool removeCorruptMessage(uint64_t sequenceId);
 
@@ -91,6 +93,8 @@ class ProducerImpl : public HandlerBase,
     void sendMessage(const OpSendMsg& opSendMsg);
 
     void batchMessageTimeoutHandler(const boost::system::error_code& ec);
+
+    void startSendTimeoutTimer();
 
     friend class PulsarFriend;
 
@@ -158,7 +162,7 @@ class ProducerImpl : public HandlerBase,
     std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailed();
     std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailedWithLock();
 
-    void failPendingMessages(Result result);
+    void failPendingMessages(Result result, bool withLock);
 
     MessageCryptoPtr msgCrypto_;
     DeadlineTimerPtr dataKeyGenTImer_;

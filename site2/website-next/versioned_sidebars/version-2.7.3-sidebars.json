@@ -1,0 +1,24 @@
+{
+  "version-2.7.3/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/kubernetes-helm"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    }
+  ]
+}

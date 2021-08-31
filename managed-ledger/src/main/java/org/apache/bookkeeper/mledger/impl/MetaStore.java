@@ -133,12 +133,12 @@ public interface MetaStore {
     Iterable<String> getManagedLedgers() throws MetaStoreException;
 
     /**
-     * Check path exists.
+     * Check ledger exists.
      *
-     * @param path {@link String}
+     * @param ledgerName {@link String}
      * @return a future represents the result of the operation.
      *         an instance of {@link Boolean} is returned
      *         if the operation succeeds.
      */
-    CompletableFuture<Boolean> exists(String path);
+    CompletableFuture<Boolean> asyncExists(String ledgerName);
 }

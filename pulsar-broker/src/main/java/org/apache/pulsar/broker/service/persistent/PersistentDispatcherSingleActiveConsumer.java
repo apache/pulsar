@@ -153,6 +153,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         havePendingRead = false;
+        isFirstRead = false;
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
             int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
@@ -174,7 +175,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 Entry entry = iterator.next();
                 byte[] key = peekStickyKey(entry.getDataBuffer());
                 Consumer consumer = stickyKeyConsumerSelector.select(key);
+                // Skip the entry if it's not for current active consumer.
                 if (consumer == null || currentConsumer != consumer) {
+                    entry.release();
                     iterator.remove();
                 }
             }
@@ -338,7 +341,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             }
             havePendingRead = true;
             if (consumer.readCompacted()) {
-                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
+                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                        this, consumer);
             } else {
                 cursor.asyncReadEntriesOrWait(messagesToRead,
                         bytesToRead, this, consumer, topic.getMaxReadPosition());

@@ -40,6 +40,7 @@ public class PulsarResources {
     private LocalPoliciesResources localPolicies;
     private LoadManagerReportResources loadReportResources;
     private BookieResources bookieResources;
+    private TopicResources topicResources;
 
     private Optional<MetadataStore> localMetadataStore;
     private Optional<MetadataStore> configurationMetadataStore;
@@ -52,7 +53,8 @@ public class PulsarResources {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
-            namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
+            namespaceResources = new NamespaceResources(localMetadataStore, configurationMetadataStore,
+                    operationTimeoutSec);
             resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
         }
         if (localMetadataStore != null) {
@@ -60,6 +62,7 @@ public class PulsarResources {
             localPolicies = new LocalPoliciesResources(localMetadataStore, operationTimeoutSec);
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
+            topicResources = new TopicResources(localMetadataStore);
         }
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);

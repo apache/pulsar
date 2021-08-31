@@ -128,7 +128,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
         final TopicName myTopic = TopicName.get(topicString);
         final String tenantString = myTopic.getTenant();
-        final String nsString = myTopic.getNamespacePortion();
+        final String nsString = myTopic.getNamespace();
         rgs.registerTenant(rgName, tenantString);
         rgs.registerNameSpace(rgName, nsString);
 
@@ -204,13 +204,17 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
 
                 if (sentNumMsgs > 0 || recvdNumMsgs > 0) {
                     rgs.aggregateResourceGroupLocalUsages();  // hack to ensure aggregator calculation without waiting
-                    BytesAndMessagesCount prodCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish);
-                    BytesAndMessagesCount consCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch);
+                    BytesAndMessagesCount prodCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish,
+                                                         true);
+                    BytesAndMessagesCount consCounts = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch,
+                                                         true);
 
                     // Re-do the getRGUsage.
                     // The counts should be equal, since there wasn't any intervening traffic on TEST_PRODUCE_CONSUME_TOPIC.
-                    BytesAndMessagesCount prodCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish);
-                    BytesAndMessagesCount consCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch);
+                    BytesAndMessagesCount prodCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Publish,
+                                                          true);
+                    BytesAndMessagesCount consCounts1 = rgs.getRGUsage(rgName, ResourceGroupMonitoringClass.Dispatch,
+                                                          true);
 
                     Assert.assertTrue(prodCounts.bytes == prodCounts1.bytes);
                     Assert.assertTrue(prodCounts.messages == prodCounts1.messages);

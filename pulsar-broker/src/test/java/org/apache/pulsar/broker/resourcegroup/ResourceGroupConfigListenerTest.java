@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
+import static org.apache.pulsar.common.policies.path.PolicyPath.path;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import com.google.common.collect.Sets;
 import java.util.Random;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -34,6 +38,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest {
 
     ResourceGroup testAddRg = new ResourceGroup();
@@ -115,18 +120,18 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     @Test
     public void testResourceGroupAttachToNamespace() throws Exception {
         createResourceGroup(rgName, testAddRg);
-
         admin.tenants().createTenant(tenantName,
                 new TenantInfoImpl(Sets.newHashSet("fake-admin-role"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
 
+        admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
         Awaitility.await().untilAsserted(() ->
-                        assertNotNull(pulsar
-                                .getResourceGroupServiceManager()
-                                .getNamespaceResourceGroup(namespaceName)));
+            assertNotNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
 
         admin.namespaces().removeNamespaceResourceGroup(namespaceName);
+        Awaitility.await().untilAsserted(() ->
+            assertNull(pulsar.getResourceGroupServiceManager().getNamespaceResourceGroup(namespaceName)));
+
         admin.namespaces().deleteNamespace(namespaceName);
         deleteResourceGroup(rgName);
     }
@@ -164,6 +169,51 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
                 assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName));
             }
         });
+    }
+
+    @Test
+    public void testResourceGroupUpdateLoop() throws PulsarAdminException {
+
+        ResourceGroup zooRg = new ResourceGroup();
+        pulsar.getPulsarResources().getResourcegroupResources().getStore().registerListener(
+          notification -> {
+              String notifyPath = notification.getPath();
+              String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
+              if (!notifyPath.startsWith(path(RESOURCEGROUPS))) {
+                  return;
+              }
+              if (RESOURCEGROUPS.equals(rgName)) {
+                  return;
+              }
+              pulsar.getPulsarResources().getResourcegroupResources()
+                .getAsync(notifyPath).whenComplete((optionalRg, ex) -> {
+                  if (ex != null) {
+                      return;
+                  }
+                  if (optionalRg.isPresent()) {
+                      ResourceGroup resourceGroup = optionalRg.get();
+
+                      zooRg.setDispatchRateInBytes(resourceGroup.getDispatchRateInBytes());
+                      zooRg.setDispatchRateInMsgs(resourceGroup.getDispatchRateInMsgs());
+                      zooRg.setPublishRateInBytes(resourceGroup.getPublishRateInBytes());
+                      zooRg.setPublishRateInMsgs(resourceGroup.getPublishRateInMsgs());
+                  }
+              });
+          }
+        );
+        ResourceGroup rg = new ResourceGroup();
+        rg.setPublishRateInMsgs(-1);
+        rg.setPublishRateInBytes(10);
+        rg.setDispatchRateInMsgs(10);
+        rg.setDispatchRateInBytes(20);
+        createResourceGroup("myrg", rg);
+
+        for (int i = 0; i < 100; i++) {
+            rg.setPublishRateInMsgs(i);
+            updateResourceGroup("myrg", rg);
+        }
+
+        Awaitility.await().untilAsserted(() -> assertEquals(zooRg.getPublishRateInMsgs(), rg.getPublishRateInMsgs()));
     }
 
     private void prepareData() throws PulsarAdminException {

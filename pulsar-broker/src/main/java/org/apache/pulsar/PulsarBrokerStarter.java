@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.c
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,6 +52,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
@@ -72,6 +74,7 @@ public class PulsarBrokerStarter {
     }
 
     @VisibleForTesting
+    @Parameters(commandDescription = "Options")
     private static class StarterArguments {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile =
@@ -97,6 +100,9 @@ public class PulsarBrokerStarter {
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     private static ServerConfiguration readBookieConfFile(String bookieConfigFile) throws IllegalArgumentException {
@@ -134,7 +140,7 @@ public class PulsarBrokerStarter {
         private final WorkerService functionsWorkerService;
         private final WorkerConfig workerConfig;
 
-        BrokerStarter(String[] args) throws Exception{
+        BrokerStarter(String[] args) throws Exception {
             StarterArguments starterArguments = new StarterArguments();
             JCommander jcommander = new JCommander(starterArguments);
             jcommander.setProgramName("PulsarBrokerStarter");
@@ -143,6 +149,13 @@ public class PulsarBrokerStarter {
             jcommander.parse(args);
             if (starterArguments.help) {
                 jcommander.usage();
+                System.exit(-1);
+            }
+
+            if (starterArguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("broker", starterArguments);
+                cmd.run(null);
                 System.exit(-1);
             }
 

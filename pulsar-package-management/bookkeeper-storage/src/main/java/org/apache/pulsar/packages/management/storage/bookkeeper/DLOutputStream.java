@@ -58,8 +58,8 @@ class DLOutputStream {
             try {
                 int read = 0;
                 while ((read = inputStream.read(readBuffer)) != -1) {
-                    log.info("write something into the ledgers " + offset);
-                    ByteBuf writeBuf = Unpooled.wrappedBuffer(readBuffer, 0, read);
+                    log.info("write something into the ledgers offset: {}, length: {}", offset, read);
+                    ByteBuf writeBuf = Unpooled.copiedBuffer(readBuffer, 0, read);
                     offset += writeBuf.readableBytes();
                     LogRecord record = new LogRecord(offset, writeBuf);
                     records.add(record);

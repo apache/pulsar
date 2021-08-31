@@ -19,7 +19,8 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.client.internal.DefaultImplementation.getBytes;
+import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
