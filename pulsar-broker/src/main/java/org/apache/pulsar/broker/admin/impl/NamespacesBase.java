@@ -2402,8 +2402,11 @@ public abstract class NamespacesBase extends AdminResource {
         Policies policies = getNamespacePolicies(namespaceName);
         SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
+                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            }
         }
         return schemaCompatibilityStrategy;
     }
