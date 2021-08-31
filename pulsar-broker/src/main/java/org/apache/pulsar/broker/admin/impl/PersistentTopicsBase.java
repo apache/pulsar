@@ -2301,7 +2301,8 @@ public class PersistentTopicsBase extends AdminResource {
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
             if (null == ledger.getLedgerInfo(ledgerId).get()) {
-                log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}, ledgerId not belong to this topic.",
+                log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}, "
+                                + "ledgerId not belong to this topic.",
                         clientAppId(), ledgerId, entryId, topicName);
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
             }
