@@ -36,6 +36,8 @@
       <excludes>
         <!-- need special permissions -->
         <exclude>src/*.sh</exclude>
+        <exclude>pulsar-client-cpp/docker/*</exclude>
+        <exclude>docker/pulsar/scripts/*</exclude>
 
         <!-- Pulsar standalone -->
         <exclude>data/**</exclude>
@@ -86,6 +88,22 @@
     <fileSet>
       <directory>src</directory>
       <outputDirectory>/src</outputDirectory>
+      <includes>
+        <include>*.sh</include>
+      </includes>
+      <fileMode>0755</fileMode>
+    </fileSet>
+    <fileSet>
+      <directory>pulsar-client-cpp/docker</directory>
+      <outputDirectory>/pulsar-client-cpp/docker</outputDirectory>
+      <includes>
+        <include>*.sh</include>
+      </includes>
+      <fileMode>0755</fileMode>
+    </fileSet>
+    <fileSet>
+      <directory>docker/pulsar/scripts</directory>
+      <outputDirectory>/docker/pulsar/scripts</outputDirectory>
       <includes>
         <include>*.sh</include>
       </includes>
