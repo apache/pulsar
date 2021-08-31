@@ -212,6 +212,11 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
         Algorithm algorithm = null;
         try {
             jwk = provider.get(jwt.getKeyId());
+
+            if(!(jwk instanceof RSAPublicKey)){
+                throw new JwtException("key needs to be a RSA Publickey");
+            }
+
             algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey(), null);
             algorithm.verify(jwt); // if the token signature is invalid, the method will throw SignatureVerificationException
 
