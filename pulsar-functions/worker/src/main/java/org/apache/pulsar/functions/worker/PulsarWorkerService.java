@@ -141,7 +141,13 @@ public class PulsarWorkerService implements WorkerService {
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification());
                 } else {
-                    return WorkerUtils.getPulsarAdminClient(pulsarServiceUrl);
+                    return WorkerUtils.getPulsarAdminClient(
+                            pulsarServiceUrl,
+                            null,
+                            null,
+                            null,
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.isTlsEnableHostnameVerification());
                 }
             }
 
@@ -158,7 +164,14 @@ public class PulsarWorkerService implements WorkerService {
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification());
                 } else {
-                    return WorkerUtils.getPulsarClient(pulsarServiceUrl);
+                    return WorkerUtils.getPulsarClient(
+                            pulsarServiceUrl,
+                            null,
+                            null,
+                            null,
+                            null,
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.isTlsEnableHostnameVerification());
                 }
             }
         };

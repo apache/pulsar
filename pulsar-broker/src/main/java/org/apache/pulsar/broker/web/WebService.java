@@ -26,7 +26,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TimeZone;
 import javax.servlet.DispatcherType;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -36,7 +35,6 @@ import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.Slf4jRequestLog;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -213,11 +211,7 @@ public class WebService implements AutoCloseable {
     public void start() throws PulsarServerException {
         try {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
-            Slf4jRequestLog requestLog = new Slf4jRequestLog();
-            requestLog.setExtended(true);
-            requestLog.setLogTimeZone(TimeZone.getDefault().getID());
-            requestLog.setLogLatency(true);
-            requestLogHandler.setRequestLog(requestLog);
+            requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
             handlers.add(0, new ContextHandlerCollection());
             handlers.add(requestLogHandler);
 

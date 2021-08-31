@@ -19,9 +19,13 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -30,7 +34,11 @@ import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.compaction.CompactedTopicContext;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.CompactorMXBean;
 
+@Slf4j
 public class NamespaceStatsAggregator {
 
     private static FastThreadLocal<AggregatedNamespaceStats> localNamespaceStats =
@@ -57,6 +65,7 @@ public class NamespaceStatsAggregator {
 
         printDefaultBrokerStats(stream, cluster);
 
+        Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
@@ -66,11 +75,13 @@ public class NamespaceStatsAggregator {
                 topicsMap.forEach((name, topic) -> {
                     getTopicStats(topic, topicStats, includeConsumerMetrics, includeProducerMetrics,
                             pulsar.getConfiguration().isExposePreciseBacklogInPrometheus(),
-                            pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus());
+                            pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus(),
+                            compactorMXBean
+                    );
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
-                        TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats);
+                        TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats, compactorMXBean);
                     } else {
                         namespaceStats.updateStats(topicStats);
                     }
@@ -87,8 +98,19 @@ public class NamespaceStatsAggregator {
         });
     }
 
+    private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
+        Compactor compactor = null;
+        try {
+            compactor = pulsar.getCompactor(false);
+        } catch (PulsarServerException e) {
+            log.error("get compactor error", e);
+        }
+        return Optional.ofNullable(compactor).map(c -> c.getStats());
+    }
+
     private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
-            boolean includeProducerMetrics, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+            boolean includeProducerMetrics, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                      Optional<CompactorMXBean> compactorMXBean) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -220,6 +242,31 @@ public class NamespaceStatsAggregator {
             aggReplStats.connectedCount += replStats.connected ? 1 : 0;
             aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
         });
+
+        compactorMXBean
+                .flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic.getName()))
+                .map(compactionRecord -> {
+                    stats.compactionRemovedEventCount = compactionRecord.getCompactionRemovedEventCount();
+                    stats.compactionSucceedCount = compactionRecord.getCompactionSucceedCount();
+                    stats.compactionFailedCount = compactionRecord.getCompactionFailedCount();
+                    stats.compactionDurationTimeInMills = compactionRecord.getCompactionDurationTimeInMills();
+                    stats.compactionReadThroughput = compactionRecord.getCompactionReadThroughput();
+                    stats.compactionWriteThroughput = compactionRecord.getCompactionWriteThroughput();
+                    stats.compactionLatencyBuckets.addAll(compactionRecord.getCompactionLatencyStats());
+                    stats.compactionLatencyBuckets.refresh();
+                    PersistentTopic persistentTopic = (PersistentTopic) topic;
+                    Optional<CompactedTopicContext> compactedTopicContext = persistentTopic
+                            .getCompactedTopicContext();
+                    if (compactedTopicContext.isPresent()) {
+                        LedgerHandle ledger = compactedTopicContext.get().getLedger();
+                        long entries = ledger.getLastAddConfirmed() + 1;
+                        long size = ledger.getLength();
+
+                        stats.compactionCompactedEntriesCount = entries;
+                        stats.compactionCompactedEntriesSize = size;
+                    }
+                    return compactionRecord;
+                });
     }
 
     private static void printDefaultBrokerStats(SimpleTextOutputStream stream, String cluster) {

@@ -171,7 +171,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 > #### Resources are *per instance*
-> The resources that you apply to a given Pulsar Function are applied to each [instance](#parallelism) of the function. If you apply 8 GB of RAM to a function with a paralellism of 5, for example, then you are applying 40 GB of RAM total for the function. You should always make sure to factor paralellism---i.e. the number of instances---into your resource calculations
+> The resources that you apply to a given Pulsar Function are applied to each [instance](#parallelism) of the function. If you apply 8 GB of RAM to a function with a parallelism of 5, for example, then you are applying 40 GB of RAM total for the function. You should always make sure to factor parallelism---i.e. the number of instances---into your resource calculations
 
 ## Triggering Pulsar Functions
 

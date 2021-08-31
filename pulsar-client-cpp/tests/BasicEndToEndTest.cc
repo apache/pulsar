@@ -56,7 +56,6 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 std::mutex mutex_;
-static int globalTestBatchMessagesCounter = 0;
 static int globalCount = 0;
 static long globalResendMessageCount = 0;
 std::string lookupUrl = "pulsar://localhost:6650";
@@ -1297,6 +1296,8 @@ void testHandlerReconnectionPartitionProducers(bool lazyStartPartitionedProducer
 
     std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
     int res = makePutRequest(url, "1");
+    LOG_INFO("res = " << res);
+    ASSERT_FALSE(res != 204 && res != 409);
 
     ProducerConfiguration producerConf;
     producerConf.setSendTimeout(10000);
@@ -3275,8 +3276,7 @@ TEST(BasicEndToEndTest, testRegexTopicsWithInitialPosition) {
 
     for (int i = 0; i < 10; i++) {
         Message msg;
-        Result res = consumer.receive(msg);
-        ASSERT_EQ(ResultOk, result);
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
     }
 
     client.close();
@@ -3453,7 +3453,7 @@ TEST(BasicEndToEndTest, testSendCallback) {
     std::set<MessageId> sentIdSet;
     for (int i = 0; i < 100; i++) {
         const auto msg = MessageBuilder().setContent("a").build();
-        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+        producer.sendAsync(msg, [&sentIdSet, &latch](Result result, const MessageId &id) {
             ASSERT_EQ(ResultOk, result);
             sentIdSet.emplace(id);
             latch.countdown();
@@ -3497,7 +3497,7 @@ TEST(BasicEndToEndTest, testSendCallback) {
     latch = Latch(numMessages);
     for (int i = 0; i < numMessages; i++) {
         const auto msg = MessageBuilder().setContent("a").build();
-        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+        producer.sendAsync(msg, [&sentIdSet, &latch](Result result, const MessageId &id) {
             ASSERT_EQ(ResultOk, result);
             sentIdSet.emplace(id);
             latch.countdown();

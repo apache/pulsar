@@ -69,6 +69,7 @@ TEST(ClientTest, testSwHwChecksum) {
     uint32_t hwIncrementalChecksum = crc32cHw(hwChecksum1, (char *)data.c_str(), data.length());
     // (b.1) sw: checksum on full data
     uint32_t swDoubleChecksum = crc32cSw(0, (char *)doubleData.c_str(), doubleData.length());
+    ASSERT_EQ(swDoubleChecksum, hwDoubleChecksum);
     // (b.2) sw: incremental checksum on multiple partial data
     swChecksum1 = crc32cHw(0, (char *)data.c_str(), data.length());
     uint32_t swIncrementalChecksum = crc32cSw(swChecksum1, (char *)data.c_str(), data.length());

@@ -3606,11 +3606,32 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions) {
         return createSubscriptions(topicName, numPartitions)
-                .thenCompose(__ ->
-                        namespaceResources().getPartitionedTopicResources()
-                                .updatePartitionedTopicAsync(topicName,
-                                        p -> new PartitionedTopicMetadata(numPartitions))
-                );
+                .thenCompose(__ -> {
+                    CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
+                            .updatePartitionedTopicAsync(topicName,
+                                    p -> new PartitionedTopicMetadata(numPartitions));
+                    future.exceptionally(ex -> {
+                        // If the update operation fails, clean up the partitions that were created
+                        getPartitionedTopicMetadataAsync(topicName, false, false)
+                                .thenAccept(metadata -> {
+                                    int oldPartition = metadata.partitions;
+                                    for (int i = oldPartition; i < numPartitions; i++) {
+                                        topicResources().deletePersistentTopicAsync(topicName.getPartition(i))
+                                                .exceptionally(ex1 -> {
+                                                    log.warn("[{}] Failed to clean up managedLedger {}",
+                                                            clientAppId(),
+                                                            topicName, ex1.getCause());
+                                                    return null;
+                                                });
+                                    }
+                                }).exceptionally(e -> {
+                                    log.warn("[{}] Failed to clean up managedLedger", topicName, e);
+                                    return null;
+                                });
+                        return null;
+                    });
+                    return future;
+                });
     }
 
     /**
@@ -3740,9 +3761,9 @@ public class PersistentTopicsBase extends AdminResource {
         TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
         int oldPartition = metadata.partitions;
-        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
         for (String exsitingTopicName : existingTopicList) {
-            if (exsitingTopicName.contains(prefix)) {
+            if (exsitingTopicName.startsWith(prefix)) {
                 try {
                     long suffix = Long.parseLong(exsitingTopicName.substring(
                             exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
@@ -3757,7 +3778,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 clientAppId(),
                                 exsitingTopicName, topicName);
                         throw new RestException(Status.PRECONDITION_FAILED,
-                                "Already have non partition topic" + exsitingTopicName
+                                "Already have non partition topic " + exsitingTopicName
                                         + " which contains partition suffix '-partition-' "
                                         + "and end with numeric value and end with numeric value smaller than the new "
                                         + "number of partition. Update of partitioned topic "

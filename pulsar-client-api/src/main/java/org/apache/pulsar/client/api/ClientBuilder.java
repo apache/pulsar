@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.Map;
@@ -34,7 +35,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface ClientBuilder extends Cloneable {
+public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Construct the final {@link PulsarClient} instance.

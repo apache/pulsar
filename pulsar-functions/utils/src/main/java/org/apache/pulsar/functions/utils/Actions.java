@@ -94,12 +94,13 @@ public class Actions {
                 log.error("Uncaught exception thrown when running action [ {} ]:", action.getActionName(), e);
                 success = false;
             }
-            if (action.getContinueOn() != null
-                    && success == action.getContinueOn()) {
-                continue;
-            } else {
-                // terminate
-                break;
+            if (action.getContinueOn() != null) {
+                if (success == action.getContinueOn()) {
+                    continue;
+                } else {
+                    // terminate
+                    break;
+                }
             }
         }
     }

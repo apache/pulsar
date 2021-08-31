@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -217,6 +218,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     };
 
+
     enum State {
         Start, Connected, Failed, Connecting
     }
@@ -381,8 +383,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, String subscriptionName,
                                                                TopicOperation operation) {
-        CompletableFuture<Boolean> isProxyAuthorizedFuture;
-        CompletableFuture<Boolean> isAuthorizedFuture;
         if (service.isAuthorizationEnabled()) {
             if (authenticationData == null) {
                 authenticationData = new AuthenticationDataCommand("", subscriptionName);
@@ -394,20 +394,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             return isTopicOperationAllowed(topicName, operation);
         } else {
-            isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-            isAuthorizedFuture = CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(true);
         }
-        return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
-            if (!isProxyAuthorized) {
-                log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}, subscription {}",
-                    originalPrincipal, operation, topicName, subscriptionName);
-            }
-            if (!isAuthorized) {
-                log.warn("Role {} is not authorized to perform operation {} on topic {}, subscription {}",
-                    authRole, operation, topicName, subscriptionName);
-            }
-            return isProxyAuthorized && isAuthorized;
-        });
     }
 
     @Override
@@ -637,7 +625,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (authState.isComplete()) {
             // Authentication has completed. It was either:
-            // 1. the 1st time the authentication process was done, in which case we'll
+            // 1. the 1st time the authentication process was done, in which case we'll send
             //    a `CommandConnected` response
             // 2. an authentication refresh, in which case we need to refresh authenticationData
 
@@ -1541,6 +1529,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             commandSender.sendErrorResponse(requestId, ServerError.MetadataError, "Consumer not found");
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ServerCnx other = (ServerCnx) o;
+        return Objects.equals(ctx().channel().id(), other.ctx().channel().id());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(ctx().channel().id());
     }
 
     @Override
@@ -2598,7 +2603,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void execute(Runnable runnable) {
-        ctx.channel().eventLoop().execute(runnable);
+        ctx().channel().eventLoop().execute(runnable);
     }
 
     @Override

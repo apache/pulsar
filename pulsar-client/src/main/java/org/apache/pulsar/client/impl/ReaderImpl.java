@@ -69,6 +69,7 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionMode(SubscriptionMode.NonDurable);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+        consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
 
         // Reader doesn't need any batch receiving behaviours
         // disable the batch receive timer for the ConsumerImpl instance wrapped by the ReaderImpl

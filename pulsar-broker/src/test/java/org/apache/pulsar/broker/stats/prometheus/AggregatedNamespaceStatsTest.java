@@ -43,6 +43,14 @@ public class AggregatedNamespaceStatsTest {
         topicStats1.msgBacklog = 30;
         topicStats1.managedLedgerStats.storageWriteRate = 12.0;
         topicStats1.managedLedgerStats.storageReadRate = 6.0;
+        topicStats1.compactionRemovedEventCount = 10;
+        topicStats1.compactionSucceedCount = 1;
+        topicStats1.compactionFailedCount = 2;
+        topicStats1.compactionDurationTimeInMills = 1000;
+        topicStats1.compactionReadThroughput = 15.0;
+        topicStats1.compactionWriteThroughput = 20.0;
+        topicStats1.compactionCompactedEntriesCount = 30;
+        topicStats1.compactionCompactedEntriesSize = 1000;
 
         AggregatedReplicationStats replStats1 = new AggregatedReplicationStats();
         replStats1.msgRateIn = 1.0;
@@ -75,6 +83,14 @@ public class AggregatedNamespaceStatsTest {
         topicStats2.msgBacklog = 7;
         topicStats2.managedLedgerStats.storageWriteRate = 5.0;
         topicStats2.managedLedgerStats.storageReadRate = 2.5;
+        topicStats2.compactionRemovedEventCount = 10;
+        topicStats2.compactionSucceedCount = 1;
+        topicStats2.compactionFailedCount = 2;
+        topicStats2.compactionDurationTimeInMills = 1000;
+        topicStats2.compactionReadThroughput = 15.0;
+        topicStats2.compactionWriteThroughput = 20.0;
+        topicStats2.compactionCompactedEntriesCount = 30;
+        topicStats2.compactionCompactedEntriesSize = 1000;
 
         AggregatedReplicationStats replStats2 = new AggregatedReplicationStats();
         replStats2.msgRateIn = 3.5;
@@ -112,6 +128,15 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsStats.managedLedgerStats.storageReadRate, 8.5);
         assertEquals(nsStats.managedLedgerStats.storageSize, 6144);
         assertEquals(nsStats.managedLedgerStats.storageLogicalSize, 2560);
+
+        assertEquals(nsStats.compactionRemovedEventCount, 20);
+        assertEquals(nsStats.compactionSucceedCount, 2);
+        assertEquals(nsStats.compactionFailedCount, 4);
+        assertEquals(nsStats.compactionDurationTimeInMills, 2000);
+        assertEquals(nsStats.compactionReadThroughput, 30.0);
+        assertEquals(nsStats.compactionWriteThroughput, 40.0);
+        assertEquals(nsStats.compactionCompactedEntriesCount, 60);
+        assertEquals(nsStats.compactionCompactedEntriesSize, 2000);
 
         AggregatedReplicationStats nsReplStats = nsStats.replicationStats.get(namespace);
         assertNotNull(nsReplStats);

@@ -60,6 +60,11 @@ public class TopicResources {
         );
     }
 
+    public CompletableFuture<Void> deletePersistentTopicAsync(TopicName topic) {
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
+        return store.delete(path, Optional.of(-1l));
+    }
+
     public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
         String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();;
         return store.put(path, new byte[0], Optional.of(-1l))

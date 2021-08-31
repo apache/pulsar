@@ -60,6 +60,10 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.publishers.size(), 1);
         assertEquals(topicStats.subscriptions.size(), 1);
         assertEquals(topicStats.replication.size(), 1);
+        assertEquals(topicStats.compaction.lastCompactionRemovedEventCount, 0);
+        assertEquals(topicStats.compaction.lastCompactionSucceedTimestamp, 0);
+        assertEquals(topicStats.compaction.lastCompactionFailedTimestamp, 0);
+        assertEquals(topicStats.compaction.lastCompactionDurationTimeInMills, 0);
         topicStats.reset();
         assertEquals(topicStats.msgRateIn, 0.0);
         assertEquals(topicStats.msgThroughputIn, 0.0);

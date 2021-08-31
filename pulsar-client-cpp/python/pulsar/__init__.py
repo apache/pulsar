@@ -765,7 +765,8 @@ class Client:
                       receiver_queue_size=1000,
                       reader_name=None,
                       subscription_role_prefix=None,
-                      is_read_compacted=False
+                      is_read_compacted=False,
+                      crypto_key_reader=None
                       ):
         """
         Create a reader on a particular topic
@@ -815,6 +816,9 @@ class Client:
           Sets the subscription role prefix.
         * `is_read_compacted`:
           Selects whether to read the compacted version of the topic
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
@@ -823,6 +827,7 @@ class Client:
         _check_type_or_none(str, reader_name, 'reader_name')
         _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -834,6 +839,8 @@ class Client:
             conf.subscription_role_prefix(subscription_role_prefix)
         conf.schema(schema.schema_info())
         conf.read_compacted(is_read_compacted)
+        if crypto_key_reader:
+            conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)

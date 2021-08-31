@@ -33,6 +33,10 @@ import org.testng.annotations.BeforeMethod;
  * This is useful for making test retries to work on classes which use BeforeClass
  * and AfterClass methods to setup a test environment that is shared across all test methods in the test
  * class.
+ *
+ * The setup method implementation must call incrementSetupNumber method and the cleanup method must call
+ * markCurrentSetupNumberCleaned method. This is required by the state tracking logic.
+ *
  */
 public abstract class TestRetrySupport {
     private static final Logger LOG = LoggerFactory.getLogger(TestRetrySupport.class);
@@ -83,12 +87,25 @@ public abstract class TestRetrySupport {
         LOG.debug("currentSetupNumber={}", currentSetupNumber);
     }
 
+    /**
+     * This method should be called in the cleanup method of the concrete class.
+     */
     protected final void markCurrentSetupNumberCleaned() {
         cleanedUpSetupNumber = currentSetupNumber;
         LOG.debug("cleanedUpSetupNumber={}", cleanedUpSetupNumber);
     }
 
+    /**
+     * Initializes the test environment state.
+     *
+     * The implementation of this method must call incrementSetupNumber method.
+     */
     protected abstract void setup() throws Exception;
 
+    /**
+     * Cleans up the state of the environment.
+     *
+     * The implementation of this method must call the markCurrentSetupNumberCleaned method.
+     */
     protected abstract void cleanup() throws Exception;
 }

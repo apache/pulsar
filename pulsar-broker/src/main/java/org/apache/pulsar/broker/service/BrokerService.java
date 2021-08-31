@@ -159,6 +159,8 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -1723,8 +1725,15 @@ public class BrokerService implements Closeable {
                 }
             }
         }
-
         topics.remove(topic);
+
+        try {
+            Compactor compactor = pulsar.getCompactor(false);
+            if (compactor != null) {
+                compactor.getStats().removeTopic(topic);
+            }
+        } catch (PulsarServerException ignore) {
+        }
     }
 
     public int getNumberOfNamespaceBundles() {
