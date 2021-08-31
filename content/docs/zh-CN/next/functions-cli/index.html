@@ -95,10 +95,10 @@
 <tr><td>disk</td><td>每个 function 实例需要分配的磁盘（仅适用于在 docker 上运行时）。</td><td></td></tr>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
 <tr><td>function-config-file</td><td>指定 Pulsar Function 配置的 YAML 配置文件的路径。</td><td></td></tr>
-<tr><td>go</td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。</td><td></td></tr>
+<tr><td>go</td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>hostname-verification-enabled</td><td>启用主机名称验证。</td><td>false</td></tr>
 <tr><td>inputs</td><td>Pulsar Function 中一个或多个输入 topic（可以将多个 topic 指定为以逗号分隔的列表）。</td><td></td></tr>
-<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http /https /file（文件协议假定该文件已在 worker 主机上）]，worker 可以从中下载软件包。</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>instance-id-offset</td><td>从此偏移量启动 instanceId。</td><td>0</td></tr>
 <tr><td>log-topic</td><td>用于存储 Pulsar Function 生成的日志的 topic。</td><td></td></tr>
 <tr><td>max-message-retries</td><td>尝试处理一条消息的最大次数。</td><td></td></tr>
@@ -108,7 +108,7 @@
 <tr><td>output-serde-classname</td><td>此 function 输出消息使用的 SerDe 类。</td><td></td></tr>
 <tr><td>parallelism</td><td>Pulsar Function 的并行度因子（即运行 function 实例的数量）。</td><td></td></tr>
 <tr><td>processing-guarantees</td><td>应用于 function 的处理保证（传递语义）。 可用值：[ATLEAST_ONCE、ATMOST_ONCE、EFFECTIVELY_ONCE]。</td><td>ATLEAST_ONCE</td></tr>
-<tr><td>py</td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。</td><td></td></tr>
+<tr><td>py</td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>ram</td><td>需要为每个 function 实例分配的 ram 字节数（仅适用于进程/在 docker 上运行时）。</td><td></td></tr>
 <tr><td>retain-ordering</td><td>Function 按顺序消费并处理消息。</td><td></td></tr>
 <tr><td>schema-type</td><td>Function 用于输出消息的内置 schema 类型或自定义 schema 名称。</td><td><empty string></td></tr>
@@ -143,9 +143,9 @@
 <tr><td>disk</td><td>每个 function 实例需要分配的磁盘（仅适用于在 docker 上运行时）。</td><td></td></tr>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
 <tr><td>function-config-file</td><td>指定 Pulsar Function 配置的 YAML 配置文件的路径。</td><td></td></tr>
-<tr><td>go</td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。</td><td></td></tr>
+<tr><td>go</td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>inputs</td><td>Pulsar Function 中一个或多个输入 topic（可以将多个 topic 指定为以逗号分隔的列表）。</td><td></td></tr>
-<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http /https /file（文件协议假定该文件已在 worker 主机上）]，worker 可以从中下载软件包。</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
 <tr><td>max-message-retries</td><td>尝试处理一条消息的最大次数。</td><td></td></tr>
 <tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
@@ -154,7 +154,7 @@
 <tr><td>output-serde-classname</td><td>此 function 输出消息使用的 SerDe 类。</td><td></td></tr>
 <tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
 <tr><td>processing-guarantees</td><td>应用于 function 的处理保证（传递语义）。 可用值：[ATLEAST_ONCE、ATMOST_ONCE、EFFECTIVELY_ONCE]。</td><td>ATLEAST_ONCE</td></tr>
-<tr><td>py</td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。</td><td></td></tr>
+<tr><td>py</td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>ram</td><td>需要为每个 function 实例分配的 ram 字节数（仅适用于进程/在 docker 上运行时）。</td><td></td></tr>
 <tr><td>retain-ordering</td><td>Function 按顺序消费并处理消息。</td><td></td></tr>
 <tr><td>schema-type</td><td>Function 用于输出消息的内置 schema 类型或自定义 schema 名称。</td><td><empty string></td></tr>
@@ -199,9 +199,9 @@
 <tr><td>disk</td><td>每个 function 实例需要分配的磁盘（仅适用于在 docker 上运行时）。</td><td></td></tr>
 <tr><td>fqfn</td><td>此 function 的完全限定名称（FQFN）。</td><td></td></tr>
 <tr><td>function-config-file</td><td>指定 Pulsar Function 配置的 YAML 配置文件的路径。</td><td></td></tr>
-<tr><td>go</td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。</td><td></td></tr>
+<tr><td>go</td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>inputs</td><td>Pulsar Function 中一个或多个输入 topic（可以将多个 topic 指定为以逗号分隔的列表）。</td><td></td></tr>
-<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http /https /file（文件协议假定该文件已在 worker 主机上）]，worker 可以从中下载软件包。</td><td></td></tr>
+<tr><td>jar</td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>log-topic</td><td>The topic to which the logs of a Pulsar Function are produced.</td><td></td></tr>
 <tr><td>max-message-retries</td><td>尝试处理一条消息的最大次数。</td><td></td></tr>
 <tr><td>name</td><td>Pulsar Function 的名称。</td><td></td></tr>
@@ -210,7 +210,7 @@
 <tr><td>output-serde-classname</td><td>此 function 输出消息使用的 SerDe 类。</td><td></td></tr>
 <tr><td>parallelism</td><td>The parallelism factor of a Pulsar Function (i.e. the number of function instances to run).</td><td></td></tr>
 <tr><td>processing-guarantees</td><td>应用于 function 的处理保证（传递语义）。 可用值：[ATLEAST_ONCE、ATMOST_ONCE、EFFECTIVELY_ONCE]。</td><td>ATLEAST_ONCE</td></tr>
-<tr><td>py</td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。</td><td></td></tr>
+<tr><td>py</td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
 <tr><td>ram</td><td>需要为每个 function 实例分配的 ram 字节数（仅适用于进程/在 docker 上运行时）。</td><td></td></tr>
 <tr><td>retain-ordering</td><td>Function 按顺序消费并处理消息。</td><td></td></tr>
 <tr><td>schema-type</td><td>Function 用于输出消息的内置 schema 类型或自定义 schema 名称。</td><td><empty string></td></tr>
