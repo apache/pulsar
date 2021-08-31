@@ -50,6 +50,7 @@ public class GoInstanceConfig {
     private long timeoutMs;
     private String subscriptionName = "";
     private boolean cleanupSubscription;
+    private int subscriptionPosition;
 
     private String sourceSpecsTopic = "";
     private String sourceSchemaType = "";
