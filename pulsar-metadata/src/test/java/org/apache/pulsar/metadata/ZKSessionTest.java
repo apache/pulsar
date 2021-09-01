@@ -117,6 +117,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
 
+
         zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
@@ -130,11 +131,8 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
 
-        Awaitility.waitAtMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertFalse(lock.getLockExpiredFuture().isDone());
-        });
-
-        assertTrue(store.get(path).join().isPresent());
+        Awaitility.await().untilAsserted(() -> assertTrue(store.get(path).join().isPresent()));
+        assertFalse(lock.getLockExpiredFuture().isDone());
     }
 
     @Test
