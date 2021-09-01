@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,10 +29,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
+import java.util.function.Supplier;
 import lombok.Cleanup;
-
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
@@ -49,9 +46,10 @@ import org.testng.annotations.Test;
 public class LockManagerTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
-    public void acquireLocks(String provider, String url) throws Exception {
+    public void acquireLocks(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -97,9 +95,10 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void cleanupOnClose(String provider, String url) throws Exception {
+    public void cleanupOnClose(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -126,9 +125,10 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void updateValue(String provider, String url) throws Exception {
+    public void updateValue(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
@@ -148,9 +148,10 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void revalidateLockWithinSameSession(String provider, String url) throws Exception {
+    public void revalidateLockWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService cs2 = new CoordinationServiceImpl(store);
@@ -179,16 +180,18 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void revalidateLockOnDifferentSession(String provider, String url) throws Exception {
+    public void revalidateLockOnDifferentSession(String provider, Supplier<String> urlSupplier) throws Exception {
         if (provider.equals("Memory")) {
             // Local memory provider doesn't really have the concept of multiple sessions
             return;
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService cs1 = new CoordinationServiceImpl(store1);
