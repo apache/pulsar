@@ -282,7 +282,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.OFFLOAD, PolicyOperation.READ)
             .thenCompose(__ -> internalGetOffloadPolicies(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -304,7 +304,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Offload policies for the specified topic") OffloadPoliciesImpl offloadPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.OFFLOAD, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetOffloadPolicies(offloadPolicies))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -325,7 +325,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.OFFLOAD, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetOffloadPolicies(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -348,7 +348,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_UNACKED, PolicyOperation.READ)
             .thenCompose(__ -> internalGetMaxUnackedMessagesOnConsumer(applied))
             .thenApply(asyncResponse::resume).exceptionally(ex -> {
                 handleTopicPolicyException("getMaxUnackedMessagesOnConsumer", ex, asyncResponse);
@@ -371,7 +371,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Max unacked messages on consumer policies for the specified topic")
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_UNACKED, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxUnackedMessagesOnConsumer(maxUnackedNum))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -392,7 +392,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_UNACKED, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxUnackedMessagesOnConsumer(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -414,7 +414,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ)
             .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
             .thenAccept(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
@@ -441,7 +441,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetDeduplicationSnapshotInterval(interval))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -462,7 +462,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetDeduplicationSnapshotInterval(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -485,7 +485,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ)
             .thenCompose(__ -> internalGetInactiveTopicPolicies(applied))
             .thenApply(asyncResponse::resume).exceptionally(ex -> {
                 handleTopicPolicyException("getInactiveTopicPolicies", ex, asyncResponse);
@@ -507,7 +507,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "inactive topic policies for the specified topic")
             InactiveTopicPolicies inactiveTopicPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetInactiveTopicPolicies(inactiveTopicPolicies))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -528,7 +528,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetInactiveTopicPolicies(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -551,7 +551,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_UNACKED, PolicyOperation.READ)
             .thenCompose(__ -> internalGetMaxUnackedMessagesOnSubscription(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -575,8 +575,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
                     Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_UNACKED, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -599,8 +598,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_UNACKED, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxUnackedMessagesOnSubscription(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -623,7 +621,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ)
             .thenCompose(__ -> internalGetDelayedDeliveryPolicies(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -648,8 +646,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     DelayedDeliveryPolicies deliveryPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         validatePoliciesReadOnlyAccess();
-        validateTopicPolicyOperation(topicName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetDelayedDeliveryPolicies(deliveryPolicies))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -673,8 +670,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validatePoliciesReadOnlyAccess();
-        validateTopicPolicyOperation(topicName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetDelayedDeliveryPolicies(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -1591,7 +1587,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.BACKLOG, PolicyOperation.READ)
             .thenCompose(__ -> internalGetBacklogQuota(applied))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -1618,7 +1614,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.BACKLOG, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, backlogQuota))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -1642,7 +1638,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.BACKLOG, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetBacklogQuota(backlogQuotaType, null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -1666,7 +1662,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.TTL, PolicyOperation.READ)
             .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
             .thenAccept(op -> asyncResponse.resume(op
                 .map(TopicPolicies::getMessageTTLInSeconds)
@@ -1702,7 +1698,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.TTL, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMessageTTL(messageTTL))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -1728,7 +1724,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.TTL, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMessageTTL(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -1753,7 +1749,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DEDUPLICATION, PolicyOperation.READ)
             .thenCompose(__ -> internalGetDeduplication(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -1779,7 +1775,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "DeduplicationEnabled policies for the specified topic")
                     Boolean enabled) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DEDUPLICATION, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetDeduplication(enabled))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -1803,7 +1799,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.DEDUPLICATION, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetDeduplication(null))
             .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
@@ -1828,7 +1824,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RETENTION, PolicyOperation.READ)
             .thenCompose(__ -> internalGetRetention(applied))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -1854,7 +1850,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RETENTION, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetRetention(retention))
             .thenRun(() -> {
                 try {
@@ -1889,7 +1885,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RETENTION, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveRetention())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove retention: namespace={}, topic={}",
@@ -1920,7 +1916,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.PERSISTENCE, PolicyOperation.READ)
             .thenCompose(__ -> internalGetPersistence(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -1947,7 +1943,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Bookkeeper persistence policies for specified topic")
             PersistencePolicies persistencePolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.PERSISTENCE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetPersistence(persistencePolicies))
             .thenRun(() -> {
                 try {
@@ -1982,7 +1978,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.PERSISTENCE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemovePersistence())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove persistence policies: namespace={}, topic={}",
@@ -2012,7 +2008,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ)
             .thenCompose(__ -> internalGetMaxSubscriptionsPerTopic())
             .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
                     : Response.noContent().build()))
@@ -2039,7 +2035,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max subscriptions of the topic") int maxSubscriptionsPerTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(maxSubscriptionsPerTopic))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated maxSubscriptionsPerTopic: namespace={}, topic={}"
@@ -2068,7 +2064,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxSubscriptionsPerTopic(null))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove maxSubscriptionsPerTopic: namespace={}, topic={}",
@@ -2097,7 +2093,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
             .thenCompose(__ -> internalGetReplicatorDispatchRate(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -2123,7 +2119,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Replicator dispatch rate of the topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetReplicatorDispatchRate(dispatchRate))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated replicatorDispatchRate: namespace={}, topic={}"
@@ -2152,7 +2148,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetReplicatorDispatchRate(null))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove replicatorDispatchRate limit: namespace={}, topic={}",
@@ -2181,7 +2177,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_PRODUCERS, PolicyOperation.READ)
             .thenCompose(__ -> internalGetMaxProducers(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -2207,7 +2203,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max producers of the topic") int maxProducers) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxProducers(maxProducers))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated max producers: namespace={}, topic={}, maxProducers={}",
@@ -2238,7 +2234,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_PRODUCERS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveMaxProducers())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove max producers: namespace={}, topic={}",
@@ -2269,7 +2265,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_CONSUMERS, PolicyOperation.READ)
             .thenCompose(__ -> internalGetMaxConsumers(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -2295,7 +2291,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max consumers of the topic") int maxConsumers) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxConsumers(maxConsumers))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated max consumers: namespace={}, topic={}, maxConsumers={}",
@@ -2326,7 +2322,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveMaxConsumers())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove max consumers: namespace={}, topic={}",
@@ -2356,7 +2352,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_MESSAGE_SIZE, PolicyOperation.READ)
             .thenCompose(__ -> internalGetMaxMessageSize())
             .thenAccept(policies -> {
                 asyncResponse.resume(policies.isPresent() ? policies.get() : Response.noContent().build());
@@ -2384,7 +2380,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max message size of the topic") int maxMessageSize) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_MESSAGE_SIZE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxMessageSize(maxMessageSize))
             .thenRun(() -> {
                 log.info("[{}] Successfully set max message size: namespace={}, topic={}, maxMessageSiz={}",
@@ -2415,7 +2411,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_MESSAGE_SIZE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxMessageSize(null))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove max message size: namespace={}, topic={}",
@@ -2649,7 +2645,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.READ)
             .thenCompose(__ -> internalGetDispatchRate(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -2674,7 +2670,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetDispatchRate(dispatchRate))
             .thenRun(() -> {
                 try {
@@ -2709,7 +2705,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveDispatchRate())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic dispatch rate: tenant={}, namespace={}, topic={}",
@@ -2741,7 +2737,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.READ)
             .thenCompose(__ -> internalGetSubscriptionDispatchRate(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -2768,7 +2764,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Subscription message dispatch rate for the specified topic")
                     DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetSubscriptionDispatchRate(dispatchRate))
             .thenRun(() -> {
                 try {
@@ -2803,7 +2799,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveSubscriptionDispatchRate())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic subscription dispatch rate: tenant={}, namespace={}, topic={}",
@@ -2835,7 +2831,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.COMPACTION, PolicyOperation.READ)
             .thenCompose(__ -> internalGetCompactionThreshold(applied))
             .thenApply(asyncResponse::resume)
             .exceptionally(ex -> {
@@ -2860,7 +2856,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") long compactionThreshold) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.COMPACTION, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetCompactionThreshold(compactionThreshold))
             .thenRun(() -> {
                 try {
@@ -2895,7 +2891,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.COMPACTION, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveCompactionThreshold())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic compaction threshold: tenant={}, namespace={}, topic={}",
@@ -2926,7 +2922,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_CONSUMERS, PolicyOperation.READ)
             .thenCompose(__ -> internalGetMaxConsumersPerSubscription())
             .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
                     : Response.noContent().build()))
@@ -2953,7 +2949,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") int maxConsumersPerSubscription) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription))
             .thenRun(() -> {
                 try {
@@ -2988,7 +2984,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveMaxConsumersPerSubscription())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic max consumers per subscription:"
@@ -3020,7 +3016,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.READ)
             .thenCompose(__ -> internalGetPublishRate())
             .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
                     : Response.noContent().build()))
@@ -3046,7 +3042,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") PublishRate publishRate) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetPublishRate(publishRate))
             .thenRun(() -> {
                 try {
@@ -3081,7 +3077,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemovePublishRate())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic publish rate: tenant={}, namespace={}, topic={}",
@@ -3112,7 +3108,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ)
             .thenCompose(__ -> internalGetSubscriptionTypesEnabled())
             .thenAccept(op -> {
                 asyncResponse.resume(op.isPresent() ? op.get()
@@ -3141,7 +3137,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Enable sub types for the specified topic")
             Set<SubscriptionType> subscriptionTypesEnabled) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetSubscriptionTypesEnabled(subscriptionTypesEnabled))
             .thenRun(() -> {
                 try {
@@ -3177,7 +3173,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.READ)
                 .thenCompose(__ -> internalGetSubscribeRate(applied))
                 .thenApply(asyncResponse::resume).exceptionally(ex -> {
             handleTopicPolicyException("getSubscribeRate", ex, asyncResponse);
@@ -3202,7 +3198,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalSetSubscribeRate(subscribeRate))
             .thenRun(() -> {
                 try {
@@ -3237,7 +3233,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        preValidation(authoritative, PolicyName.RATE, PolicyOperation.WRITE)
             .thenCompose(__ -> internalRemoveSubscribeRate())
             .thenRun(() -> {
                 log.info("[{}] Successfully remove topic subscribe rate: tenant={}, namespace={}, topic={}",

@@ -2692,8 +2692,6 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
                                            BacklogQuotaImpl backlogQuota) {
-        validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
 
         BacklogQuota.BacklogQuotaType finalBacklogQuotaType = backlogQuotaType == null
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
@@ -2962,8 +2960,17 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    protected CompletableFuture<Void> preValidation(boolean authoritative) {
+    protected CompletableFuture<Void> preValidation(boolean authoritative,
+                                                    PolicyName policyName,
+                                                    PolicyOperation policyOperation) {
         checkTopicLevelPolicyEnable();
+
+        // If the policy operation is a write, the broker needs to have write access
+        if (PolicyOperation.WRITE.equals(policyOperation)) {
+            validatePoliciesReadOnlyAccess();
+        }
+        validateTopicPolicyOperation(topicName, policyName, policyOperation);
+
         if (topicName.isPartitioned()) {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Not allowed to set/get topic policy for a partition"));
