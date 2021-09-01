@@ -31,6 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
@@ -40,6 +41,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
@@ -213,20 +215,23 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             assertEquals(e.getCause().getClass(), LockBusyException.class);
         }
 
-        // Lock-1 should get notification of expiry
+        // Lock-1 should not get invalidated
         assertFalse(rl1.getLockExpiredFuture().isDone());
 
         assertEquals(new String(store1.get(path1).join().get().getValue()), "\"value-1\"");
 
         // Simulate existing lock with same content. The 2nd acquirer will steal the lock
         String path2 = newKey();
-        rl1 = lm1.acquireLock(path2, "value-1").join();
+        store1.put(path2, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-1"), Optional.of(-1L));
 
         ResourceLock<String> rl2 = lm2.acquireLock(path2, "value-1").join();
 
-        assertFalse(rl1.getLockExpiredFuture().isDone());
         assertFalse(rl2.getLockExpiredFuture().isDone());
 
-        assertEquals(new String(store1.get(path2).join().get().getValue()), "\"value-1\"");
+        Awaitility.await().untilAsserted(() -> {
+            // On 'store1' we might see for a short amount of time an empty result still cached while the lock is
+            // being reacquired.
+            assertEquals(new String(store1.get(path2).join().get().getValue()), "\"value-1\"");
+        });
     }
 }
