@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -76,6 +77,30 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testSchemaCompatibilityStrategyInBrokerLevel() throws PulsarClientException {
+        conf.setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                PUBLIC_TENANT,
+                namespace,
+                "testSchemaCompatibilityStrategyInBrokerLevel"
+        ).toString();
+
+        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
+                withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
+                .topic(topicName)
+                .create();
+
+        ProducerBuilder<Schemas.PersonThree> producerBuilder = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition
+                .<Schemas.PersonThree>builder().withAlwaysAllowNull(true).withPojo(Schemas.PersonThree.class).build()))
+                .topic(topicName);
+
+        Throwable t = expectThrows(PulsarClientException.IncompatibleSchemaException.class, producerBuilder::create);
+        assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
     @Test
