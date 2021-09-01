@@ -569,7 +569,11 @@ void ClientConnection::handleRead(const boost::system::error_code& err, size_t b
 
     if (err || bytesTransferred == 0) {
         if (err) {
-            LOG_ERROR(cnxString_ << "Read failed: " << err.message());
+            if (err == boost::asio::error::operation_aborted) {
+                LOG_DEBUG(cnxString_ << "Read failed: " << err.message());
+            } else {
+                LOG_ERROR(cnxString_ << "Read operation was cancelled");
+            }
         }  // else: bytesTransferred == 0, which means server has closed the connection
         close();
     } else if (bytesTransferred < minReadSize) {
