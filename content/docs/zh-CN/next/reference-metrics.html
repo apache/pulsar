@@ -353,7 +353,21 @@
 <li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li>
 <li>pulsar_entry_size_le_overflow: &gt; 1 MB</li>
 </ul>
-<p>| | pulsar_in_bytes_total | 计数器 | 此主题接收的总字节数 | | pulsar_in_messages_total | 计数器 | 此主题接收的总消息数 | | pulsar_out_bytes_total | 计数器 | 从此主题中读取的总字节数 | | pulsar_out_messages_total | 计数器 | 从此主题中读取的总消息数 |</p>
+<p>| | pulsar_in_bytes_total | Counter | The total number of bytes received for this topic | | pulsar_in_messages_total | Counter | The total number of messages received for this topic | | pulsar_out_bytes_total | Counter | The total number of bytes read from this topic | | pulsar_out_messages_total | Counter | The total number of messages read from this topic | | pulsar_compaction_removed_event_count | Gauge | The removed event count of compaction | | pulsar_compaction_succeed_count | Gauge | The succeed count of compaction | | pulsar_compaction_failed_count | Gauge | The failed count of compaction | | pulsar_compaction_duration_time_in_mills | Gauge | The duration time of compaction | | pulsar_compaction_read_throughput | Gauge | The read throughput of compaction | | pulsar_compaction_write_throughput | Gauge | The write throughput of compaction | | pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile.<br>
+Available thresholds:</p>
+<ul>
+<li>pulsar_compaction_latency_le_0_5: &lt;= 0.5ms</li>
+<li>pulsar_compaction_latency_le_1: &lt;= 1ms</li>
+<li>pulsar_compaction_latency_le_5: &lt;= 5ms</li>
+<li>pulsar_compaction_latency_le_10: &lt;= 10ms</li>
+<li>pulsar_compaction_latency_le_20: &lt;= 20ms</li>
+<li>pulsar_compaction_latency_le_50: &lt;= 50ms</li>
+<li>pulsar_compaction_latency_le_100: &lt;= 100ms</li>
+<li>pulsar_compaction_latency_le_200: &lt;= 200ms</li>
+<li>pulsar_compaction_latency_le_1000: &lt;= 1s</li>
+<li>pulsar_compaction_latency_le_overflow: &gt; 1s</li>
+</ul>
+<p>| | pulsar_compaction_compacted_entries_count | Gauge | The compacted entries count | | pulsar_compaction_compacted_entries_size |Gauge | The compacted entries size |</p>
 <h4><a class="anchor" aria-hidden="true" id="复制度量值-1"></a><a href="#复制度量值-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>复制度量值</h4>
 <p>如果主题所属的命名空间被配置为在多个Pulsar集群中复制，当<code>replicationMetricsEnabled</code> 启用时，相应的复制度量值也会暴露出来。</p>
 <p>所有的复制度量值带有 <code>remoteCluster=${pulsar_remote_cluster}</code> 标签。</p>
@@ -425,8 +439,8 @@
 <li>quantile=&quot;100.0_200.0&quot; 是 AddEntryLatency 介于 (100ms, 200ms]</li>
 <li>quantile=&quot;200.0_1000.0&quot; 是 AddEntryLatency 介于 (200ms, 1s]</li>
 </ul>
-<p>| | pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | 计量器 | 添加条目延迟 &gt; 1s | | pulsar_ml_AddEntryMessagesRate | 计量器 | 消息添加的消息/秒频率 | | pulsar_ml_AddEntrySucceed | 计量器 | 成功的addEntry 请求数 | | pulsar_ml_EntrySizeBuckets | 直方图 | 指定了分位数的 ledger 的添加条目大小。<br>
-可用的分位数:</p>
+<p>| | pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The add entry latency &gt; 1s | | pulsar_ml_AddEntryMessagesRate | Gauge | The msg/s rate of messages added | | pulsar_ml_AddEntrySucceed | Gauge | The number of addEntry requests that succeeded | | pulsar_ml_EntrySizeBuckets | Histogram | The add entry size of a ledger with given quantile.<br>
+Available quantile:</p>
 <ul>
 <li>quantile=&quot;0.0_128.0&quot; 是 EntrySize 介于 (0byte, 128byte]</li>
 <li>quantile=&quot;128.0_512.0&quot; 是 EntrySize 介于 (128byte, 512byte]</li>
@@ -437,7 +451,7 @@
 <li>quantile=&quot;16384.0_102400.0&quot; 是 EntrySize 介于 (16KB, 100KB]</li>
 <li>quantile=&quot;102400.0_1232896.0&quot; 是 EntrySize 介于 (100KB, 1MB]</li>
 </ul>
-<p>| | pulsar_ml_EntrySizeBuckets_OVERFLOW | 计量器 | 添加条目大小 &gt; 1MB | | pulsar_ml_LedgerSwitchLatencyBuckets | 直方图 | 给定了分位数的 ledger 切换延迟。<br>
+<p>| | pulsar_ml_EntrySizeBuckets_OVERFLOW |Gauge | The add entry size &gt; 1MB | | pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with given quantile.<br>
 可用的分位数:</p>
 <ul>
 <li>quantile=&quot;0.0_0.5&quot; 是 EntrySize 介于 (0ms, 0.5ms]</li>
@@ -450,7 +464,7 @@
 <li>quantile=&quot;100.0_200.0&quot; 是 EntrySize 介于 (100ms, 200ms]</li>
 <li>quantile=&quot;200.0_1000.0&quot; 是 EntrySize 介于 (200ms, 1000ms]</li>
 </ul>
-<p>| | pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | 计量器 | ledger 切换延迟 &gt; 1s | | pulsar_ml_MarkDeleteRate | 计量器 | 标记-删除操作频率 操作/秒 | | pulsar_ml_NumberOfMessagesInBacklog | 计量器 | 所有消费者的积压消息数 | | pulsar_ml_ReadEntriesBytesRate | 计量器 | 消息读取的字节/秒频率 | | pulsar_ml_ReadEntriesErrors | 计量器 | 失败的 readEntries 请求数 | | pulsar_ml_ReadEntriesRate | 计量器 | 消息读取的消息数/秒频率 | | pulsar_ml_ReadEntriesSucceeded | 计量器 | 成功的 readEntries 请求数 | | pulsar_ml_StoredMessagesSize | 计量器 | 活动 ledger 中的消息总大小 (计算已存储的多个副本) |</p>
+<p>| | pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | Gauge | The ledger switch latency &gt; 1s | | pulsar_ml_MarkDeleteRate | Gauge | The rate of mark-delete ops/s | | pulsar_ml_NumberOfMessagesInBacklog | Gauge | The number of backlog messages for all the consumers | | pulsar_ml_ReadEntriesBytesRate | Gauge | The bytes/s rate of messages read | | pulsar_ml_ReadEntriesErrors | Gauge | The number of readEntries requests that failed | | pulsar_ml_ReadEntriesRate | Gauge | The msg/s rate of messages read | | pulsar_ml_ReadEntriesSucceeded | Gauge | The number of readEntries requests that succeeded | | pulsar_ml_StoredMessagesSize | Gauge | The total size of the messages in active ledgers (accounting for the multiple copies stored) |</p>
 <h3><a class="anchor" aria-hidden="true" id="managed-cursor-acknowledgment-state"></a><a href="#managed-cursor-acknowledgment-state" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managed cursor acknowledgment state</h3>
 <p>The acknowledgment state is persistent to the ledger first. When the acknowledgment state fails to be persistent to the ledger, they are persistent to ZooKeeper. To track the stats of acknowledgment, you can configure the metrics for the managed cursor.</p>
 <p>All the cursor acknowledgment state metrics are labelled with the following labels:</p>
