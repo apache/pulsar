@@ -31,14 +31,14 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     @BeforeClass(alwaysRun = true)
     @Override
-    protected void setup() throws Exception {
+    public final void setup() throws Exception {
         incrementSetupNumber();
         zks = new TestZKServer();
     }
 
     @AfterClass(alwaysRun = true)
     @Override
-    protected void cleanup() throws Exception {
+    public final void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         zks.close();
     }
