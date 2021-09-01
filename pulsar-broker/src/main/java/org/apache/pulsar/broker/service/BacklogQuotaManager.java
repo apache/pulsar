@@ -95,7 +95,7 @@ public class BacklogQuotaManager {
             log.debug("Topic policies cache have not init, will apply the namespace backlog quota: topicName={}",
                     topicName);
         } catch (Exception e) {
-            log.error("Failed to read topic policies data,"
+            log.error("Failed to read topic policies data, "
                             + "will apply the namespace backlog quota: topicName={}", topicName, e);
         }
         return getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType);
