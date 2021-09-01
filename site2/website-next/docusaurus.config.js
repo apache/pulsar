@@ -98,4 +98,12 @@ module.exports = {
       },
     ],
   ],
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        fromExtensions: ["md"],
+      },
+    ],
+  ],
 };
