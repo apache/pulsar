@@ -748,6 +748,26 @@ public interface Topics {
     CompletableFuture<MessageId> terminateTopicAsync(String topic);
 
     /**
+     * Terminate the partitioned topic and prevent any more messages being published on it.
+     * <p/>
+     *
+     * @param topic
+     *            topic name
+     * @return the message id of the last message that was published in the each partition of topic
+     */
+    Map<Integer, MessageId> terminatePartitionedTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Terminate the partitioned topic and prevent any more messages being published on it.
+     * <p/>
+     *
+     * @param topic
+     *            topic name
+     * @return the message id of the last message that was published in the each partition of topic
+     */
+    CompletableFuture<Map<Integer, MessageId>> terminatePartitionedTopicAsync(String topic);
+
+    /**
      * Get the list of subscriptions.
      * <p/>
      * Get the list of persistent subscriptions for a given topic.
