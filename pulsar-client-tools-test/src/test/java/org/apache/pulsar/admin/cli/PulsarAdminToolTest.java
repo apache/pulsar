@@ -915,7 +915,7 @@ public class PulsarAdminToolTest {
         verify(mockLookup).lookupPartitionedTopic("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-lookup persistent://myprop/clust/ns1/ds1 --sort-by-broker"));
-        verify(mockLookup).lookupPartitionedTopicSortByBroker("persistent://myprop/clust/ns1/ds1");
+        verify(mockLookup).lookupPartitionedTopic("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("bundle-range persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).getBundleRange("persistent://myprop/clust/ns1/ds1");

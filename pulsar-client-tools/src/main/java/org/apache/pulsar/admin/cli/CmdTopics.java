@@ -33,13 +33,17 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -360,11 +364,22 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             if (sortByBroker) {
-                print(getAdmin().lookups().lookupPartitionedTopicSortByBroker(topic));
+                print(lookupPartitionedTopicSortByBroker(topic));
             } else {
                 print(getAdmin().lookups().lookupPartitionedTopic(topic));
             }
         }
+    }
+
+    private Map<String, List<String>> lookupPartitionedTopicSortByBroker(String topic) throws PulsarAdminException {
+        Map<String, String> partitionLookup = getAdmin().lookups().lookupPartitionedTopic(topic);
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : partitionLookup.entrySet()) {
+            List<String> topics = result.getOrDefault(entry.getValue(), new ArrayList<String>());
+            topics.add(entry.getKey());
+            result.put(entry.getValue(), topics);
+        }
+        return result;
     }
 
     @Parameters(commandDescription = "Get Namespace bundle range of a topic")

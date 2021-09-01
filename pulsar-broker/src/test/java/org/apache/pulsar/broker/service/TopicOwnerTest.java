@@ -324,21 +324,6 @@ public class TopicOwnerTest {
     }
 
     @Test
-    public void testLookupPartitionedTopicSortByBroker() throws Exception {
-        final int partitions = 5;
-        final String topic = "persistent://my-tenant/my-ns/partitionedTopic";
-
-        pulsarAdmins[0].topics().createPartitionedTopic(topic, partitions);
-
-        Map<String, List<String>> allPartitionMap = pulsarAdmins[0].lookups().lookupPartitionedTopicSortByBroker(topic);
-        int size = 0;
-        for (Map.Entry<String, List<String>> entry: allPartitionMap.entrySet()) {
-            size += entry.getValue().size();
-        }
-        Assert.assertEquals(partitions, size);
-    }
-
-    @Test
     public void testListNonPersistentTopic() throws Exception {
         final String topicName = "non-persistent://my-tenant/my-ns/my-topic";
         pulsarAdmins[0].topics().createPartitionedTopic(topicName, 16);
