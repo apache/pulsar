@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "quarantine")
+@Test(groups = "broker")
 public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod(alwaysRun = true)
