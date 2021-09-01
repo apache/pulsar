@@ -105,7 +105,7 @@
 <tr><th style="text-align:left">发送模式</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">同步发送</td><td>The producer waits for an acknowledgement from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.</td></tr>
+<tr><td style="text-align:left">Sync send</td><td>The producer waits for an acknowledgement from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.</td></tr>
 <tr><td style="text-align:left">异步发送</td><td>Producer 将把消息放于阻塞队列中，并立即返回 然后，客户端将在后台将消息发送给 broker。 如果队列已满(<a href="/docs/zh-CN/2.6.3/reference-configuration#broker">最大大小可配置</a>)，则调用 API 时，producer 可能会立即被阻止或失败，具体取决于传递给 producer 的参数。</td></tr>
 </tbody>
 </table>

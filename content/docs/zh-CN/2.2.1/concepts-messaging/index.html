@@ -104,7 +104,7 @@
 <tr><th style="text-align:left">发送模式</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">同步发送</td><td style="text-align:left">Producer 在消息发送后会等待 broker 的送达确认。如果没有收到，producer 会认为发送失败。</td></tr>
+<tr><td style="text-align:left">Sync send</td><td style="text-align:left">Producer 在消息发送后会等待 broker 的送达确认。如果没有收到，producer 会认为发送失败。</td></tr>
 <tr><td style="text-align:left">异步发送</td><td style="text-align:left">Producer 将消息发送到一个阻塞队列（blocking queue）后就立刻返回。 然后，客户端将在后台将消息发送给broker。 如果队列已满（ <a href="/docs/zh-CN/2.2.1/reference-configuration#broker">配置</a>的最大数量），根据传入producer的参数，producer可能阻塞或者直接返回失败。</td></tr>
 </tbody>
 </table>
