@@ -1802,20 +1802,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
 
-        log.info("[{}][{}] Seek subscription to {}", topic, subscription, seekBy);
+        BatchMessageIdImpl originSeekMessageId = seekMessageId;
+        seekMessageId = new BatchMessageIdImpl((MessageIdImpl) seekId);
+        duringSeek.set(true);
+        log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
 
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
             log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
             acknowledgmentsGroupingTracker.flushAndClean();
 
-            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) seekId);
-            duringSeek.set(true);
             lastDequeuedMessageId = MessageId.earliest;
 
             clearIncomingMessages();
             seekFuture.complete(null);
         }).exceptionally(e -> {
+            // re-set duringSeek and seekMessageId if seek failed
+            seekMessageId = originSeekMessageId;
+            duringSeek.set(false);
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
+
             seekFuture.completeExceptionally(
                 PulsarClientException.wrap(e.getCause(),
                     String.format("Failed to seek the subscription %s of the topic %s to %s",
