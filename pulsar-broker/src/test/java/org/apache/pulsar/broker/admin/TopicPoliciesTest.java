@@ -50,6 +50,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -230,6 +231,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().atLeast(1, TimeUnit.SECONDS);
         assertNull(admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage));
+    }
+
+    @Test
+    public void testBacklogQuotaWithPartitionedTopic() throws Exception {
+        final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 3);
+        pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe().close();
+        Awaitility.await()
+                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
+        BacklogQuota backlogQuota = new BacklogQuota(1234, BacklogQuota.RetentionPolicy.producer_exception);
+        admin.topics().setBacklogQuota(topic, backlogQuota);
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(topic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+
+        TopicPolicies topicPolicies0 = pulsar.getTopicPoliciesService().getTopicPolicies(
+                TopicName.get(topic).getPartition(0));
+        TopicPolicies topicPolicies1 = pulsar.getTopicPoliciesService().getTopicPolicies(
+                TopicName.get(topic).getPartition(1));
+        Assert.assertEquals(topicPolicies0, topicPolicies1);
+        Assert.assertEquals(topicPolicies0.getBackLogQuotaMap()
+                .get(BacklogQuota.BacklogQuotaType.destination_storage.name()).getLimit(), backlogQuota.getLimit());
+        Assert.assertEquals(topicPolicies0.getBackLogQuotaMap()
+                .get(BacklogQuota.BacklogQuotaType.destination_storage.name()).getPolicy(), backlogQuota.getPolicy());
     }
 
     @Test
