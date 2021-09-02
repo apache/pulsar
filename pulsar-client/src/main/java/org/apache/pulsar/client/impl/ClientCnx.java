@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -1120,7 +1119,6 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-    @VisibleForTesting
     public void close() {
        if (ctx != null) {
            ctx.close();

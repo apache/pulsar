@@ -272,7 +272,6 @@ public class ConnectionPool implements Closeable {
         return future;
     }
 
-    @VisibleForTesting
     CompletableFuture<List<InetAddress>> resolveName(String hostname) {
         CompletableFuture<List<InetAddress>> future = new CompletableFuture<>();
         dnsResolver.resolveAll(hostname).addListener((Future<List<InetAddress>> resolveFuture) -> {
