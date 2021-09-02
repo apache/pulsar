@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.impl;
+package org.apache.pulsar.broker.rest;
 
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
@@ -45,9 +45,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.rest.RestMessagePublishContext;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
@@ -93,32 +93,38 @@ public class TopicsBase extends PersistentTopicsBase {
     private static String defaultProducerName = "RestProducer";
 
     // Publish message to a topic, can be partitioned or non-partitioned
-    protected void publishMessages(AsyncResponse asyncResponse, ProducerMessages request,
-                                           boolean authoritative) {
+    protected void publishMessages(AsyncResponse asyncResponse, ProducerMessages request, boolean authoritative) {
         String topic = topicName.getPartitionedTopicName();
-        if (pulsar().getOwningTopics().containsKey(topic) || !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
-            // If we've done look up or or after look up this broker owns some of the partitions
-            // then proceed to publish message else asyncResponse will be complete by look up.
-            addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
-                    request.getSchemaVersion() == -1 ? null : new LongSchemaVersion(request.getSchemaVersion()))
-            .thenAccept(schemaMeta -> {
-                // Both schema version and schema data are necessary.
-                if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
-                    internalPublishMessages(topicName, request, pulsar().getOwningTopics().get(topic).values(),
-                            asyncResponse, AutoConsumeSchema.getSchema(schemaMeta.getLeft().toSchemaInfo()),
-                            schemaMeta.getRight());
-                } else {
-                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
-                            "Fail to add or retrieve schema."));
-                }
-            }).exceptionally(e -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to publish message: " + e.getMessage());
-                }
-                asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message:"
-                        + e.getMessage()));
-                return null;
-            });
+        try {
+            if (pulsar().getOwningTopics().containsKey(topic) || !findOwnerBrokerForTopic(authoritative,
+                    asyncResponse)) {
+                // If we've done look up or or after look up this broker owns some of the partitions
+                // then proceed to publish message else asyncResponse will be complete by look up.
+                addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
+                        request.getSchemaVersion() == -1 ? null : new LongSchemaVersion(request.getSchemaVersion()))
+                        .thenAccept(schemaMeta -> {
+                            // Both schema version and schema data are necessary.
+                            if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
+                                internalPublishMessages(topicName, request, pulsar().getOwningTopics()
+                                                .get(topic).values(), asyncResponse,
+                                        AutoConsumeSchema.getSchema(schemaMeta.getLeft().toSchemaInfo()),
+                                        schemaMeta.getRight());
+                            } else {
+                                asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
+                                        "Fail to add or retrieve schema."));
+                            }
+                        }).exceptionally(e -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Fail to publish message: " + e.getMessage());
+                    }
+                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message:"
+                            + e.getMessage()));
+                    return null;
+                });
+            }
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message: "
+                    + e.getMessage()));
         }
     }
 
@@ -130,29 +136,36 @@ public class TopicsBase extends PersistentTopicsBase {
                     + "'-partition-' suffix."));
         }
         String topic = topicName.getPartitionedTopicName();
-        // If broker owns the partition then proceed to publish message, else do look up.
-        if ((pulsar().getOwningTopics().containsKey(topic) && pulsar().getOwningTopics().get(topic).contains(partition))
-                || !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
-            addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
-                    request.getSchemaVersion() == -1 ? null : new LongSchemaVersion(request.getSchemaVersion()))
-            .thenAccept(schemaMeta -> {
-                // Both schema version and schema data are necessary.
-                if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
-                    internalPublishMessagesToPartition(topicName, request, partition, asyncResponse,
-                            AutoConsumeSchema.getSchema(schemaMeta.getLeft().toSchemaInfo()), schemaMeta.getRight());
-                } else {
-                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
-                            "Fail to add or retrieve schema."));
-                }
-            }).exceptionally(e -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to publish message to single partition: " + e.getLocalizedMessage());
-                }
-                asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message"
-                        + "to single partition: "
-                        + e.getMessage()));
-                return null;
-            });
+        try {
+            // If broker owns the partition then proceed to publish message, else do look up.
+            if ((pulsar().getOwningTopics().containsKey(topic) && pulsar().getOwningTopics().get(topic)
+                    .contains(partition))
+                    || !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
+                addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
+                        request.getSchemaVersion() == -1 ? null : new LongSchemaVersion(request.getSchemaVersion()))
+                        .thenAccept(schemaMeta -> {
+                            // Both schema version and schema data are necessary.
+                            if (schemaMeta.getLeft() != null && schemaMeta.getRight() != null) {
+                                internalPublishMessagesToPartition(topicName, request, partition, asyncResponse,
+                                        AutoConsumeSchema.getSchema(schemaMeta.getLeft().toSchemaInfo()),
+                                        schemaMeta.getRight());
+                            } else {
+                                asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
+                                        "Fail to add or retrieve schema."));
+                            }
+                        }).exceptionally(e -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Fail to publish message to single partition: " + e.getLocalizedMessage());
+                    }
+                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message"
+                            + "to single partition: "
+                            + e.getMessage()));
+                    return null;
+                });
+            }
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message: "
+                    + e.getMessage()));
         }
     }
 
@@ -162,7 +175,7 @@ public class TopicsBase extends PersistentTopicsBase {
         try {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
-            List<Message> messages = buildMessage(request, schema, producerName);
+            List<Message> messages = buildMessage(request, schema, producerName, topicName);
             List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             for (int index = 0; index < messages.size(); index++) {
@@ -203,7 +216,7 @@ public class TopicsBase extends PersistentTopicsBase {
         try {
             String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
                     ? defaultProducerName : request.getProducerName();
-            List<Message> messages = buildMessage(request, schema, producerName);
+            List<Message> messages = buildMessage(request, schema, producerName, topicName);
             List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             // Try to publish messages to all partitions this broker owns in round robin mode.
@@ -474,7 +487,6 @@ public class TopicsBase extends PersistentTopicsBase {
         return future;
     }
 
-
     // Add a new schema to schema registry for a topic
     private CompletableFuture<SchemaVersion> addSchema(SchemaData schemaData) {
         // Only need to add to first partition the broker owns since the schema id in schema registry are
@@ -519,8 +531,9 @@ public class TopicsBase extends PersistentTopicsBase {
     private SchemaData getSchemaData(String keySchema, String valueSchema) {
         try {
             SchemaInfoImpl valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
-                    ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() : ObjectMapperFactory.getThreadLocal()
-                    .readValue(valueSchema, SchemaInfoImpl.class);
+                    ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() :
+                    ObjectMapperFactory.getThreadLocal()
+                            .readValue(valueSchema, SchemaInfoImpl.class);
             if (null == valueSchemaInfo.getName()) {
                 valueSchemaInfo.setName(valueSchemaInfo.getType().toString());
             }
@@ -577,7 +590,8 @@ public class TopicsBase extends PersistentTopicsBase {
     }
 
     // Build pulsar message from REST request.
-    private List<Message> buildMessage(ProducerMessages producerMessages, Schema schema, String producerName) {
+    private List<Message> buildMessage(ProducerMessages producerMessages, Schema schema,
+                                       String producerName, TopicName topicName) {
         List<ProducerMessage> messages;
         List<Message> pulsarMessages = new ArrayList<>();
 
@@ -629,10 +643,11 @@ public class TopicsBase extends PersistentTopicsBase {
                 KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
                 pulsarMessages.add(MessageImpl.create(messageMetadata,
                         ByteBuffer.wrap(encodeWithSchema(message.getPayload(), kvSchema.getValueSchema())),
-                        schema, null));
+                        schema, topicName.toString()));
             } else {
                 pulsarMessages.add(MessageImpl.create(messageMetadata,
-                        ByteBuffer.wrap(encodeWithSchema(message.getPayload(), schema)), schema, null));
+                        ByteBuffer.wrap(encodeWithSchema(message.getPayload(), schema)), schema,
+                        topicName.toString()));
             }
         }
 
