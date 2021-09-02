@@ -90,9 +90,12 @@ public class BacklogQuotaManager {
                     .map(TopicPolicies::getBackLogQuotaMap)
                     .map(map -> map.get(backlogQuotaType.name()))
                     .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType));
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.debug("Topic policies cache have not init, will apply the namespace backlog quota: topicName={}",
+                    topicName);
         } catch (Exception e) {
-            log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}",
-                    topicName, e);
+            log.error("Failed to read topic policies data, "
+                            + "will apply the namespace backlog quota: topicName={}", topicName, e);
         }
         return getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType);
     }
