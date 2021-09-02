@@ -210,33 +210,32 @@ The `schema-definition-file` includes the following fields:
 <table className={"table"}>
 <tbody>
   <tr>
-    <th>Method</th>
+    <th>Field</th>
     <th>Description</th> 
   </tr>
   <tr>
     <td>
-**Admin CLI**
+`type`
     </td>
     <td>
-You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.
-For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).
-    </td> 
+    The schema type.</td> 
   </tr>
   <tr>
     <td>
-**REST API**
+`schema`
     </td>
     <td>
-Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.
-For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).
-    </td>
- </tr>
- <tr>
+The schema definition data, which is encoded in UTF 8 charset.
+* If the schema is a **primitive** schema, this field should be blank.
+* If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition.
+  </td> 
+  </tr>
+  <tr>
     <td>
-**Java Admin API**
+    `properties`
     </td>
-    <td>Pulsar provides Java admin library.</td>
- </tr>
+    <td>The additional properties associated with the schema.</td> 
+  </tr>  
 </tbody>
 </table>
 
@@ -286,33 +285,32 @@ The post payload includes the following fields:
 <table className={"table"}>
 <tbody>
   <tr>
-    <th>Method</th>
+    <th>Field</th>
     <th>Description</th> 
   </tr>
   <tr>
     <td>
-**Admin CLI**
+`type`
     </td>
     <td>
-You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.
-For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).
-    </td> 
+    The schema type.</td> 
   </tr>
   <tr>
     <td>
-**REST API**
+`schema`
     </td>
     <td>
-Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.
-For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).
-    </td>
- </tr>
- <tr>
+The schema definition data, which is encoded in UTF 8 charset.
+* If the schema is a **primitive** schema, this field should be blank.
+* If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition.
+  </td> 
+  </tr>
+  <tr>
     <td>
-**Java Admin API**
+    `properties`
     </td>
-    <td>Pulsar provides Java admin library.</td>
- </tr>
+    <td>The additional properties associated with the schema.</td> 
+  </tr>  
 </tbody>
 </table>
 
@@ -328,33 +326,32 @@ The `PostSchemaPayload` includes the following fields:
 <table className={"table"}>
 <tbody>
   <tr>
-    <th>Method</th>
+    <th>Field</th>
     <th>Description</th> 
   </tr>
   <tr>
     <td>
-**Admin CLI**
+`type`
     </td>
     <td>
-You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.
-For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).
-    </td> 
+    The schema type.</td> 
   </tr>
   <tr>
     <td>
-**REST API**
+`schema`
     </td>
     <td>
-Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.
-For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).
-    </td>
- </tr>
- <tr>
+The schema definition data, which is encoded in UTF 8 charset.
+* If the schema is a **primitive** schema, this field should be blank.
+* If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition.
+  </td> 
+  </tr>
+  <tr>
     <td>
-**Java Admin API**
+    `properties`
     </td>
-    <td>Pulsar provides Java admin library.</td>
- </tr>
+    <td>The additional properties associated with the schema.</td> 
+  </tr>  
 </tbody>
 </table>
 
@@ -420,33 +417,46 @@ The response includes the following fields:
 <table className={"table"}>
 <tbody>
   <tr>
-    <th>Method</th>
+    <th>Field</th>
     <th>Description</th> 
   </tr>
   <tr>
     <td>
-**Admin CLI**
+`version`
     </td>
     <td>
-You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.
-For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).
-    </td> 
+    The schema version, which is a long number.</td> 
   </tr>
   <tr>
     <td>
-**REST API**
+`type`
     </td>
     <td>
-Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.
-For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).
-    </td>
- </tr>
- <tr>
+    The schema type.</td> 
+  </tr>
+  <tr>
     <td>
-**Java Admin API**
+`timestamp` 
     </td>
-    <td>Pulsar provides Java admin library.</td>
- </tr>
+    <td>
+    The timestamp of creating this version of schema.</td> 
+  </tr>
+  <tr>
+    <td>
+`data`
+    </td>
+    <td>
+The schema definition data, which is encoded in UTF 8 charset.
+* If the schema is a **primitive** schema, this field should be blank.
+* If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition.
+  </td> 
+  </tr>
+  <tr>
+    <td>
+    `properties`
+    </td>
+    <td>The additional properties associated with the schema.</td> 
+  </tr>  
 </tbody>
 </table>
 
@@ -462,33 +472,39 @@ The `SchemaInfo` includes the following fields:
 <table className={"table"}>
 <tbody>
   <tr>
-    <th>Method</th>
+    <th>Field</th>
     <th>Description</th> 
   </tr>
   <tr>
     <td>
-**Admin CLI**
+`name`
     </td>
     <td>
-You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.
-For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).
-    </td> 
+    The schema name.</td> 
   </tr>
   <tr>
     <td>
-**REST API**
+`type`
     </td>
     <td>
-Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.
-For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).
-    </td>
- </tr>
- <tr>
+    The schema type.</td> 
+  </tr>
+  <tr>
     <td>
-**Java Admin API**
+`schema`
     </td>
-    <td>Pulsar provides Java admin library.</td>
- </tr>
+    <td>
+A byte array of the schema definition data, which is encoded in UTF 8 charset. 
+* If the schema is a **primitive** schema, this byte array should be empty. 
+* If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition converted to a byte array.
+  </td> 
+  </tr>
+  <tr>
+    <td>
+    `properties`
+    </td>
+    <td>The additional properties associated with the schema.</td> 
+  </tr>  
 </tbody>
 </table>
 
@@ -540,33 +556,46 @@ The response includes the following fields:
 <table className={"table"}>
 <tbody>
   <tr>
-    <th>Method</th>
+    <th>Field</th>
     <th>Description</th> 
   </tr>
   <tr>
     <td>
-**Admin CLI**
+`version`
     </td>
     <td>
-You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.
-For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).
-    </td> 
+    The schema version, which is a long number.</td> 
   </tr>
   <tr>
     <td>
-**REST API**
+`type`
     </td>
     <td>
-Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.
-For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).
-    </td>
- </tr>
- <tr>
+    The schema type.</td> 
+  </tr>
+  <tr>
     <td>
-**Java Admin API**
+`timestamp` 
     </td>
-    <td>Pulsar provides Java admin library.</td>
- </tr>
+    <td>
+    The timestamp of creating this version of schema.</td> 
+  </tr>
+  <tr>
+    <td>
+`data`
+    </td>
+    <td>
+The schema definition data, which is encoded in UTF 8 charset.
+* If the schema is a **primitive** schema, this field should be blank.
+* If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition.
+  </td> 
+  </tr>
+  <tr>
+    <td>
+    `properties`
+    </td>
+    <td>The additional properties associated with the schema.</td> 
+  </tr>  
 </tbody>
 </table>
 
@@ -582,33 +611,37 @@ The `SchemaInfo` includes the following fields:
 <table className={"table"}>
 <tbody>
   <tr>
-    <th>Method</th>
+    <th>Field</th>
     <th>Description</th> 
   </tr>
   <tr>
     <td>
-**Admin CLI**
+`name`
     </td>
-    <td>
-You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on.
-For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).
-    </td> 
+    <td>The schema name.</td> 
   </tr>
   <tr>
     <td>
-**REST API**
+`type`
+    </td>
+    <td>The schema type.</td> 
+  </tr>
+  <tr>
+    <td>
+`schema`
     </td>
     <td>
-Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas.
-For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).
-    </td>
- </tr>
- <tr>
+A byte array of the schema definition data, which is encoded in UTF 8.
+* If the schema is a **primitive** schema, this byte array should be empty.
+* If the schema is a **struct** schema, this field should be a JSON string of the Avro schema definition converted to a byte array.
+  </td> 
+  </tr>
+  <tr>
     <td>
-**Java Admin API**
+    `properties`
     </td>
-    <td>Pulsar provides Java admin library.</td>
- </tr>
+    <td>The additional properties associated with the schema.</td> 
+  </tr>  
 </tbody>
 </table>
 
