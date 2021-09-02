@@ -540,9 +540,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     protected void handleConsumerStats(CommandConsumerStats commandConsumerStats) {
-        if (log.isDebugEnabled()) {
-            log.debug("Received CommandConsumerStats call from {}", remoteAddress);
-        }
+        log.debug("Received CommandConsumerStats call from {}", remoteAddress);
 
         final long requestId = commandConsumerStats.getRequestId();
         final long consumerId = commandConsumerStats.getConsumerId();
@@ -1882,9 +1880,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     protected void handleGetOrCreateSchema(CommandGetOrCreateSchema commandGetOrCreateSchema) {
-        if (log.isDebugEnabled()) {
-            log.debug("Received CommandGetOrCreateSchema call from {}", remoteAddress);
-        }
+        log.debug("Received CommandGetOrCreateSchema call from {}", remoteAddress);
         long requestId = commandGetOrCreateSchema.getRequestId();
         String topicName = commandGetOrCreateSchema.getTopic();
         SchemaData schemaData = getSchema(commandGetOrCreateSchema.getSchema());

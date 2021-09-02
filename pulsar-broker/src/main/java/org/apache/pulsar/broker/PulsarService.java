@@ -836,9 +836,7 @@ public class PulsarService implements AutoCloseable {
         // Add websocket service
         addWebSocketServiceHandler(webService, attributeMap, config);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Attempting to add static directory");
-        }
+        LOG.debug("Attempting to add static directory");
         // Add static resources
         webService.addStaticResources("/static", "/static");
 

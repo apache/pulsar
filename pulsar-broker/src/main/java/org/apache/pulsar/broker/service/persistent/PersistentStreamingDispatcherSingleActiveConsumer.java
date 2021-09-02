@@ -148,9 +148,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         if (currentConsumer == null || consumer != currentConsumer) {
             // Active consumer has changed since the read request has been issued. We need to rewind the cursor and
             // re-issue the read request for the new consumer
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Rewind because no available consumer found to dispatch message to.", name);
-            }
+            log.debug("[{}] Rewind because no available consumer found to dispatch message to.", name);
 
             entry.release();
             streamingEntryReader.cancelReadRequests();

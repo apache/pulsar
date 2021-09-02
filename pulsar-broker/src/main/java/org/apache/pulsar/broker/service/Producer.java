@@ -553,9 +553,7 @@ public class Producer {
         }
         cnx.removedProducer(this);
 
-        if (log.isDebugEnabled()) {
-            log.debug("Removed producer: {}", this);
-        }
+        log.debug("Removed producer: {}", this);
         closeFuture.complete(null);
         isDisconnecting.set(false);
     }

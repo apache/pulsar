@@ -241,9 +241,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         if (!isEmpty) {
-            if (log.isDebugEnabled()) {
-                log.debug("Found topics on namespace {}", namespaceName);
-            }
+            log.debug("Found topics on namespace {}", namespaceName);
             boolean hasNonSystemTopic = false;
             for (String topic : topics) {
                 if (!SystemTopicClient.isSystemTopic(TopicName.get(topic))) {
@@ -2037,9 +2035,7 @@ public abstract class NamespacesBase extends AdminResource {
             partitions.add(String.format("0x%08x", partBoundary));
         }
         if (partitions.size() != initialBundles.getBoundaries().size()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Input bundles included repeated partition points. Ignored.");
-            }
+            log.debug("Input bundles included repeated partition points. Ignored.");
         }
         try {
             NamespaceBundleFactory.validateFullRange(partitions);

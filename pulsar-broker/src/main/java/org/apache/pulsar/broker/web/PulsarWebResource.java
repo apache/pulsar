@@ -633,9 +633,7 @@ public abstract class PulsarWebResource {
                                 .replaceQueryParam("authoritative", newAuthoritative)
                                 .build();
                         // Redirect
-                        if (log.isDebugEnabled()) {
-                            log.debug("Redirecting the rest call to {}", redirect);
-                        }
+                        log.debug("Redirecting the rest call to {}", redirect);
                         throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                     }
                 }).exceptionally(ex -> {

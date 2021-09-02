@@ -334,10 +334,8 @@ public class TransactionMetadataStoreService {
             if (isRetryableException(e.getCause())) {
                 endTransaction(txnID, TxnAction.ABORT_VALUE, true);
             } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Transaction have been handle complete, "
+                LOG.debug("Transaction have been handle complete, "
                             + "don't need to handle by transaction timeout! TxnId : {}", txnID);
-                }
             }
             return null;
         });

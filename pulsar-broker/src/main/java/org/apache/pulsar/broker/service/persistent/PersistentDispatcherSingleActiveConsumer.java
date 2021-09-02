@@ -95,9 +95,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         // If there is any pending read operation, let it finish and then rewind
 
         if (subscriptionType != SubType.Failover || serviceConfig.getActiveConsumerFailoverDelayTimeMillis() <= 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Rewind cursor and read more entries without delay", name);
-            }
+            log.debug("[{}] Rewind cursor and read more entries without delay", name);
             cursor.rewind();
 
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
@@ -186,9 +184,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         if (currentConsumer == null || readConsumer != currentConsumer) {
             // Active consumer has changed since the read request has been issued. We need to rewind the cursor and
             // re-issue the read request for the new consumer
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] rewind because no available consumer found", name);
-            }
+            log.debug("[{}] rewind because no available consumer found", name);
             entries.forEach(Entry::release);
             cursor.rewind();
             if (currentConsumer != null) {

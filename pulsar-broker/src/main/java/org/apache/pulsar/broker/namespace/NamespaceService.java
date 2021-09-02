@@ -531,9 +531,7 @@ public class NamespaceService implements AutoCloseable {
                 // Load manager decided that the local broker should try to become the owner
                 ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
                     if (ownerInfo.isDisabled()) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
-                        }
+                        LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
                         lookupFuture.completeExceptionally(new IllegalStateException(
                                 String.format("Namespace bundle %s is currently being unloaded", bundle)));
                     } else {
@@ -642,9 +640,7 @@ public class NamespaceService implements AutoCloseable {
 
         for (String brokerHostPort : brokers) {
             if (candidateBroker.equals("http://" + brokerHostPort)) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Broker {} found for SLA Monitoring Namespace", brokerHostPort);
-                }
+                LOG.debug("Broker {} found for SLA Monitoring Namespace", brokerHostPort);
                 return true;
             }
         }
@@ -1131,9 +1127,7 @@ public class NamespaceService implements AutoCloseable {
         String path = PulsarWebResource.path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(),
                 topicDomain.toString());
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Getting children from partitioned-topics now: {}", path);
-        }
+        LOG.debug("Getting children from partitioned-topics now: {}", path);
 
         return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources().getChildrenAsync(path)
                 .thenCompose(topics -> {
@@ -1175,9 +1169,7 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
         // For every topic there will be a managed ledger created.
         String path = String.format("/managed-ledgers/%s/persistent", namespaceName);
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Getting children from managed-ledgers now: {}", path);
-        }
+        LOG.debug("Getting children from managed-ledgers now: {}", path);
 
         return pulsar.getLocalZkCacheService().managedLedgerListCache().getAsync(path)
                 .thenApply(znodes -> {

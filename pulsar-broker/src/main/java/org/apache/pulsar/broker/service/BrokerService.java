@@ -991,9 +991,7 @@ public class BrokerService implements Closeable {
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Broker is unable to load non-persistent topic {}", topic);
-            }
+            log.debug("Broker is unable to load non-persistent topic {}", topic);
             return FutureUtil.failedFuture(
                     new NotAllowedException("Broker is not unable to load non-persistent topic"));
         }
@@ -1162,9 +1160,7 @@ public class BrokerService implements Closeable {
                 Duration.ofSeconds(pulsar.getConfiguration().getTopicLoadTimeoutSeconds()), executor(),
                 () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
         if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Broker is unable to load persistent topic {}", topic);
-            }
+            log.debug("Broker is unable to load persistent topic {}", topic);
             topicFuture.completeExceptionally(new NotAllowedException(
                     "Broker is not unable to load persistent topic"));
             return topicFuture;
@@ -1184,9 +1180,7 @@ public class BrokerService implements Closeable {
                         });
                     } else {
                         pendingTopicLoadingQueue.add(new ImmutablePair<>(topic, topicFuture));
-                        if (log.isDebugEnabled()) {
-                            log.debug("topic-loading for {} added into pending queue", topic);
-                        }
+                        log.debug("topic-loading for {} added into pending queue", topic);
                     }
                 });
 
@@ -1786,9 +1780,7 @@ public class BrokerService implements Closeable {
                             // If the topic is already created, immediately apply the updated policies, otherwise
                             // once the topic is created it'll apply the policies update
                             topicFuture.thenAccept(topic -> {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Notifying topic that policies have changed: {}", name);
-                                }
+                                log.debug("Notifying topic that policies have changed: {}", name);
 
                                 topic.ifPresent(t -> t.onPoliciesUpdate(policies));
                             });

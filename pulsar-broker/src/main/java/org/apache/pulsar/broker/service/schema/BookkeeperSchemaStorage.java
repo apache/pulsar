@@ -193,9 +193,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<StoredSchema> getSchema(String schemaId) {
         // There's already a schema read operation in progress. Just piggyback on that
         return readSchemaOperations.computeIfAbsent(schemaId, key -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Fetching schema from store", schemaId);
-            }
+            log.debug("[{}] Fetching schema from store", schemaId);
             CompletableFuture<StoredSchema> future = new CompletableFuture<>();
 
             getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
@@ -418,9 +416,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                                             // The znode has been deleted by others.
                                             // In some cases, the program may enter this logic.
                                             // Since the znode is gone, we don’t need to deal with it.
-                                            if (log.isDebugEnabled()) {
-                                                log.debug("No node for schema path: {}", path);
-                                            }
+                                            log.debug("No node for schema path: {}", path);
                                             future.complete(null);
                                         } else {
                                             future.completeExceptionally(zkException);
@@ -510,9 +506,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<SchemaStorageFormat.SchemaEntry> readSchemaEntry(
         SchemaStorageFormat.PositionInfo position
     ) {
-        if (log.isDebugEnabled()) {
-            log.debug("Reading schema entry from {}", position);
-        }
+        log.debug("Reading schema entry from {}", position);
 
         return openLedger(position.getLedgerId())
             .thenCompose((ledger) ->

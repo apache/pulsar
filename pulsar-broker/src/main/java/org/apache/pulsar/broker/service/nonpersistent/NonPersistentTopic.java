@@ -493,9 +493,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Checking replication status", name);
-        }
+        log.debug("[{}] Checking replication status", name);
 
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
@@ -924,9 +922,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 });
             }
         } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
+            log.debug("[{}] Error getting policies", topic);
         }
     }
 

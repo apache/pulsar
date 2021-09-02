@@ -45,9 +45,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         return client.newProducer(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
                 .createAsync().thenCompose(producer -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new writer is created", topicName);
-                    }
+                    log.debug("[{}] A new writer is created", topicName);
                     return CompletableFuture.completedFuture(new TopicPolicyWriter(producer,
                             TopicPoliciesSystemTopicClient.this));
                 });
@@ -60,9 +58,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true).createAsync()
                 .thenCompose(reader -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new reader is created", topicName);
-                    }
+                    log.debug("[{}] A new reader is created", topicName);
                     return CompletableFuture.completedFuture(new TopicPolicyReader(reader,
                             TopicPoliciesSystemTopicClient.this));
                 });

@@ -139,9 +139,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         }
 
         TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, additionalNumberOfMessages);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Trigger new read after receiving flow control message", consumer);
-        }
+        log.debug("[{}] Trigger new read after receiving flow control message", consumer);
     }
 
     @Override

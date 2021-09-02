@@ -171,9 +171,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             // the active consumer is not changed
             Consumer currentActiveConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             if (null == currentActiveConsumer) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Current active consumer disappears while adding consumer {}", consumer);
-                }
+                log.debug("Current active consumer disappears while adding consumer {}", consumer);
             } else {
                 consumer.notifyActiveConsumerChange(currentActiveConsumer);
             }

@@ -174,9 +174,7 @@ public class LocalZooKeeperCacheService {
                     readFromGlobalFuture.complete(Optional.of(localPolicies));
                 } else {
                     // Policies are not present in global zk
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Global policies not found at {}", globalPath);
-                    }
+                    LOG.debug("Global policies not found at {}", globalPath);
                     readFromGlobalFuture.complete(Optional.empty());
                 }
             }).exceptionally(ex -> {

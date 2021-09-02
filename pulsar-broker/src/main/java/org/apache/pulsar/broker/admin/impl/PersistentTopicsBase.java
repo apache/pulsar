@@ -1007,9 +1007,7 @@ public class PersistentTopicsBase extends AdminResource {
                                             .map(item -> topicName.getPartition(item.getKey()).toString())
                                             .collect(Collectors.toList())
                             ).thenAccept(topics -> {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("activeTopics : {}", topics);
-                                }
+                                log.debug("activeTopics : {}", topics);
                                 topics.forEach(topic -> {
                                     try {
                                         CompletableFuture<List<String>> subscriptionsAsync = pulsar().getAdminClient()

@@ -47,9 +47,7 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
         return client.newProducer(Schema.AVRO(TransactionBufferSnapshot.class))
                 .topic(topicName.toString())
                 .createAsync().thenCompose(producer -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new transactionBufferSnapshot writer is created", topicName);
-                    }
+                    log.debug("[{}] A new transactionBufferSnapshot writer is created", topicName);
                     return CompletableFuture.completedFuture(
                             new TransactionBufferSnapshotWriter(producer, this));
                 });
@@ -63,9 +61,7 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
                 .readCompacted(true)
                 .createAsync()
                 .thenCompose(reader -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new transactionBufferSnapshot buffer reader is created", topicName);
-                    }
+                    log.debug("[{}] A new transactionBufferSnapshot buffer reader is created", topicName);
                     return CompletableFuture.completedFuture(
                             new TransactionBufferSnapshotReader(reader, this));
                 });

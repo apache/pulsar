@@ -186,9 +186,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Consumer buffer is full, pause reading", name);
-            }
+            log.debug("[{}] Consumer buffer is full, pause reading", name);
         }
     }
 

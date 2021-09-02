@@ -65,9 +65,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             final double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
 
             if (currentUsage < avgUsage + threshold) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] broker is not overloaded, ignoring at this point", broker);
-                }
+                log.debug("[{}] broker is not overloaded, ignoring at this point", broker);
                 return;
             }
 

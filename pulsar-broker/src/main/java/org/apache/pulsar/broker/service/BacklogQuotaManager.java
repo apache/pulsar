@@ -186,9 +186,7 @@ public class BacklogQuotaManager {
             try {
                 // If there are no messages to skip, break out of the loop
                 if (messagesToSkip == 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("no messages to skip for [{}]", slowestConsumer);
-                    }
+                    log.debug("no messages to skip for [{}]", slowestConsumer);
                     break;
                 }
                 // Skip messages on the slowest consumer

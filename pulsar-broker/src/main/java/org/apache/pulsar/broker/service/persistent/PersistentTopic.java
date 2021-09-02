@@ -687,9 +687,7 @@ public class PersistentTopic extends AbstractTopic
             }
 
             if (isBlank(subscriptionName)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Empty subscription name", topic);
-                }
+                log.debug("[{}] Empty subscription name", topic);
                 return FutureUtil.failedFuture(new NamingException("Empty subscription name"));
             }
 
@@ -1320,9 +1318,7 @@ public class PersistentTopic extends AbstractTopic
             return CompletableFuture.completedFuture(null);
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Checking replication status", name);
-        }
+        log.debug("[{}] Checking replication status", name);
 
         CompletableFuture<Policies> policiesFuture = brokerService.pulsar().getPulsarResources()
                 .getNamespaceResources()
@@ -2190,10 +2186,8 @@ public class PersistentTopic extends AbstractTopic
                 }
                 closeReplProducersIfNoBacklog().thenRun(() -> {
                     if (hasRemoteProducers()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Global topic has connected remote producers. Not a candidate for GC",
+                        log.debug("[{}] Global topic has connected remote producers. Not a candidate for GC",
                                     topic);
-                        }
                         replCloseFuture
                                 .completeExceptionally(new TopicBusyException("Topic has connected remote producers"));
                     } else {
@@ -2202,9 +2196,7 @@ public class PersistentTopic extends AbstractTopic
                         replCloseFuture.complete(null);
                     }
                 }).exceptionally(e -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Global topic has replication backlog. Not a candidate for GC", topic);
-                    }
+                    log.debug("[{}] Global topic has replication backlog. Not a candidate for GC", topic);
                     replCloseFuture.completeExceptionally(e.getCause());
                     return null;
                 });
@@ -2309,9 +2301,7 @@ public class PersistentTopic extends AbstractTopic
                 });
             }
         } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
+            log.debug("[{}] Error getting policies", topic);
         }
     }
 
@@ -2357,9 +2347,7 @@ public class PersistentTopic extends AbstractTopic
                         brokerService.pulsar().getConfiguration().getDefaultRetentionSizeInMB());
             }
         } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
+            log.debug("[{}] Error getting policies", topic);
             // Don't delete in case we cannot get the policies
             return true;
         }

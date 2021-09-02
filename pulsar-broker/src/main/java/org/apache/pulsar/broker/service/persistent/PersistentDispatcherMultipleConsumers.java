@@ -181,9 +181,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 totalAvailablePermits = 0;
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Consumer are left, reading more entries", name);
-                }
+                log.debug("[{}] Consumer are left, reading more entries", name);
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
                         redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
@@ -273,9 +271,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Consumer buffer is full, pause reading", name);
-            }
+            log.debug("[{}] Consumer buffer is full, pause reading", name);
         }
     }
 
@@ -352,9 +348,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         if (havePendingReplayRead) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
-            }
+            log.debug("[{}] Skipping replay while awaiting previous read to complete", name);
             return Pair.of(-1, -1L);
         }
 
