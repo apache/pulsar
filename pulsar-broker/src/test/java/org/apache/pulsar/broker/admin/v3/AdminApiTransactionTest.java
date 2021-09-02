@@ -396,6 +396,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     private void initTransaction(int coordinatorSize) throws Exception {
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
         admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
         Awaitility.await().until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == coordinatorSize);
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();

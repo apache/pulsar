@@ -1925,13 +1925,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            BrokerServiceException.NotAllowedException ex =
-                    new BrokerServiceException.NotAllowedException(
-                            "Transaction manager is not not enabled");
-            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-            return;
-        }
+        if (!checkTransactionEnableAndSenError(requestId)) return;
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
@@ -1950,6 +1944,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
+    private boolean checkTransactionEnableAndSenError(long requestId) {
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            BrokerServiceException.NotAllowedException ex =
+                    new BrokerServiceException.NotAllowedException(
+                            "Transaction manager is not not enabled");
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     @Override
     protected void handleNewTxn(CommandNewTxn command) {
         final long requestId = command.getRequestId();
@@ -1959,13 +1965,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, tcId, remoteAddress);
         }
 
-        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            BrokerServiceException.NotAllowedException ex =
-                    new BrokerServiceException.NotAllowedException(
-                            "Transaction manager is not not enabled");
-            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-            return;
-        }
+        if (!checkTransactionEnableAndSenError(requestId)) return;
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
@@ -2000,13 +2000,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partion));
         }
 
-        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            BrokerServiceException.NotAllowedException ex =
-                    new BrokerServiceException.NotAllowedException(
-                            "Transaction manager is not not enabled");
-            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-            return;
-        }
+        if (!checkTransactionEnableAndSenError(requestId)) return;
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
         service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(txnID,
@@ -2044,13 +2038,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            BrokerServiceException.NotAllowedException ex =
-                    new BrokerServiceException.NotAllowedException(
-                            "Transaction manager is not not enabled");
-            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-            return;
-        }
+        if (!checkTransactionEnableAndSenError(requestId)) return;
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
@@ -2262,13 +2250,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
-            BrokerServiceException.NotAllowedException ex =
-                    new BrokerServiceException.NotAllowedException(
-                            "Transaction manager is not not enabled");
-            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-            return;
-        }
+        if (!checkTransactionEnableAndSenError(requestId)) return;
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 

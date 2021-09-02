@@ -1683,7 +1683,7 @@ public class BrokerService implements Closeable {
             }
         });
         if (getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && serviceUnit.getNamespaceObject().toString().equals(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+                && serviceUnit.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
             TransactionMetadataStoreService metadataStoreService =
                     this.getPulsar().getTransactionMetadataStoreService();
             // if have store belongs to this bundle, remove and close the store

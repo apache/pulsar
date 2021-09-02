@@ -82,6 +82,8 @@ public class TransactionMetadataStoreService {
     // finished the request will be poll and complete the future
     private final ConcurrentLongHashMap<ConcurrentLinkedDeque<CompletableFuture<Void>>> pendingConnectRequests;
 
+    private final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000l;
+
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
                                            HashedWheelTimer timer) {
@@ -116,12 +118,19 @@ public class TransactionMetadataStoreService {
                     openTransactionMetadataStore(tcId).thenAccept((store) -> {
                         stores.put(tcId, store);
                         LOG.info("Added new transaction meta store {}", tcId);
+                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
                         while (true) {
-                            CompletableFuture<Void> future = deque.poll();
-                            if (future != null) {
-                                // complete queue request future
-                                future.complete(null);
+                            // prevent thread in a busy loop.
+                            if (System.currentTimeMillis() < endTime) {
+                                CompletableFuture<Void> future = deque.poll();
+                                if (future != null) {
+                                    // complete queue request future
+                                    future.complete(null);
+                                } else {
+                                    break;
+                                }
                             } else {
+                                deque.clear();
                                 break;
                             }
                         }
@@ -132,13 +141,19 @@ public class TransactionMetadataStoreService {
                         completableFuture.completeExceptionally(e.getCause());
                         // release before handle request queue, in order to client reconnect infinite loop
                         tcLoadSemaphore.release();
-
+                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
                         while (true) {
-                            CompletableFuture<Void> future = deque.poll();
-                            if (future != null) {
-                                // this means that this tc client connection connect fail
-                                future.completeExceptionally(e);
+                            // prevent thread in a busy loop.
+                            if (System.currentTimeMillis() < endTime) {
+                                CompletableFuture<Void> future = deque.poll();
+                                if (future != null) {
+                                    // this means that this tc client connection connect fail
+                                    future.completeExceptionally(e);
+                                } else {
+                                    break;
+                                }
                             } else {
+                                deque.clear();
                                 break;
                             }
                         }
