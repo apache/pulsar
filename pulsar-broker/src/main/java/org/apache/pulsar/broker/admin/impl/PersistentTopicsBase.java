@@ -2170,6 +2170,14 @@ public class PersistentTopicsBase extends AdminResource {
             validateReadOperationOnTopic(authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+            if (null == ledger.getLedgerInfo(ledgerId).get()) {
+                log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}, "
+                                + "the ledgerId does not belong to this topic.",
+                        clientAppId(), ledgerId, entryId, topicName);
+                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                        "Message not found, the ledgerId does not belong to this topic"));
+                return;
+            }
             ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
                 @Override
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {

@@ -1563,6 +1563,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return getLedgerHandle(ledgerId).thenApply(rh -> rh.getLedgerMetadata().toSafeString());
     }
 
+    public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
+        CompletableFuture<LedgerInfo> result = new CompletableFuture<>();
+        final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+        result.complete(ledgerInfo);
+        return result;
+    }
+
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
