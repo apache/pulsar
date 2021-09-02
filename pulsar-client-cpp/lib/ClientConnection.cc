@@ -268,6 +268,7 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
     }
 
     state_ = Ready;
+    connectTimeoutTask_->stop();
     serverProtocolVersion_ = cmdConnected.protocol_version();
     connectPromise_.setValue(shared_from_this());
 
@@ -368,7 +369,6 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             LOG_INFO(cnxString_ << "Connected to broker through proxy. Logical broker: " << logicalAddress_);
         }
         state_ = TcpConnected;
-        connectTimeoutTask_->stop();
 
         boost::system::error_code error;
         socket_->set_option(tcp::no_delay(true), error);
@@ -527,7 +527,7 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
 
     auto self = shared_from_this();
     connectTimeoutTask_->setCallback([this, self](const PeriodicTask::ErrorCode& ec) {
-        if (state_ != TcpConnected) {
+        if (state_ != Ready) {
             LOG_ERROR(cnxString_ << "Connection was not established in " << connectTimeoutTask_->getPeriodMs()
                                  << " ms, close the socket");
             PeriodicTask::ErrorCode err;
