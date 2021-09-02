@@ -103,14 +103,12 @@ function broker_flaky() {
 }
 
 function proxy() {
-  echo "::endgroup::"
-  echo "::group::Running quarantined pulsar-proxy tests"
-  $MVN_COMMAND test -pl pulsar-proxy -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false ||
-    print_testng_failures pulsar-proxy/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
-  echo "::endgroup::"
-  echo "::group::Running pulsar-proxy tests"
-  $MVN_TEST_COMMAND -pl pulsar-proxy
-  echo "::endgroup::"
+    echo "::group::Running pulsar-proxy tests"
+    $MVN_TEST_COMMAND -pl pulsar-proxy -Dtest="org.apache.pulsar.proxy.server.ProxyServiceTlsStarterTest"
+    $MVN_TEST_COMMAND -pl pulsar-proxy -Dtest="org.apache.pulsar.proxy.server.ProxyServiceStarterTest"
+    $MVN_TEST_COMMAND -pl pulsar-proxy -Dexclude='org.apache.pulsar.proxy.server.ProxyServiceTlsStarterTest,
+                                                  org.apache.pulsar.proxy.server.ProxyServiceStarterTest'
+    echo "::endgroup::"
 }
 
 function other() {
