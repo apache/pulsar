@@ -1927,7 +1927,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (!checkTransactionEnableAndSenError(requestId)) {
             return;
-        };
+        }
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
@@ -1969,7 +1969,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (!checkTransactionEnableAndSenError(requestId)) {
             return;
-        };
+        }
 
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
@@ -2006,7 +2006,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (!checkTransactionEnableAndSenError(requestId)) {
             return;
-        };
+        }
+
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
         service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(txnID,
@@ -2046,7 +2047,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (!checkTransactionEnableAndSenError(requestId)) {
             return;
-        };
+        }
+
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
@@ -2260,8 +2262,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (!checkTransactionEnableAndSenError(requestId)) {
             return;
-        };
-        
+        }
+
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 

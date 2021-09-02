@@ -82,7 +82,7 @@ public class TransactionMetadataStoreService {
     // finished the request will be poll and complete the future
     private final ConcurrentLongHashMap<ConcurrentLinkedDeque<CompletableFuture<Void>>> pendingConnectRequests;
 
-    private final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000l;
+    private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
