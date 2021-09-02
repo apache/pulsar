@@ -2587,6 +2587,7 @@ public class PersistentTopic extends AbstractTopic
         return !replicators.isEmpty();
     }
 
+    @Override
     public CompletableFuture<MessageId> terminate() {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         ledger.asyncTerminate(new TerminateCallback() {

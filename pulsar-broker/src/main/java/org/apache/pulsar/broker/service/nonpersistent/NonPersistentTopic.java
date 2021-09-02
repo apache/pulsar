@@ -63,6 +63,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -326,6 +327,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public CompletableFuture<Void> delete() {
         return delete(false, false, false);
+    }
+
+    @Override
+    public CompletableFuture<MessageId> terminate() {
+        CompletableFuture<MessageId> future = new CompletableFuture<>();
+        producers.values().forEach(Producer::disconnect);
+        MessageId messageId = new MessageIdImpl(0L, 0L, -1);
+        log.info("[{}] Topic terminated at {}", getName(), messageId);
+        future.complete(messageId);
+        return future;
     }
 
     /**

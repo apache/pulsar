@@ -134,6 +134,8 @@ public interface Topic {
 
     CompletableFuture<Void> delete();
 
+    CompletableFuture<MessageId> terminate();
+
     Map<String, Producer> getProducers();
 
     String getName();

@@ -3055,7 +3055,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOperation(topicName, TopicOperation.TERMINATE);
         Topic topic = getTopicReference(topicName);
         try {
-            return ((PersistentTopic) topic).terminate().get();
+            return topic.terminate().get();
         } catch (Exception exception) {
             log.error("[{}] Failed to terminated topic {}", clientAppId(), topicName, exception);
             throw new RestException(exception);
