@@ -334,12 +334,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int backlogQuotaCheckIntervalInSeconds = 60;
 
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead.\""
+    )
+    private double backlogQuotaDefaultLimitGB = -1;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
                 + " Increase it if you want to allow larger msg backlog"
     )
-    private long backlogQuotaDefaultLimitGB = -1;
+    private long backlogQuotaDefaultLimitBytes = -1;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1004,6 +1011,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable exposing broker entry metadata to client.")
+    private boolean exposingBrokerEntryMetadataToClientEnabled = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,

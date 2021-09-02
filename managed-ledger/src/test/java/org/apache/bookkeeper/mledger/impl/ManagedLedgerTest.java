@@ -2271,7 +2271,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         log.info("Finished reading entries");
 
         ledger.close();
-        factory.shutdown();
     }
 
     @Test
@@ -2986,8 +2985,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // the ledger rollover scheduled time is between 1000 and 1050 ms,
         // wait 1100 ms, the ledger should be rolled over.
         Awaitility.await()
-                .atMost(1100, TimeUnit.MILLISECONDS)
-                .pollInterval(100, TimeUnit.MILLISECONDS)
                 .until(() -> firstLedgerId != ml.addEntry("test".getBytes()).getLedgerId());
     }
 

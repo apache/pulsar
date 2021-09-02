@@ -144,7 +144,8 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         LOG.info("Metadata store notification: Path {}, Type {}", notifyPath, notification.getType());
 
         String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
-        if (notification.getType() == NotificationType.ChildrenChanged) {
+        if ((notification.getType() == NotificationType.ChildrenChanged)
+            || (notification.getType() == NotificationType.Created)) {
             loadAllResourceGroups();
         } else if (!RESOURCEGROUPS.equals(rgName)) {
             switch (notification.getType()) {

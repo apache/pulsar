@@ -43,6 +43,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -111,7 +112,8 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
-    private final AtomicLong requestIdGenerator = new AtomicLong();
+    private final AtomicLong requestIdGenerator
+        = new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE/2));
 
     protected final EventLoopGroup eventLoopGroup;
     private final MemoryLimitController memoryLimitController;
@@ -882,13 +884,14 @@ public class PulsarClientImpl implements PulsarClient {
 
         try {
             TopicName topicName = TopicName.get(topic);
-            AtomicLong opTimeoutMs = new AtomicLong(conf.getOperationTimeoutMs());
+            AtomicLong opTimeoutMs = new AtomicLong(conf.getLookupTimeoutMs());
             Backoff backoff = new BackoffBuilder()
                     .setInitialTime(100, TimeUnit.MILLISECONDS)
                     .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                     .setMax(1, TimeUnit.MINUTES)
                     .create();
-            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture);
+            getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs,
+                                        metadataFuture, new ArrayList<>());
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }
@@ -898,23 +901,27 @@ public class PulsarClientImpl implements PulsarClient {
     private void getPartitionedTopicMetadata(TopicName topicName,
                                              Backoff backoff,
                                              AtomicLong remainingTime,
-                                             CompletableFuture<PartitionedTopicMetadata> future) {
+                                             CompletableFuture<PartitionedTopicMetadata> future,
+                                             List<Throwable> previousExceptions) {
+        long startTime = System.nanoTime();
         lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
+            remainingTime.addAndGet(-1 * TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             // skip retry scheduler when set lookup throttle in client or server side which will lead to `TooManyRequestsException`
             boolean isLookupThrottling = !PulsarClientException.isRetriableError(e.getCause())
-                || e.getCause() instanceof PulsarClientException.TooManyRequestsException
                 || e.getCause() instanceof PulsarClientException.AuthenticationException;
             if (nextDelay <= 0 || isLookupThrottling) {
+                PulsarClientException.setPreviousExceptions(e, previousExceptions);
                 future.completeExceptionally(e);
                 return null;
             }
+            previousExceptions.add(e);
 
             ((ScheduledExecutorService) externalExecutorProvider.getExecutor()).schedule(() -> {
                 log.warn("[topic: {}] Could not get connection while getPartitionedTopicMetadata -- Will try again in {} ms",
                     topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future);
+                getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptions);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });

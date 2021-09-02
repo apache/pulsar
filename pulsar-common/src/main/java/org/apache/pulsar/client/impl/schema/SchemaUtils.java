@@ -287,7 +287,7 @@ public final class SchemaUtils {
                     return toJsonObject(schemaInfo.getSchemaDefinition());
                 case KEY_VALUE:
                     KeyValue<SchemaInfo, SchemaInfo> schemaInfoKeyValue =
-                        DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo);
+                        DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo);
                     JsonObject obj = new JsonObject();
                     String keyJson = jsonifySchemaInfo(schemaInfoKeyValue.getKey());
                     String valueJson = jsonifySchemaInfo(schemaInfoKeyValue.getValue());
