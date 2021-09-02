@@ -2218,8 +2218,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 1);
         pulsarClient.newConsumer().topic(topic).subscriptionName("test").subscribe().close();
-        Awaitility.await()
-                .until(() -> pulsar.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         Set<SubscriptionType> subscriptionTypeSet = new HashSet<>();
         subscriptionTypeSet.add(SubscriptionType.Key_Shared);
         admin.topics().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
