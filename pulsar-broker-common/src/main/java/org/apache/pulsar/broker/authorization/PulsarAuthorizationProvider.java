@@ -200,10 +200,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             }
             canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
                 if (e == null) {
-                    if (consumeAuthorized) {
-                        finalResult.complete(consumeAuthorized);
-                        return;
-                    }
+                    finalResult.complete(consumeAuthorized);
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug(
@@ -212,9 +209,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
                     }
                     finalResult.completeExceptionally(e);
-                    return;
                 }
-                finalResult.complete(false);
             });
         });
         return finalResult;

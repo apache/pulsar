@@ -292,40 +292,19 @@ public class AuthorizationService {
      */
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
                                                      AuthenticationDataSource authenticationData) {
-        CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
-        canProduceAsync(topicName, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
-            if (ex == null) {
-                if (produceAuthorized) {
-                    finalResult.complete(produceAuthorized);
-                    return;
-                }
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug(
-                            "Topic [{}] Role [{}] exception occurred while trying to check Produce permissions. {}",
-                            topicName.toString(), role, ex.getMessage());
-                }
-            }
-            canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
-                if (e == null) {
-                    if (consumeAuthorized) {
-                        finalResult.complete(consumeAuthorized);
-                        return;
-                    }
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+        if (provider != null) {
+            return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
+                if (isSuperUser) {
+                    return CompletableFuture.completedFuture(true);
                 } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug(
-                                "Topic [{}] Role [{}] exception occurred while trying to check Consume permissions. {}",
-                                topicName.toString(), role, e.getMessage());
-
-                    }
-                    finalResult.completeExceptionally(e);
-                    return;
+                    return provider.canLookupAsync(topicName, role, authenticationData);
                 }
-                finalResult.complete(false);
             });
-        });
-        return finalResult;
+        }
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
