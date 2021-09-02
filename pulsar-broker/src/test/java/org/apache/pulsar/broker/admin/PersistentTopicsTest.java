@@ -719,19 +719,19 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetMessageById() throws Exception {
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
         admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
         final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
         final String topicName2 = "persistent://tenant-xyz/ns-abc/testGetMessageById2";
         admin.topics().createNonPartitionedTopic(topicName1);
         admin.topics().createNonPartitionedTopic(topicName2);
-        ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = (Producer<byte[]>) pulsarClient.newProducer().topic(topicName1)
                 .enableBatching(false).create();
         String data1 = "test1";
         MessageIdImpl id1 = (MessageIdImpl) producer1.send(data1.getBytes());
 
-        ProducerBase<byte[]> producer2 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = (Producer<byte[]>) pulsarClient.newProducer().topic(topicName2)
                 .enableBatching(false).create();
         String data2 = "test2";
         MessageIdImpl id2 = (MessageIdImpl) producer2.send(data2.getBytes());
@@ -749,135 +749,4 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(message4);
     }
 
-    @Test
-    public void testGetMessageIdByTimestamp() throws Exception {
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant("tenant-xyz", tenantInfo);
-        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
-        final String topicName = "persistent://tenant-xyz/ns-abc/testGetMessageIdByTimestamp";
-        admin.topics().createNonPartitionedTopic(topicName);
-
-        AtomicLong publishTime = new AtomicLong(0);
-        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
-                .enableBatching(false)
-                .intercept(new ProducerInterceptor() {
-                    @Override
-                    public void close() {
-
-                    }
-
-                    @Override
-                    public boolean eligible(Message message) {
-                        return true;
-                    }
-
-                    @Override
-                    public Message beforeSend(Producer producer, Message message) {
-                        return message;
-                    }
-
-                    @Override
-                    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
-                                                      Throwable exception) {
-                        publishTime.set(message.getPublishTime());
-                    }
-                })
-                .create();
-
-        MessageId id1 = producer.send("test1".getBytes());
-        long publish1 = publishTime.get();
-
-        Thread.sleep(10);
-        MessageId id2 = producer.send("test2".getBytes());
-        long publish2 = publishTime.get();
-
-        Assert.assertTrue(publish1 < publish2);
-
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 - 1), id1);
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1), id1);
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 + 1), id2);
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish2), id2);
-        Assert.assertTrue(admin.topics().getMessageIdByTimestamp(topicName, publish2 + 1)
-                .compareTo(id2) > 0);
-    }
-
-    @Test
-    public void testGetBatchMessageIdByTimestamp() throws Exception {
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant("tenant-xyz", tenantInfo);
-        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
-        final String topicName = "persistent://tenant-xyz/ns-abc/testGetBatchMessageIdByTimestamp";
-        admin.topics().createNonPartitionedTopic(topicName);
-
-        Map<MessageId, Long> publishTimeMap = new ConcurrentHashMap<>();
-
-        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
-                .enableBatching(true)
-                .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
-                .batchingMaxMessages(2)
-                .intercept(new ProducerInterceptor() {
-                    @Override
-                    public void close() {
-
-                    }
-
-                    @Override
-                    public boolean eligible(Message message) {
-                        return true;
-                    }
-
-                    @Override
-                    public Message beforeSend(Producer producer, Message message) {
-                        return message;
-                    }
-
-                    @Override
-                    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
-                                                      Throwable exception) {
-                        log.info("onSendAcknowledgement, message={}, msgId={},publish_time={},exception={}",
-                                message, msgId, message.getPublishTime(), exception);
-                        publishTimeMap.put(msgId, message.getPublishTime());
-
-                    }
-                })
-                .create();
-
-        List<CompletableFuture<MessageId>> idFutureList = new ArrayList<>();
-        for (int i = 0; i < 4; i++) {
-            idFutureList.add(producer.sendAsync(new byte[]{(byte) i}));
-            Thread.sleep(5);
-        }
-
-        List<MessageIdImpl> ids = new ArrayList<>();
-        for (CompletableFuture<MessageId> future : idFutureList) {
-            MessageId id = future.get();
-            ids.add((MessageIdImpl) id);
-        }
-
-        for (MessageIdImpl messageId : ids) {
-            Assert.assertTrue(publishTimeMap.containsKey(messageId));
-            log.info("MessageId={},PublishTime={}", messageId, publishTimeMap.get(messageId));
-        }
-
-        //message 0, 1 are in the same batch, as batchingMaxMessages is set to 2.
-        Assert.assertEquals(ids.get(0).getLedgerId(), ids.get(1).getLedgerId());
-        MessageIdImpl id1 =
-                new MessageIdImpl(ids.get(0).getLedgerId(), ids.get(0).getEntryId(), ids.get(0).getPartitionIndex());
-        long publish1 = publishTimeMap.get(ids.get(0));
-
-        Assert.assertEquals(ids.get(2).getLedgerId(), ids.get(3).getLedgerId());
-        MessageIdImpl id2 =
-                new MessageIdImpl(ids.get(2).getLedgerId(), ids.get(2).getEntryId(), ids.get(2).getPartitionIndex());
-        long publish2 = publishTimeMap.get(ids.get(2));
-
-
-        Assert.assertTrue(publish1 < publish2);
-
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 - 1), id1);
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1), id1);
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish1 + 1), id2);
-        Assert.assertEquals(admin.topics().getMessageIdByTimestamp(topicName, publish2), id2);
-        Assert.assertTrue(admin.topics().getMessageIdByTimestamp(topicName, publish2 + 1)
-                .compareTo(id2) > 0);
-    }
 }
