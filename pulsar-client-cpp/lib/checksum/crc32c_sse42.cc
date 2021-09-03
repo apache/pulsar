@@ -269,4 +269,4 @@ uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *
 
 #endif
 
-} // namespace pulsar
+}  // namespace pulsar

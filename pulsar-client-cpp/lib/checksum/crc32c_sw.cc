@@ -99,4 +99,4 @@ uint32_t crc32c_sw(uint32_t crci, const void *buf, int len) {
     return (uint32_t)crc ^ 0xffffffff;
 }
 
-} // namespace pulsar
+}  // namespace pulsar
