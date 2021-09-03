@@ -113,6 +113,18 @@ public interface MetadataStore extends AutoCloseable {
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
 
     /**
+     * Delete a key-value pair and all the children nodes.
+     *
+     * Note: the operation might not be carried in an atomic fashion. If the operation fails, the deletion of the
+     *       tree might be only partial.
+     *
+     * @param path
+     *            the path of the key to delete from the store
+     * @return a future to track the async request
+     */
+    CompletableFuture<Void> deleteRecursive(String path);
+
+    /**
      * Register a listener that will be called on changes in the underlying store.
      *
      * @param listener

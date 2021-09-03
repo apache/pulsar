@@ -298,4 +298,30 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(n.getType(), NotificationType.ChildrenChanged);
         assertEquals(n.getPath(), key1);
     }
+
+    @Test(dataProvider = "impl")
+    public void testDeleteRecursive(String provider, String url) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+
+        String prefix = newKey();
+
+        String key1 = newKey();
+        store.put(prefix + key1, "value-1".getBytes(), Optional.of(-1L)).join();
+
+        store.put(prefix + key1 + "/c1", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c1/x1", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c1/x2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c2/y2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c3", "value".getBytes(), Optional.of(-1L)).join();
+
+        String key2 = newKey();
+        store.put(prefix + key2, "value-2".getBytes(), Optional.of(-1L)).join();
+
+        store.deleteRecursive(prefix + key1).join();
+
+        assertEquals(store.getChildren(prefix).join(), Collections.singletonList(key2.substring(1)));
+    }
+
 }
