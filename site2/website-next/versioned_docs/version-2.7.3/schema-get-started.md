@@ -5,6 +5,9 @@ sidebar_label: Get started
 original_id: schema-get-started
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 This chapter introduces Pulsar schemas and explains why they are important. 
 
 ## Schema Registry
