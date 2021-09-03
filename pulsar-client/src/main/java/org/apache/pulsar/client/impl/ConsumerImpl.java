@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
@@ -769,9 +768,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             boolean firstTimeConnect = subscribeFuture.complete(this);
             // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
             // command to receive messages.
-            // For readers too (isDurable==false), the partition idx will be set though we have to
-            // send available permits immediately after establishing the reader session
-            if (!(firstTimeConnect && hasParentConsumer && isDurable) && conf.getReceiverQueueSize() != 0) {
+            if (!(firstTimeConnect && hasParentConsumer) && conf.getReceiverQueueSize() != 0) {
                 increaseAvailablePermits(cnx, conf.getReceiverQueueSize());
             }
         }).exceptionally((e) -> {
@@ -1828,20 +1825,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
 
-        log.info("[{}][{}] Seek subscription to {}", topic, subscription, seekBy);
+        BatchMessageIdImpl originSeekMessageId = seekMessageId;
+        seekMessageId = new BatchMessageIdImpl((MessageIdImpl) seekId);
+        duringSeek.set(true);
+        log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
 
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
             log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
             acknowledgmentsGroupingTracker.flushAndClean();
 
-            seekMessageId = new BatchMessageIdImpl((MessageIdImpl) seekId);
-            duringSeek.set(true);
             lastDequeuedMessageId = MessageId.earliest;
 
             clearIncomingMessages();
             seekFuture.complete(null);
         }).exceptionally(e -> {
+            // re-set duringSeek and seekMessageId if seek failed
+            seekMessageId = originSeekMessageId;
+            duringSeek.set(false);
             log.error("[{}][{}] Failed to reset subscription: {}", topic, subscription, e.getCause().getMessage());
+
             seekFuture.completeExceptionally(
                 PulsarClientException.wrap(e.getCause(),
                     String.format("Failed to seek the subscription %s of the topic %s to %s",
@@ -2221,7 +2223,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.connectionHandler.connectionClosed(cnx);
     }
 
-    @VisibleForTesting
     public ClientCnx getClientCnx() {
         return this.connectionHandler.cnx();
     }

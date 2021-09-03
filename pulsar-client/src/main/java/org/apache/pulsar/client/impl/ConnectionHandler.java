@@ -19,11 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.HandlerState.State;
 import org.slf4j.Logger;
@@ -117,7 +115,6 @@ public class ConnectionHandler {
         return EPOCH_UPDATER.incrementAndGet(this);
     }
 
-    @VisibleForTesting
     public void connectionClosed(ClientCnx cnx) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
         state.client.getCnxPool().releaseConnection(cnx);
@@ -142,7 +139,6 @@ public class ConnectionHandler {
         backoff.reset();
     }
 
-    @VisibleForTesting
     public ClientCnx cnx() {
         return CLIENT_CNX_UPDATER.get(this);
     }
@@ -170,7 +166,6 @@ public class ConnectionHandler {
         return false;
     }
 
-    @VisibleForTesting
     public long getEpoch() {
         return epoch;
     }

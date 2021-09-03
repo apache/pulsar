@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
@@ -183,6 +184,88 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             assertEquals(receiveId, messageId);
         }
     }
+
+    @Test
+    public void testSeekForBatchMessageAndSpecifiedBatchIndex() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
+        String subscriptionName = "my-subscription-batch";
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(true)
+                .batchingMaxMessages(3)
+                // set batch max publish delay big enough to make sure entry has 3 messages
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+                .topic(topicName).create();
+
+
+        List<MessageId> messageIds = new ArrayList<>();
+        List<CompletableFuture<MessageId>> futureMessageIds = new ArrayList<>();
+
+        List<String> messages = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            String message = "my-message-" + i;
+            messages.add(message);
+            CompletableFuture<MessageId> messageIdCompletableFuture = producer.sendAsync(message);
+            futureMessageIds.add(messageIdCompletableFuture);
+        }
+
+        for (CompletableFuture<MessageId> futureMessageId : futureMessageIds) {
+            MessageId messageId = futureMessageId.get();
+            messageIds.add(messageId);
+        }
+
+        producer.close();
+
+        assertTrue(messageIds.get(0) instanceof  BatchMessageIdImpl);
+        assertTrue(messageIds.get(1) instanceof  BatchMessageIdImpl);
+        assertTrue(messageIds.get(2) instanceof  BatchMessageIdImpl);
+
+        BatchMessageIdImpl batchMsgId0 = (BatchMessageIdImpl) messageIds.get(0);
+        BatchMessageIdImpl batchMsgId1 = (BatchMessageIdImpl) messageIds.get(1);
+        BatchMessageIdImpl msgIdToSeekFirst = (BatchMessageIdImpl) messageIds.get(2);
+
+        assertEquals(batchMsgId0.getEntryId(), batchMsgId1.getEntryId());
+        assertEquals(batchMsgId1.getEntryId(), msgIdToSeekFirst.getEntryId());
+
+        PulsarClient newPulsarClient = PulsarClient.builder()
+                // set start backoff interval short enough to make sure client will re-connect quickly
+                .startingBackoffInterval(1, TimeUnit.MICROSECONDS)
+                .serviceUrl(lookupUrl.toString())
+                .build();
+
+        org.apache.pulsar.client.api.Consumer<String> consumer = newPulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .startMessageIdInclusive()
+                .subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getSubscriptions().size(), 1);
+
+        consumer.seek(msgIdToSeekFirst);
+        MessageId msgId = consumer.receive().getMessageId();
+        assertTrue(msgId instanceof BatchMessageIdImpl);
+        BatchMessageIdImpl batchMsgId = (BatchMessageIdImpl) msgId;
+        assertEquals(batchMsgId, msgIdToSeekFirst);
+
+
+        consumer.seek(MessageId.earliest);
+        Message<String> receiveBeforEarliest = consumer.receive();
+        assertEquals(receiveBeforEarliest.getValue(), messages.get(0));
+        consumer.seek(MessageId.latest);
+        Message<String> receiveAfterLatest = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(receiveAfterLatest);
+
+        for (MessageId messageId : messageIds) {
+            consumer.seek(messageId);
+            MessageId receiveId = consumer.receive().getMessageId();
+            assertEquals(receiveId, messageId);
+        }
+
+        newPulsarClient.close();
+    }
+
     @Test
     public void testSeekForBatchByAdmin() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchByAdmin-" + UUID.randomUUID().toString();

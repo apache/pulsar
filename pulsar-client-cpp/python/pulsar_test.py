@@ -1104,6 +1104,14 @@ class PulsarTest(TestCase):
         consumer.unsubscribe()
         client.close()
 
+    def test_client_reference_deleted(self):
+        def get_producer():
+            cl = Client(self.serviceUrl)
+            return cl.create_producer(topic='foobar')
+
+        producer = get_producer()
+        producer.send(b'test_payload')
+
     #####
 
     def test_get_topic_name(self):

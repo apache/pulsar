@@ -895,7 +895,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // subscribe one more given topic, but already know the numberPartitions
-    @VisibleForTesting
     CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
         TopicName topicNameInstance = getTopicName(topicName);
         if (topicNameInstance == null) {
