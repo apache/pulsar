@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "lib/checksum/crc32c_sw.h"
+#include "gf2.hpp"
 
 #if BOOST_ARCH_X86_64
 #include <nmmintrin.h>  // SSE4.2
@@ -97,8 +98,6 @@ bool crc32c_initialize() {
 
     return has_sse42;
 }
-
-#include "gf2.hpp"
 
 chunk_config::chunk_config(size_t words, const chunk_config *next) : words(words), next(next) {
     assert(words > 0);
