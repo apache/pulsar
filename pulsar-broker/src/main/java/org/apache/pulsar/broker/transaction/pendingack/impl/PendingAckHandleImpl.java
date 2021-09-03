@@ -163,36 +163,41 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
                                                                 List<MutablePair<PositionImpl, Integer>> positions,
                                                                 boolean isInCacheRequest) {
-        if (!isInCacheRequest) {
-            if (!checkIfReady()) {
-                synchronized (PendingAckHandleImpl.this) {
-                    if (state == State.Initializing) {
-                        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                        addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                        return completableFuture;
-                    } else if (state == State.None) {
-                        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                        addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                        initPendingAckStore();
-                        return completableFuture;
-                    } else if (checkIfReady()) {
 
+        if (!checkIfReady()) {
+            synchronized (PendingAckHandleImpl.this) {
+                if (state == State.Initializing) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
+                    return completableFuture;
+                } else if (state == State.None) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
+                    initPendingAckStore();
+                    return completableFuture;
+                } else if (checkIfReady()) {
+
+                } else {
+                    if (state == State.Error) {
+                        return FutureUtil.failedFuture(
+                                new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
                     } else {
                         return FutureUtil.failedFuture(
-                                new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
-                    }
-                }
-            } else if (!acceptQueue.isEmpty()) {
-                synchronized (PendingAckHandleImpl.this) {
-                    if (!acceptQueue.isEmpty()) {
-                        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                        addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                        return completableFuture;
+                                new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
                     }
                 }
             }
         }
 
+        if (!acceptQueue.isEmpty() && !isInCacheRequest) {
+            synchronized (PendingAckHandleImpl.this) {
+                if (!acceptQueue.isEmpty()) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
+                    return completableFuture;
+                }
+            }
+        }
         if (txnID == null) {
             return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
         }
@@ -323,8 +328,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 } else if (checkIfReady()) {
 
                 } else {
-                    return FutureUtil.failedFuture(
-                            new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
+                    if (state == State.Error) {
+                        return FutureUtil.failedFuture(
+                                new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
+                    } else {
+                        return FutureUtil.failedFuture(
+                                new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
+                    }
+
                 }
             }
         }
@@ -428,8 +439,24 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 } else if (checkIfReady()) {
 
                 } else {
-                    return FutureUtil.failedFuture(
-                            new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
+                    if (state == State.Error) {
+                        return FutureUtil.failedFuture(
+                                new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
+                    } else {
+                        return FutureUtil.failedFuture(
+                                new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
+                    }
+
+                }
+            }
+        }
+
+        if (!acceptQueue.isEmpty() && !isInCacheRequest) {
+            synchronized (PendingAckHandleImpl.this) {
+                if (!acceptQueue.isEmpty()) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addCommitTxnRequest(txnID, properties, lowWaterMark, completableFuture);
+                    return completableFuture;
                 }
             }
         }
@@ -520,8 +547,24 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 } else if (checkIfReady()) {
 
                 } else {
-                    return FutureUtil.failedFuture(
-                            new ServiceUnitNotReadyException("PendingAckHandle not replay complete!"));
+                    if (state == State.Error) {
+                        return FutureUtil.failedFuture(
+                                new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
+                    } else {
+                        return FutureUtil.failedFuture(
+                                new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
+                    }
+                }
+            }
+        }
+
+
+        if (!acceptQueue.isEmpty() && !isInCacheRequest) {
+            synchronized (PendingAckHandleImpl.this) {
+                if (!acceptQueue.isEmpty()) {
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    addAbortTxnRequest(txnId, consumer, lowWaterMark, completableFuture);
+                    return completableFuture;
                 }
             }
         }
