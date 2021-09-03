@@ -593,8 +593,6 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         } catch (Exception e) {
             fail("should not fail");
-        } finally {
-            pulsarClient.close();
         }
     }
 
