@@ -147,12 +147,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                     .enableBatching(false).topic(topic).create();
             for (int i = 0; i < 3; i++) {
-                try {
-                    producer.newMessage().value("msg".getBytes()).send();
-                } catch (Throwable e) {
-                    log.info("Exception: ", e);
-                    fail();
-                }
+                producer.newMessage().value("msg".getBytes()).send();
             }
             assertEquals(producer.getProducers().size(), 3);
 

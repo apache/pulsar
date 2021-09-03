@@ -105,11 +105,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final String topicString = "persistent://prop/ns-abc/partitioned-topic-1";
         final Producer<byte[]> producer = pulsarClient.newProducer().topic(topicString).enableBatching(false).create();
         for (int i = 0; i < 3; i++) {
-            try {
-                producer.newMessage().value("msg".getBytes()).send();
-            } catch (Throwable e) {
-                fail();
-            }
+            producer.newMessage().value("msg".getBytes()).send();
         }
 
         assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));

@@ -62,11 +62,7 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
                 .create();
 
         for (int i = 0; i < 3; i++) {
-            try {
-                producer.newMessage().value("msg".getBytes()).send();
-            } catch (Throwable e) {
-                fail();
-            }
+            producer.newMessage().value("msg".getBytes()).send();
         }
 
         List<String> partitionedTopics = admin.topics().getPartitionedTopicList(namespaceName);

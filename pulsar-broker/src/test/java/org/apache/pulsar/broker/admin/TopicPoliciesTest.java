@@ -901,9 +901,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             for (int i = 0; i < 2; i++) {
                 try {
                     p.newMessage().value("msg".getBytes()).send();
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     log.info("Exception: ", e);
-                    fail();
+                    throw new RuntimeException(e);
                 }
             }
             return p;
@@ -942,9 +942,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             for (int i = 0; i < 2; i++) {
                 try {
                     p.newMessage().value("msg".getBytes()).send();
-                } catch (Throwable e) {
+                } catch (Exception e) {
                     log.info("Exception: ", e);
-                    fail();
+                    throw new RuntimeException(e);
                 }
             }
             return p;
