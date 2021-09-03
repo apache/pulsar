@@ -300,9 +300,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void testDeleteRecursive(String provider, String url) throws Exception {
+    public void testDeleteRecursive(String provider,  Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String prefix = newKey();
 
