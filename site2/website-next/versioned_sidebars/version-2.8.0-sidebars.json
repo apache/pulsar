@@ -67,6 +67,30 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/schema-manage"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
     }
   ]
 }
