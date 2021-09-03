@@ -15,29 +15,32 @@
  ******************************************************************************/
 #include "int_types.h"
 
-bool crc32c_initialize();
+namespace  pulsar {
 
-class chunk_config {
-   public:
-    enum
-    {
-        min_words = 4
+    bool crc32c_initialize();
+
+    class chunk_config {
+    public:
+        enum {
+            min_words = 4
+        };
+
+        const size_t words;
+        const chunk_config *const next;
+        uint32_t shift1[256];
+        uint32_t shift2[256];
+
+        chunk_config(size_t words, const chunk_config *next = 0);
+
+        size_t loops() const { return (words - 1) / 3; }
+
+        size_t extra() const { return (words - 1) % 3 + 1; }
+
+    private:
+        chunk_config &operator=(const chunk_config &);
+
+        static void make_shift_table(size_t bytes, uint32_t table[256]);
     };
 
-    const size_t words;
-    const chunk_config* const next;
-    uint32_t shift1[256];
-    uint32_t shift2[256];
-
-    chunk_config(size_t words, const chunk_config* next = 0);
-
-    size_t loops() const { return (words - 1) / 3; }
-    size_t extra() const { return (words - 1) % 3 + 1; }
-
-   private:
-    chunk_config& operator=(const chunk_config&);
-
-    static void make_shift_table(size_t bytes, uint32_t table[256]);
-};
-
-uint32_t crc32c(uint32_t init, const void* buf, size_t len, const chunk_config* config);
+    uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *config);
+}

@@ -20,6 +20,8 @@
 #pragma warning(disable:4146) // unary minus operator applied to unsigned type, result still unsigned
 #endif
 
+namespace pulsar {
+
 // Type trait for unsigned integers of at least N bytes
 template<unsigned int N>
 struct uint_bytes {
@@ -197,3 +199,5 @@ void pow(bitmatrix<N, N>& result, const bitmatrix<N, N>& a, uint64_t n) {
             result = *presult;
     }
 }
+
+} // namespace pulsar

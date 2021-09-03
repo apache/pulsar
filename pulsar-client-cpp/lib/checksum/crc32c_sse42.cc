@@ -63,6 +63,8 @@
 #define DEBUG_PRINTF4(fmt, v1, v2, v3, v4)
 #endif
 
+namespace pulsar {
+
 static bool initialized = false;
 static bool has_sse42 = false;
 static bool has_pclmulqdq = false;
@@ -266,3 +268,5 @@ uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *
 }
 
 #endif
+
+} // namespace pulsar
