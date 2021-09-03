@@ -85,10 +85,10 @@
 <h4><a class="anchor" aria-hidden="true" id="kerberos-principals"></a><a href="#kerberos-principals" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kerberos Principals</h4>
 <p>If you are using existing Kerberos system, ask your Kerberos administrator for a principal for each Brokers in your cluster and for every operating system user that will access Pulsar with Kerberos authentication(via clients and tools).</p>
 <p>如果您已经安装了自己的 Kerberos 系统，那么可以使用以下命令创建这些 principals :</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## add Principals for broker</span></span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 为 broker 添加 Principals </span></span>
 sudo /usr/sbin/kadmin.local -q 'addprinc -randkey broker/{hostname}@{REALM}'
 sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{broker-keytabname}.keytab broker/{hostname}@{REALM}"
-<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## add Principals for client</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 为客户端添加 Principals </span></span>
 sudo /usr/sbin/kadmin.local -q 'addprinc -randkey client/{hostname}@{REALM}'
 sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabname}.keytab client/{hostname}@{REALM}"
 </code></pre>
@@ -135,7 +135,7 @@ sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabnam
 <p>In the <code>pulsar_jaas.conf</code> file above</p>
 <ol>
 <li><code>PulsarBroker</code> is a section name in the JAAS file used by each broker. This section tells the broker which principal to use inside Kerberos and the location of the keytab where the principal is stored. It allows the broker to use the keytab specified in this section.</li>
-<li><code>PulsarClient</code> is a section name in the JASS file used by each client. This section tells the client which principal to use inside Kerberos and the location of the keytab where the principal is stored. It allows the client to use the keytab specified in this section. In the following example, this <code>PulsarClient</code> section will also be reused in both the Pulsar internal admin configuration and in CLI command of <code>bin/pulsar-client</code>, <code>bin/pulsar-perf</code> and <code>bin/pulsar-admin</code>. 您还可以为不同的用例添加单独的节。</li>
+<li><code>PulsarClient</code> is a section name in the JASS file used by each client. This section tells the client which principal to use inside Kerberos and the location of the keytab where the principal is stored. It allows the client to use the keytab specified in this section. In the following example, this <code>PulsarClient</code> section will also be reused in both the Pulsar internal admin configuration and in CLI command of <code>bin/pulsar-client</code>, <code>bin/pulsar-perf</code> and <code>bin/pulsar-admin</code>. 您还可以为不同的用例添加单独的组。</li>
 </ol>
 <p>您可以有两个独立的 JAAS 配置文件：</p>
 <ul>
@@ -144,33 +144,33 @@ sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabnam
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="关于-brokers-的-kerberos-配置"></a><a href="#关于-brokers-的-kerberos-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关于 Brokers 的 Kerberos 配置</h3>
 <h4><a class="anchor" aria-hidden="true" id="configure-brokerconf-file"></a><a href="#configure-brokerconf-file" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure <code>broker.conf</code> file</h4>
-<p>在 <code>broker.conf</code> 文件中，设置与 Kerberos 相关的配置。</p>
+<p>在 <code>broker.conf</code> 文件中设置 Kerberos 相关配置。</p>
 <ul>
 <li><p>Set <code>authenticationEnabled</code> to <code>true</code>;</p></li>
 <li><p>Set <code>authenticationProviders</code> to choose <code>AuthenticationProviderSasl</code>;</p></li>
-<li><p>设置 <code>saslJaasClientAlleedIds</code> 正则表达式用于允许连接到 broker 的主体；</p></li>
+<li><p>设置 <code>saslJaasClientAlleedIds</code> 正则表达式，用于 principal 的 broker 连接许可；</p></li>
 <li><p>Set <code>saslJaasBrokerSectionName</code> that corresponding to the section in JAAS configuration file for broker;</p>
-<p>要让 Pulsar 内部管理客户端正常工作，您需要设置 <code>broker.conf</code> 文件中的配置如下：</p></li>
-<li><p>设置 <code>经纪客户端身份验证插件</code> 到客户端插件 <code>身份验证Sasl</code>;</p></li>
+<p>要使 Pulsar 内部管理客户端正常工作，您需要在 <code>broker.conf</code> 文件中配置如下：</p></li>
+<li><p>为客户端插件 <code>AuthenticationSasl</code> 设置 <code>brokerClientAuthenticationPlugin</code> ；</p></li>
 <li><p>Set <code>brokerClientAuthenticationParameters</code> to value in JSON string <code>{&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;, &quot;serverType&quot;:&quot;broker&quot;}</code>, in which <code>PulsarClient</code> is the section name in above <code>pulsar_jaas.conf</code> file, and <code>&quot;serverType&quot;:&quot;broker&quot;</code> indicate that internal admin client will connect to a Pulsar Broker;</p>
 <p>Here is an example:</p>
 <p>authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.<em>client.</em>
 saslJaasBrokerSectionName=PulsarBroker</p>
-<h2><a class="anchor" aria-hidden="true" id="authentication-settings-of-the-broker-itself-used-when-the-broker-connects-to-other-brokers"></a><a href="#authentication-settings-of-the-broker-itself-used-when-the-broker-connects-to-other-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Authentication settings of the broker itself. Used when the broker connects to other brokers</h2>
+<h2><a class="anchor" aria-hidden="true" id="broker-代理自身的身份验证设置-当-broker-连接到其他-broker-时使用"></a><a href="#broker-代理自身的身份验证设置-当-broker-连接到其他-broker-时使用" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>broker 代理自身的身份验证设置。 当 broker 连接到其他 broker 时使用</h2>
 <p>brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
 brokerClientAuthenticationParameters={&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;, &quot;serverType&quot;:&quot;broker&quot;}</p></li>
 </ul>
 <h4><a class="anchor" aria-hidden="true" id="设置-broker-jvm-参数"></a><a href="#设置-broker-jvm-参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置 Broker JVM 参数</h4>
-<p>为 JAAS 配置文件和 krb5 配置文件设置JVM 参数，并附加选项。</p>
+<p>使用附加选项设置 JAAS 配置文件和 krb5 配置文件的 JVM 参数。</p>
 <pre><code class="hljs css language-shell">   -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf 
 </code></pre>
 <p>You can add this at the end of <code>PULSAR_EXTRA_OPTS</code> in the file <a href="https://github.com/apache/pulsar/blob/master/conf/pulsar_env.sh"><code>pulsar_env.sh</code></a></p>
 <p>Make sure that the keytabs configured in the <code>pulsar_jaas.conf</code> file and kdc server in the <code>krb5.conf</code> file are reachable by the operating system user who is starting broker.</p>
 <h3><a class="anchor" aria-hidden="true" id="客户端的-kerberos-配置"></a><a href="#客户端的-kerberos-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端的 Kerberos 配置</h3>
 <h4><a class="anchor" aria-hidden="true" id="java-客户端和-java-管理客户端"></a><a href="#java-客户端和-java-管理客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java 客户端和 Java 管理客户端</h4>
-<p>In client application, include <code>pulsar-client-auth-sasl</code> in your project dependency.</p>
+<p>在客户端应用程序的项目依赖项中包含 <code>pular -client-auth-sasl</code> 。</p>
 <pre><code class="hljs">    &lt;dependency&gt;
       &lt;groupId&gt;org.apache.pulsar&lt;/groupId&gt;
       &lt;artifactId&gt;pulsar-client-auth-sasl&lt;/artifactId&gt;
@@ -218,30 +218,30 @@ java -cp -Djava.security.auth.login.<span class="hljs-attribute">config</span>=/
     authParams={<span class="hljs-string">"saslJaasClientSectionName"</span>:<span class="hljs-string">"PulsarClient"</span>, <span class="hljs-string">"serverType"</span>:<span class="hljs-string">"broker"</span>}
     
 
-<span class="hljs-keyword">Step</span> 2. 为 JAAS 配置文件和 krb5 配置文件设置JVM 参数，并附加选项。
+步骤 2 。 使用附加选项设置 JAAS 配置文件和 krb5 配置文件的 JVM 参数。
 
 ```shell
    -Djava.security.auth.login.<span class="hljs-attribute">config</span>=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.<span class="hljs-attribute">conf</span>=/etc/pulsar/krb5.conf 
 </code></pre>
-<p>You can add this at the end of <code>PULSAR_EXTRA_OPTS</code> in the file <a href="https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh"><code>pulsar_tools_env.sh</code></a>, or add this line <code>OPTS=&quot;$OPTS -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf &quot;</code> directly to the CLI tool script.</p>
+<p>您可以在 <a href="https://github.com/apache/pulsar/blob/master/conf/pulsar_tools_env.sh"><code>pulsar_tools_env.sh</code></a> 文件中 <code>PULSAR_EXTRA_OPTS</code> 的末尾添加这个， 或者直接在 CLI 工具脚本中添加一行 <code>OPTS=&quot;$OPTS -Djava.security.auth.login.config=/etc/pulsar/pulsar_jaas.conf -Djava.security.krb5.conf=/etc/pulsar/krb5.conf &quot;</code> 。</p>
 <p>The meaning of configurations is the same as that in Java client section.</p>
-<h2><a class="anchor" aria-hidden="true" id="kerberos-configuration-for-working-with-pulsar-proxy"></a><a href="#kerberos-configuration-for-working-with-pulsar-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kerberos configuration for working with Pulsar Proxy</h2>
-<p>With the above configuration, client and broker can do authentication using Kerberos.</p>
+<h2><a class="anchor" aria-hidden="true" id="用于处理-pulsar-proxy-的-kerberos-配置"></a><a href="#用于处理-pulsar-proxy-的-kerberos-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用于处理 Pulsar Proxy 的 Kerberos 配置</h2>
+<p>通过上述配置，客户端和 broker 可以使用 Kerberos 进行身份验证。</p>
 <p>If a client wants to connect to Pulsar Proxy, it is a little different. Client (as a SASL client in Kerberos) will be authenticated by Pulsar Proxy (as a SASL Server in Kerberos) first; and then Pulsar Proxy will be authenticated by Pulsar broker.</p>
 <p>Now comparing with the above configuration between client and broker, we will show how to configure Pulsar Proxy.</p>
-<h3><a class="anchor" aria-hidden="true" id="create-principal-for-pulsar-proxy-in-kerberos"></a><a href="#create-principal-for-pulsar-proxy-in-kerberos" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create principal for Pulsar Proxy in Kerberos</h3>
+<h3><a class="anchor" aria-hidden="true" id="在-kerberos-中创建-pulsar-proxy-的-principal"></a><a href="#在-kerberos-中创建-pulsar-proxy-的-principal" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 Kerberos 中创建 Pulsar Proxy 的 principal</h3>
 <p>Comparing with the above configuration, you need to add new principal for Pulsar Proxy. If you already have principals for client and broker, only add proxy principal here.</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## add Principals for Pulsar Proxy</span></span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 添加 Pulsar Proxy 的 Principals </span></span>
 sudo /usr/sbin/kadmin.local -q 'addprinc -randkey proxy/{hostname}@{REALM}'
 sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{proxy-keytabname}.keytab proxy/{hostname}@{REALM}"
-<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## add Principals for broker</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 添加 broker 的 Principals </span></span>
 sudo /usr/sbin/kadmin.local -q 'addprinc -randkey broker/{hostname}@{REALM}'
 sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{broker-keytabname}.keytab broker/{hostname}@{REALM}"
-<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## add Principals for client</span></span>
+<span class="hljs-meta">#</span><span class="bash"><span class="hljs-comment">## 添加客户端的 Principals </span></span>
 sudo /usr/sbin/kadmin.local -q 'addprinc -randkey client/{hostname}@{REALM}'
 sudo /usr/sbin/kadmin.local -q "ktadd -k /etc/security/keytabs/{client-keytabname}.keytab client/{hostname}@{REALM}"
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="add-a-section-in-jaas-configuration-file-for-pulsar-proxy"></a><a href="#add-a-section-in-jaas-configuration-file-for-pulsar-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Add a section in JAAS configuration file for Pulsar Proxy</h3>
+<h3><a class="anchor" aria-hidden="true" id="在-pulsar-proxy-的-jaas-配置文件中添加组"></a><a href="#在-pulsar-proxy-的-jaas-配置文件中添加组" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在 Pulsar Proxy 的 JAAS 配置文件中添加组</h3>
 <p>Comparing with the above configuration, add a new section for Pulsar Proxy in JAAS configuration file.</p>
 <p>Here is an example named <code>pulsar_jaas.conf</code>:</p>
 <pre><code class="hljs"> PulsarBroker {
@@ -304,7 +304,7 @@ java -cp -Djava.security.auth.login.<span class="hljs-attribute">config</span>=/
     <span class="hljs-attribute">saslJaasClientAllowedIds</span>=.*client.*
     <span class="hljs-attribute">saslJaasBrokerSectionName</span>=PulsarProxy
     
-    ## related <span class="hljs-keyword">to</span> be authenticated by broker
+    ## 与 broker 身份验证相关的
     <span class="hljs-attribute">brokerClientAuthenticationPlugin</span>=org.apache.pulsar.client.impl.auth.AuthenticationSasl
     brokerClientAuthenticationParameters={<span class="hljs-string">"saslJaasClientSectionName"</span>:<span class="hljs-string">"PulsarProxy"</span>, <span class="hljs-string">"serverType"</span>:<span class="hljs-string">"broker"</span>}
     <span class="hljs-attribute">forwardAuthorizationCredentials</span>=<span class="hljs-literal">true</span>
@@ -314,7 +314,7 @@ The first part is related <span class="hljs-keyword">to</span> authenticate betw
 
 The second part is related <span class="hljs-keyword">to</span> authenticate between Pulsar<span class="hljs-built_in"> Proxy </span><span class="hljs-keyword">and</span> Pulsar Broker. <span class="hljs-keyword">In</span> this phase, Pulsar<span class="hljs-built_in"> Proxy </span>works as SASL client, <span class="hljs-keyword">while</span> Pulsar Broker works as SASL server.
 
-<span class="hljs-comment">### Broker side configuration.</span>
+<span class="hljs-comment">### Broker 侧配置</span>
 
 The broker side configuration file is the same with the above `broker.conf`, you <span class="hljs-keyword">do</span> <span class="hljs-keyword">not</span> need special configuration <span class="hljs-keyword">for</span> Pulsar Proxy.
 
@@ -324,7 +324,7 @@ The broker side configuration file is the same with the above `broker.conf`, you
     <span class="hljs-attribute">saslJaasBrokerSectionName</span>=PulsarBroker
     
 
-<span class="hljs-comment">## Regarding authorization and role token</span>
+<span class="hljs-comment">## 关于授权和角色令牌（role token）</span>
 
 <span class="hljs-keyword">For</span> Kerberos authentication, the authenticated principal is used as the role token <span class="hljs-keyword">for</span> Pulsar authorization. <span class="hljs-keyword">For</span> more information of authorization <span class="hljs-keyword">in</span> Pulsar, see [security authorization](/docs/zh-CN/2.4.0/security-authorization).
 
@@ -335,8 +335,8 @@ The broker side configuration file is the same with the above `broker.conf`, you
 ```bash
 <span class="hljs-attribute">superUserRoles</span>=client/{clientIp}@EXAMPLE.COM
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="regarding-authentication-between-zookeeper-and-broker"></a><a href="#regarding-authentication-between-zookeeper-and-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Regarding authentication between ZooKeeper and Broker</h2>
-<p>Pulsar Broker acts as a Kerberos client when authenticating with Zookeeper. According to <a href="https://cwiki.apache.org/confluence/display/ZOOKEEPER/Client-Server+mutual+authentication">ZooKeeper document</a>, you need these settings in <code>conf/zookeeper.conf</code>:</p>
+<h2><a class="anchor" aria-hidden="true" id="关于-zookeeper-服务和-broker-之间的身份验证"></a><a href="#关于-zookeeper-服务和-broker-之间的身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关于 ZooKeeper 服务和 Broker 之间的身份验证</h2>
+<p>Pulsar Broker acts as a Kerberos client when authenticating with Zookeeper. 根据 <a href="https://cwiki.apache.org/confluence/display/ZOOKEEPER/Client-Server+mutual+authentication">ZooKeeper文档</a> ，你需要在 <code>conf/ ZooKeeper.conf</code> 中设置：</p>
 <pre><code class="hljs">authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
 requireClientAuthScheme=sasl
 </code></pre>
@@ -351,11 +351,11 @@ requireClientAuthScheme=sasl
 };
 </code></pre>
 <p>In this setting, Pulsar Broker's principal and keyTab file indicates Broker's role when authenticating with ZooKeeper.</p>
-<h2><a class="anchor" aria-hidden="true" id="regarding-authentication-between-bookkeeper-and-broker"></a><a href="#regarding-authentication-between-bookkeeper-and-broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Regarding authentication between BookKeeper and Broker</h2>
-<p>Pulsar Broker acts as a Kerberos client when authenticating with Bookie. According to <a href="http://bookkeeper.apache.org/docs/latest/security/sasl/">BookKeeper document</a>, you need to add <code>bookkeeperClientAuthenticationPlugin</code> parameter in <code>broker.conf</code>:</p>
+<h2><a class="anchor" aria-hidden="true" id="关于-bookkeeper-储存系统和-broker-之间的身份验证"></a><a href="#关于-bookkeeper-储存系统和-broker-之间的身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>关于 BookKeeper 储存系统和 Broker 之间的身份验证</h2>
+<p>Pulsar Broker acts as a Kerberos client when authenticating with Bookie. 根据 <a href="http://bookkeeper.apache.org/docs/latest/security/sasl/">BookKeeper文档</a> ，需要在 <code>broker.conf</code> 中添加 <code>bookkeeperClientAuthenticationPlugin</code> 参数：</p>
 <pre><code class="hljs">bookkeeperClientAuthenticationPlugin=org.apache.bookkeeper.sasl.SASLClientProviderFactory
 </code></pre>
-<p>In this setting, <code>SASLClientProviderFactory</code> creates a BookKeeper SASL client in a Broker, and the Broker uses the created SASL client to authenticate with a Bookie node.</p>
+<p>在此设置中， <code>SASLClientProviderFactory</code> 在 Broker 中创建了一个 BookKeeper SASL 客户端， Broker 通过 Bookie 节点使用创建的 SASL 客户端进行身份验证。</p>
 <p>And add a section of <code>BookKeeper</code> configurations in the <code>pulsar_jaas.conf</code> that used by Pulsar Broker:</p>
 <pre><code class="hljs"> BookKeeper {
    com.sun.security.auth.module.Krb5LoginModule required
@@ -367,7 +367,7 @@ requireClientAuthScheme=sasl
 };
 </code></pre>
 <p>In this setting, Pulsar Broker's principal and keyTab file indicates Broker's role when authenticating with Bookie.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.0/security-athenz"><span class="arrow-prev">← </span><span>使用 Athenz 验证</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.0/security-jwt"><span>使用 JWT 认证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#在客户端与-broker-之间配置-kerberos">在客户端与 Broker 之间配置 Kerberos</a><ul class="toc-headings"><li><a href="#先决条件">先决条件</a></li><li><a href="#关于-brokers-的-kerberos-配置">关于 Brokers 的 Kerberos 配置</a></li></ul></li><li><a href="#authentication-settings-of-the-broker-itself-used-when-the-broker-connects-to-other-brokers">Authentication settings of the broker itself. Used when the broker connects to other brokers</a><ul class="toc-headings"><li><a href="#客户端的-kerberos-配置">客户端的 Kerberos 配置</a></li></ul></li><li><a href="#kerberos-configuration-for-working-with-pulsar-proxy">Kerberos configuration for working with Pulsar Proxy</a><ul class="toc-headings"><li><a href="#create-principal-for-pulsar-proxy-in-kerberos">Create principal for Pulsar Proxy in Kerberos</a></li><li><a href="#add-a-section-in-jaas-configuration-file-for-pulsar-proxy">Add a section in JAAS configuration file for Pulsar Proxy</a></li><li><a href="#proxy-client-configuration">Proxy Client configuration</a></li></ul></li><li><a href="#regarding-authentication-between-zookeeper-and-broker">Regarding authentication between ZooKeeper and Broker</a></li><li><a href="#regarding-authentication-between-bookkeeper-and-broker">Regarding authentication between BookKeeper and Broker</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.0/security-athenz"><span class="arrow-prev">← </span><span>使用 Athenz 验证</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.0/security-jwt"><span>使用 JWT 认证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#在客户端与-broker-之间配置-kerberos">在客户端与 Broker 之间配置 Kerberos</a><ul class="toc-headings"><li><a href="#先决条件">先决条件</a></li><li><a href="#关于-brokers-的-kerberos-配置">关于 Brokers 的 Kerberos 配置</a></li></ul></li><li><a href="#broker-代理自身的身份验证设置-当-broker-连接到其他-broker-时使用">broker 代理自身的身份验证设置。 当 broker 连接到其他 broker 时使用</a><ul class="toc-headings"><li><a href="#客户端的-kerberos-配置">客户端的 Kerberos 配置</a></li></ul></li><li><a href="#用于处理-pulsar-proxy-的-kerberos-配置">用于处理 Pulsar Proxy 的 Kerberos 配置</a><ul class="toc-headings"><li><a href="#在-kerberos-中创建-pulsar-proxy-的-principal">在 Kerberos 中创建 Pulsar Proxy 的 principal</a></li><li><a href="#在-pulsar-proxy-的-jaas-配置文件中添加组">在 Pulsar Proxy 的 JAAS 配置文件中添加组</a></li><li><a href="#proxy-client-configuration">Proxy Client configuration</a></li></ul></li><li><a href="#关于-zookeeper-服务和-broker-之间的身份验证">关于 ZooKeeper 服务和 Broker 之间的身份验证</a></li><li><a href="#关于-bookkeeper-储存系统和-broker-之间的身份验证">关于 BookKeeper 储存系统和 Broker 之间的身份验证</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
