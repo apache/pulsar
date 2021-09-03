@@ -286,7 +286,7 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 </TabItem>
 <TabItem value="REST API">
 
-Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=[[pulsar:version_number]]a}
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=<pulsar:version_number>a}
 
 The post payload is in JSON format.
 
@@ -435,7 +435,7 @@ $ pulsar-admin schemas get <topic-name>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=[[pulsar:version_number]]a}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=<pulsar:version_number>a}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -593,7 +593,7 @@ $ pulsar-admin schemas get <topic-name> --version=<version>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=[[pulsar:version_number]]a}
+Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=<pulsar:version_number>a}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -779,7 +779,7 @@ $ pulsar-admin schemas delete <topic-name>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=[[pulsar:version_number]]} 
+Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=<pulsar:version_number>} 
 
 Here is an example of a response, which is returned in JSON format.
 

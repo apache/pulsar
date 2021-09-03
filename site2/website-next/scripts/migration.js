@@ -135,6 +135,7 @@ try {
         data = fixTab(data);
         data = data
           .replace(reg, "id: ")
+          .replace(/\[\[pulsar:version_number\]\]/g, "<pulsar:version_number>")
           .replace(/<\/br>/g, "<br />")
           .replace(/<br>/g, "<br />")
           .replace(
@@ -146,7 +147,7 @@ try {
           .replace(/(<table.+>)/g, "$1\n<tbody>")
           .replace(/<\/\s*table.*>/g, "</tbody>\n</table>")
           // .replace(/<!--(.*)-->/g, "====$1====")
-          .replace(/(```\w+)/gm, "\r\n$1")
+          .replace(/(```\w+)/gm, "\n$1")
           .replace(/^\s*```$/gm, "```");
         data = fixTd(data, /<td>((?!<\/td>).)*(\n((?!<\/td>).)*)+<\/td>/);
 
