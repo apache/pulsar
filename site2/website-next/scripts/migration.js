@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const nextSidebar = require("../sidebars");
 const _ = require("lodash");
+const fixTab = require("./fix-tab");
 
 function travel(dir, callback) {
   fs.readdirSync(dir).forEach((file) => {
@@ -131,6 +132,7 @@ try {
       if (fix) {
         let reg = new RegExp("id:\\s*version-" + version + "-");
         let data = fs.readFileSync(pathname, "utf8");
+        data = fixTab(data);
         data = data
           .replace(reg, "id: ")
           .replace(/<\/br>/g, "<br />")
@@ -143,10 +145,9 @@ try {
           .replace(/<table style="table"/g, '<table className={"table"}')
           .replace(/(<table.+>)/g, "$1\n<tbody>")
           .replace(/<\/\s*table.*>/g, "</tbody>\n</table>")
-          .replace(/<!--(.*)-->/g, "====$1====")
+          // .replace(/<!--(.*)-->/g, "====$1====")
           .replace(/(```\w+)/gm, "\r\n$1")
           .replace(/^\s*```$/gm, "```");
-
         data = fixTd(data, /<td>((?!<\/td>).)*(\n((?!<\/td>).)*)+<\/td>/);
 
         fs.writeFileSync(path.join(dest, filename), data);
