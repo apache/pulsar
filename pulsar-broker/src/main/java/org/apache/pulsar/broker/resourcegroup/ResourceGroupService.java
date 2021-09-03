@@ -615,15 +615,13 @@ public class ResourceGroupService {
                     localUsageStats = resourceGroup.getLocalUsageStatsFromBrokerReports(monClass);
                     confCounts = resourceGroup.getConfLimits(monClass);
 
-                    val globUsageBytesArray = new long[1];
-                    globUsageBytesArray[0] = globalUsageStats.bytes;
+                    long[] globUsageBytesArray = new long[] { globalUsageStats.bytes };
                     updatedQuota.bytes = this.quotaCalculator.computeLocalQuota(
                             confCounts.bytes,
                             localUsageStats.bytes,
                             globUsageBytesArray);
 
-                    val globUsageMessagesArray = new long[1];
-                    globUsageMessagesArray[0] = globalUsageStats.messages;
+                    long[] globUsageMessagesArray = new long[] {globalUsageStats.messages };
                     updatedQuota.messages = this.quotaCalculator.computeLocalQuota(
                             confCounts.messages,
                             localUsageStats.messages,
