@@ -330,7 +330,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.terminatePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true);
         verify(response, timeout(5000).times(1)).resume(Arrays.asList(new MessageIdImpl(3, -1, -1)));
-
     }
 
     @Test

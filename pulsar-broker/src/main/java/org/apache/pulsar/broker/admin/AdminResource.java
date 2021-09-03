@@ -272,7 +272,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-
     @Deprecated
     protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
