@@ -68,6 +68,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -118,16 +119,12 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class ManagedLedgerTest extends MockedBookKeeperTestCase {
-
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerTest.class);
-
     private static final Charset Encoding = Charsets.UTF_8;
 
     @DataProvider(name = "checkOwnershipFlag")
@@ -3033,7 +3030,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             Assert.assertEquals(finalManagedLedger.getTotalSize(), 0);
         });
     }
-  
+
     @Test(timeOut = 20000)
     public void testAsyncTruncateLedgerRetention() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -3206,5 +3203,56 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.internalTrimConsumedLedgers(Futures.NULL_PROMISE);
         verify(ledgerOffloader, times(1)).getOffloadPolicies();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadOtherManagedLedgersEntry() throws Exception {
+        ManagedLedgerImpl managedLedgerA = (ManagedLedgerImpl) factory.open("my_test_ledger_a");
+        ManagedLedgerImpl managedLedgerB = (ManagedLedgerImpl) factory.open("my_test_ledger_b");
+
+        PositionImpl pa = (PositionImpl) managedLedgerA.addEntry("dummy-entry-a".getBytes(Encoding));
+        PositionImpl pb = (PositionImpl) managedLedgerB.addEntry("dummy-entry-b".getBytes(Encoding));
+
+        // read managedLegerA's entry using managedLedgerA
+        CompletableFuture<byte[]> completableFutureA = new CompletableFuture<>();
+        managedLedgerA.asyncReadEntry(pa, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                completableFutureA.complete(entry.getData());
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                completableFutureA.completeExceptionally(exception.getCause());
+            }
+        }, null);
+
+        assertEquals("dummy-entry-a".getBytes(Encoding), completableFutureA.get());
+
+        // read managedLedgerB's entry using managedLedgerA
+        CompletableFuture<byte[]> completableFutureB = new CompletableFuture<>();
+        managedLedgerA.asyncReadEntry(pb, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                completableFutureB.complete(entry.getData());
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                completableFutureB.completeExceptionally(exception);
+            }
+        }, null);
+
+        try {
+            completableFutureB.get();
+            Assert.fail();
+        } catch (Exception e) {
+            assertEquals(e.getCause().getMessage(),
+                "Message not found, the ledgerId does not belong to this topic or has been deleted");
+        }
+
+        managedLedgerA.close();
+        managedLedgerB.close();
+
     }
 }
