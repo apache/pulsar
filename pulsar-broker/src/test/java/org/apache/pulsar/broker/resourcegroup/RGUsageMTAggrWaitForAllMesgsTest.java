@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import io.prometheus.client.Summary;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -33,7 +34,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -847,7 +847,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             NonPersistentTopicNamesDifferentTenantAndNsRGs);
 
     // We don't periodically report to a remote broker in this test. So, we will use cumulative stats.
-    private final boolean getCumulativeUsageStats = true;
+    private final ResourceGroupUsageStatsType getCumulativeUsageStats = ResourceGroupUsageStatsType.Cumulative;
 
     // Keep track of the namespaces that were created, so we don't dup and get exceptions
     HashSet<String> createdNamespaces = new HashSet<>();
