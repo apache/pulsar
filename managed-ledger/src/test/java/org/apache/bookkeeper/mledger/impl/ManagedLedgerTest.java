@@ -3245,7 +3245,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             Assert.fail();
         } catch (Exception e) {
             assertEquals(e.getCause().getMessage(),
-                "Message not found, the ledgerId does not belong to this topic");
+                "Message not found, the ledgerId does not belong to this topic or has been deleted");
         }
 
         managedLedgerA.close();
