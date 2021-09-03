@@ -141,7 +141,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicInteger completed = new AtomicInteger();
 
         for (int partitionIndex : indexList) {
-            createProducer(partitionIndex).handle((prod, createException) -> {
+            createProducer(partitionIndex).producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
                     setState(State.Failed);
                     createFail.compareAndSet(null, createException);
@@ -171,12 +171,12 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         }
     }
 
-    private CompletableFuture<Producer<T>> createProducer(final int partitionIndex) {
+    private ProducerImpl<T> createProducer(final int partitionIndex) {
         String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
         ProducerImpl<T> producer = client.newProducerImpl(partitionName, partitionIndex,
                 conf, schema, interceptors, new CompletableFuture<>());
         producers.put(partitionIndex, producer);
-        return producer.producerCreatedFuture();
+        return producer;
     }
 
     @Override
@@ -191,12 +191,14 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 "Illegal partition index chosen by the message routing policy: " + partition);
 
         if (!producers.containsKey(partition)) {
-            final State createState = createProducer(partition).handle((prod, createException) -> {
+            final ProducerImpl<T> newProducer = createProducer(partition);
+            final State createState = newProducer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
                     log.error("[{}] Could not create internal producer. partitionIndex: {}", topic, partition,
                             createException);
                     try {
-                        producers.remove(partition).close();
+                        producers.remove(partition, newProducer);
+                        newProducer.close();
                     } catch (PulsarClientException e) {
                         log.error("[{}] Could not close internal producer. partitionIndex: {}", topic, partition, e);
                     }
