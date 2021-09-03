@@ -5,6 +5,9 @@ sidebar_label: Manage schema
 original_id: schema-manage
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 This guide demonstrates the ways to manage schemas:
 
 * Automatically 
@@ -184,9 +187,24 @@ For more information about how to use the Pulsar REST API, see [here](http://pul
 
 To upload (register) a new schema for a topic, you can use one of the following methods.
 
-====DOCUSAURUS_CODE_TABS====
+<Tabs 
+  defaultValue="Admin CLI"
+  values={[
+  {
+    "label": "Admin CLI",
+    "value": "Admin CLI"
+  },
+  {
+    "label": "REST API",
+    "value": "REST API"
+  },
+  {
+    "label": "Java Admin API",
+    "value": "Java Admin API"
+  }
+]}>
 
-====Admin CLI====
+<TabItem value="Admin CLI">
 
 Use the `upload` subcommand.
 
@@ -266,7 +284,8 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 }
 ```
 
-====REST API====
+</TabItem>
+<TabItem value="REST API">
 
 Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=[[pulsar:version_number]]a}
 
@@ -315,7 +334,8 @@ The schema definition data, which is encoded in UTF 8 charset.
 </tbody>
 </table>
 
-====Java Admin API====
+</TabItem>
+<TabItem value="Java Admin API">
 
 
 ```java
@@ -368,15 +388,32 @@ payload.setSchema("");
 
 admin.createSchema("my-tenant/my-ns/my-topic", payload); 
 ```
-====END_DOCUSAURUS_CODE_TABS====
+</TabItem>
+
+</Tabs>
 
 ### Get a schema (latest)
 
 To get the latest schema for a topic, you can use one of the following methods. 
 
-====DOCUSAURUS_CODE_TABS====
+<Tabs 
+  defaultValue="Admin CLI"
+  values={[
+  {
+    "label": "Admin CLI",
+    "value": "Admin CLI"
+  },
+  {
+    "label": "REST API",
+    "value": "REST API"
+  },
+  {
+    "label": "Java Admin API",
+    "value": "Java Admin API"
+  }
+]}>
 
-====Admin CLI====
+<TabItem value="Admin CLI">
 
 Use the `get` subcommand.
 
@@ -396,7 +433,8 @@ $ pulsar-admin schemas get <topic-name>
 }
 ```
 
-====REST API====
+</TabItem>
+<TabItem value="REST API">
 
 Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=[[pulsar:version_number]]a}
 
@@ -461,7 +499,8 @@ The schema definition data, which is encoded in UTF 8 charset.
 </tbody>
 </table>
 
-====Java Admin API====
+</TabItem>
+<TabItem value="Java Admin API">
 
 
 ```java
@@ -518,15 +557,32 @@ PulsarAdmin admin = …;
 SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic"); 
 ```
 
-====END_DOCUSAURUS_CODE_TABS====
+</TabItem>
+
+</Tabs>
 
 ### Get a schema (specific)
 
 To get a specific version of a schema, you can use one of the following methods.
 
-====DOCUSAURUS_CODE_TABS====
+<Tabs 
+  defaultValue="Admin CLI"
+  values={[
+  {
+    "label": "Admin CLI",
+    "value": "Admin CLI"
+  },
+  {
+    "label": "REST API",
+    "value": "REST API"
+  },
+  {
+    "label": "Java Admin API",
+    "value": "Java Admin API"
+  }
+]}>
 
-====Admin CLI====
+<TabItem value="Admin CLI">
 
 Use the `get` subcommand.
 
@@ -535,7 +591,8 @@ Use the `get` subcommand.
 $ pulsar-admin schemas get <topic-name> --version=<version> 
 ```
 
-====REST API====
+</TabItem>
+<TabItem value="REST API">
 
 Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=[[pulsar:version_number]]a}
 
@@ -600,7 +657,8 @@ The schema definition data, which is encoded in UTF 8 charset.
 </tbody>
 </table>
 
-====Java Admin API====
+</TabItem>
+<TabItem value="Java Admin API">
 
 
 ```java
@@ -655,15 +713,24 @@ PulsarAdmin admin = …;
 SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic", 1L);
 ```
 
-====END_DOCUSAURUS_CODE_TABS====
+</TabItem>
+
+</Tabs>
 
 ### Extract a schema
 
 To provide a schema via a topic, you can use the following method.
 
-====DOCUSAURUS_CODE_TABS====
+<Tabs 
+  defaultValue="Admin CLI"
+  values={[
+  {
+    "label": "Admin CLI",
+    "value": "Admin CLI"
+  }
+]}>
 
-====Admin CLI====
+<TabItem value="Admin CLI">
 
 Use the `extract` subcommand.
 
@@ -672,7 +739,9 @@ Use the `extract` subcommand.
 $ pulsar-admin schemas extract --classname <class-name> --jar <jar-path> --type <type-name>
 ```
 
-====END_DOCUSAURUS_CODE_TABS====
+</TabItem>
+
+</Tabs>
 
 ### Delete a schema
 
@@ -682,9 +751,24 @@ To delete a schema for a topic, you can use one of the following methods.
 > 
 > In any case, the **delete** action deletes **all versions** of a schema registered for a topic.
 
-====DOCUSAURUS_CODE_TABS====
+<Tabs 
+  defaultValue="Admin CLI"
+  values={[
+  {
+    "label": "Admin CLI",
+    "value": "Admin CLI"
+  },
+  {
+    "label": "REST API",
+    "value": "REST API"
+  },
+  {
+    "label": "Java Admin API",
+    "value": "Java Admin API"
+  }
+]}>
 
-====Admin CLI====
+<TabItem value="Admin CLI">
 
 Use the `delete` subcommand.
 
@@ -693,7 +777,8 @@ Use the `delete` subcommand.
 $ pulsar-admin schemas delete <topic-name>
 ```
 
-====REST API====
+</TabItem>
+<TabItem value="REST API">
 
 Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=[[pulsar:version_number]]} 
 
@@ -712,7 +797,8 @@ Field | Description |
 ---|---|
 `version` | The schema version, which is a long number. | 
 
-====Java Admin API====
+</TabItem>
+<TabItem value="Java Admin API">
 
 
 ```java
@@ -728,7 +814,9 @@ PulsarAdmin admin = …;
 admin.deleteSchema("my-tenant/my-ns/my-topic"); 
 ```
 
-====END_DOCUSAURUS_CODE_TABS====
+</TabItem>
+
+</Tabs>
 
 ## Custom schema storage
 

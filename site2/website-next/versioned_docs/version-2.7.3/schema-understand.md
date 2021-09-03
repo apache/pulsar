@@ -5,6 +5,9 @@ sidebar_label: Understand schema
 original_id: schema-understand
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background.
 
 ## SchemaInfo
