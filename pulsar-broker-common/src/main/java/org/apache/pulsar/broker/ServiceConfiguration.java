@@ -148,6 +148,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String bindAddress = "0.0.0.0";
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Origins that are allowed to do Cross-Origin Resource Sharing (CORS) (as a comma-separated list)"
+    )
+    private Optional<String> allowedOrigins = Optional.empty();
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Hostname or IP address the service advertises to the outside world."
             + " If not set, the value of `InetAddress.getLocalHost().getHostname()` is used."

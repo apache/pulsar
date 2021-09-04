@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.eclipse.jetty.servlets.CrossOriginFilter.ALLOWED_HEADERS_PARAM;
+import static org.eclipse.jetty.servlets.CrossOriginFilter.ALLOWED_METHODS_PARAM;
+import static org.eclipse.jetty.servlets.CrossOriginFilter.ALLOWED_ORIGINS_PARAM;
+import static org.eclipse.jetty.servlets.CrossOriginFilter.ALLOW_CREDENTIALS_PARAM;
+import static org.eclipse.jetty.servlets.CrossOriginFilter.PREFLIGHT_MAX_AGE_PARAM;
 import com.google.common.collect.Lists;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
@@ -45,6 +50,7 @@ import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
@@ -177,6 +183,20 @@ public class WebService implements AutoCloseable {
         if (pulsar.getConfig().isDisableHttpDebugMethods()) {
             FilterHolder filter = new FilterHolder(new DisableDebugHttpMethodFilter(pulsar.getConfig()));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
+        if (pulsar.getConfig().getAllowedOrigins().isPresent()) {
+            // illustration use of CorsFilter. See comment in CorsFilter
+            //FilterHolder filter = new FilterHolder(new CorsFilter(pulsar.getConfig().getAllowedOrigins().get()));
+
+            FilterHolder filter = new FilterHolder(new CrossOriginFilter());
+            filter.setInitParameter(ALLOWED_ORIGINS_PARAM, pulsar.getConfig().getAllowedOrigins().get());
+            filter.setInitParameter(ALLOWED_METHODS_PARAM, "POST,GET,OPTIONS,PUT,DELETE,HEAD");
+            filter.setInitParameter(ALLOWED_HEADERS_PARAM, "Origin, X-Requested-With, Content-Type, Accept");
+            filter.setInitParameter(PREFLIGHT_MAX_AGE_PARAM, "86400"); // 24 hours
+            filter.setInitParameter(ALLOW_CREDENTIALS_PARAM, "true");
+
+            context.addFilter(filter, MATCH_ALL, EnumSet.of(DispatcherType.REQUEST));
         }
 
         if (pulsar.getConfiguration().isHttpRequestsLimitEnabled()) {
