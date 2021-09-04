@@ -39,7 +39,7 @@ public class TopicResources {
     }
 
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
-        String path = "/managed-ledgers/" + ns + "/persistent";
+        String path = MANAGED_LEDGER_PATH + ns + "/persistent";
 
         return store.getChildren(path).thenApply(children ->
                 children.stream().map(c -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(c)).toString())
