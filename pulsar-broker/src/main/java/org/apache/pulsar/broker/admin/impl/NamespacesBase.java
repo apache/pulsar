@@ -298,42 +298,29 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             try {
-                final String globalPartitionedPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString());
-                final String managedLedgerPath = joinPath(MANAGED_LEDGER_ROOT, namespaceName.toString());
-                // check whether partitioned topics znode exist
-                if (namespaceResources().exists(globalPartitionedPath)) {
-                    deleteRecursive(namespaceResources(), globalPartitionedPath);
-                }
+                namespaceResources().getPartitionedTopicResources().clearPartitionedTopicMetadata(namespaceName);
 
                 try {
-                    if (namespaceResources().exists(managedLedgerPath)) {
-                        pulsar().getPulsarResources().getTopicResources()
-                                .clearDomainPersistence(namespaceName).get();
-                        pulsar().getPulsarResources().getTopicResources()
-                                .clearNamespacePersistence(namespaceName).get();
-                    }
+                    pulsar().getPulsarResources().getTopicResources()
+                            .clearDomainPersistence(namespaceName).get();
+                    pulsar().getPulsarResources().getTopicResources()
+                            .clearNamespacePersistence(namespaceName).get();
                 } catch (ExecutionException | InterruptedException e) {
                     // warn level log here since this failure has no side effect besides left a un-used metadata
                     // and also will not affect the re-creation of namespace
                     log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
                 }
+
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
-<<<<<<< HEAD
                 namespaceResources().deletePolicies(namespaceName);
-=======
-                final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
-                final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
-                final String namespacePath = joinPath(OWNER_INFO_ROOT, namespaceName.toString());
-                namespaceResources().delete(globalZkPolicyPath);
 
                 try {
-                    namespaceResources().delete(namespacePath);
+                    namespaceResources().deletePolicies(namespaceName);
                 } catch (NotFoundException e) {
-                    // If the z-node with the modified information is not there anymore, we're already good
+                    // If the node with the modified information is not there anymore, we're already good
                 }
 
->>>>>>> apache/master
                 try {
                     getLocalPolicies().deleteLocalPolicies(namespaceName);
                 } catch (NotFoundException nne) {

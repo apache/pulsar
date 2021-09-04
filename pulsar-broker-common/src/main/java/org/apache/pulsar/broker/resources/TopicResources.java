@@ -78,16 +78,37 @@ public class TopicResources {
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        return store.delete(path, Optional.empty());
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return store.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        return store.delete(path, Optional.empty());
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return store.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        return store.delete(path, Optional.empty());
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return store.delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
     }
 }
