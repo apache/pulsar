@@ -339,19 +339,19 @@
 <tr><td><code>--instance-id-offset</code></td><td>Start the instanceIds from this offset</td><td>0</td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function's namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>应用于 function 的处理保证 (又名传递语义)。其可能的值：[ATLEAST_ONCE、ATMOST_ONCE、EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
-<tr><td><code>--py</code></td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
-<tr><td><code>--go</code></td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--py</code></td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
+<tr><td><code>--go</code></td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
-<tr><td><code>--state-storage-service-url</code></td><td>The URL for the state storage service. By default, it it set to the service URL of the Apache BookKeeper. This service URL must be added manually when the Pulsar Function runs locally.</td><td></td></tr>
+<tr><td><code>--state-storage-service-url</code></td><td>状态存储服务的 URL。 默认情况下，设置为 Apache BookKeeper 的服务 URL。本地运行 Pulsar Function 时，必须手动添加此服务 URL。</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
@@ -391,15 +391,15 @@
 <tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>应用于 function 的处理保证 (又名传递语义)。其可能的值：[ATLEAST_ONCE、ATMOST_ONCE、EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
-<tr><td><code>--py</code></td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
-<tr><td><code>--go</code></td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--py</code></td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
+<tr><td><code>--go</code></td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
@@ -456,15 +456,15 @@
 <tr><td><code>--function-config-file</code></td><td>The path to a YAML config file specifying the function's configuration</td><td></td></tr>
 <tr><td><code>--inputs</code></td><td>The function's input topic or topics (multiple topics can be specified as a comma-separated list)</td><td></td></tr>
 <tr><td><code>--log-topic</code></td><td>The topic to which the function's logs are produced</td><td></td></tr>
-<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--jar</code></td><td>Path to the jar file for the function (if the function is written in Java). 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The function's name</td><td></td></tr>
 <tr><td><code>--namespace</code></td><td>The function’s namespace</td><td></td></tr>
 <tr><td><code>--output</code></td><td>The function's output topic (If none is specified, no output is written)</td><td></td></tr>
 <tr><td><code>--output-serde-classname</code></td><td>The SerDe class to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--parallelism</code></td><td>The function’s parallelism factor, i.e. the number of instances of the function to run</td><td>1</td></tr>
 <tr><td><code>--processing-guarantees</code></td><td>应用于 function 的处理保证 (又名传递语义)。其可能的值：[ATLEAST_ONCE、ATMOST_ONCE、EFFECTIVELY_ONCE]</td><td>ATLEAST_ONCE</td></tr>
-<tr><td><code>--py</code></td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
-<tr><td><code>--go</code></td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.</td><td></td></tr>
+<tr><td><code>--py</code></td><td>Function 的主可执行 Python 文件/Python Wheel 文件路径（如果 function 是用 Python 编写的）。 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
+<tr><td><code>--go</code></td><td>Function 的主可执行 Go 二进制文件路径（如果 function 是用 Go 编写的）。 支持 URL 路径 [http/https/file (文件协议假定文件已在 worker 主机上)/function (包管理服务的软件包 URL)]，worker 可从中下载包。</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
@@ -766,7 +766,7 @@
 <tbody>
 <tr><td><code>--enable</code>, <code>-e</code></td><td>在命名空间上启用 allowAutoTopicCreation</td><td>false</td></tr>
 <tr><td><code>--disable</code>, <code>-d</code></td><td>禁用命名空间上的 allowAutoTopicCreation</td><td>false</td></tr>
-<tr><td><code>--type</code>, <code>-t</code></td><td>Type of topic to be auto-created. Possible values: (partitioned, non-partitioned)</td><td>non-partitioned</td></tr>
+<tr><td><code>--type</code>, <code>-t</code></td><td>要自动创建的主题类型。可能的值：(已分区、未分区)</td><td>non-partitioned</td></tr>
 <tr><td><code>--num-partitions</code>, <code>-n</code></td><td>要自动创建的主题的默认分区数，仅适用于分区主题</td><td></td></tr>
 </tbody>
 </table>
@@ -894,9 +894,9 @@
 </thead>
 <tbody>
 <tr><td><code>-l</code>, <code>--limit</code></td><td>The backlog size limit (for example <code>10M</code> or <code>16G</code>)</td><td></td></tr>
-<tr><td><code>-lt</code>, <code>--limitTime</code></td><td>Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)</td><td></td></tr>
+<tr><td><code>-lt</code>, <code>--limitTime</code></td><td>以秒为单位的时间限制，用于禁用时间限制的非正数。(例如 3600 为 1 小时)</td><td></td></tr>
 <tr><td><code>-p</code>, <code>--policy</code></td><td>The retention policy to enforce when the limit is reached. The valid options are: <code>producer_request_hold</code>, <code>producer_exception</code> or <code>consumer_backlog_eviction</code></td><td></td></tr>
-<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to set. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
+<tr><td><code>-t</code>, <code>--type</code></td><td>要设置的积压配额类型。有效选项为：<code>destination_storage</code>、<code>message_age</code></td><td>destination_storage</td></tr>
 </tbody>
 </table>
 <p>示例</p>
@@ -916,7 +916,7 @@
 <tr><th>标记</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to remove. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
+<tr><td><code>-t</code>, <code>--type</code></td><td>要删除的积压配额类型。 有效选项为：<code>destination_storage</code>、<code>message_age</code></td><td>destination_storage</td></tr>
 </tbody>
 </table>
 <p>用法</p>
@@ -1000,7 +1000,7 @@
 <tbody>
 <tr><td><code>-c</code>, <code>--cluster</code></td><td>集群名称</td><td></td></tr>
 <tr><td><code>-g</code>, <code>--group</code></td><td>Anti-affinity group name</td><td></td></tr>
-<tr><td><code>-p</code>, <code>--tenant</code></td><td>Tenant is only used for authorization. Client has to be admin of any of the tenant to access this api</td><td></td></tr>
+<tr><td><code>-p</code>, <code>--tenant</code></td><td>租户仅用于授权。客户端必须是任意一个租户的管理员才能访问此 api</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-anti-affinity-group"></a><a href="#delete-anti-affinity-group" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete-anti-affinity-group</code></h3>
@@ -1024,7 +1024,7 @@
 <tr><th>标记</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-s</code>, <code>--size</code></td><td>The retention size limits (for example 10M, 16G or 3T) for each topic in the namespace. 0 means no retention and -1 means infinite size retention</td><td></td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>命名空间中每个主题的保留大小限制 ( 例如 10M、16G 或 3T) 。0 表示不保留，-1 表示无限大小保留</td><td></td></tr>
 <tr><td><code>-t</code>, <code>--time</code></td><td>The retention time in minutes, hours, days, or weeks. Examples: 100m, 13h, 2d, 5w. 0 means no retention and -1 means infinite time retention</td><td></td></tr>
 </tbody>
 </table>
@@ -1095,7 +1095,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-replicator-dispatch-rate"></a><a href="#get-replicator-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-replicator-dispatch-rate</code></h3>
-<p>Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value &lt; 0)</p>
+<p>获取命名空间所有主题复制器配置的消息发送率 (如果值 &lt; 0 则被禁用)</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-replicator-dispatch-rate tenant/namespace
 </code></pre>
@@ -1136,7 +1136,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-subscription-dispatch-rate"></a><a href="#get-subscription-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-subscription-dispatch-rate</code></h3>
-<p>Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value &lt; 0)</p>
+<p>获取命名空间所有主题订阅配置的消息发送率 (如果值 &lt; 0 则被禁用)</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
 </code></pre>
@@ -1227,7 +1227,7 @@
 <tr><th>标记</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-m</code>, <code>--subscription-auth-mode</code></td><td>Subscription authorization mode for Pulsar policies. Valid options are: [None, Prefix]</td><td></td></tr>
+<tr><td><code>-m</code>, <code>--subscription-auth-mode</code></td><td>Pulsar 策略的订阅授权模式。 有效选项为：[None，Prefix]</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-max-producers-per-topic"></a><a href="#get-max-producers-per-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-max-producers-per-topic</code></h3>
@@ -1904,9 +1904,9 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 </thead>
 <tbody>
 <tr><td><code>-l</code>, <code>--limit</code></td><td>The backlog size limit (for example <code>10M</code> or <code>16G</code>)</td><td></td></tr>
-<tr><td><code>-lt</code>, <code>--limitTime</code></td><td>Time limit in second, non-positive number for disabling time limit. (for example 3600 for 1 hour)</td><td></td></tr>
+<tr><td><code>-lt</code>, <code>--limitTime</code></td><td>以秒为单位的时间限制，用于禁用时间限制的非正数。(例如 3600 为 1 小时)</td><td></td></tr>
 <tr><td><code>-p</code>, <code>--policy</code></td><td>The retention policy to enforce when the limit is reached. The valid options are: <code>producer_request_hold</code>, <code>producer_exception</code> or <code>consumer_backlog_eviction</code></td><td></td></tr>
-<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to set. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
+<tr><td><code>-t</code>, <code>--type</code></td><td>要设置的积压配额类型。有效选项为：<code>destination_storage</code>、<code>message_age</code></td><td>destination_storage</td></tr>
 </tbody>
 </table>
 <p>用法</p>
@@ -1929,7 +1929,7 @@ The unit of <code>storageSize</code> and <code>averageMsgSize</code> is Byte.</p
 <tr><th>标记</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code>, <code>--type</code></td><td>Backlog quota type to remove. The valid options are: <code>destination_storage</code>, <code>message_age</code></td><td>destination_storage</td></tr>
+<tr><td><code>-t</code>, <code>--type</code></td><td>要删除的积压配额类型。 有效选项为：<code>destination_storage</code>、<code>message_age</code></td><td>destination_storage</td></tr>
 </tbody>
 </table>
 <p>用法</p>
