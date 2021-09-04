@@ -857,6 +857,47 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
+    public void testGetMessageById() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
+        final String topicName2 = "persistent://tenant-xyz/ns-abc/testGetMessageById2";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        admin.topics().createNonPartitionedTopic(topicName2);
+        ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName1)
+                .enableBatching(false).create();
+        String data1 = "test1";
+        MessageIdImpl id1 = (MessageIdImpl) producer1.send(data1.getBytes());
+
+        ProducerBase<byte[]> producer2 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName2)
+                .enableBatching(false).create();
+        String data2 = "test2";
+        MessageIdImpl id2 = (MessageIdImpl) producer2.send(data2.getBytes());
+
+        Message<byte[]> message1 = admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId());
+        Assert.assertEquals(message1.getData(), data1.getBytes());
+
+        Message<byte[]> message2 = admin.topics().getMessageById(topicName2, id2.getLedgerId(), id2.getEntryId());
+        Assert.assertEquals(message2.getData(), data2.getBytes());
+
+        Message<byte[]> message3 = null;
+        try {
+            message3 = admin.topics().getMessageById(topicName2, id1.getLedgerId(), id1.getEntryId());
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertNull(message3);
+        }
+
+        Message<byte[]> message4 = null;
+        try {
+            message4 = admin.topics().getMessageById(topicName1, id2.getLedgerId(), id2.getEntryId());
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertNull(message4);
+        }
+    }
+
     @Test
     public void testGetMessageIdByTimestamp() throws Exception {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));

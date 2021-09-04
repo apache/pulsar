@@ -76,6 +76,7 @@ module.exports = {
     prism: {
       theme: lightCodeTheme,
       darkTheme: darkCodeTheme,
+      additionalLanguages: ["powershell", "java"],
     },
   },
   presets: [
@@ -95,6 +96,14 @@ module.exports = {
         theme: {
           customCss: require.resolve("./src/css/custom.css"),
         },
+      },
+    ],
+  ],
+  plugins: [
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        fromExtensions: ["md"],
       },
     ],
   ],

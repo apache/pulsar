@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -171,6 +172,9 @@ public class TopicSchema {
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
+
+        case PROTOBUF_NATIVE:
+            return ProtobufNativeSchema.ofGenericClass(clazz, new HashMap<>());
 
         case AUTO_PUBLISH:
             return (Schema<T>) Schema.AUTO_PRODUCE_BYTES();

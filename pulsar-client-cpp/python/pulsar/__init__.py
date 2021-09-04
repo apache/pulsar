@@ -602,6 +602,7 @@ class Client:
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         p._schema = schema
+        p._client = self._client
         return p
 
     def subscribe(self, topic, subscription_name,
