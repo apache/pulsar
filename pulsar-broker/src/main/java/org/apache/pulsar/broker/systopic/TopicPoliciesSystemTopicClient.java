@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -85,7 +86,11 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public CompletableFuture<MessageId> writeAsync(PulsarEvent event) {
-            return producer.newMessage().key(getEventKey(event)).value(event).sendAsync();
+            return producer.newMessage()
+                    .key(getEventKey(event))
+                    .value(event)
+                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
+                    .sendAsync();
         }
 
         private String getEventKey(PulsarEvent event) {

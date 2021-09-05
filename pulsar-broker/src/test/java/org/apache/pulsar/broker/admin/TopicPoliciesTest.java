@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
+import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -73,6 +74,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
@@ -2560,6 +2562,55 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertNull(NamespaceService.checkHeartbeatNamespace(topicName.getNamespaceObject()));
             assertNull(NamespaceService.checkHeartbeatNamespaceV2(topicName.getNamespaceObject()));
         });
+    }
+
+    @Test
+    public void testGlobalTopicPolicies() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+
+        Awaitility.await().untilAsserted(() ->
+                Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)))
+                        .isNull());
+        admin.topics().setRetention(topic, new RetentionPolicies(1, 2), true);
+        SystemTopicBasedTopicPoliciesService topicPoliciesService
+                = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        // check global topic policies can be added correctly.
+        Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic))));
+        TopicPolicies topicPolicies = topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic));
+        assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
+        assertEquals(topicPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 1);
+        assertEquals(topicPolicies.getRetentionPolicies().getRetentionSizeInMB(), 2);
+
+        // check global topic policies can be updated correctly.
+        admin.topics().setRetention(topic, new RetentionPolicies(3, 4), true);
+        Awaitility.await().untilAsserted(() -> {
+            TopicPolicies tempPolicies = topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic));
+            assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
+            assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
+            assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
+        });
+
+        //Local topic policies and global topic policies can exist together.
+        admin.topics().setRetention(topic, new RetentionPolicies(10, 20));
+        Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic))));
+        TopicPolicies tempPolicies = topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic));
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
+        tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 10);
+        assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 20);
+
+        // check remove global topic policies can be removed correctly.
+        admin.topics().removeRetention(topic);
+        /*Awaitility.await().untilAsserted(() -> {
+            TopicPolicies temp = topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic));
+            assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
+            assertNull(temp.getRetentionPolicies());
+        });*/
+
+
     }
 
 }

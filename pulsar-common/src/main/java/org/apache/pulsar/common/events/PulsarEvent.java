@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.events;
 
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,4 +36,5 @@ public class PulsarEvent {
     private EventType eventType;
     private ActionType actionType;
     private TopicPoliciesEvent topicPoliciesEvent;
+    private Map<String, String> properties;
 }

@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.persistent.TopicPoliciesSystemTopic.IS_GLOBAL;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +60,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     final Map<TopicName, TopicPolicies> policiesCache = new ConcurrentHashMap<>();
 
+    final Map<TopicName, TopicPolicies> globalPoliciesCache = new ConcurrentHashMap<>();
+
     private final Map<NamespaceName, AtomicInteger> ownedBundlesCountPerNamespace = new ConcurrentHashMap<>();
 
     private final Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>
@@ -96,18 +100,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 result.completeExceptionally(ex);
             } else {
                 writer.writeAsync(
-                        PulsarEvent.builder()
-                                .actionType(actionType)
-                        .eventType(EventType.TOPIC_POLICY)
-                        .topicPoliciesEvent(
-                            TopicPoliciesEvent.builder()
-                                .domain(topicName.getDomain().toString())
-                                .tenant(topicName.getTenant())
-                                .namespace(topicName.getNamespaceObject().getLocalName())
-                                .topic(TopicName.get(topicName.getPartitionedTopicName()).getLocalName())
-                                .policies(policies)
-                                .build())
-                        .build()).whenComplete(((messageId, e) -> {
+                        getPulsarEvent(topicName, actionType, policies)).whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
                             } else {
@@ -133,6 +126,24 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         return result;
     }
 
+    private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
+        PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
+        if (policies.getIsGlobal() != null && policies.getIsGlobal()) {
+            builder.properties(ImmutableMap.of(IS_GLOBAL, IS_GLOBAL));
+        }
+        return builder.actionType(actionType)
+                .eventType(EventType.TOPIC_POLICY)
+                .topicPoliciesEvent(
+                        TopicPoliciesEvent.builder()
+                                .domain(topicName.getDomain().toString())
+                                .tenant(topicName.getTenant())
+                                .namespace(topicName.getNamespaceObject().getLocalName())
+                                .topic(TopicName.get(topicName.getPartitionedTopicName()).getLocalName())
+                                .policies(policies)
+                                .build())
+                .build();
+    }
+
     private void notifyListener(Message<PulsarEvent> msg) {
         if (!EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
             return;
@@ -155,6 +166,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             throw new TopicPoliciesCacheNotInitException();
         }
         return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+    }
+
+    @Override
+    public TopicPolicies getGlobalTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
+                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
+            throw new TopicPoliciesCacheNotInitException();
+        }
+        return globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override
@@ -322,16 +342,28 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
             switch (msg.getValue().getActionType()) {
                 case INSERT:
-                    TopicPolicies old = policiesCache.putIfAbsent(topicName, event.getPolicies());
-                    if (old != null) {
-                        log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
+                    if (event.getPolicies().isGlobalPolicies()) {
+                        globalPoliciesCache.putIfAbsent(topicName, event.getPolicies());
+                    } else {
+                        TopicPolicies old = policiesCache.putIfAbsent(topicName, event.getPolicies());
+                        if (old != null) {
+                            log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
+                        }
                     }
                     break;
                 case UPDATE:
-                    policiesCache.put(topicName, event.getPolicies());
+                    if (event.getPolicies().isGlobalPolicies()) {
+                        globalPoliciesCache.put(topicName, event.getPolicies());
+                    } else {
+                        policiesCache.put(topicName, event.getPolicies());
+                    }
                     break;
                 case DELETE:
-                    policiesCache.remove(topicName);
+                    if (event.getPolicies().isGlobalPolicies()) {
+                        globalPoliciesCache.remove(topicName);
+                    } else {
+                        policiesCache.remove(topicName);
+                    }
                     break;
                 case NONE:
                     break;

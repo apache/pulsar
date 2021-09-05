@@ -47,4 +47,11 @@ public class EventsTopicNames {
     public static boolean checkTopicIsEventsNames(TopicName topicName) {
         return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
     }
+
+    public static boolean isTopicPoliciesSystemTopic(String topic) {
+        if (topic == null) {
+            return false;
+        }
+        return TopicName.get(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
+    }
 }

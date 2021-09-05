@@ -1500,7 +1500,7 @@ public class PersistentTopic extends AbstractTopic
                 });
     }
 
-    CompletableFuture<Void> startReplicator(String remoteCluster) {
+    protected CompletableFuture<Void> startReplicator(String remoteCluster) {
         log.info("[{}] Starting replicator to remote: {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();
 

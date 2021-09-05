@@ -2796,7 +2796,7 @@ public class PersistentTopicsBase extends AdminResource {
             }));
     }
 
-    protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention) {
+    protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention, boolean global) {
         if (retention == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -2820,17 +2820,19 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }
                 topicPolicies.setRetentionPolicies(retention);
+                topicPolicies.setIsGlobal(global);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
 
-    protected CompletableFuture<Void> internalRemoveRetention() {
+    protected CompletableFuture<Void> internalRemoveRetention(boolean global) {
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenCompose(op -> {
                 if (!op.isPresent()) {
                     return CompletableFuture.completedFuture(null);
                 }
                 op.get().setRetentionPolicies(null);
+                op.get().setIsGlobal(global);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
             });
     }

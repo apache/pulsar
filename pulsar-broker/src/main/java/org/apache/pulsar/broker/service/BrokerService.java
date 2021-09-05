@@ -114,6 +114,7 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
+import org.apache.pulsar.broker.service.persistent.TopicPoliciesSystemTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -128,6 +129,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
@@ -1234,9 +1236,7 @@ public class BrokerService implements Closeable {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
-                                PersistentTopic persistentTopic = isSystemTopic(topic)
-                                        ? new SystemTopic(topic, ledger, BrokerService.this)
-                                        : new PersistentTopic(topic, ledger, BrokerService.this);
+                                PersistentTopic persistentTopic = getPersistentTopic(ledger);
                                 CompletableFuture<Void> preCreateSubForCompaction =
                                         persistentTopic.preCreateSubscriptionForCompactionIfNeeded();
                                 CompletableFuture<Void> replicationFuture = persistentTopic
@@ -1281,6 +1281,22 @@ public class BrokerService implements Closeable {
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
                             }
+                        }
+
+                        private PersistentTopic getPersistentTopic(ManagedLedger ledger)
+                                throws NamingException, PulsarServerException {
+                            PersistentTopic persistentTopic;
+                            if (isSystemTopic(topic)) {
+                                if (EventsTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                    persistentTopic =
+                                            new TopicPoliciesSystemTopic(topic, ledger, BrokerService.this);
+                                } else {
+                                    persistentTopic = new SystemTopic(topic, ledger, BrokerService.this);
+                                }
+                            } else {
+                                persistentTopic = new PersistentTopic(topic, ledger, BrokerService.this);
+                            }
+                            return persistentTopic;
                         }
 
                         @Override

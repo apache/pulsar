@@ -20,7 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 
@@ -33,6 +35,15 @@ public interface Replicator {
     CompletableFuture<Void> disconnect();
 
     CompletableFuture<Void> disconnect(boolean b);
+
+    /**
+     * In Function, we can customize which message can be replicate to the remote cluster.
+     * The incoming parameter is the original message, the output is whether the message should be filtered.
+     * @param filterFunction
+     */
+    default void setFilterFunction(Function<MessageImpl, Boolean> filterFunction) {
+        //No-op
+    }
 
     void updateRates();
 

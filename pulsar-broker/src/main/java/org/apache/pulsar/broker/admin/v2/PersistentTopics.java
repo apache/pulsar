@@ -1852,10 +1852,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("global") @DefaultValue("false") boolean global,
             @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetRetention(retention))
+            .thenCompose(__ -> internalSetRetention(retention, global))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
@@ -1887,10 +1888,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("global") @DefaultValue("false") boolean global,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalRemoveRetention())
+            .thenCompose(__ -> internalRemoveRetention(global))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove retention: namespace={}, topic={}",
                         clientAppId(),

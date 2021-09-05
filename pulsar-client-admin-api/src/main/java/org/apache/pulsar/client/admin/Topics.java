@@ -1826,6 +1826,15 @@ public interface Topics {
     void setRetention(String topic, RetentionPolicies retention) throws PulsarAdminException;
 
     /**
+     * Set the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * @param topic
+     * @param retention
+     * @param global
+     * @throws PulsarAdminException
+     */
+    void setRetention(String topic, RetentionPolicies retention, boolean global) throws PulsarAdminException;
+
+    /**
      * Set the retention configuration for all the topics on a topic asynchronously.
      * <p/>
      * Set the retention configuration on a topic. This operation requires Pulsar super-user access.
@@ -1846,6 +1855,14 @@ public interface Topics {
      *            Topic name
      */
     CompletableFuture<Void> setRetentionAsync(String topic, RetentionPolicies retention);
+
+    /**
+     * Set the retention configuration for all the topics on a topic asynchronously.
+     * @param topic
+     * @param retention
+     * @return
+     */
+    CompletableFuture<Void> setRetentionAsync(String topic, RetentionPolicies retention, boolean global);
 
     /**
      * Get the retention configuration for a topic.

@@ -69,6 +69,11 @@ public class TopicPolicies {
     private Integer maxSubscriptionsPerTopic = null;
     private DispatchRateImpl replicatorDispatchRate = null;
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
+    private Boolean isGlobal = false;
+
+    public boolean isGlobalPolicies() {
+        return isGlobal != null && isGlobal;
+    }
 
     public boolean isReplicatorDispatchRateSet() {
         return replicatorDispatchRate != null;

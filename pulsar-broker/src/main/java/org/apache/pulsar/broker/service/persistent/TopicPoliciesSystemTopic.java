@@ -16,59 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service.persistent;
 
-import java.util.concurrent.CompletableFuture;
+
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.common.events.EventsTopicNames;
 
-public class SystemTopic extends PersistentTopic {
+public class TopicPoliciesSystemTopic extends SystemTopic {
+    public static final String IS_GLOBAL = "isGlobal";
 
-    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService)
+
+    public TopicPoliciesSystemTopic(String topic, ManagedLedger ledger,
+                                    BrokerService brokerService)
             throws BrokerServiceException.NamingException, PulsarServerException {
         super(topic, ledger, brokerService);
     }
 
     @Override
-    public boolean isSizeBacklogExceeded() {
-        return false;
-    }
-
-    @Override
-    public boolean isTimeBacklogExceeded() {
-        return false;
-    }
-
-    @Override
-    public boolean isSystemTopic() {
-        return true;
-    }
-
-    @Override
-    public void checkMessageExpiry() {
-        // do nothing for system topic
-    }
-
-    @Override
-    public void checkGC() {
-        // do nothing for system topic
-    }
-
-    @Override
-    public CompletableFuture<Void> checkReplication() {
-        if (EventsTopicNames.isTopicPoliciesSystemTopic(topic)) {
-            return super.checkReplication();
+    protected boolean addReplicationCluster(String remoteCluster, ManagedCursor cursor, String localCluster) {
+        boolean isReplicatorStarted = super.addReplicationCluster(remoteCluster, cursor, localCluster);
+        if (isReplicatorStarted) {
+            getReplicators().get(remoteCluster).setFilterFunction((messageImpl)
+                    -> !IS_GLOBAL.equals(messageImpl.getProperty(IS_GLOBAL)));
         }
-        return CompletableFuture.completedFuture(null);
+        return isReplicatorStarted;
     }
 
-    @Override
-    public CompletableFuture<Boolean> isCompactionEnabled() {
-        // All system topics are using compaction, even though is not explicitly set in the policies.
-        return CompletableFuture.completedFuture(true);
-    }
+
 }

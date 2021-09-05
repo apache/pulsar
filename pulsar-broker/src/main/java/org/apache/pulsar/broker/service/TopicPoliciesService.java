@@ -62,6 +62,13 @@ public interface TopicPoliciesService {
     TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
 
     /**
+     * Get global policies for a topic async.
+     * @param topicName topic name
+     * @return future of the topic policies
+     */
+    TopicPolicies getGlobalTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
+
+    /**
      * When getting TopicPolicies, if the initialization has not been completed,
      * we will go back off and try again until time out.
      * @param topicName topic name
@@ -142,6 +149,11 @@ public interface TopicPoliciesService {
 
         @Override
         public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+            return null;
+        }
+
+        @Override
+        public TopicPolicies getGlobalTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
             return null;
         }
 

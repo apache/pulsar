@@ -29,6 +29,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Function;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -76,6 +77,8 @@ public class PersistentReplicator extends AbstractReplicator
     private final int readMaxSizeBytes;
 
     private final int producerQueueThreshold;
+
+    private Function<MessageImpl, Boolean> filterFunction;
 
     private static final AtomicIntegerFieldUpdater<PersistentReplicator> PENDING_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater
@@ -300,6 +303,15 @@ public class PersistentReplicator extends AbstractReplicator
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
                     continue;
+                }
+                if (filterFunction != null) {
+                    Boolean shouldBeFiltered = filterFunction.apply(msg);
+                    if (shouldBeFiltered != null && shouldBeFiltered) {
+                        cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                        entry.release();
+                        msg.recycle();
+                        continue;
+                    }
                 }
 
                 if (isEnableReplicatedSubscriptions) {
@@ -759,6 +771,11 @@ public class PersistentReplicator extends AbstractReplicator
     public boolean isConnected() {
         ProducerImpl<?> producer = this.producer;
         return producer != null && producer.isConnected();
+    }
+
+    @Override
+    public void setFilterFunction(Function<MessageImpl, Boolean> filterFunction) {
+        this.filterFunction = filterFunction;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);
