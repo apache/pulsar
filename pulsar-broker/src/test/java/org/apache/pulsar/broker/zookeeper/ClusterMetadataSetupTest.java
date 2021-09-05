@@ -181,7 +181,7 @@ public class ClusterMetadataSetupTest {
             TenantResources tenantResources = new TenantResources(store,
                     PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC);
             List<String> namespaces = tenantResources.getListOfNamespaces("test");
-            assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("a", "b", "c")));
+            assertEquals(new HashSet<>(namespaces), new HashSet<>(Arrays.asList("test/a", "test/b", "test/c")));
         }
     }
 

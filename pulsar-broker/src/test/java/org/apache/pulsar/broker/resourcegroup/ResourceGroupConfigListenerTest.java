@@ -179,10 +179,11 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         pulsar.getPulsarResources().getResourcegroupResources().getStore().registerListener(
           notification -> {
               String notifyPath = notification.getPath();
-              String rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath);
               if (!ResourceGroupResources.isResourceGroupPath(notifyPath)) {
                   return;
               }
+
+              String rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath).get();
               pulsar.getPulsarResources().getResourcegroupResources()
                 .getResourceGroupAsync(rgName).whenComplete((optionalRg, ex) -> {
                   if (ex != null) {

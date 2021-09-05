@@ -29,7 +29,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 public class ResourceGroupResources extends BaseResources<ResourceGroup> {
 
-    private static final String BASE_PATH = joinPath(BASE_POLICIES_PATH, "resourcegroups");
+    private static final String BASE_PATH = "/admin/resourcegroups";
 
     public ResourceGroupResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ResourceGroup.class, operationTimeoutSec);
@@ -73,7 +73,11 @@ public class ResourceGroupResources extends BaseResources<ResourceGroup> {
         return path.startsWith(BASE_PATH);
     }
 
-    public static String resourceGroupNameFromPath(String path) {
-        return path.substring(BASE_PATH.length() + 1);
+    public static Optional<String> resourceGroupNameFromPath(String path) {
+        if (path.length() > BASE_PATH.length() + 1) {
+            return Optional.of(path.substring(BASE_PATH.length() + 1));
+        } else {
+            return Optional.empty();
+        }
     }
 }
