@@ -173,7 +173,7 @@ consumer.subscribe(Arrays.asList(topic));
 <tr><td style="text-align:left"><code>acks</code></td><td style="text-align:left">忽略</td><td style="text-align:left">在命名空间级别配置的持久性和节点写入</td></tr>
 <tr><td style="text-align:left"><code>batch.size</code></td><td style="text-align:left">忽略</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>block.on.buffer.full</code></td><td style="text-align:left">是</td><td style="text-align:left">true时会阻塞生产者，否则跑抛出异常</td></tr>
-<tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">是</td><td style="text-align:left">指定 Pulsar 服务地址</td></tr>
+<tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">是</td><td style="text-align:left">需要指向单个的 Pulsar 服务 URL</td></tr>
 <tr><td style="text-align:left"><code>buffer.memory</code></td><td style="text-align:left">忽略</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>client.id</code></td><td style="text-align:left">忽略</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>compression.type</code></td><td style="text-align:left">是</td><td style="text-align:left">可以使用<code>gzip</code>和<code>lz4</code>压缩方式，不支持<code>snappy</code></td></tr>
@@ -247,7 +247,7 @@ consumer.subscribe(Arrays.asList(topic));
 <tr><td style="text-align:left"><code>max.poll.interval.ms</code></td><td style="text-align:left">忽略</td><td style="text-align:left">broker “推送”的消息</td></tr>
 <tr><td style="text-align:left"><code>session.timeout.ms</code></td><td style="text-align:left">忽略</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>heartbeat.interval.ms</code></td><td style="text-align:left">忽略</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">是</td><td style="text-align:left">指定 Pulsar 服务地址</td></tr>
+<tr><td style="text-align:left"><code>bootstrap.servers</code></td><td style="text-align:left">是</td><td style="text-align:left">需要指向单个的 Pulsar 服务 URL</td></tr>
 <tr><td style="text-align:left"><code>enable.auto.commit</code></td><td style="text-align:left">是</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>auto.commit.interval.ms</code></td><td style="text-align:left">忽略</td><td style="text-align:left">自动提交后，立即向 broker 发送 ack。</td></tr>
 <tr><td style="text-align:left"><code>partition.assignment.strategy</code></td><td style="text-align:left">忽略</td><td style="text-align:left"></td></tr>
