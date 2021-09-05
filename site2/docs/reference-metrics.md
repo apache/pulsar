@@ -232,13 +232,13 @@ All the replication metrics are labelled with `remoteCluster=${pulsar_remote_clu
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_broker_load_manager_bundle_assignment | Gauge | The latency of bundles ownership operations. |
+| pulsar_broker_load_manager_bundle_assignment | Gauge | The summary of latency of bundles ownership operations. |
 | pulsar_broker_lookup | Gauge | The latency of all lookup operations. |
 | pulsar_broker_lookup_redirects | Gauge | The number of lookup redirected requests. |
 | pulsar_broker_lookup_answers | Gauge | The number of lookup responses (i.e. not redirected requests). |
 | pulsar_broker_lookup_failures | Gauge | The number of lookup failures. |
 | pulsar_broker_lookup_pending_requests | Gauge | The number of pending lookups in broker. When it is up to the threshold, new requests are rejected. |
-| pulsar_broker_topic_load_pending_requests | Gauge | The loads of the pending topic operations. |
+| pulsar_broker_topic_load_pending_requests | Gauge | The load of pending topic operations. |
 
 ### ManagedLedgerCache metrics
 All the ManagedLedgerCache metrics are labelled with the following labels:
