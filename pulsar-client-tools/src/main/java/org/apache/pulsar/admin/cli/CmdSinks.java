@@ -286,7 +286,7 @@ public class CmdSinks extends CmdBase {
         protected String subsName;
 
         @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to consume messages from the specified location")
-        protected SubscriptionInitialPosition subsPosition = SubscriptionInitialPosition.Latest;
+        protected SubscriptionInitialPosition subsPosition;
 
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
         protected String DEPRECATED_customSerdeInputString;
