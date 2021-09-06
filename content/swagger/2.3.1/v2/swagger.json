@@ -5485,63 +5485,6 @@
                 }
             }
         },
-        "/non-persistent/{tenant}/{namespace}/{topic}/terminate": {
-            "post": {
-                "tags": [
-                    "non-persistent topic"
-                ],
-                "summary": "Terminate a topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
-                "description": "",
-                "operationId": "terminate",
-                "produces": [
-                    "application/json"
-                ],
-                "parameters": [
-                    {
-                        "name": "tenant",
-                        "in": "path",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "namespace",
-                        "in": "path",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "topic",
-                        "in": "path",
-                        "required": true,
-                        "type": "string"
-                    },
-                    {
-                        "name": "authoritative",
-                        "in": "query",
-                        "required": false,
-                        "type": "boolean",
-                        "default": false
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "successful operation",
-                        "schema": {
-                            "$ref": "#/definitions/MessageId"
-                        }
-                    },
-                    "403": {
-                        "description": "Don't have admin permission"
-                    },
-                    "404": {
-                        "description": "Topic does not exist"
-                    },
-                    "405": {
-                        "description": "Operation not allowed on non-persistent topic"
-                    }
-                }
-            }
-        },
         "/non-persistent/{tenant}/{namespace}/{topic}/unload": {
             "put": {
                 "tags": [
@@ -7215,7 +7158,7 @@
                 "tags": [
                     "persistent topic"
                 ],
-                "summary": "Terminate a topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
+                "summary": "Terminate a persistent topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
                 "description": "",
                 "operationId": "terminate",
                 "produces": [
