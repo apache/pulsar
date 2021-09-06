@@ -82,7 +82,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
         conf.setMaxPendingMessages(maxPendingMessages);
 
-        final List<Integer> indexList = conf.getAccessMode() == ProducerAccessMode.Shared ?
+        final List<Integer> indexList = conf.isLazyStartPartitionedProducers() &&
+                                            conf.getAccessMode() == ProducerAccessMode.Shared ?
                 // try to create producer at least one partition
                 Collections.singletonList(routerPolicy
                         .choosePartition(((TypedMessageBuilderImpl<T>) newMessage()).getMessage(), topicMetadata)) :
@@ -172,11 +173,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     private ProducerImpl<T> createProducer(final int partitionIndex) {
-        String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
-        ProducerImpl<T> producer = client.newProducerImpl(partitionName, partitionIndex,
-                conf, schema, interceptors, new CompletableFuture<>());
-        producers.put(partitionIndex, producer);
-        return producer;
+        return producers.computeIfAbsent(partitionIndex, (idx) -> {
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
+            return client.newProducerImpl(partitionName, partitionIndex,
+                    conf, schema, interceptors, new CompletableFuture<>());
+        });
     }
 
     @Override
@@ -190,7 +191,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
                 "Illegal partition index chosen by the message routing policy: " + partition);
 
-        if (!producers.containsKey(partition)) {
+        if (conf.isLazyStartPartitionedProducers() && !producers.containsKey(partition)) {
             final ProducerImpl<T> newProducer = createProducer(partition);
             final State createState = newProducer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
@@ -347,7 +348,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                     future.complete(null);
                     return future;
                 } else if (oldPartitionNumber < currentPartitionNumber) {
-                    if (conf.getAccessMode() == ProducerAccessMode.Shared) {
+                    if (conf.isLazyStartPartitionedProducers() && conf.getAccessMode() == ProducerAccessMode.Shared) {
                         topicMetadata = new TopicMetadataImpl(currentPartitionNumber);
                         future.complete(null);
                         return future;
