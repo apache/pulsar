@@ -129,16 +129,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
         return PulsarEvent.builder()
                 .actionType(actionType)
-        .eventType(EventType.TOPIC_POLICY)
-        .topicPoliciesEvent(
-            TopicPoliciesEvent.builder()
-                .domain(topicName.getDomain().toString())
-                .tenant(topicName.getTenant())
-                .namespace(topicName.getNamespaceObject().getLocalName())
-                .topic(TopicName.get(topicName.getPartitionedTopicName()).getLocalName())
-                .policies(policies)
-                .build())
-        .build();
+                .eventType(EventType.TOPIC_POLICY)
+                .topicPoliciesEvent(
+                        TopicPoliciesEvent.builder()
+                                .domain(topicName.getDomain().toString())
+                                .tenant(topicName.getTenant())
+                                .namespace(topicName.getNamespaceObject().getLocalName())
+                                .topic(TopicName.get(topicName.getPartitionedTopicName()).getLocalName())
+                                .policies(policies)
+                                .build())
+                .build();
     }
 
     private void notifyListener(Message<PulsarEvent> msg) {
