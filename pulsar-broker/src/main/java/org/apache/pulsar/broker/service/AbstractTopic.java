@@ -559,14 +559,10 @@ public abstract class AbstractTopic implements Topic {
      * @return TopicPolicies is exist else return null.
      */
     public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
         try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            log.debug("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
             return null;
         } catch (NullPointerException e) {
             log.warn("Topic level policies are not enabled. " +

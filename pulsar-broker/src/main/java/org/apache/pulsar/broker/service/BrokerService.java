@@ -1182,19 +1182,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             OffloadPolicies topicLevelOffloadPolicies = null;
 
             if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
-                TopicName cloneTopicName = topicName;
-                if (topicName.isPartitioned()) {
-                    cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                }
                 try {
-                    TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+                    TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
                     if (topicPolicies != null) {
                         persistencePolicies = topicPolicies.getPersistence();
                         retentionPolicies = topicPolicies.getRetentionPolicies();
                         topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                     }
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                    log.warn("Topic {} policies cache have not init.", topicName);
+                    log.debug("Topic {} policies have not been initialized yet.", topicName);
                 }
             }
 
@@ -2473,15 +2469,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * @return TopicPolicies is exist else return null.
      */
     public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
         try {
             checkTopicLevelPolicyEnable();
-            return pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+            return pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            log.debug("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
             return null;
         } catch (RestException | NullPointerException e) {
             log.warn("Topic level policies are not enabled. " +
