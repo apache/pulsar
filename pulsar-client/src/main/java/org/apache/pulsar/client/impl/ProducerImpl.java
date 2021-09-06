@@ -875,6 +875,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     format("The producer %s of the topic %s was already closed when closing the producers",
                         producerName, topic));
                 pendingMessages.forEach(msg -> {
+                    client.getMemoryLimitController().releaseMemory(msg.uncompressedSize);
                     msg.sendComplete(ex);
                     msg.cmd.release();
                     msg.recycle();
@@ -898,6 +899,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     log.info("[{}] [{}] Closed Producer", topic, producerName);
                     setState(State.Closed);
                     pendingMessages.forEach(msg -> {
+                        client.getMemoryLimitController().releaseMemory(msg.uncompressedSize);
                         msg.cmd.release();
                         msg.recycle();
                     });
