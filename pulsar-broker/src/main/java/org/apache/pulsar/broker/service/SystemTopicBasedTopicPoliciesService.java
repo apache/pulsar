@@ -350,7 +350,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                             .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
                     systemTopicClient.newWriterAsync().thenAccept(writer
-                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null)));
+                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null))
+                            .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
+                                if (ex != null) {
+                                    log.error("close writer failed ", ex);
+                                }
+                            })));
                     break;
                 case NONE:
                     break;
