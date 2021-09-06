@@ -544,7 +544,9 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {
         try {
-            return topicResources().getExistingPartitions(namespaceName, topicDomain).join();
+            return namespaceResources().getPartitionedTopicResources()
+                    .listPartitionedTopicsAsync(namespaceName, topicDomain)
+                    .join();
         } catch (Exception e) {
             log.error("[{}] Failed to get partitioned topic list for namespace {}", clientAppId(),
                     namespaceName.toString(), e);
@@ -649,16 +651,6 @@ public abstract class AdminResource extends PulsarWebResource {
             return null;
         });
 
-        if (!createLocalTopicOnly && topicName.isGlobal() && isNamespaceReplicated(namespaceName)) {
-            getNamespaceReplicatedClusters(namespaceName)
-                    .stream()
-                    .filter(cluster -> !cluster.equals(pulsar().getConfiguration().getClusterName()))
-                    .forEach(cluster -> createFutureList.add(
-                            ((TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics())
-                                    .createPartitionedTopicAsync(
-                                            topicName.getPartitionedTopicName(), numPartitions, true)));
-        }
-
         FutureUtil.waitForAll(createFutureList).whenComplete((ignored, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName, ex.getCause());
@@ -669,6 +661,17 @@ public abstract class AdminResource extends PulsarWebResource {
                 }
                 return;
             }
+
+            if (!createLocalTopicOnly && topicName.isGlobal() && isNamespaceReplicated(namespaceName)) {
+                getNamespaceReplicatedClusters(namespaceName)
+                        .stream()
+                        .filter(cluster -> !cluster.equals(pulsar().getConfiguration().getClusterName()))
+                        .forEach(cluster -> createFutureList.add(
+                                ((TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics())
+                                        .createPartitionedTopicAsync(
+                                                topicName.getPartitionedTopicName(), numPartitions, true)));
+            }
+
             log.info("[{}] Successfully created partitions for topic {} in cluster {}",
                     clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
             asyncResponse.resume(Response.noContent().build());
