@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -424,21 +425,26 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         txn.commit().get();
 
-        // wait for take snapshot
-        Thread.sleep(1000 * 3);
+        // take snapshot
+        PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) originalTopic.getTransactionBuffer();
+        Method takeSnapshotMethod = TopicTransactionBuffer.class.getDeclaredMethod("takeSnapshot");
+        takeSnapshotMethod.setAccessible(true);
+        takeSnapshotMethod.invoke(topicTransactionBuffer);
 
         TopicName transactionBufferTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(
                         TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+        PersistentTopic snapshotTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(transactionBufferTopicName.toString(), false).get().get();
         Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
         field.setAccessible(true);
 
         // Trigger compaction and make sure it is finished.
-        checkSnapshotCount(transactionBufferTopicName, true, persistentTopic, field);
+        checkSnapshotCount(transactionBufferTopicName, true, snapshotTopic, field);
         admin.topics().delete(topic, true);
-        checkSnapshotCount(transactionBufferTopicName, false, persistentTopic, field);
+        checkSnapshotCount(transactionBufferTopicName, false, snapshotTopic, field);
     }
 
     private void checkSnapshotCount(TopicName topicName, boolean hasSnapshot,
@@ -447,7 +453,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
 
-        Reader<?> reader = pulsarClient.newReader()
+        Reader<TransactionBufferSnapshot> reader = pulsarClient.newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .readCompacted(true)
                 .startMessageId(MessageId.earliest)
                 .startMessageIdInclusive()
@@ -456,7 +462,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         int count = 0;
         while (true) {
-            Message<?> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
+            Message<TransactionBufferSnapshot> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
             if (snapshotMsg != null) {
                 count++;
             } else {
