@@ -96,8 +96,8 @@ public class TopicsBase extends PersistentTopicsBase {
     protected void publishMessages(AsyncResponse asyncResponse, ProducerMessages request, boolean authoritative) {
         String topic = topicName.getPartitionedTopicName();
         try {
-            if (pulsar().getBrokerService().getOwningTopics().containsKey(topic) || !findOwnerBrokerForTopic(authoritative,
-                    asyncResponse)) {
+            if (pulsar().getBrokerService().getOwningTopics().containsKey(topic) ||
+                    !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
                 // If we've done look up or or after look up this broker owns some of the partitions
                 // then proceed to publish message else asyncResponse will be complete by look up.
                 addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
@@ -138,8 +138,8 @@ public class TopicsBase extends PersistentTopicsBase {
         String topic = topicName.getPartitionedTopicName();
         try {
             // If broker owns the partition then proceed to publish message, else do look up.
-            if ((pulsar().getBrokerService().getOwningTopics().containsKey(topic) &&
-                    pulsar().getBrokerService().getOwningTopics().get(topic)
+            if ((pulsar().getBrokerService().getOwningTopics().containsKey(topic)
+                    && pulsar().getBrokerService().getOwningTopics().get(topic)
                     .contains(partition))
                     || !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
                 addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
@@ -420,8 +420,9 @@ public class TopicsBase extends PersistentTopicsBase {
                                     + "current broker is owner broker: {}",
                             partitionedTopicName, result.getLookupData());
                 }
-                pulsar().getBrokerService().getOwningTopics().computeIfAbsent(partitionedTopicName.getPartitionedTopicName(),
-                        (key) -> new ConcurrentOpenHashSet<Integer>()).add(partitionedTopicName.getPartitionIndex());
+                pulsar().getBrokerService().getOwningTopics().computeIfAbsent(partitionedTopicName
+                                .getPartitionedTopicName(), (key) -> new ConcurrentOpenHashSet<Integer>())
+                        .add(partitionedTopicName.getPartitionIndex());
                 completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
             } else {
                 // Current broker doesn't own the topic or doesn't know who own the topic.
