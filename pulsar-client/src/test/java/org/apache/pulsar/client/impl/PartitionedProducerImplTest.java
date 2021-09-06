@@ -164,7 +164,8 @@ public class PartitionedProducerImplTest {
     private class CustomMessageRouter implements MessageRouter {
         @Override
         public int choosePartition(Message<?> msg, TopicMetadata metadata) {
-            return msg.hasKey() ? Integer.parseInt(msg.getKey()) % metadata.numPartitions() : 0;
+            int partitionIndex = Integer.parseInt(msg.getKey()) % metadata.numPartitions();
+            return partitionIndex;
         }
     }
 

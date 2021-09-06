@@ -463,7 +463,7 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleSubscribe();
     }
 
-    // failed to connect to partition at initialization step
+    // failed to connect to partition at initialization step if a producer which connects to broker as lazy-loading mode
     @Test
     public void testPartitionedProducerFailOnInitialization() throws Throwable {
         @Cleanup
@@ -479,7 +479,10 @@ public class ClientErrorsTest {
         });
 
         try {
-            client.newProducer().accessMode(ProducerAccessMode.Shared).topic("persistent://prop/use/ns/multi-part-t1").create();
+            client.newProducer()
+                    .enableLazyStartPartitionedProducers(true)
+                    .accessMode(ProducerAccessMode.Shared)
+                    .topic("persistent://prop/use/ns/multi-part-t1").create();
             fail("Should have failed with an authorization error");
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.AuthorizationException);
@@ -490,7 +493,7 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    // failed to connect to partition at sending step
+    // failed to connect to partition at sending step if a producer which connects to broker as lazy-loading mode
     @Test
     public void testPartitionedProducerFailOnSending() throws Throwable {
         @Cleanup
@@ -517,6 +520,7 @@ public class ClientErrorsTest {
         });
 
         final PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) client.newProducer()
+                .enableLazyStartPartitionedProducers(true)
                 .accessMode(ProducerAccessMode.Shared)
                 .topic(topicName)
                 .enableBatching(false)
@@ -549,7 +553,7 @@ public class ClientErrorsTest {
         client.close();
     }
 
-    // if a producer which doesn't connect as Shared mode fails to connect while creating partitioned producer,
+    // if a producer which doesn't connect as lazy-loading mode fails to connect while creating partitioned producer,
     // it should close all successful connections of other producers and fail
     @Test
     public void testOneProducerFailShouldCloseAllProducersInPartitionedProducer() throws Exception {
@@ -572,19 +576,7 @@ public class ClientErrorsTest {
         });
 
         try {
-            client.newProducer().accessMode(ProducerAccessMode.Exclusive).topic("persistent://prop/use/ns/multi-part-t1-0").create();
-            fail("Should have failed with an authorization error");
-        } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException.AuthorizationException);
-            // should call close for 3 partitions
-            assertEquals(closeCounter.get(), 3);
-        }
-
-        producerCounter.set(0);
-        closeCounter.set(0);
-
-        try {
-            client.newProducer().accessMode(ProducerAccessMode.WaitForExclusive).topic("persistent://prop/use/ns/multi-part-t1-1").create();
+            client.newProducer().topic("persistent://prop/use/ns/multi-part-t1").create();
             fail("Should have failed with an authorization error");
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.AuthorizationException);

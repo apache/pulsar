@@ -863,7 +863,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 .messageRouter(new MessageRouter() {
                     @Override
                     public int choosePartition(Message<?> msg, TopicMetadata metadata) {
-                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) % metadata.numPartitions() : 0;
+                        return Integer.parseInt(msg.getKey()) % metadata.numPartitions();
                     }
                 })
                 .create();

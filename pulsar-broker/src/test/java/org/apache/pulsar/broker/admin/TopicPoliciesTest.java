@@ -37,7 +37,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -897,17 +896,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testSetMaxProducers() throws Exception {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
-        final Function<Producer<byte[]>, Producer<byte[]>> send = (p) -> {
-            for (int i = 0; i < 2; i++) {
-                try {
-                    p.newMessage().value("msg".getBytes()).send();
-                } catch (Exception e) {
-                    log.info("Exception: ", e);
-                    throw new RuntimeException(e);
-                }
-            }
-            return p;
-        };
 
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         admin.topics().setMaxProducers(persistenceTopic, maxProducers);
@@ -915,8 +903,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxProducers(persistenceTopic), maxProducers));
 
-        Producer<byte[]> producer1 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
-        Producer<byte[]> producer2 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer3 = null;
 
         try {
@@ -938,25 +926,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
-        final Function<Producer<byte[]>, Producer<byte[]>> send = (p) -> {
-            for (int i = 0; i < 2; i++) {
-                try {
-                    p.newMessage().value("msg".getBytes()).send();
-                } catch (Exception e) {
-                    log.info("Exception: ", e);
-                    throw new RuntimeException(e);
-                }
-            }
-            return p;
-        };
-
         admin.topics().setMaxProducers(persistenceTopic, maxProducers);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getMaxProducers(persistenceTopic), maxProducers));
 
-        Producer<byte[]> producer1 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
-        Producer<byte[]> producer2 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer3 = null;
         Producer<byte[]> producer4 = null;
 
@@ -975,7 +951,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topics().getMaxProducers(persistenceTopic)));
 
-        producer3 = send.apply(pulsarClient.newProducer().topic(persistenceTopic).enableBatching(false).create());
+        producer3 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Assert.assertNotNull(producer3);
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
 

@@ -58,6 +58,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
         final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -75,6 +76,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
         final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.CustomPartition)
                 .messageRouter(new PartialRoundRobinMessageRouterImpl(3))
@@ -94,6 +96,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
         final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
@@ -123,6 +126,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
         final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .accessMode(ProducerAccessMode.Exclusive)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
@@ -135,6 +139,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
         final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
@@ -153,6 +158,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         field.setAccessible(true);
         final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.CustomPartition)
                 .messageRouter(new PartialRoundRobinMessageRouterImpl(3))
@@ -202,6 +208,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         field.setAccessible(true);
         final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .accessMode(ProducerAccessMode.Exclusive)
@@ -220,6 +227,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
         final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .accessMode(ProducerAccessMode.WaitForExclusive)
