@@ -27,6 +27,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
@@ -76,6 +77,9 @@ public class TokenClient implements ClientCredentialsExchanger {
         bodyMap.put("client_id", req.getClientId());
         bodyMap.put("client_secret", req.getClientSecret());
         bodyMap.put("audience", req.getAudience());
+        if (!StringUtils.isBlank(req.getScope())) {
+            bodyMap.put("scope", req.getScope());
+        }
         String body = bodyMap.entrySet().stream()
                 .map(e -> {
                     try {

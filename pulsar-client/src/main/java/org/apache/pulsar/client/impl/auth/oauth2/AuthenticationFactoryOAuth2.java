@@ -37,10 +37,24 @@ public final class AuthenticationFactoryOAuth2 {
      * @return an Authentication object
      */
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience) {
+        return clientCredentials(issuerUrl, credentialsUrl, audience, null);
+    }
+
+    /**
+     * Authenticate with client credentials.
+     *
+     * @param issuerUrl the issuer URL
+     * @param credentialsUrl the credentials URL
+     * @param audience the audience identifier
+     * @param scope the scope
+     * @return an Authentication object
+     */
+    public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
         ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .privateKey(credentialsUrl.toExternalForm())
                 .audience(audience)
+                .scope(scope)
                 .build();
         return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
     }

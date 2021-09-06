@@ -86,6 +86,7 @@ public class AuthenticationOAuth2Test {
         params.put("privateKey", "data:base64,e30=");
         params.put("issuerUrl", "http://localhost");
         params.put("audience", "http://localhost");
+        params.put("scope", "test-scope");
         ObjectMapper mapper = new ObjectMapper();
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
