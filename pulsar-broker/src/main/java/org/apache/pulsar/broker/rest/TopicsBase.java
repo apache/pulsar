@@ -96,8 +96,8 @@ public class TopicsBase extends PersistentTopicsBase {
     protected void publishMessages(AsyncResponse asyncResponse, ProducerMessages request, boolean authoritative) {
         String topic = topicName.getPartitionedTopicName();
         try {
-            if (pulsar().getBrokerService().getOwningTopics().containsKey(topic) ||
-                    !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
+            if (pulsar().getBrokerService().getOwningTopics().containsKey(topic)
+                    || !findOwnerBrokerForTopic(authoritative, asyncResponse)) {
                 // If we've done look up or or after look up this broker owns some of the partitions
                 // then proceed to publish message else asyncResponse will be complete by look up.
                 addOrGetSchemaForTopic(getSchemaData(request.getKeySchema(), request.getValueSchema()),
