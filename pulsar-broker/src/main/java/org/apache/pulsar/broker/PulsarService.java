@@ -282,9 +282,6 @@ public class PulsarService implements AutoCloseable {
     private volatile CompletableFuture<Void> closeFuture;
     // key is listener name , value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
-    // For REST api, keep track of topics served by this pulsar.
-    @Getter
-    private ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics = new ConcurrentOpenHashMap<>();
 
     public PulsarService(ServiceConfiguration config) {
         this(config, Optional.empty(), (exitCode) -> {
