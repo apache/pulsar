@@ -98,8 +98,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             } else {
                 PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
                 CompletableFuture<MessageId> actionFuture =
-                        ActionType.DELETE.equals(actionType)
-                                ? writer.deleteAsync(event) : writer.writeAsync(event);
+                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(event) : writer.writeAsync(event);
                 actionFuture.whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
@@ -342,6 +341,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     break;
                 case UPDATE:
                     policiesCache.put(topicName, event.getPolicies());
+                    break;
+                case DELETE:
+                    // Since PR #11928, this branch is no longer needed.
+                    // However, due to compatibility, it is temporarily retained here
+                    // and can be deleted in the future.
+                    policiesCache.remove(topicName);
+                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                            .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
+                    systemTopicClient.newWriterAsync().thenAccept(writer
+                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null)));
                     break;
                 case NONE:
                     break;
