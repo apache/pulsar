@@ -241,6 +241,13 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validatePersistentTopicName(String property, String namespace, String encodedTopic) {
+        validateTopicName(property, namespace, encodedTopic);
+        if (topicName.getDomain() != TopicDomain.persistent) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Need to provide a persistent topic name");
+        }
+    }
+
     protected void validatePartitionedTopicName(String tenant, String namespace, String encodedTopic) {
         // first, it has to be a validate topic name
         validateTopicName(tenant, namespace, encodedTopic);
@@ -275,6 +282,14 @@ public abstract class AdminResource extends PulsarWebResource {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
                     namespace, topic, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
+    }
+
+    @Deprecated
+    protected void validatePersistentTopicName(String property, String cluster, String namespace, String encodedTopic) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        if (topicName.getDomain() != TopicDomain.persistent) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Need to provide a persistent topic name");
         }
     }
 
