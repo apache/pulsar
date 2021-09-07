@@ -58,8 +58,11 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         // The caller is expected to check the value returned, or not call here with a zero global usage.
         // [This avoids a division by zero when calculating the local share.]
         if (totalUsage == 0) {
-            log.warn("computeLocalQuota: totalUsage is zero; returning the configured usage ({}) as new local quota",
-                    confUsage);
+            if (log.isDebugEnabled()) {
+                log.debug("computeLocalQuota: totalUsage is zero; "
+                        + "returning the configured usage ({}) as new local quota",
+                        confUsage);
+            }
             return confUsage;
         }
 
