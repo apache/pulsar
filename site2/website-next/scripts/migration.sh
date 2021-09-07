@@ -1,4 +1,4 @@
-version=2.8.0
+version=2.7.3
 chapter="Pulsar Functions"
 prefix="functions"
 
