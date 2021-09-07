@@ -50,7 +50,7 @@ public class DispatcherProviderTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();
-        conf.setDispatcherProviderClassName("org.apache.pulsar.broker.service.DispatcherProvider.DefaultDispatcherProvider");
+        conf.setDispatcherProviderClassName("org.apache.pulsar.broker.service.DefaultDispatcherProvider");
     }
 
     @Test

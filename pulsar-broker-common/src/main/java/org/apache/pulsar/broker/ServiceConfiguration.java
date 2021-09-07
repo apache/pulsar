@@ -793,7 +793,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "We can customize the Dispatcher through the implementation class."
     )
     private String dispatcherProviderClassName =
-            "org.apache.pulsar.broker.service.DispatcherFactory.DefaultDispatcherProvider";
+            "org.apache.pulsar.broker.service.DefaultDispatcherProvider";
 
     @FieldContext(
         dynamic = true,
