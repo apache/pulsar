@@ -455,6 +455,10 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     public void KeyValueSchemaTest() throws Exception {
         KeyValue<Integer, String> kv = new KeyValue<>(11, "value");
         SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
+        String val = (String) sinkRecord.value();
+        Assert.assertEquals(val, "value");
+        int key = (int) sinkRecord.key();
+        Assert.assertEquals(key, 11);
     }
 
     @Test
