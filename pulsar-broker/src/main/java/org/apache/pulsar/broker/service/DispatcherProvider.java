@@ -37,11 +37,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.naming.TopicName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public interface DispatcherProvider {
-    Logger log = LoggerFactory.getLogger(DispatcherProvider.class);
 
     Dispatcher createDispatcher(Consumer consumer, Subscription subscription);
 
@@ -54,8 +51,7 @@ public interface DispatcherProvider {
                     "The factory has to be an instance of " + DispatcherProvider.class.getName());
             return (DispatcherProvider) obj;
         } catch (Exception e) {
-            log.error("Failed to initialize implementation class", e);
-            throw new IllegalArgumentException("Failed to initialize implementation class");
+            throw new IllegalArgumentException(e);
         }
     }
 
@@ -86,7 +82,8 @@ public interface DispatcherProvider {
                     .getConfiguration().isStreamingDispatch();
             switch (consumer.subType()) {
                 case Exclusive:
-                    if (previousDispatcher == null || previousDispatcher.getType() != CommandSubscribe.SubType.Exclusive) {
+                    if (previousDispatcher == null
+                            || previousDispatcher.getType() != CommandSubscribe.SubType.Exclusive) {
                         dispatcher = useStreamingDispatcher
                                 ? new PersistentStreamingDispatcherSingleActiveConsumer(
                                 cursor, CommandSubscribe.SubType.Exclusive, 0, topic, subscription)
@@ -111,7 +108,8 @@ public interface DispatcherProvider {
                         partitionIndex = -1;
                     }
 
-                    if (previousDispatcher == null || previousDispatcher.getType() != CommandSubscribe.SubType.Failover) {
+                    if (previousDispatcher == null
+                            || previousDispatcher.getType() != CommandSubscribe.SubType.Failover) {
                         dispatcher = useStreamingDispatcher
                                 ? new PersistentStreamingDispatcherSingleActiveConsumer(
                                 cursor, CommandSubscribe.SubType.Failover, partitionIndex, topic, subscription) :
@@ -120,7 +118,8 @@ public interface DispatcherProvider {
                     }
                     break;
                 case Key_Shared:
-                    if (previousDispatcher == null || previousDispatcher.getType() != CommandSubscribe.SubType.Key_Shared) {
+                    if (previousDispatcher == null
+                            || previousDispatcher.getType() != CommandSubscribe.SubType.Key_Shared) {
                         previousDispatcher = dispatcher;
                         KeySharedMeta ksm = consumer.getKeySharedMeta();
                         dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, subscription,
@@ -153,7 +152,8 @@ public interface DispatcherProvider {
 
             switch (consumer.subType()) {
                 case Exclusive:
-                    if (previousDispatcher == null || previousDispatcher.getType() != CommandSubscribe.SubType.Exclusive) {
+                    if (previousDispatcher == null
+                            || previousDispatcher.getType() != CommandSubscribe.SubType.Exclusive) {
                         dispatcher = new NonPersistentDispatcherSingleActiveConsumer(CommandSubscribe.SubType.Exclusive,
                                 0, topic, subscription);
                     }
@@ -170,13 +170,15 @@ public interface DispatcherProvider {
                         partitionIndex = 0;
                     }
 
-                    if (previousDispatcher == null || previousDispatcher.getType() != CommandSubscribe.SubType.Failover) {
+                    if (previousDispatcher == null
+                            || previousDispatcher.getType() != CommandSubscribe.SubType.Failover) {
                         dispatcher = new NonPersistentDispatcherSingleActiveConsumer(CommandSubscribe.SubType.Failover,
                                 partitionIndex, topic, subscription);
                     }
                     break;
                 case Key_Shared:
-                    if (previousDispatcher == null || previousDispatcher.getType() != CommandSubscribe.SubType.Key_Shared) {
+                    if (previousDispatcher == null
+                            || previousDispatcher.getType() != CommandSubscribe.SubType.Key_Shared) {
 
                         switch (consumer.getKeySharedMeta().getKeySharedMode()) {
                             case STICKY:
@@ -195,7 +197,8 @@ public interface DispatcherProvider {
                                     selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
                                 }
 
-                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, subscription, selector);
+                                dispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(topic, subscription,
+                                        selector);
                                 break;
                         }
                     }
