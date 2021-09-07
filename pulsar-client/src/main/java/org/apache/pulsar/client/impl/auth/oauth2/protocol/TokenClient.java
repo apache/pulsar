@@ -45,7 +45,7 @@ public class TokenClient implements ClientCredentialsExchanger {
     protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     private final URL tokenUrl;
-    private final AsyncHttpClient httpClient;
+    AsyncHttpClient httpClient;
 
     public TokenClient(URL tokenUrl) {
         this.tokenUrl = tokenUrl;
