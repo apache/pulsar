@@ -1147,6 +1147,19 @@ class PulsarTest(TestCase):
         self.assertTrue(msg.topic_name() in partitions)
         client.close()
 
+    def test_shutdown_client(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('persistent://public/default/partitioned_topic_name_test')
+        producer.send(b'hello')
+        client.shutdown()
+
+        try:
+            producer.send(b'hello')
+            self.assertTrue(False)
+        except pulsar.PulsarException:
+            # Expected
+            pass
+
     def test_negative_acks(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe('test_negative_acks',
