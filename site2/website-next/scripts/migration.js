@@ -135,6 +135,7 @@ try {
         data = fixTab(data);
         data = data
           .replace(reg, "id: ")
+          .replace(/sidebar_label:\s*(.*):(.*)/, 'sidebar_label: "$1:$2"')
           .replace(/\[\[pulsar:version_number\]\]/g, "<pulsar:version_number>")
           .replace(/[\t ]+(```\w*)/g, "$1")
           // .replace(/(\S+)\n(```\w+)/gm, "$1\n\n$2")
