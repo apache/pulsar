@@ -36,7 +36,7 @@ function importTabComponent(data) {
     return data.replace(
       /---((((?!---).)*\n*)*)---/,
       "---$1---" +
-        "\n\nimport Tabs from '@theme/Tabs';\nimport TabItem from '@theme/TabItem';"
+        "\n\nimport Tabs from '@theme/Tabs';\nimport TabItem from '@theme/TabItem';\n"
     );
   }
   return data;

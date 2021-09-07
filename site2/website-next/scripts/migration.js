@@ -136,8 +136,10 @@ try {
         data = data
           .replace(reg, "id: ")
           .replace(/\[\[pulsar:version_number\]\]/g, "<pulsar:version_number>")
-          .replace(/(\S+)\n(```\w+)/gm, "$1\n\n$2")
-          .replace(/[\t ]+(```\w+)/g, "$1")
+          .replace(/[\t ]+(```\w*)/g, "$1")
+          // .replace(/(\S+)\n(```\w+)/gm, "$1\n\n$2")
+          .replace(/(```\w*)((((?!```).)*\n*)+)```/g, "\n$1$2```")
+          .replace(/<empty string>/g, "|")
           .replace(/<\/br>/g, "<br />")
           .replace(/<br>/g, "<br />")
           .replace(
@@ -147,9 +149,7 @@ try {
           .replace(/\]\(assets\//g, "](/assets/")
           .replace(/<table style="table"/g, '<table className={"table"}')
           .replace(/(<table.+>)/g, "$1\n<tbody>")
-          .replace(/<\/\s*table.*>/g, "</tbody>\n</table>")
-          // .replace(/<!--(.*)-->/g, "====$1====")
-          .replace(/^\s*```$/gm, "```");
+          .replace(/<\/\s*table.*>/g, "</tbody>\n</table>");
         data = fixTd(data, /<td>((?!<\/td>).)*(\n((?!<\/td>).)*)+<\/td>/);
 
         fs.writeFileSync(path.join(dest, filename), data);
