@@ -126,5 +126,5 @@ public class FunctionConfig {
     // Whether the pulsar admin client exposed to function context, default is disabled.
     private Boolean exposePulsarAdminClientEnabled;
 
-    private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;
+    private SubscriptionInitialPosition subscriptionPosition;
 }
