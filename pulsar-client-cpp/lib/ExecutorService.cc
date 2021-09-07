@@ -32,9 +32,7 @@ ExecutorService::ExecutorService()
       work_(new BackgroundWork(*io_service_)),
       worker_(std::bind(&ExecutorService::startWorker, this, io_service_)) {}
 
-ExecutorService::~ExecutorService() {
-    close();
-}
+ExecutorService::~ExecutorService() { close(); }
 
 void ExecutorService::startWorker(std::shared_ptr<boost::asio::io_service> io_service) { io_service_->run(); }
 
@@ -75,9 +73,9 @@ void ExecutorService::close() {
     if (worker_.joinable()) {
         try {
             worker_.detach();
-        } catch (const std::system_error& e) {
-            // This condition will happen if we're forking the process, therefore the thread was not ported to the
-            // child side of the fork and the detach would be failing.
+        } catch (const std::system_error &e) {
+            // This condition will happen if we're forking the process, therefore the thread was not ported to
+            // the child side of the fork and the detach would be failing.
             LOG_DEBUG("Failed to detach thread: " << e.what());
         }
     }
