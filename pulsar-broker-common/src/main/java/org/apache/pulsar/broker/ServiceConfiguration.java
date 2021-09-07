@@ -788,6 +788,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean streamingDispatch = false;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Class name of the factory that implements the DispatcherProvider."
+                    + "We can customize the Dispatcher through the implementation class."
+    )
+    private String dispatcherProviderClassName =
+            "org.apache.pulsar.broker.service.DispatcherFactory.DefaultDispatcherProvider";
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic")

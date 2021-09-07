@@ -68,7 +68,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final Set<Consumer> stuckConsumers;
     private final Set<Consumer> nextStuckConsumers;
 
-    PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
+    public PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
 
