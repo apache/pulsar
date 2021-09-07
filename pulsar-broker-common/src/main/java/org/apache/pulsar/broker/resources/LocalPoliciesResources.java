@@ -48,7 +48,7 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     }
 
     public void setLocalPoliciesWithCreate(NamespaceName ns, Function<Optional<LocalPolicies>, LocalPolicies> createFunction) throws MetadataStoreException {
-
+        setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
     }
 
     public void deleteLocalPolicies(NamespaceName ns) throws MetadataStoreException {
