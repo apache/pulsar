@@ -91,8 +91,8 @@ public class PerformanceConsumer {
         @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
-        public String subscriberName = "sub";
+        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+        public String subscriberName;
 
         @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
@@ -228,6 +228,9 @@ public class PerformanceConsumer {
                 arguments.subscriptions.size() != arguments.numConsumers) {
             // keep compatibility with the previous version
             if (arguments.subscriptions.size() == 1) {
+                if (arguments.subscriberName == null) {
+                    arguments.subscriberName = arguments.subscriptions.get(0);
+                }
                 List<String> defaultSubscriptions = Lists.newArrayList();
                 for (int i = 0; i < arguments.numSubscriptions; i++) {
                     defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
