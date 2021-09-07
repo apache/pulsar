@@ -23,6 +23,13 @@ import com.google.common.collect.Sets;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.EncoderFactory;
+import org.apache.avro.io.JsonEncoder;
+import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.avro.util.Utf8;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -42,11 +49,15 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -68,6 +79,7 @@ import org.testng.annotations.Test;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -525,16 +537,6 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 + "{\"key\":\"my-key\",\"payload\":\""
                 + ObjectMapperFactory.getThreadLocal().writeValueAsString(anotherPc).replace("\"", "\\\"")
                 + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        ProducerMessage msg1 = new ProducerMessage();
-        msg1.setKey("my-key");
-        msg1.setPayload(ObjectMapperFactory.getThreadLocal().writeValueAsString(pc));
-        msg1.setEventTime("1603045262772");
-        msg1.setSequenceId(1);
-        ProducerMessage msg2 = new ProducerMessage();
-        msg2.setKey("my-key");
-        msg2.setPayload(ObjectMapperFactory.getThreadLocal().writeValueAsString(anotherPc));
-        msg2.setEventTime("1603045262772");
-        msg2.setSequenceId(2);
         producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
                 new TypeReference<List<ProducerMessage>>() {}));
         topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace,
@@ -561,7 +563,6 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             msg = consumer.receive(2, TimeUnit.SECONDS);
             PC msgPc = ObjectMapperFactory.getThreadLocal().
                     treeToValue(((GenericJsonRecord)jsonSchema.decode(msg.getData())).getJsonNode(), PC.class);
-            System.out.println(msgPc);
             Assert.assertEquals(msgPc.brand, expected.get(i).brand);
             Assert.assertEquals(msgPc.model, expected.get(i).model);
             Assert.assertEquals(msgPc.year, expected.get(i).year);
@@ -569,6 +570,82 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(msgPc.seller.state, expected.get(i).seller.state);
             Assert.assertEquals(msgPc.seller.street, expected.get(i).seller.street);
             Assert.assertEquals(msgPc.seller.zipCode, expected.get(i).seller.zipCode);
+            Assert.assertEquals("my-key", msg.getKey());
+        }
+    }
+
+    @Test
+    public void testProduceWithAvroSchema() throws Exception {
+        String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
+        admin.topics().createNonPartitionedTopic(topicName);
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        GenericSchemaImpl avroSchema = GenericAvroSchema.of(AvroSchema.of(SchemaDefinition.builder()
+                .withPojo(PC.class).build()).getSchemaInfo());
+        PC pc  = new PC("dell", "alienware", 2021, GPU.AMD,
+                new Seller("WA", "main street", 98004));
+        PC anotherPc  = new PC("asus", "rog", 2020, GPU.NVIDIA,
+                new Seller("CA", "back street", 90232));
+        Consumer consumer = pulsarClient.newConsumer(avroSchema)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        ProducerMessages producerMessages = new ProducerMessages();
+        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+                writeValueAsString(avroSchema.getSchemaInfo()));
+
+        ReflectDatumWriter<PC> datumWriter = new ReflectDatumWriter(avroSchema.getAvroSchema());
+        ByteArrayOutputStream outputStream1 = new ByteArrayOutputStream();
+        ByteArrayOutputStream outputStream2 = new ByteArrayOutputStream();
+
+        JsonEncoder encoder1 = EncoderFactory.get().jsonEncoder(avroSchema.getAvroSchema(), outputStream1);
+        JsonEncoder encoder2 = EncoderFactory.get().jsonEncoder(avroSchema.getAvroSchema(), outputStream2);
+
+        datumWriter.write(pc, encoder1);
+        encoder1.flush();
+        datumWriter.write(anotherPc, encoder2);
+        encoder2.flush();
+
+        String message = "[" +
+                "{\"key\":\"my-key\",\"payload\":\""
+                + outputStream1.toString().replace("\"", "\\\"")
+                + "\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\""
+                + outputStream2.toString().replace("\"", "\\\"")
+                + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
+                new TypeReference<List<ProducerMessage>>() {}));
+        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace,
+                testTopicName, false, producerMessages);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+        Object responseEntity = responseCaptor.getValue().getEntity();
+        Assert.assertTrue(responseEntity instanceof ProducerAcks);
+        ProducerAcks response = (ProducerAcks) responseEntity;
+        Assert.assertEquals(response.getMessagePublishResults().size(), 2);
+        Assert.assertEquals(response.getSchemaVersion(), 0);
+        for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
+            Assert.assertEquals(Integer.parseInt(response.getMessagePublishResults().get(index)
+                    .getMessageId().split(":")[2]), -1);
+            Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 0);
+            Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
+        }
+
+        List<PC> expected = Arrays.asList(pc, anotherPc);
+        Message<String> msg = null;
+        // Assert all messages published by REST producer can be received by consumer in expected order.
+        for (int i = 0; i < 2; i++) {
+            msg = consumer.receive(2, TimeUnit.SECONDS);
+            GenericAvroRecord avroRecord = (GenericAvroRecord) avroSchema.decode(msg.getData());
+            Assert.assertEquals(((Utf8)avroRecord.getAvroRecord().get("brand")).toString(), expected.get(i).brand);
+            Assert.assertEquals(((Utf8)avroRecord.getAvroRecord().get("model")).toString(), expected.get(i).model);
+            Assert.assertEquals((int)avroRecord.getAvroRecord().get("year"), expected.get(i).year);
+            Assert.assertEquals(((GenericData.EnumSymbol)avroRecord.getAvroRecord().get("gpu")).toString(), expected.get(i).gpu.toString());
+            Assert.assertEquals(((Utf8)((GenericRecord)avroRecord.getAvroRecord().get("seller")).get("state")).toString(), expected.get(i).seller.state);
+            Assert.assertEquals(((Utf8)((GenericRecord)avroRecord.getAvroRecord().get("seller")).get("street")).toString(), expected.get(i).seller.street);
+            Assert.assertEquals(((GenericRecord)avroRecord.getAvroRecord().get("seller")).get("zipCode"), expected.get(i).seller.zipCode);
             Assert.assertEquals("my-key", msg.getKey());
         }
     }

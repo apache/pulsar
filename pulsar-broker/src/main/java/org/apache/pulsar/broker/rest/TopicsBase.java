@@ -42,6 +42,12 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
@@ -60,11 +66,15 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroWriter;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonWriter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
@@ -662,7 +672,7 @@ public class TopicsBase extends PersistentTopicsBase {
         try {
             switch (schema.getSchemaInfo().getType()) {
                 case INT8:
-                    return schema.encode(new Byte(input));
+                    return schema.encode(Byte.parseByte(input));
                 case INT16:
                     return schema.encode(Short.parseShort(input));
                 case INT32:
@@ -694,10 +704,17 @@ public class TopicsBase extends PersistentTopicsBase {
                 case LOCAL_DATE_TIME:
                     return schema.encode(LocalDateTime.parse(input));
                 case JSON:
-                    return schema.encode(new
-                            GenericJsonRecord(null, null,
-                            ObjectMapperFactory.getThreadLocal().readTree(input), schema.getSchemaInfo()));
+                    GenericJsonWriter jsonWriter = new GenericJsonWriter();
+                    return jsonWriter.write(new GenericJsonRecord(null, null,
+                          ObjectMapperFactory.getThreadLocal().readTree(input), schema.getSchemaInfo()));
                 case AVRO:
+                    AvroBaseStructSchema avroSchema = ((AvroBaseStructSchema) schema);
+                    Decoder decoder = DecoderFactory.get().jsonDecoder(avroSchema.getAvroSchema(), input);
+                    DatumReader<GenericData.Record> reader = new GenericDatumReader(avroSchema.getAvroSchema());
+                    GenericRecord genericRecord = reader.read(null, decoder);
+                    GenericAvroWriter avroWriter = new GenericAvroWriter(avroSchema.getAvroSchema());
+                    return avroWriter.write(new GenericAvroRecord(null,
+                            avroSchema.getAvroSchema(), null, genericRecord));
                 case PROTOBUF_NATIVE:
                 case KEY_VALUE:
                 default:
@@ -730,4 +747,22 @@ public class TopicsBase extends PersistentTopicsBase {
         }
         future.complete(null);
     }
+
+    public void validateProducePermission() throws Exception {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
+            }
+
+            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .canProduce(topicName, originalPrincipal(), clientAuthData());
+            if (!isAuthorized) {
+                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to produce to topic %s"
+                                        + " with clientAppId [%s] and authdata %s", topicName.toString(),
+                        clientAppId(), clientAuthData()));
+            }
+        }
+    }
+
 }

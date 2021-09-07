@@ -35,12 +35,15 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.websocket.data.ProducerMessages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Path("/")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/persistent", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
 public class Topics extends TopicsBase {
+    private static final Logger log = LoggerFactory.getLogger(Topics.class);
 
     @POST
     @Path("/persistent/{tenant}/{namespace}/{topic}")
@@ -58,8 +61,14 @@ public class Topics extends TopicsBase {
                                @PathParam("topic") @Encoded String encodedTopic,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                ProducerMessages producerMessages) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        publishMessages(asyncResponse, producerMessages, authoritative);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            validateProducePermission();
+            publishMessages(asyncResponse, producerMessages, authoritative);
+        } catch (Exception e) {
+            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @POST
@@ -81,8 +90,14 @@ public class Topics extends TopicsBase {
                                         @PathParam("partition") int partition,
                                         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                         ProducerMessages producerMessages) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            validateProducePermission();
+            publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
+        } catch (Exception e) {
+            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @POST
@@ -102,8 +117,14 @@ public class Topics extends TopicsBase {
                                          @QueryParam("authoritative") @DefaultValue("false")
                                                         boolean authoritative,
                                          ProducerMessages producerMessages) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        publishMessages(asyncResponse, producerMessages, authoritative);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            validateProducePermission();
+            publishMessages(asyncResponse, producerMessages, authoritative);
+        } catch (Exception e) {
+            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @POST
@@ -126,8 +147,14 @@ public class Topics extends TopicsBase {
                                                   @QueryParam("authoritative") @DefaultValue("false")
                                                                  boolean authoritative,
                                                   ProducerMessages producerMessages) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            validateProducePermission();
+            publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
+        } catch (Exception e) {
+            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
 }
