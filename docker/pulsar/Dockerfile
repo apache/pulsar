@@ -41,7 +41,8 @@ COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 FROM openjdk:8-jdk-slim
 
 # Install some utilities
-RUN apt-get update \
+RUN add-apt-repository ppa:deadsnakes/ppa \
+     && apt-get update \
      && apt-get install -y netcat dnsutils less procps iputils-ping \
                  python3.7 python3.7-dev python3-setuptools python3-yaml python3-kazoo \
                  libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
