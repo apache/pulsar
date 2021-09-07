@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.structuredeventlog;
+package org.apache.pulsar.structuredeventlog.slf4j;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -25,9 +25,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.Appender;
@@ -36,6 +41,9 @@ import org.apache.logging.log4j.core.appender.WriterAppender;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig ;
 import org.apache.logging.log4j.core.layout.JsonLayout;
+import org.apache.pulsar.structuredeventlog.Event;
+import org.apache.pulsar.structuredeventlog.EventResources;
+import org.apache.pulsar.structuredeventlog.StructuredEventLog;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -333,6 +341,20 @@ public class StructuredEventLogTest {
     }
 
 
+    @Test
+    public void testTimedEvent() throws Exception {
+        MockClock clock = new MockClock();
+        StructuredEventLog log = StructuredEventLog.newLogger();
+        ((Slf4jStructuredEventLog)log).clock = clock;
+        Event e = log.newRootEvent().timed();
+        clock.advanceTime(1234, TimeUnit.MILLISECONDS);
+        e.log("timed");
+
+        List<Map<String, Object>> logged = getLogged();
+        assertThat(logged.get(0).get("message"), equalTo("timed"));
+        assertThat(contextMapField(logged.get(0), "startTimestamp"), equalTo("1970-01-02T03:46:40Z"));
+        assertThat(contextMapField(logged.get(0), "durationMs"), equalTo("1234"));
+    }
 
     @SuppressWarnings("unchecked")
     private Object contextMapField(Map<String, Object> map, String field) {
@@ -354,6 +376,29 @@ public class StructuredEventLogTest {
             }
         }
         return logged;
+    }
+
+    private static class MockClock extends Clock {
+        AtomicLong ticker = new AtomicLong(100000000);
+
+        void advanceTime(int duration, TimeUnit unit) {
+            ticker.addAndGet(unit.toMillis(duration));
+        }
+
+        @Override
+        public Instant instant() {
+            return Instant.ofEpochMilli(ticker.get());
+        }
+
+        @Override
+        public ZoneId getZone( ) {
+            return ZoneId.of("UTC");
+        }
+
+        @Override
+        public Clock withZone(ZoneId zoneId) {
+            return this;
+        }
     }
 }
 

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.structuredeventlog.slf4j;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -34,21 +37,24 @@ import org.slf4j.LoggerFactory;
 
 class Slf4jEvent implements Event {
     private final String id;
+    private final Clock clock;
     private String traceId = null;
     private String parentId = null;
     private List<Object> attributes = null;
     private Level level = Level.INFO;
     private Throwable throwable = null;
+    private Instant startTime = null;
     private final EventResourcesImpl resources;
 
-    Slf4jEvent(EventResourcesImpl parentResources) {
+    Slf4jEvent(Clock clock, EventResourcesImpl parentResources) {
         this.id = randomId();
+        this.clock = clock;
         this.resources = new EventResourcesImpl(parentResources);
     }
 
     @Override
     public Event newChildEvent() {
-        return new Slf4jEvent(resources).traceId(traceId).parentId(id);
+        return new Slf4jEvent(clock, resources).traceId(traceId).parentId(id);
     }
 
     @Override
@@ -65,7 +71,8 @@ class Slf4jEvent implements Event {
 
     @Override
     public Event timed() {
-        throw new UnsupportedOperationException("TODO");
+        startTime = clock.instant();
+        return this;
     }
 
     @Override
@@ -148,6 +155,10 @@ class Slf4jEvent implements Event {
             resources.forEach(MDC::put);
             if (attributes != null) {
                 EventResourcesImpl.forEach(attributes, MDC::put);
+            }
+            if (startTime != null) {
+                MDC.put("startTimestamp", startTime.toString());
+                MDC.put("durationMs", String.valueOf(Duration.between(startTime, clock.instant()).toMillis()));
             }
             Logger logger = LoggerFactory.getLogger("stevlog");
             switch (level) {
