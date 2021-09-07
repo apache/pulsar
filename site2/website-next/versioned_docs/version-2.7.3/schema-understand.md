@@ -96,7 +96,6 @@ Possible properties might be the Git hash associated with the schema, an environ
 
 This is the `SchemaInfo` of a string.
 
-
 ```json
 {
     "name": "test-string-schema",
@@ -166,7 +165,6 @@ This example demonstrates how to use a string schema.
 
 1. Create a producer with a string schema and send messages.
 
-    
 ```java
     Producer<String> producer = client.newProducer(Schema.STRING).create();
     producer.newMessage().value("Hello Pulsar!").send();
@@ -174,7 +172,6 @@ This example demonstrates how to use a string schema.
 
 2. Create a consumer with a string schema and receive messages.  
 
-    
 ```java
     Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
     consumer.receive();
@@ -217,7 +214,6 @@ This example shows how to construct a key/value schema and then use it to produc
 
 1. Construct a key/value schema with `INLINE` encoding type.
 
-    
 ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
@@ -228,7 +224,6 @@ This example shows how to construct a key/value schema and then use it to produc
 
 2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
 
-    
 ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
@@ -239,7 +234,6 @@ This example shows how to construct a key/value schema and then use it to produc
 
 3. Produce messages using a key/value schema.
 
-    
 ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
@@ -262,7 +256,6 @@ This example shows how to construct a key/value schema and then use it to produc
 
 4. Consume messages using a key/value schema.
 
-    
 ```java
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
@@ -306,7 +299,6 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
-    
 ```java
     public class User {
         String name;
@@ -316,7 +308,6 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 2. Create a producer with a `struct` schema and send messages.
 
-    
 ```java
     Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
     producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
@@ -324,7 +315,6 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 3. Create a consumer with a `struct` schema and receive messages
 
-    
 ```java
     Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
     User user = consumer.receive();
@@ -340,7 +330,6 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
 
 1. Use `RecordSchemaBuilder` to build a schema.
 
-    
 ```java
     RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
     recordSchemaBuilder.field("intField").type(SchemaType.INT32);
@@ -351,7 +340,6 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
 
 2. Use `RecordBuilder` to build the struct records.
 
-    
 ```java
     producer.newMessage().value(schema.newRecordBuilder()
                 .set("intField", 32)
@@ -383,7 +371,6 @@ Suppose that:
    
 In this case, you can use `AUTO_PRODUCE` to verify whether the bytes produced by _K_ can be sent to _P_ or not.
 
-
 ```java
 Produce<byte[]> pulsarProducer = client.newProducer(Schema.AUTO_PRODUCE())
     …
@@ -412,7 +399,6 @@ Suppose that:
    
 In this case, you can use `AUTO_CONSUME` to verify whether the bytes produced by _P_ can be sent to MySQL or not.
 
-
 ```java
 Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME())
     …
@@ -437,7 +423,6 @@ Once a version is assigned/fetched to/for a schema, all subsequent messages prod
 The following example illustrates how the schema version works.
 
 Suppose that a Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begins to send messages:
-
 
 ```java
 PulsarClient client = PulsarClient.builder()

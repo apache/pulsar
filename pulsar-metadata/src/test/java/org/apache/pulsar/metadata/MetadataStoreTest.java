@@ -324,4 +324,33 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(store.getChildren(prefix).join(), Collections.singletonList(key2.substring(1)));
     }
 
+    @Test(dataProvider = "impl")
+    public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String prefix = newKey();
+
+        store.put(prefix + "/a1/b1/c1", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + "/a1/b1/c2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + "/a1/b2/c1", "value".getBytes(), Optional.of(-1L)).join();
+
+        store.delete(prefix + "/a1/b1/c1", Optional.empty()).join();
+        store.delete(prefix + "/a1/b1/c2", Optional.empty()).join();
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix + "/a1/b1").join());
+
+        store.delete(prefix + "/a1/b2/c1", Optional.empty()).join();
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix + "/a1/b2").join());
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix + "/a1").join());
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix).join());
+    }
+
 }

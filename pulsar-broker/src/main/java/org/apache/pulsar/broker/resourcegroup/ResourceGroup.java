@@ -304,6 +304,32 @@ public class ResourceGroup {
         return retval;
     }
 
+    protected BytesAndMessagesCount getLocalUsageStatsFromBrokerReports(ResourceGroupMonitoringClass monClass)
+            throws PulsarAdminException {
+        this.checkMonitoringClass(monClass);
+        val retval = new BytesAndMessagesCount();
+        final PerMonitoringClassFields monEntity = this.monitoringClassFields[monClass.ordinal()];
+        String myBrokerId = this.rgs.getPulsar().getBrokerServiceUrl();
+        PerBrokerUsageStats pbus;
+
+        monEntity.usageFromOtherBrokersLock.lock();
+        try {
+            pbus = monEntity.usageFromOtherBrokers.get(myBrokerId);
+        } finally {
+            monEntity.usageFromOtherBrokersLock.unlock();
+        }
+
+        if (pbus != null) {
+            retval.bytes = pbus.usedValues.bytes;
+            retval.messages = pbus.usedValues.messages;
+        } else {
+            log.info("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
+                    myBrokerId, monClass);
+        }
+
+        return retval;
+    }
+
     protected BytesAndMessagesCount getGlobalUsageStats(ResourceGroupMonitoringClass monClass)
                                                                                         throws PulsarAdminException {
         this.checkMonitoringClass(monClass);

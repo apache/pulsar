@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "lib/checksum/crc32c_sw.h"
+#include "gf2.hpp"
 
 #if BOOST_ARCH_X86_64
 #include <nmmintrin.h>  // SSE4.2
@@ -63,6 +64,8 @@
 #define DEBUG_PRINTF4(fmt, v1, v2, v3, v4)
 #endif
 
+namespace pulsar {
+
 static bool initialized = false;
 static bool has_sse42 = false;
 static bool has_pclmulqdq = false;
@@ -95,8 +98,6 @@ bool crc32c_initialize() {
 
     return has_sse42;
 }
-
-#include "gf2.hpp"
 
 chunk_config::chunk_config(size_t words, const chunk_config *next) : words(words), next(next) {
     assert(words > 0);
@@ -266,3 +267,5 @@ uint32_t crc32c(uint32_t init, const void *buf, size_t len, const chunk_config *
 }
 
 #endif
+
+}  // namespace pulsar

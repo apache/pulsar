@@ -93,7 +93,6 @@ You can use the `pulsar-admin` command to manage the `AutoUpdate` strategy as be
 
 To enable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
 
-
 ```bash
 bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/namespace
 ```
@@ -101,7 +100,6 @@ bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/name
 #### Disable AutoUpdate 
 
 To disable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
-
 
 ```bash
 bin/pulsar-admin namespaces set-is-allow-auto-update-schema --disable tenant/namespace
@@ -112,7 +110,6 @@ Once the `AutoUpdate` is disabled, you can only register a new schema using the 
 #### Adjust compatibility
 
 To adjust the schema compatibility level on a namespace, you can use the `pulsar-admin` command.
-
 
 ```bash
 bin/pulsar-admin namespaces set-schema-compatibility-strategy --compatibility <compatibility-level> tenant/namespace
@@ -132,7 +129,6 @@ However, if you want a stronger guarantee on the topics with schemas, you can en
 
 To enable `schemaValidationEnforced` on a namespace, you can use the `pulsar-admin` command.
 
-
 ```bash
 bin/pulsar-admin namespaces set-schema-validation-enforce --enable tenant/namespace
 ```
@@ -140,7 +136,6 @@ bin/pulsar-admin namespaces set-schema-validation-enforce --enable tenant/namesp
 #### Disable schema validation
 
 To disable `schemaValidationEnforced` on a namespace, you can use the `pulsar-admin` command.
-
 
 ```bash
 bin/pulsar-admin namespaces set-schema-validation-enforce --disable tenant/namespace
@@ -208,13 +203,11 @@ To upload (register) a new schema for a topic, you can use one of the following 
 
 Use the `upload` subcommand.
 
-
 ```bash
 $ pulsar-admin schemas upload --filename <schema-definition-file> <topic-name>
 ```
 
 The `schema-definition-file` is in JSON format. 
-
 
 ```json
 {
@@ -262,7 +255,6 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 
 **Example 1**
 
-
 ```json
 {
     "type": "JSON",
@@ -272,7 +264,6 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 ```
 
 **Example 2**
-
 
 ```json
 {
@@ -287,10 +278,9 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 </TabItem>
 <TabItem value="REST API">
 
-Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=[[pulsar:version_number]]a}
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=<pulsar:version_number>a}
 
 The post payload is in JSON format.
-
 
 ```json
 {
@@ -337,7 +327,6 @@ The schema definition data, which is encoded in UTF 8 charset.
 </TabItem>
 <TabItem value="Java Admin API">
 
-
 ```java
 void createSchema(String topic, PostSchemaPayload schemaPayload)
 ```
@@ -378,7 +367,6 @@ The schema definition data, which is encoded in UTF 8 charset.
 
 Here is an example of `PostSchemaPayload`:
 
-
 ```java
 PulsarAdmin admin = …;
 
@@ -417,7 +405,6 @@ To get the latest schema for a topic, you can use one of the following methods.
 
 Use the `get` subcommand.
 
-
 ```bash
 $ pulsar-admin schemas get <topic-name>
 
@@ -436,10 +423,9 @@ $ pulsar-admin schemas get <topic-name>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=[[pulsar:version_number]]a}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=<pulsar:version_number>a}
 
 Here is an example of a response, which is returned in JSON format.
-
 
 ```json
 {
@@ -501,7 +487,6 @@ The schema definition data, which is encoded in UTF 8 charset.
 
 </TabItem>
 <TabItem value="Java Admin API">
-
 
 ```java
 SchemaInfo createSchema(String topic)
@@ -550,7 +535,6 @@ A byte array of the schema definition data, which is encoded in UTF 8 charset.
 
 Here is an example of `SchemaInfo`:
 
-
 ```java
 PulsarAdmin admin = …;
 
@@ -586,7 +570,6 @@ To get a specific version of a schema, you can use one of the following methods.
 
 Use the `get` subcommand.
 
-
 ```bash
 $ pulsar-admin schemas get <topic-name> --version=<version> 
 ```
@@ -594,10 +577,9 @@ $ pulsar-admin schemas get <topic-name> --version=<version>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=[[pulsar:version_number]]a}
+Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=<pulsar:version_number>a}
 
 Here is an example of a response, which is returned in JSON format.
-
 
 ```json
 {
@@ -660,7 +642,6 @@ The schema definition data, which is encoded in UTF 8 charset.
 </TabItem>
 <TabItem value="Java Admin API">
 
-
 ```java
 SchemaInfo createSchema(String topic, long version)
 ```
@@ -706,7 +687,6 @@ A byte array of the schema definition data, which is encoded in UTF 8.
 
 Here is an example of `SchemaInfo`:
 
-
 ```java
 PulsarAdmin admin = …;
 
@@ -733,7 +713,6 @@ To provide a schema via a topic, you can use the following method.
 <TabItem value="Admin CLI">
 
 Use the `extract` subcommand.
-
 
 ```bash
 $ pulsar-admin schemas extract --classname <class-name> --jar <jar-path> --type <type-name>
@@ -772,7 +751,6 @@ To delete a schema for a topic, you can use one of the following methods.
 
 Use the `delete` subcommand.
 
-
 ```bash
 $ pulsar-admin schemas delete <topic-name>
 ```
@@ -780,10 +758,9 @@ $ pulsar-admin schemas delete <topic-name>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=[[pulsar:version_number]]} 
+Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/deleteSchema?version=<pulsar:version_number>} 
 
 Here is an example of a response, which is returned in JSON format.
-
 
 ```json
 {
@@ -800,13 +777,11 @@ Field | Description |
 </TabItem>
 <TabItem value="Java Admin API">
 
-
 ```java
 void deleteSchema(String topic)
 ```
 
 Here is an example of deleting a schema.
-
 
 ```java
 PulsarAdmin admin = …;
@@ -835,7 +810,6 @@ To use a non-default (non-BookKeeper) storage system for Pulsar schemas, you nee
 #### SchemaStorage interface
 
 The `SchemaStorage` interface has the following methods:
-
 
 ```java
 public interface SchemaStorage {
@@ -866,7 +840,6 @@ public interface SchemaStorage {
 #### SchemaStorageFactory interface 
 
 The `SchemaStorageFactory` interface has the following method:
-
 
 ```java
 public interface SchemaStorageFactory {

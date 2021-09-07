@@ -19,20 +19,23 @@
 package org.apache.pulsar.client.impl;
 
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-impl")
-public class ProducerMemoryLimitTest extends ProducerConsumerBase {
+public class ProducerCloseTest extends ProducerConsumerBase {
 
     @Override
     @BeforeMethod
@@ -48,49 +51,31 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 10_000)
-    public void testProducerTimeoutMemoryRelease() throws Exception {
-        initClientWithMemoryLimit();
+    public void testProducerCloseCallback() throws Exception {
+        initClient();
         @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("testProducerMemoryLimit")
+                .topic("testProducerClose")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
                 .enableBatching(false)
                 .create();
-        this.stopBroker();
-        try {
-            producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
-            throw new IllegalStateException("can not reach here");
-        } catch (PulsarClientException.TimeoutException ex) {
-            PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-            final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-            Assert.assertEquals(memoryLimitController.currentUsage(), 0);
-        }
-
-    }
-
-    @Test(timeOut = 10_000)
-    public void testProducerCloseMemoryRelease() throws Exception {
-        initClientWithMemoryLimit();
-        @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("testProducerMemoryLimit")
-                .sendTimeout(5, TimeUnit.SECONDS)
-                .maxPendingMessages(0)
-                .enableBatching(false)
-                .create();
-        this.stopBroker();
-        producer.sendAsync("memory-test".getBytes(StandardCharsets.UTF_8));
-        producer.close();
+        final TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage();
+        final TypedMessageBuilder<byte[]> value = messageBuilder.value("test-msg".getBytes(StandardCharsets.UTF_8));
+        producer.getClientCnx().channel().config().setAutoRead(false);
+        final CompletableFuture<MessageId> completableFuture = value.sendAsync();
+        producer.closeAsync();
+        final CommandSuccess commandSuccess = new CommandSuccess();
         PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+        commandSuccess.setRequestId(clientImpl.newRequestId() -1);
+        producer.getClientCnx().handleSuccess(commandSuccess);
+        Thread.sleep(3000);
+        Assert.assertEquals(completableFuture.isDone(), true);
     }
 
-    private void initClientWithMemoryLimit() throws PulsarClientException {
+    private void initClient() throws PulsarClientException {
         pulsarClient = PulsarClient.builder().
                 serviceUrl(lookupUrl.toString())
-                .memoryLimit(50, SizeUnit.KILO_BYTES)
                 .build();
     }
 

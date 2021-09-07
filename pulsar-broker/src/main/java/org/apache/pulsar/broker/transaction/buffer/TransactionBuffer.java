@@ -125,6 +125,13 @@ public interface TransactionBuffer {
     CompletableFuture<Void> purgeTxns(List<Long> dataLedgers);
 
     /**
+     * Clear up the snapshot of the TransactionBuffer.
+     *
+     * @return Clear up operation result.
+     */
+    CompletableFuture<Void> clearSnapshot();
+
+    /**
      * Close the buffer asynchronously.
      *
      * @return

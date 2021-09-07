@@ -333,6 +333,35 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testTerminate() {
+        String testLocalTopicName = "topic-not-found";
+
+        // 1) Create the nonPartitionTopic topic
+        persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, testLocalTopicName, true);
+
+        // 2) Create a subscription
+        AsyncResponse response  = mock(AsyncResponse.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
+                (MessageIdImpl) MessageId.earliest, false);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 3) Assert terminate persistent topic
+        MessageId messageId = persistentTopics.terminate(testTenant, testNamespace, testLocalTopicName, true);
+        Assert.assertEquals(messageId, new MessageIdImpl(3, -1, -1));
+
+        // 4) Assert terminate non-persistent topic
+        String nonPersistentTopicName = "non-persistent-topic";
+        try {
+            nonPersistentTopic.terminate(testTenant, testNamespace, nonPersistentTopicName, true);
+            Assert.fail("Should fail validation on non-persistent topic");
+        } catch (RestException e) {
+            Assert.assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), e.getResponse().getStatus());
+        }
+    }
+
+    @Test
     public void testNonPartitionedTopics() {
         final String nonPartitionTopic = "non-partitioned-topic";
         AsyncResponse response = mock(AsyncResponse.class);
