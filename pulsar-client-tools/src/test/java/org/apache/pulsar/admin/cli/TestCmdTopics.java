@@ -30,13 +30,62 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.pulsar.client.admin.Lookup;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.mockito.Mockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@PrepareForTest({CmdFunctions.class})
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.core.*" })
 public class TestCmdTopics {
+    private static final String PERSISTENT_TOPIC_URL = "persistent://";
+    private static final String PARTITIONED_TOPIC_NAME = "my-topic";
+    private PulsarAdmin pulsarAdmin;
+    private CmdTopics cmdTopics;
+    private Lookup mockLookup;
+    private CmdTopics.PartitionedLookup partitionedLookup;
+
+    @BeforeMethod
+    public void setup() throws Exception {
+        pulsarAdmin = Mockito.mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(pulsarAdmin.topics()).thenReturn(mockTopics);
+        Schemas mockSchemas = mock(Schemas.class);
+        when(pulsarAdmin.schemas()).thenReturn(mockSchemas);
+        mockLookup = mock(Lookup.class);
+        when(pulsarAdmin.lookups()).thenReturn(mockLookup);
+        cmdTopics = spy(new CmdTopics(() -> pulsarAdmin));
+        partitionedLookup = spy(cmdTopics.getPartitionedLookup());
+
+        mockStatic(CmdFunctions.class);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() throws IOException {
+        //NOTHING FOR NOW
+    }
+
     private static LedgerInfo newLedger(long id, long entries, long size) {
         LedgerInfo l = new LedgerInfo();
         l.ledgerId = id;
@@ -87,5 +136,26 @@ public class TestCmdTopics {
         } finally {
             System.setOut(defaultSystemOut);
         }
+   }
+    public void testPartitionedLookup() throws Exception {
+        partitionedLookup.run();
+        StringBuilder topic = new StringBuilder();
+        topic.append(PERSISTENT_TOPIC_URL);
+        topic.append(PUBLIC_TENANT);
+        topic.append(DEFAULT_NAMESPACE);
+        topic.append(PARTITIONED_TOPIC_NAME);
+        verify(mockLookup).lookupPartitionedTopic(eq(topic.toString()));
+    }
+
+    @Test
+    public void testPartitionedLookupSortByBroker() throws Exception {
+        partitionedLookup.run();
+        StringBuilder topic = new StringBuilder();
+        topic.append(PERSISTENT_TOPIC_URL);
+        topic.append(PUBLIC_TENANT);
+        topic.append(DEFAULT_NAMESPACE);
+        topic.append(PARTITIONED_TOPIC_NAME);
+        partitionedLookup.sortByBroker = true;
+        verify(mockLookup).lookupPartitionedTopic(eq(topic.toString()));
     }
 }
