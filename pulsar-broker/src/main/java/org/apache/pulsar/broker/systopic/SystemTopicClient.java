@@ -106,6 +106,25 @@ public interface SystemTopicClient<T> {
         CompletableFuture<MessageId> writeAsync(T t);
 
         /**
+         * Delete event in the system topic.
+         * @param t pulsar event
+         * @return message id
+         * @throws PulsarClientException exception while write event cause
+         */
+        default MessageId delete(T t) throws PulsarClientException {
+            throw new UnsupportedOperationException("Unsupported operation");
+        }
+
+        /**
+         * Async delete event in the system topic.
+         * @param t pulsar event
+         * @return message id future
+         */
+        default CompletableFuture<MessageId> deleteAsync(T t) {
+            throw new UnsupportedOperationException("Unsupported operation");
+        }
+
+        /**
          * Close the system topic writer.
          */
         void close() throws IOException;
