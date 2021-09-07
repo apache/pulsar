@@ -40,6 +40,11 @@ COPY scripts/install-pulsar-client-37.sh /pulsar/bin
 
 FROM openjdk:8-jdk-slim
 
+# Install software-properties-common
+RUN apt update \
+    && apt install software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa
+
 # Install some utilities
 RUN apt-get update \
      && apt-get install -y netcat dnsutils less procps iputils-ping \
@@ -71,4 +76,3 @@ COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
 RUN /pulsar/bin/install-pulsar-client-37.sh
-
