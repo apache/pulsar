@@ -53,9 +53,10 @@ public class BacklogQuotaManager {
 
     public BacklogQuotaManager(PulsarService pulsar) {
         this.isTopicLevelPoliciesEnable = pulsar.getConfiguration().isTopicLevelPoliciesEnabled();
+        double backlogQuotaGB = pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB();
         this.defaultQuota = BacklogQuotaImpl.builder()
-                .limitSize(pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB()
-                        * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                .limitSize(backlogQuotaGB > 0 ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                        : pulsar.getConfiguration().getBacklogQuotaDefaultLimitBytes())
                 .limitTime(pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond())
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
@@ -90,9 +91,12 @@ public class BacklogQuotaManager {
                     .map(TopicPolicies::getBackLogQuotaMap)
                     .map(map -> map.get(backlogQuotaType.name()))
                     .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType));
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.debug("Topic policies cache have not init, will apply the namespace backlog quota: topicName={}",
+                    topicName);
         } catch (Exception e) {
-            log.warn("Failed to read topic policies data, will apply the namespace backlog quota: topicName={}",
-                    topicName, e);
+            log.error("Failed to read topic policies data, "
+                            + "will apply the namespace backlog quota: topicName={}", topicName, e);
         }
         return getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType);
     }

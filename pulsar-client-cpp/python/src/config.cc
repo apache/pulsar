@@ -18,6 +18,8 @@
  */
 #include "utils.h"
 #include <pulsar/ConsoleLoggerFactory.h>
+#include "lib/Utils.h"
+#include <memory>
 
 template<typename T>
 struct ListenerWrapper {
@@ -48,7 +50,7 @@ struct ListenerWrapper {
 
         try {
             py::call<void>(_pyListener, py::object(&consumer), py::object(&msg));
-        } catch (py::error_already_set e) {
+        } catch (const py::error_already_set& e) {
             PyErr_Print();
         }
 
@@ -89,52 +91,48 @@ static ProducerConfiguration& ProducerConfiguration_setCryptoKeyReader(ProducerC
     return conf;
 }
 
+static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfiguration& conf,
+                                                                        py::object cryptoKeyReader) {
+    CryptoKeyReaderWrapper cryptoKeyReaderWrapper = py::extract<CryptoKeyReaderWrapper>(cryptoKeyReader);
+    conf.setCryptoKeyReader(cryptoKeyReaderWrapper.cryptoKeyReader);
+    return conf;
+}
+
 class LoggerWrapper: public Logger {
-    PyObject* _pyLogger;
-    Logger* fallbackLogger;
-    int _currentPythonLogLevel = _getLogLevelValue(Logger::LEVEL_INFO);
+    PyObject* const _pyLogger;
+    const int _pythonLogLevel;
+    const std::unique_ptr<Logger> _fallbackLogger;
 
-    void _updateCurrentPythonLogLevel() {
-        PyGILState_STATE state = PyGILState_Ensure();
-
-        try {
-            _currentPythonLogLevel = py::call_method<int>(_pyLogger, "getEffectiveLevel");
-        } catch (py::error_already_set e) {
-            PyErr_Print();
-        }
-
-        PyGILState_Release(state);
-    };
-
-    int _getLogLevelValue(Level level) {
+    static constexpr int _getLogLevelValue(Level level) {
         return 10 + (level * 10);
     }
 
    public:
 
-    LoggerWrapper(const std::string &filename, PyObject* pyLogger) {
-        _pyLogger = pyLogger;
+    LoggerWrapper(PyObject* pyLogger, int pythonLogLevel, Logger* fallbackLogger)
+        : _pyLogger(pyLogger),
+          _pythonLogLevel(pythonLogLevel),
+          _fallbackLogger(fallbackLogger) {
         Py_XINCREF(_pyLogger);
-
-        std::unique_ptr<LoggerFactory> factory(new ConsoleLoggerFactory());
-        fallbackLogger = factory->getLogger(filename);
-
-        _updateCurrentPythonLogLevel();
     }
+
+    LoggerWrapper(const LoggerWrapper&) = delete;
+    LoggerWrapper(LoggerWrapper&&) noexcept = delete;
+    LoggerWrapper& operator=(const LoggerWrapper&) = delete;
+    LoggerWrapper& operator=(LoggerWrapper&&) = delete;
 
     virtual ~LoggerWrapper() {
         Py_XDECREF(_pyLogger);
-        delete fallbackLogger;
     }
 
     bool isEnabled(Level level) {
-        return _getLogLevelValue(level) >= _currentPythonLogLevel;
+        return _getLogLevelValue(level) >= _pythonLogLevel;
     }
 
     void log(Level level, int line, const std::string& message) {
-        if (Py_IsInitialized() != true) {
+        if (!Py_IsInitialized()) {
             // Python logger is unavailable - fallback to console logger
-            fallbackLogger->log(level, line, message);
+            _fallbackLogger->log(level, line, message);
         } else {
             PyGILState_STATE state = PyGILState_Ensure();
 
@@ -154,8 +152,8 @@ class LoggerWrapper: public Logger {
                         break;
                 }
 
-            } catch (py::error_already_set e) {
-                PyErr_Print();
+            } catch (const py::error_already_set& e) {
+                _fallbackLogger->log(level, line, message);
             }
 
             PyGILState_Release(state);
@@ -164,12 +162,29 @@ class LoggerWrapper: public Logger {
 };
 
 class LoggerWrapperFactory : public LoggerFactory {
+    std::unique_ptr<LoggerFactory> _fallbackLoggerFactory{new ConsoleLoggerFactory};
     PyObject* _pyLogger;
+    Optional<int> _pythonLogLevel{Optional<int>::empty()};
+
+    void initializePythonLogLevel() {
+        PyGILState_STATE state = PyGILState_Ensure();
+
+        try {
+            int level = py::call_method<int>(_pyLogger, "getEffectiveLevel");
+            _pythonLogLevel = Optional<int>::of(level);
+        } catch (const py::error_already_set& e) {
+            // Failed to get log level from _pyLogger, set it to empty to fallback to _fallbackLogger
+            _pythonLogLevel = Optional<int>::empty();
+        }
+
+        PyGILState_Release(state);
+    }
 
    public:
     LoggerWrapperFactory(py::object pyLogger) {
         _pyLogger = pyLogger.ptr();
         Py_XINCREF(_pyLogger);
+        initializePythonLogLevel();
     }
 
     virtual ~LoggerWrapperFactory() {
@@ -177,7 +192,12 @@ class LoggerWrapperFactory : public LoggerFactory {
     }
 
     Logger* getLogger(const std::string &fileName) {
-        return new LoggerWrapper(fileName, _pyLogger);
+        const auto fallbackLogger = _fallbackLoggerFactory->getLogger(fileName);
+        if (_pythonLogLevel.is_present()) {
+            return new LoggerWrapper(_pyLogger, _pythonLogLevel.value(), fallbackLogger);
+        } else {
+            return fallbackLogger;
+        }
     }
 };
 
@@ -206,7 +226,7 @@ void export_config() {
             .def("log_conf_file_path", &ClientConfiguration::setLogConfFilePath, return_self<>())
             .def("use_tls", &ClientConfiguration::isUseTls)
             .def("use_tls", &ClientConfiguration::setUseTls, return_self<>())
-            .def("tls_trust_certs_file_path", &ClientConfiguration::getTlsTrustCertsFilePath)
+            .def("tls_trust_certs_file_path", &ClientConfiguration::getTlsTrustCertsFilePath, return_value_policy<copy_const_reference>())
             .def("tls_trust_certs_file_path", &ClientConfiguration::setTlsTrustCertsFilePath, return_self<>())
             .def("tls_allow_insecure_connection", &ClientConfiguration::isTlsAllowInsecureConnection)
             .def("tls_allow_insecure_connection", &ClientConfiguration::setTlsAllowInsecureConnection, return_self<>())
@@ -233,6 +253,8 @@ void export_config() {
             .def("block_if_queue_full", &ProducerConfiguration::setBlockIfQueueFull, return_self<>())
             .def("partitions_routing_mode", &ProducerConfiguration::getPartitionsRoutingMode)
             .def("partitions_routing_mode", &ProducerConfiguration::setPartitionsRoutingMode, return_self<>())
+            .def("lazy_start_partitioned_producers", &ProducerConfiguration::getLazyStartPartitionedProducers)
+            .def("lazy_start_partitioned_producers", &ProducerConfiguration::setLazyStartPartitionedProducers, return_self<>())
             .def("batching_enabled", &ProducerConfiguration::getBatchingEnabled, return_value_policy<copy_const_reference>())
             .def("batching_enabled", &ProducerConfiguration::setBatchingEnabled, return_self<>())
             .def("batching_max_messages", &ProducerConfiguration::getBatchingMaxMessages, return_value_policy<copy_const_reference>())
@@ -290,5 +312,6 @@ void export_config() {
             .def("subscription_role_prefix", &ReaderConfiguration::setSubscriptionRolePrefix)
             .def("read_compacted", &ReaderConfiguration::isReadCompacted)
             .def("read_compacted", &ReaderConfiguration::setReadCompacted)
+            .def("crypto_key_reader", &ReaderConfiguration_setCryptoKeyReader, return_self<>())
             ;
 }

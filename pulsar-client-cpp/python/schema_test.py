@@ -19,6 +19,8 @@
 #
 
 from unittest import TestCase, main
+
+import fastavro
 import pulsar
 from pulsar.schema import *
 from enum import Enum
@@ -46,6 +48,7 @@ class SchemaTest(TestCase):
             h = Bytes()
             i = Map(String())
 
+        fastavro.parse_schema(Example.schema())
         self.assertEqual(Example.schema(), {
             "name": "Example",
             "type": "record",
@@ -84,6 +87,7 @@ class SchemaTest(TestCase):
             sub = MySubRecord     # Test with class
             sub2 = MySubRecord()  # Test with instance
 
+        fastavro.parse_schema(Example.schema())
         self.assertEqual(Example.schema(), {
             "name": "Example",
             "type": "record",
@@ -99,13 +103,7 @@ class SchemaTest(TestCase):
                  }]
                  },
                  {"name": "sub2",
-                  "type": ["null", {
-                     "name": "MySubRecord",
-                     "type": "record",
-                     "fields": [{"name": "x", "type": ["null", "int"]},
-                                {"name": "y", "type": ["null", "long"]},
-                                {"name": "z", "type": ["null", "string"]}]
-                 }]
+                  "type": ["null", 'MySubRecord']
                  }
             ]
         })
@@ -896,12 +894,22 @@ class SchemaTest(TestCase):
             na4 = String()
             nb4 = Integer()
 
+        class Color(Enum):
+            red = 1
+            green = 2
+            blue = 3
+
         class ComplexRecord(Record):
             a = Integer()
             b = Integer()
+            color = Color
+            color2 = Color
             nested = NestedObj2()
+            nested2 = NestedObj2()
             mapNested = Map(NestedObj3())
+            mapNested2 = Map(NestedObj3())
             arrayNested = Array(NestedObj4())
+            arrayNested2 = Array(NestedObj4())
 
         print('complex schema: ', ComplexRecord.schema())
         self.assertEqual(ComplexRecord.schema(), {
@@ -909,18 +917,23 @@ class SchemaTest(TestCase):
             "type": "record",
             "fields": [
                 {"name": "a", "type": ["null", "int"]},
-                {'name': 'arrayNested', 'type': ['null',
-                    {'type': 'array', 'items': {'name': 'NestedObj4', 'type': 'record', 'fields': [
+                {'name': 'arrayNested', 'type': ['null', {'type': 'array', 'items':
+                    {'name': 'NestedObj4', 'type': 'record', 'fields': [
                         {'name': 'na4', 'type': ['null', 'string']},
                         {'name': 'nb4', 'type': ['null', 'int']}
                     ]}}
                 ]},
+                {'name': 'arrayNested2', 'type': ['null', {'type': 'array', 'items': 'NestedObj4'}]},
                 {"name": "b", "type": ["null", "int"]},
+                {'name': 'color', 'type': ['null', {'type': 'enum', 'name': 'Color', 'symbols': [
+                    'red', 'green', 'blue']}]},
+                {'name': 'color2', 'type': ['null', 'Color']},
                 {'name': 'mapNested', 'type': ['null', {'type': 'map', 'values':
                     {'name': 'NestedObj3', 'type': 'record', 'fields': [
                         {'name': 'na3', 'type': ['null', 'int']}
                     ]}}
                 ]},
+                {'name': 'mapNested2', 'type': ['null', {'type': 'map', 'values': 'NestedObj3'}]},
                 {"name": "nested", "type": ['null', {'name': 'NestedObj2', 'type': 'record', 'fields': [
                     {'name': 'na2', 'type': ['null', 'int']},
                     {'name': 'nb2', 'type': ['null', 'boolean']},
@@ -928,7 +941,8 @@ class SchemaTest(TestCase):
                         {'name': 'na1', 'type': ['null', 'string']},
                         {'name': 'nb1', 'type': ['null', 'double']}
                     ]}]}
-                ]}]}
+                ]}]},
+                {"name": "nested2", "type": ['null', 'NestedObj2']}
             ]
         })
 
@@ -939,13 +953,22 @@ class SchemaTest(TestCase):
 
             nested_obj1 = NestedObj1(na1='na1 value', nb1=20.5)
             nested_obj2 = NestedObj2(na2=22, nb2=True, nc2=nested_obj1)
-            r = ComplexRecord(a=1, b=2, nested=nested_obj2, mapNested={
+            r = ComplexRecord(a=1, b=2, color=Color.red, color2=Color.blue,
+                              nested=nested_obj2, nested2=nested_obj2,
+            mapNested={
                 'a': NestedObj3(na3=1),
                 'b': NestedObj3(na3=2),
                 'c': NestedObj3(na3=3)
+            }, mapNested2={
+                'd': NestedObj3(na3=4),
+                'e': NestedObj3(na3=5),
+                'f': NestedObj3(na3=6)
             }, arrayNested=[
                 NestedObj4(na4='value na4 1', nb4=100),
                 NestedObj4(na4='value na4 2', nb4=200)
+            ], arrayNested2=[
+                NestedObj4(na4='value na4 3', nb4=300),
+                NestedObj4(na4='value na4 4', nb4=400)
             ])
             data_encode = data_schema.encode(r)
 
@@ -954,17 +977,30 @@ class SchemaTest(TestCase):
             self.assertEqual(data_decode, r)
             self.assertEqual(data_decode.a, 1)
             self.assertEqual(data_decode.b, 2)
+            self.assertEqual(data_decode.color, Color.red)
+            self.assertEqual(data_decode.color2, Color.blue)
             self.assertEqual(data_decode.nested.na2, 22)
             self.assertEqual(data_decode.nested.nb2, True)
             self.assertEqual(data_decode.nested.nc2.na1, 'na1 value')
             self.assertEqual(data_decode.nested.nc2.nb1, 20.5)
+            self.assertEqual(data_decode.nested2.na2, 22)
+            self.assertEqual(data_decode.nested2.nb2, True)
+            self.assertEqual(data_decode.nested2.nc2.na1, 'na1 value')
+            self.assertEqual(data_decode.nested2.nc2.nb1, 20.5)
             self.assertEqual(data_decode.mapNested['a'].na3, 1)
             self.assertEqual(data_decode.mapNested['b'].na3, 2)
             self.assertEqual(data_decode.mapNested['c'].na3, 3)
+            self.assertEqual(data_decode.mapNested2['d'].na3, 4)
+            self.assertEqual(data_decode.mapNested2['e'].na3, 5)
+            self.assertEqual(data_decode.mapNested2['f'].na3, 6)
             self.assertEqual(data_decode.arrayNested[0].na4, 'value na4 1')
             self.assertEqual(data_decode.arrayNested[0].nb4, 100)
             self.assertEqual(data_decode.arrayNested[1].na4, 'value na4 2')
             self.assertEqual(data_decode.arrayNested[1].nb4, 200)
+            self.assertEqual(data_decode.arrayNested2[0].na4, 'value na4 3')
+            self.assertEqual(data_decode.arrayNested2[0].nb4, 300)
+            self.assertEqual(data_decode.arrayNested2[1].na4, 'value na4 4')
+            self.assertEqual(data_decode.arrayNested2[1].nb4, 400)
             print('Encode and decode complex schema finish. schema_type: ', schema_type)
 
         encode_and_decode('avro')

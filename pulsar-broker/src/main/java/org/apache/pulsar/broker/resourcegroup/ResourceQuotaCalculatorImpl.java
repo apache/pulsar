@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import static java.lang.Float.max;
 import static java.lang.Math.abs;
+import lombok.val;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +39,12 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
 
         if (confUsage < 0) {
             // This can happen if the RG is not configured with this particular limit (message or byte count) yet.
-            // It is safe to return a high value (so we don't limit) for the quota.
-            log.debug("Configured usage (%d) is not set; returning a high calculated quota", confUsage);
-            return Long.MAX_VALUE;
+            val retVal = -1;
+            if (log.isDebugEnabled()) {
+                log.debug("Configured usage ({}) is not set; returning a special value ({}) for calculated quota",
+                        confUsage, retVal);
+            }
+            return retVal;
         }
 
         if (myUsage < 0 || totalUsage < 0) {
@@ -48,6 +52,22 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
                     myUsage, totalUsage);
             log.error(errMesg);
             throw new PulsarAdminException(errMesg);
+        }
+
+        // If the total usage is zero (which may happen during initial transients), just return the configured value.
+        // The caller is expected to check the value returned, or not call here with a zero global usage.
+        // [This avoids a division by zero when calculating the local share.]
+        if (totalUsage == 0) {
+            log.warn("computeLocalQuota: totalUsage is zero; returning the configured usage ({}) as new local quota",
+                    confUsage);
+            return confUsage;
+        }
+
+        if (myUsage > totalUsage) {
+            String errMesg = String.format("Local usage (%d) is greater than total usage (%d)",
+                    myUsage, totalUsage);
+            // Log as a warning [in case this can happen transiently (?)].
+            log.warn(errMesg);
         }
 
         // How much unused capacity is left over?
@@ -60,7 +80,11 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         float myUsageFraction = (float) myUsage / totalUsage;
         float calculatedQuota = max(myUsage + residual * myUsageFraction, 0);
 
-        return (long) calculatedQuota;
+        val longCalculatedQuota = (long) calculatedQuota;
+        log.info("computeLocalQuota: myUsage={}, totalUsage={}, myFraction={}; newQuota returned={} [long: {}]",
+                myUsage, totalUsage, myUsageFraction, calculatedQuota, longCalculatedQuota);
+
+        return longCalculatedQuota;
     }
 
     @Override

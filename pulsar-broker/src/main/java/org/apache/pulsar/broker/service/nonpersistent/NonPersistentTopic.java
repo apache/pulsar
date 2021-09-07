@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -269,7 +270,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             }
 
             NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
-                    name -> new NonPersistentSubscription(this, subscriptionName));
+                    name -> new NonPersistentSubscription(this, subscriptionName, isDurable));
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
                     cnx, cnx.getAuthRole(), metadata, readCompacted, initialPosition, keySharedMeta, MessageId.latest);
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
@@ -319,7 +320,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState) {
-        return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName));
+        return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName, true));
     }
 
     @Override
@@ -561,7 +562,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         replicators.computeIfAbsent(remoteCluster, r -> {
             try {
                 return new NonPersistentReplicator(NonPersistentTopic.this, localCluster, remoteCluster, brokerService);
-            } catch (NamingException e) {
+            } catch (NamingException | PulsarServerException e) {
                 isReplicatorStarted.set(false);
                 log.error("[{}] Replicator startup failed due to partitioned-topic {}", topic, remoteCluster);
             }

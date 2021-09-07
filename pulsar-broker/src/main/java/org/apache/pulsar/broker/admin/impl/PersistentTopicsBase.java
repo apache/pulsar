@@ -1263,7 +1263,8 @@ public class PersistentTopicsBase extends AdminResource {
                         try {
                             stats.add(statFuture.get());
                             if (perPartition) {
-                                stats.partitions.put(topicName.getPartition(i).toString(), statFuture.get());
+                                stats.getPartitions().put(topicName.getPartition(i).toString(),
+                                        (TopicStatsImpl) statFuture.get());
                             }
                         } catch (Exception e) {
                             asyncResponse.resume(new RestException(e));
@@ -1276,7 +1277,7 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         boolean zkPathExists = namespaceResources().getPartitionedTopicResources().exists(path);
                         if (zkPathExists) {
-                            stats.partitions.put(topicName.toString(), new TopicStatsImpl());
+                            stats.getPartitions().put(topicName.toString(), new TopicStatsImpl());
                         } else {
                             asyncResponse.resume(
                                     new RestException(Status.NOT_FOUND,
@@ -3635,6 +3636,21 @@ public class PersistentTopicsBase extends AdminResource {
                         p -> new PartitionedTopicMetadata(numPartitions));
                 updatePartition.complete(null);
             } catch (Exception e) {
+                getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                    int oldPartition = metadata.partitions;
+                    for (int i = oldPartition; i < numPartitions; i++) {
+                        String managedLedgerPath = ZkAdminPaths.managedLedgerPath(topicName.getPartition(i));
+                        namespaceResources().getPartitionedTopicResources()
+                                .deleteAsync(managedLedgerPath).exceptionally(ex1 -> {
+                            log.warn("[{}] Failed to clean up managedLedger znode {}", clientAppId(),
+                                    managedLedgerPath, ex1.getCause());
+                            return null;
+                        });
+                    }
+                }).exceptionally(ex -> {
+                    log.warn("[{}] Failed to clean up managedLedger znode", clientAppId(), ex.getCause());
+                    return null;
+                });
                 updatePartition.completeExceptionally(e);
             }
         }).exceptionally(ex -> {
@@ -3772,9 +3788,9 @@ public class PersistentTopicsBase extends AdminResource {
         TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
         PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
         int oldPartition = metadata.partitions;
-        String prefix = topicName + TopicName.PARTITIONED_TOPIC_SUFFIX;
+        String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
         for (String exsitingTopicName : existingTopicList) {
-            if (exsitingTopicName.contains(prefix)) {
+            if (exsitingTopicName.startsWith(prefix)) {
                 try {
                     long suffix = Long.parseLong(exsitingTopicName.substring(
                             exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
@@ -3789,7 +3805,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 clientAppId(),
                                 exsitingTopicName, topicName);
                         throw new RestException(Status.PRECONDITION_FAILED,
-                                "Already have non partition topic" + exsitingTopicName
+                                "Already have non partition topic " + exsitingTopicName
                                         + " which contains partition suffix '-partition-' "
                                         + "and end with numeric value and end with numeric value smaller than the new "
                                         + "number of partition. Update of partitioned topic "

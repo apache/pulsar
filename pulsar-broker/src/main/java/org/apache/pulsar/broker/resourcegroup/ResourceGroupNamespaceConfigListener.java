@@ -116,11 +116,11 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
         }
         try {
             if (delete) {
-                LOG.info("Unregistering namespace {}, resource group {}", ns, current.resourceGroupName);
+                LOG.info("Unregistering namespace {} from resource group {}", ns, current.resourceGroupName);
                 rgService.unRegisterNameSpace(current.resourceGroupName, ns);
             }
             if (add) {
-                LOG.info("Registering namespace {} from resource group {}", ns, policy.resource_group_name);
+                LOG.info("Registering namespace {} with resource group {}", ns, policy.resource_group_name);
                 rgService.registerNameSpace(policy.resource_group_name, ns);
             }
         } catch (PulsarAdminException e) {

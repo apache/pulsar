@@ -1,0 +1,96 @@
+{
+  "version-2.7.3/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/kubernetes-helm"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-proxy-sni-routing"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-multiple-advertised-listeners"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-manage"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    }
+  ]
+}

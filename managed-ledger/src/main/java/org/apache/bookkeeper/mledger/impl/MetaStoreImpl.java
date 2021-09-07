@@ -23,11 +23,13 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.concurrent.RejectedExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -118,7 +120,13 @@ public class MetaStoreImpl implements MetaStore {
                     }
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
+                    try {
+                        executor.executeOrdered(ledgerName,
+                                SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
+                    } catch (RejectedExecutionException e) {
+                        //executor maybe shutdown, use common pool to run callback.
+                        CompletableFuture.runAsync(() -> callback.operationFailed(getException(ex)));
+                    }
                     return null;
                 });
     }
@@ -257,6 +265,11 @@ public class MetaStoreImpl implements MetaStore {
         }
     }
 
+    @Override
+    public CompletableFuture<Boolean> asyncExists(String path) {
+        return store.exists(PREFIX + path);
+    }
+
     //
     // update timestamp if missing or 0
     // 3 cases - timestamp does not exist for ledgers serialized before
@@ -319,7 +332,6 @@ public class MetaStoreImpl implements MetaStore {
 
             encodeByteBuf = getCompressionCodec(compressionType)
                     .encode(Unpooled.wrappedBuffer(managedLedgerInfo.toByteArray()));
-
             CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
             compositeByteBuf.addComponent(true, metadataByteBuf);
             compositeByteBuf.addComponent(true, encodeByteBuf);
@@ -367,6 +379,7 @@ public class MetaStoreImpl implements MetaStore {
                 if (decodeByteBuf != null) {
                     decodeByteBuf.release();
                 }
+                byteBuf.release();
             }
         } else {
             return ManagedLedgerInfo.parseFrom(data);

@@ -167,6 +167,13 @@ public class SourceConfigUtils {
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
 
+        if (sourceConfig.getBatchBuilder() != null) {
+            Function.ProducerSpec.Builder builder = sinkSpecBuilder.getProducerSpec() != null
+                    ? sinkSpecBuilder.getProducerSpec().toBuilder()
+                    : Function.ProducerSpec.newBuilder();
+            sinkSpecBuilder.setProducerSpec(builder.setBatchBuilder(sourceConfig.getBatchBuilder()).build());
+        }
+
         sinkSpecBuilder.setForwardSourceMessageProperty(true);
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);

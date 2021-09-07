@@ -25,6 +25,7 @@ import io.netty.buffer.Unpooled;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -53,6 +54,8 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
     public void testCompactedOutMessages() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/my-topic";
 
+        BrokerEntryMetadata brokerEntryMetadata = new BrokerEntryMetadata().setBrokerTimestamp(1).setBrokerTimestamp(1);
+
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName("foobar")
                 .setSequenceId(1)
@@ -78,9 +81,8 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
              = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
                 .subscriptionName("my-subscriber-name").subscribe()) {
             // shove it in the sideways
-            consumer.receiveIndividualMessagesFromBatch(metadata, 0, null, batchBuffer,
-                                                        new MessageIdData().setLedgerId(1234)
-                                                        .setEntryId(567), consumer.cnx());
+            consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
+                    batchBuffer, new MessageIdData().setLedgerId(1234).setEntryId(567), consumer.cnx());
             Message<?> m = consumer.receive();
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getLedgerId(), 1234);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getEntryId(), 567);

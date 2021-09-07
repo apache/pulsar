@@ -264,13 +264,15 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         this.pulsar = startBroker(conf);
 
-        brokerUrl = new URL(pulsar.getWebServiceAddress());
-        brokerUrlTls = new URL(pulsar.getWebServiceAddressTls());
+        brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
+        brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
         if (admin != null) {
             admin.close();
         }
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString());
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
+                ? brokerUrl.toString()
+                : brokerUrlTls.toString());
         customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
         admin = spy(pulsarAdminBuilder.build());
     }
@@ -280,19 +282,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-
         return startBrokerWithoutAuthorization(conf);
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
         conf.setBrokerShutdownTimeoutMs(0L);
-        PulsarService pulsar = spy(new PulsarService(conf));
+        PulsarService pulsar = spy(newPulsarService(conf));
         setupBrokerMocks(pulsar);
         beforePulsarStartMocks(pulsar);
         pulsar.start();
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
         return pulsar;
+    }
+
+    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
+        return new PulsarService(conf);
     }
 
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {

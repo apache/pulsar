@@ -97,6 +97,7 @@ class HandlerBase {
 
     enum State
     {
+        NotStarted,
         Pending,
         Ready,
         Closing,

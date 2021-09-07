@@ -36,7 +36,7 @@ public interface SchemaBuilder {
      * @return builder to build the schema for a record.
      */
     static RecordSchemaBuilder record(String name) {
-        return DefaultImplementation.newRecordSchemaBuilder(name);
+        return DefaultImplementation.getDefaultImplementation().newRecordSchemaBuilder(name);
     }
 
 }

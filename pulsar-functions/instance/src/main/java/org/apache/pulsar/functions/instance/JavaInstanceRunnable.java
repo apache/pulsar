@@ -39,7 +39,9 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
@@ -90,7 +92,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final InstanceConfig instanceConfig;
 
     // input topic consumer & output topic producer
-    private final PulsarClientImpl client;
+    private final ClientBuilder clientBuilder;
+    private PulsarClientImpl client;
     private final PulsarAdmin pulsarAdmin;
 
     private LogAppender logAppender;
@@ -134,13 +137,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private ReadWriteLock statsLock = new ReentrantReadWriteLock();
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
+                                ClientBuilder clientBuilder,
                                 PulsarClient pulsarClient,
                                 PulsarAdmin pulsarAdmin,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry,
-                                ClassLoader functionClassLoader) {
+                                ClassLoader functionClassLoader) throws PulsarClientException {
         this.instanceConfig = instanceConfig;
+        this.clientBuilder = clientBuilder;
         this.client = (PulsarClientImpl) pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
@@ -226,12 +231,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         isInitialized = true;
     }
 
-    ContextImpl setupContext() {
+    ContextImpl setupContext() throws PulsarClientException {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
         return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
-                pulsarAdmin);
+                pulsarAdmin, clientBuilder);
     }
 
     /**
@@ -632,6 +637,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 if (conf.hasCryptoSpec()) {
                     consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
                 }
+                consumerConfig.setPoolMessages(conf.getPoolMessages());
 
                 topicSchema.put(topic, consumerConfig);
             });
@@ -776,6 +782,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     ProducerConfig.ProducerConfigBuilder builder = ProducerConfig.builder()
                             .maxPendingMessages(conf.getMaxPendingMessages())
                             .maxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions())
+                            .batchBuilder(conf.getBatchBuilder())
                             .useThreadLocalProducers(conf.getUseThreadLocalProducers())
                             .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
                     pulsarSinkConfig.setProducerConfig(builder.build());

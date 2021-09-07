@@ -169,7 +169,7 @@ All the replication metrics are also labelled with `remoteCluster=${pulsar_remot
 | pulsar_replication_rate_expired | Gauge | Total rate of messages expired (messages/second). |
 | pulsar_replication_connected_count | Gauge | The count of replication-subscriber up and running to replicate to remote cluster. |
 | pulsar_replication_delay_in_seconds | Gauge | Time in seconds from the time a message was produced to the time when it is about to be replicated. |
-~~~~
+
 
 ### Topic metrics
 
@@ -200,10 +200,19 @@ All the topic metrics are labelled with the following labels:
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
-| pulsar_in_bytes_total | Counter | The total number of bytes received for this topic |
-| pulsar_in_messages_total | Counter | The total number of messages received for this topic |
-| pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
-| pulsar_out_messages_total | Counter | The total number of messages read from this topic |
+| pulsar_in_bytes_total | Counter | The total number of messages in bytes received for this topic. |
+| pulsar_in_messages_total | Counter | The total number of messages received for this topic. |
+| pulsar_out_bytes_total | Counter | The total number of messages in bytes read from this topic. |
+| pulsar_out_messages_total | Counter | The total number of messages read from this topic. |
+| pulsar_compaction_removed_event_count | Gauge | The total number of removed events of the compaction. |
+| pulsar_compaction_succeed_count | Gauge | The total number of successes of the compaction. |
+| pulsar_compaction_failed_count | Gauge | The total number of failures of the compaction. |
+| pulsar_compaction_duration_time_in_mills | Gauge | The duration time of the compaction. |
+| pulsar_compaction_read_throughput | Gauge | The read throughput of the compaction. |
+| pulsar_compaction_write_throughput | Gauge | The write throughput of the compaction. |
+| pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
+| pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
+| pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
 
 #### Replication metrics
 
@@ -286,6 +295,9 @@ brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")|
 brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.
 brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of non-contiguous deleted messages ranges.
+brk_ml_cursor_writeLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger.
+brk_ml_cursor_writeLedgerLogicalSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of write to ledger (accounting for without replicas).
+brk_ml_cursor_readLedgerSize(namespace="", ledger_name="", cursor_name:"")|Gauge|The size of read from ledger.
 
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:

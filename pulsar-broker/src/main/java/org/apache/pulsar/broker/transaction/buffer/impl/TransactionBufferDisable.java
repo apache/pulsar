@@ -69,6 +69,11 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> clearSnapshot() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
     }

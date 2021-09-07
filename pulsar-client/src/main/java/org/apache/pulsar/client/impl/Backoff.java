@@ -41,7 +41,6 @@ public class Backoff {
 
     private static final Random random = new Random();
 
-    @VisibleForTesting
     Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
             TimeUnit unitMandatoryStop, Clock clock) {
         this.initial = unitInitial.toMillis(initial);

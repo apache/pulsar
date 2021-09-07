@@ -31,7 +31,7 @@ services:
     command: >
       /bin/bash -c
       "bin/apply-config-from-env.py conf/standalone.conf
-      && bin/pulsar standalone --advertised-address standalone"
+      && exec bin/pulsar standalone --advertised-address standalone"
 
   dashboard:
     image: apachepulsar/pulsar-dashboard

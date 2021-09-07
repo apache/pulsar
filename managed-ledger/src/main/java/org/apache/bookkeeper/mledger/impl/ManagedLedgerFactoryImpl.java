@@ -74,6 +74,7 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
@@ -102,7 +103,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
 
-    public static final int StatsPeriodSeconds = 60;
+    //indicate whether shutdown() is called.
+    private volatile boolean closed;
 
     private static class PendingInitializeManagedLedger {
 
@@ -177,7 +179,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
         this.statsTask = scheduledExecutor.scheduleAtFixedRate(this::refreshStats,
-                0, StatsPeriodSeconds, TimeUnit.SECONDS);
+                0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(this::flushCursors,
                 config.getCursorPositionFlushSeconds(), config.getCursorPositionFlushSeconds(), TimeUnit.SECONDS);
 
@@ -187,6 +189,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
 
         cacheEvictionExecutor.execute(this::cacheEvictionTask);
+        closed = false;
     }
 
     static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
@@ -317,6 +320,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void asyncOpen(final String name, final ManagedLedgerConfig config, final OpenLedgerCallback callback,
             Supplier<Boolean> mlOwnershipChecker, final Object ctx) {
+        if (closed) {
+            callback.openLedgerFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+            return;
+        }
 
         // If the ledger state is bad, remove it from the map.
         CompletableFuture<ManagedLedgerImpl> existingFuture = ledgers.get(name);
@@ -441,6 +448,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
             OpenReadOnlyCursorCallback callback, Object ctx) {
+        if (closed) {
+            callback.openReadOnlyCursorFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+            return;
+        }
         checkArgument(startPosition instanceof PositionImpl);
         ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
                 bookkeeperFactory
@@ -472,8 +483,106 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         entryCacheManager.removeEntryCache(ledger.getName());
     }
 
+    public CompletableFuture<Void> shutdownAsync() throws ManagedLedgerException {
+        if (closed) {
+            throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
+        }
+        closed = true;
+
+        statsTask.cancel(true);
+        flushCursorsTask.cancel(true);
+
+        List<String> ledgerNames = new ArrayList<>(this.ledgers.keySet());
+        List<CompletableFuture<Void>> futures = new ArrayList<>(ledgerNames.size());
+        int numLedgers = ledgerNames.size();
+        log.info("Closing {} ledgers", numLedgers);
+        for (String ledgerName : ledgerNames) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            futures.add(future);
+            CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.remove(ledgerName);
+            if (ledgerFuture == null) {
+                future.complete(null);
+                continue;
+            }
+            ledgerFuture.whenCompleteAsync((managedLedger, throwable) -> {
+                if (throwable != null || managedLedger == null) {
+                    future.complete(null);
+                    return;
+                }
+                managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+                    @Override
+                    public void closeComplete(Object ctx) {
+                        future.complete(null);
+                    }
+
+                    @Override
+                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                        log.warn("[{}] Got exception when closing managed ledger: {}", managedLedger.getName(),
+                                exception);
+                        future.complete(null);
+                    }
+                }, null);
+
+            }, scheduledExecutor.chooseThread());
+            //close pendingInitializeManagedLedger directly to make sure all callbacks is called.
+            PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(ledgerName);
+            if (pendingLedger != null && !ledgerFuture.isDone()) {
+                ledgerFuture.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+            }
+        }
+        CompletableFuture<Void> bookkeeperFuture = new CompletableFuture<>();
+        futures.add(bookkeeperFuture);
+        futures.add(CompletableFuture.runAsync(() -> {
+            if (isBookkeeperManaged) {
+                try {
+                    BookKeeper bookkeeper = bookkeeperFactory.get();
+                    if (bookkeeper != null) {
+                        bookkeeper.close();
+                    }
+                    bookkeeperFuture.complete(null);
+                } catch (Throwable throwable) {
+                    bookkeeperFuture.completeExceptionally(throwable);
+                }
+            } else {
+                bookkeeperFuture.complete(null);
+            }
+            //wait for tasks in scheduledExecutor executed.
+            scheduledExecutor.shutdown();
+
+            if (!ledgers.isEmpty()) {
+                log.info("Force closing {} ledgers.", ledgers.size());
+                //make sure all callbacks is called.
+                ledgers.forEach(((ledgerName, ledgerFuture) -> {
+                    if (!ledgerFuture.isDone()) {
+                        ledgerFuture.completeExceptionally(
+                                new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+                    } else {
+                        ManagedLedgerImpl managedLedger = ledgerFuture.getNow(null);
+                        if (managedLedger == null) {
+                            return;
+                        }
+                        try {
+                            managedLedger.close();
+                        } catch (Throwable throwable) {
+                            log.warn("[{}] Got exception when closing managed ledger: {}", managedLedger.getName(),
+                                    throwable);
+                        }
+                    }
+                }));
+            }
+        }));
+        cacheEvictionExecutor.shutdownNow();
+        entryCacheManager.clear();
+        return FutureUtil.waitForAll(futures);
+    }
+
     @Override
     public void shutdown() throws InterruptedException, ManagedLedgerException {
+        if (closed) {
+            throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
+        }
+        closed = true;
+
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
 
@@ -522,6 +631,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         cacheEvictionExecutor.shutdownNow();
 
         entryCacheManager.clear();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> asyncExists(String ledgerName) {
+        return store.asyncExists(ledgerName);
     }
 
     @Override

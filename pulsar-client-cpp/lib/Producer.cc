@@ -24,7 +24,6 @@
 #include "ProducerImpl.h"
 
 namespace pulsar {
-DECLARE_LOG_OBJECT()
 
 static const std::string EMPTY_STRING;
 
@@ -114,7 +113,7 @@ void Producer::flushAsync(FlushCallback callback) {
 void Producer::producerFailMessages(Result result) {
     if (impl_) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(impl_.get());
-        producerImpl->failPendingMessages(result);
+        producerImpl->failPendingMessages(result, true);
     }
 }
 

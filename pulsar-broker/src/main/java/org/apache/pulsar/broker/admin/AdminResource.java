@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
 import javax.ws.rs.WebApplicationException;
@@ -240,6 +241,13 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validatePersistentTopicName(String property, String namespace, String encodedTopic) {
+        validateTopicName(property, namespace, encodedTopic);
+        if (topicName.getDomain() != TopicDomain.persistent) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Need to provide a persistent topic name");
+        }
+    }
+
     protected void validatePartitionedTopicName(String tenant, String namespace, String encodedTopic) {
         // first, it has to be a validate topic name
         validateTopicName(tenant, namespace, encodedTopic);
@@ -274,6 +282,14 @@ public abstract class AdminResource extends PulsarWebResource {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
                     namespace, topic, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
+    }
+
+    @Deprecated
+    protected void validatePersistentTopicName(String property, String cluster, String namespace, String encodedTopic) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        if (topicName.getDomain() != TopicDomain.persistent) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Need to provide a persistent topic name");
         }
     }
 
@@ -576,7 +592,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
         try {
-            return getPulsarResources().getTopicResources().getExistingPartitions(topicName).join();
+            return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get topic partition list for namespace {}", clientAppId(),
                     namespaceName.toString(), e);

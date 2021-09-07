@@ -31,7 +31,7 @@ if [ -f /.dockerenv ]; then
     rm -rf $PULSAR_DIR
     mkdir $PULSAR_DIR
     TGZ=$(ls -1 $SRC_DIR/distribution/server/target/apache-pulsar*bin.tar.gz | head -1)
-    tar xfz $TGZ -C $PULSAR_DIR --strip-components 1
+    tar -xzf $TGZ -C $PULSAR_DIR --strip-components 1
 else
     export PULSAR_DIR=$SRC_DIR
 fi
