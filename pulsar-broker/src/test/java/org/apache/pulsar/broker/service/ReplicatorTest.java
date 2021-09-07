@@ -1236,55 +1236,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
-    public void testRemoveClusterFromNamespace() throws Exception {
-        final String cluster4 = "r4";
-        admin1.clusters().createCluster(cluster4, ClusterData.builder()
-                .serviceUrl(url3.toString())
-                .serviceUrlTls(urlTls3.toString())
-                .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
-                .build());
-
-        admin1.tenants().createTenant("pulsar1",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
-                        Sets.newHashSet("r1", "r3", cluster4)));
-
-        admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r3", cluster4));
-
-        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient(cluster4);
-        Assert.assertNotNull(repClient1);
-        Assert.assertFalse(repClient1.isClosed());
-
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
-                .build();
-
-        final String topicName = "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
-
-        Producer<byte[]> producer = client.newProducer()
-                .topic(topicName)
-                .create();
-
-        producer.send("Pulsar".getBytes());
-
-        producer.close();
-        client.close();
-
-        Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
-                .get().getReplicators().get(cluster4);
-
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
-
-        admin1.clusters().deleteCluster(cluster4);
-
-        Awaitility.await().untilAsserted(() -> Assert.assertFalse(replicator.isConnected()));
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(repClient1.isClosed()));
-
-        Awaitility.await().untilAsserted(() -> Assert.assertNull(
-                pulsar1.getBrokerService().getReplicationClients().get(cluster4)));
-    }
-
-    @Test
     public void testDoNotReplicateSystemTopic() throws Exception {
         final String namespace = newUniqueName("pulsar/ns");
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r2", "r3"));
