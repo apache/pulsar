@@ -505,6 +505,9 @@ public class FunctionCommon {
 
     public static SubscriptionInitialPosition convertFromFunctionDetailsSubscriptionPosition(
             org.apache.pulsar.functions.proto.Function.SubscriptionPosition subscriptionPosition) {
+        if (subscriptionPosition == null) {
+            return null;
+        }
         if (org.apache.pulsar.functions.proto.Function.SubscriptionPosition.EARLIEST.equals(subscriptionPosition)) {
             return SubscriptionInitialPosition.Earliest;
         } else {
