@@ -76,4 +76,3 @@ COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
 RUN /pulsar/bin/install-pulsar-client-37.sh
-
