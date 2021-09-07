@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.apache.pulsar.structuredeventlog.Event;
+import org.apache.pulsar.structuredeventlog.EventGroup;
 import org.apache.pulsar.structuredeventlog.EventResources;
 import org.apache.pulsar.structuredeventlog.EventResourcesImpl;
 
@@ -40,6 +41,7 @@ class Slf4jEvent implements Event {
     private final Clock clock;
     private String traceId = null;
     private String parentId = null;
+    private String component = null;
     private List<Object> attributes = null;
     private Level level = Level.INFO;
     private Throwable throwable = null;
@@ -139,7 +141,11 @@ class Slf4jEvent implements Event {
 
     @Override
     public void log(Enum<?> event) {
-        throw new UnsupportedOperationException("TODO");
+        EventGroup g = event.getClass().getAnnotation(EventGroup.class);
+        if (g != null) {
+            this.component = g.component();
+        }
+        this.log(event.toString());
     }
 
     @Override
@@ -160,7 +166,15 @@ class Slf4jEvent implements Event {
                 MDC.put("startTimestamp", startTime.toString());
                 MDC.put("durationMs", String.valueOf(Duration.between(startTime, clock.instant()).toMillis()));
             }
-            Logger logger = LoggerFactory.getLogger("stevlog");
+            Logger logger;
+            if (component != null) {
+                MDC.put("component", component);
+                logger = LoggerFactory.getLogger(
+                        new StringBuilder("stevlog.").append(component)
+                        .append(".").append(event).toString());
+            } else {
+                logger = LoggerFactory.getLogger("stevlog");
+            }
             switch (level) {
             case ERROR:
                 if (throwable != null) {

@@ -42,6 +42,7 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig ;
 import org.apache.logging.log4j.core.layout.JsonLayout;
 import org.apache.pulsar.structuredeventlog.Event;
+import org.apache.pulsar.structuredeventlog.EventGroup;
 import org.apache.pulsar.structuredeventlog.EventResources;
 import org.apache.pulsar.structuredeventlog.StructuredEventLog;
 import org.testng.annotations.BeforeMethod;
@@ -354,6 +355,23 @@ public class StructuredEventLogTest {
         assertThat(logged.get(0).get("message"), equalTo("timed"));
         assertThat(contextMapField(logged.get(0), "startTimestamp"), equalTo("1970-01-02T03:46:40Z"));
         assertThat(contextMapField(logged.get(0), "durationMs"), equalTo("1234"));
+    }
+
+    @EventGroup(component="foobar")
+    public enum Events {
+        TEST_EVENT
+    }
+
+    @Test
+    public void testEventGroups() throws Exception {
+        StructuredEventLog log = StructuredEventLog.newLogger();
+        log.newRootEvent().log(Events.TEST_EVENT);
+
+        List<Map<String, Object>> logged = getLogged();
+        System.out.println(logged);
+        assertThat(logged.get(0).get("message"), equalTo("TEST_EVENT"));
+        assertThat(logged.get(0).get("loggerName"), equalTo("stevlog.foobar.TEST_EVENT"));
+        assertThat(contextMapField(logged.get(0), "component"), equalTo("foobar"));
     }
 
     @SuppressWarnings("unchecked")
