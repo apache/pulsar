@@ -544,7 +544,7 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
     if (endpointIterator != tcp::resolver::iterator()) {
         LOG_DEBUG(cnxString_ << "Resolved hostname " << endpointIterator->host_name()  //
                              << " to " << endpointIterator->endpoint());
-        socket_->async_connect(*endpointIterator++,
+        socket_->async_connect(*endpointIterator,
                                std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
                                          std::placeholders::_1, endpointIterator));
     } else {
