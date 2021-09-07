@@ -81,8 +81,14 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
                     if (ex1 != null) {
                         LOG.error("Exception when fetching namespaces", ex1);
                     } else {
-                        for (String ns: nsList) {
-                            updateNamespaceResourceGroup(NamespaceName.get(ts, ns));
+                        for (String ns : nsList) {
+                            NamespaceName nsn = NamespaceName.get(ts, ns);
+                            namespaceResources.namespaceExistsAsync(nsn)
+                                    .thenAccept(exists -> {
+                                        if (exists) {
+                                            updateNamespaceResourceGroup(NamespaceName.get(ts, ns));
+                                        }
+                                    });
                         }
                     }
                 });

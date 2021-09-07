@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -92,11 +91,9 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.BundlesQuotas;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -131,7 +128,6 @@ import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -162,6 +158,7 @@ import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.slf4j.Logger;
@@ -1749,12 +1746,9 @@ public class BrokerService implements Closeable {
 
 
     private void handleMetadataChanges(Notification n) {
-        if (n.getPath().startsWith(ConfigurationCacheService.POLICIES_ROOT)) {
-            Optional<NamespaceName> ns = NamespaceName.getIfValid(
-                    NamespaceBundleFactory.getNamespaceFromPoliciesPath(n.getPath()));
-            if (ns.isPresent()) {
-                handlePoliciesUpdates(ns.get());
-            }
+        if (n.getType() == NotificationType.Modified && NamespaceResources.pathIsFromNamespace(n.getPath())) {
+            NamespaceName ns = NamespaceResources.namespaceFromPath(n.getPath());
+            handlePoliciesUpdates(ns);
         } else if (pulsar().getPulsarResources().getDynamicConfigResources().isDynamicConfigurationPath(n.getPath())) {
             handleDynamicConfigurationUpdates();
         }
@@ -2508,8 +2502,8 @@ public class BrokerService implements Closeable {
 
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
         try {
-            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                            .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            Optional<Policies> policies =
+                    pulsar.getPulsarResources().getNamespaceResources().getPolicies(topicName.getNamespaceObject());
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
                 return policies.get().autoTopicCreationOverride;
@@ -2541,8 +2535,8 @@ public class BrokerService implements Closeable {
 
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
         try {
-            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            Optional<Policies> policies =
+                    pulsar.getPulsarResources().getNamespaceResources().getPolicies(topicName.getNamespaceObject());
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
                 return policies.get().autoSubscriptionCreationOverride;

@@ -79,7 +79,21 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public boolean namespaceExists(NamespaceName ns) throws MetadataStoreException {
-        return super.exists(joinPath(BASE_POLICIES_PATH, ns.toString()));
+        String path = joinPath(BASE_POLICIES_PATH, ns.toString());
+        return super.exists(path) &&
+                super.getChildren(path).isEmpty();
+    }
+
+    public CompletableFuture<Boolean> namespaceExistsAsync(NamespaceName ns) {
+        String path = joinPath(BASE_POLICIES_PATH, ns.toString());
+        return getCache().exists(path)
+                .thenCompose(exists -> {
+                    if (!exists) {
+                        return CompletableFuture.completedFuture(false);
+                    } else {
+                        return getChildrenAsync(path).thenApply(children -> children.isEmpty());
+                    }
+                });
     }
 
     public void deletePolicies(NamespaceName ns) throws MetadataStoreException{
