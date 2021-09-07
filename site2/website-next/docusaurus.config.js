@@ -58,7 +58,7 @@ const injectLinkParse = ([, prefix, , name, path]) => {
 };
 
 const injectLinkParseForEndpoint = ([, info]) => {
-  console.log("inject link parse: ", info);
+  // console.log("inject link parse: ", info);
   const [method, path, suffix] = info.split("|");
 
   const restPath = path.split("/");
