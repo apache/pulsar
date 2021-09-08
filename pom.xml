@@ -157,6 +157,8 @@ flexible messaging model and an intuitive client API.</description>
     <scala-library.version>2.11.12</scala-library.version>
     <debezium.version>1.0.0.Final</debezium.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
+    <oauth.jwks-rsa.version>0.11.0</oauth.jwks-rsa.version>
+    <oauth.java-jwt.version>3.10.3</oauth.java-jwt.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.3.0</hbase.version>
     <guava.version>30.1-jre</guava.version>
@@ -903,6 +905,18 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.jsonwebtoken</groupId>
         <artifactId>jjwt-jackson</artifactId>
         <version>${jsonwebtoken.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.auth0</groupId>
+        <artifactId>jwks-rsa</artifactId>
+        <version>${oauth.jwks-rsa.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.auth0</groupId>
+        <artifactId>java-jwt</artifactId>
+        <version>${oauth.java-jwt.version}</version>
       </dependency>
 
       <dependency>

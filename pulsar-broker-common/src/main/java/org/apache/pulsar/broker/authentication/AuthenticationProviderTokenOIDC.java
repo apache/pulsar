@@ -25,6 +25,7 @@ import java.net.MalformedURLException;
 import java.net.SocketAddress;
 import java.net.URL;
 
+import java.nio.charset.Charset;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 import java.util.List;
@@ -35,21 +36,24 @@ import com.auth0.jwk.Jwk;
 import com.auth0.jwk.JwkException;
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
+import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.SignatureVerificationException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
-import com.auth0.jwt.*;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
-public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
+public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
 
     static final String HTTP_HEADER_NAME = "Authorization";
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
@@ -61,7 +65,7 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
     static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
 
-    static final String CONF_JWK_URL = "jwkUrl";
+    static final String CONF_ISSUER_URL = "issuerUrl";
 
     // When using public key's, the algorithm of the key
     static final String CONF_TOKEN_PUBLIC_ALG = "tokenPublicKeytokenPublicKey";
@@ -89,7 +93,7 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
     private String audienceClaim;
     private String audience;
     private JwkProvider provider;
-    private String jwkUrl;
+    private String issuerUrl;
 
     // config keys
 
@@ -119,17 +123,23 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
         this.confTokenAuthClaimSettingName = prefix + CONF_TOKEN_AUTH_CLAIM;
         this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
         this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
-        this.confJWkUrlSettingName = prefix + CONF_JWK_URL;
+        this.confJWkUrlSettingName = prefix + CONF_ISSUER_URL;
 
 
         // we need to fetch the algorithm before we fetch the key
         this.roleClaim = getTokenRoleClaim(config);
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
-        this.jwkUrl = getJwkUrl(config);
+        this.issuerUrl = getIssuerUrl(config);
 
         try {
-            this.provider = new UrlJwkProvider(new URL(this.jwkUrl));
+            URL url = new URL(this.issuerUrl+"/.well-known/openid-configuration");
+            if(!url.getProtocol().equals("https")){
+                throw new MalformedURLException("protocol needs to be https");
+            }
+            //extracting the jwks_uri
+            JsonObject json = new Gson().fromJson(IOUtils.toString(url, UTF_8), JsonObject.class);
+            this.provider = new UrlJwkProvider(new URL(json.get("jwks_uri").getAsString()));
         } catch (MalformedURLException e){
             throw new MalformedURLException("Url is malformed");
         }
@@ -155,6 +165,7 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
             String token;
             String role;
             token = getToken(authData);
+
             // Parse Token by validating
 
 
@@ -205,15 +216,13 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
 
     @SuppressWarnings("unchecked")
     private DecodedJWT authenticateToken(final String token) throws AuthenticationException {
-
         DecodedJWT jwt = JWT.decode(token);
 
         Jwk jwk = null;
         Algorithm algorithm = null;
         try {
             jwk = provider.get(jwt.getKeyId());
-
-            if(!(jwk instanceof RSAPublicKey)){
+            if(!(jwk.getPublicKey() instanceof RSAPublicKey)){
                 throw new JwtException("key needs to be a RSA Publickey");
             }
 
@@ -274,7 +283,7 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
         }
     }
 
-    private String getJwkUrl(ServiceConfiguration conf){
+    private String getIssuerUrl(ServiceConfiguration conf){
         if (conf.getProperty(confJWkUrlSettingName) != null
                 && StringUtils.isNotBlank((String) conf.getProperty(confJWkUrlSettingName))) {
             return (String) conf.getProperty(confJWkUrlSettingName);
@@ -304,7 +313,7 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
     }
 
     private static final class TokenAuthenticationState implements AuthenticationState {
-        private final AuthenticationProviderTokenJWK provider;
+        private final AuthenticationProviderTokenOIDC provider;
         private AuthenticationDataSource authenticationDataSource;
         private DecodedJWT jwt;
         private final SocketAddress remoteAddress;
@@ -312,7 +321,7 @@ public class AuthenticationProviderTokenJWK implements AuthenticationProvider {
         private long expiration;
 
         TokenAuthenticationState(
-                AuthenticationProviderTokenJWK provider,
+                AuthenticationProviderTokenOIDC provider,
                 AuthData authData,
                 SocketAddress remoteAddress,
                 SSLSession sslSession) throws AuthenticationException {
