@@ -33,8 +33,12 @@ import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
@@ -44,9 +48,11 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
@@ -66,6 +72,9 @@ public class PerformanceConsumer {
 
     private static final LongAdder totalMessagesReceived = new LongAdder();
     private static final LongAdder totalBytesReceived = new LongAdder();
+
+    private static final LongAdder totalNumTransaction = new LongAdder();
+    private static final LongAdder numTransaction = new LongAdder();
 
     private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
@@ -181,6 +190,17 @@ public class PerformanceConsumer {
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
         public boolean enableBusyWait = false;
+
+        @Parameter(names = {"-to", "--txn-timeout"}, description = "transaction timeout")
+        public long transactionTimeout = 5;
+
+        @Parameter(names = {"-nmt", "---numMessage-perTransaction"},
+                description = "the number of a transaction produced")
+        public int numMessagesPerTransaction = 50;
+
+        @Parameter(names = {"-txn", "--txn-enable"}, description = "transaction enable")
+        public boolean isEnableTransaction = false;
+
     }
 
     public static void main(String[] args) throws Exception {
@@ -284,38 +304,9 @@ public class PerformanceConsumer {
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-        MessageListener<ByteBuffer> listener = (consumer, msg) -> {
-            if (arguments.testTime > 0) {
-                if (System.nanoTime() > testEndTime) {
-                    log.info("------------------- DONE -----------------------");
-                    printAggregatedStats();
-                    PerfClientUtils.exit(0);
-                }
-            }
-            messagesReceived.increment();
-            bytesReceived.add(msg.size());
-
-            totalMessagesReceived.increment();
-            totalBytesReceived.add(msg.size());
-
-            if (limiter != null) {
-                limiter.acquire();
-            }
-
-            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
-            if (latencyMillis >= 0) {
-                recorder.recordValue(latencyMillis);
-                cumulativeRecorder.recordValue(latencyMillis);
-            }
-
-            consumer.acknowledgeAsync(msg);
-
-            if(arguments.poolMessages) {
-                msg.release();
-            }
-        };
 
         ClientBuilder clientBuilder = PulsarClient.builder() //
+                .enableTransaction(arguments.isEnableTransaction)
                 .serviceUrl(arguments.serviceURL) //
                 .connectionsPerBroker(arguments.maxConnections) //
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
@@ -333,8 +324,56 @@ public class PerformanceConsumer {
         if (isNotBlank(arguments.listenerName)) {
             clientBuilder.listenerName(arguments.listenerName);
         }
+        AtomicReference<Transaction> atomicReference = new AtomicReference();
+        PulsarClient  pulsarClient = clientBuilder.build();
+        AtomicLong messageTotal = new AtomicLong(0);
+        MessageListener<ByteBuffer> listener = (consumer, msg) -> {
+            try {
+                atomicReference.compareAndSet(null, pulsarClient.newTransaction().
+                        withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+                Transaction transaction = atomicReference.get();
+                if (arguments.testTime > 0) {
+                    if (System.nanoTime() > testEndTime) {
+                        log.info("------------------- DONE -----------------------");
+                        printAggregatedStats();
+                        PerfClientUtils.exit(0);
+                    }
+                }
+                messagesReceived.increment();
+                bytesReceived.add(msg.size());
 
-        PulsarClient pulsarClient = clientBuilder.build();
+                totalMessagesReceived.increment();
+                totalBytesReceived.add(msg.size());
+
+                if (limiter != null) {
+                    limiter.acquire();
+                }
+
+                long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+                if (latencyMillis >= 0) {
+                    recorder.recordValue(latencyMillis);
+                    cumulativeRecorder.recordValue(latencyMillis);
+                }
+
+                consumer.acknowledgeAsync(msg.getMessageId(), transaction);
+
+                if(arguments.poolMessages) {
+                    msg.release();
+                }
+                if(messageTotal.incrementAndGet() >= arguments.numMessagesPerTransaction){
+                    if(atomicReference.compareAndSet(transaction, pulsarClient.newTransaction().
+                            withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get())){
+                        messageTotal.set(0);
+                        transaction.commit();
+                        totalNumTransaction.increment();
+                        numTransaction.increment();
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Transaction got error");
+            }
+
+        };
 
         List<Future<Consumer<ByteBuffer>>> futures = Lists.newArrayList();
         ConsumerBuilder<ByteBuffer> consumerBuilder = pulsarClient.newConsumer(Schema.BYTEBUFFER) //
@@ -407,10 +446,21 @@ public class PerformanceConsumer {
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
+            long totalTransaction = 0;
+            double rateTransaction = 0;
+            if(arguments.isEnableTransaction){
+                totalTransaction = totalNumTransaction.sum();
+                rateTransaction = numTransaction.sumThenReset() / elapsed;
+            }
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
+            String transactionLog = arguments.isEnableTransaction ? "---transaction: " + totalTransaction +
+                    " transaction commit --- " + rateTransaction + " transaction/s" : "";
+
             log.info(
-                    "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  " + transactionLog
+                            + "--- Latency: mean: {} ms - med: {} "
+                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
                     dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
                     reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
@@ -428,8 +478,18 @@ public class PerformanceConsumer {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesReceived.sum() / elapsed;
         double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
+        long totalTransaction = 0;
+        double rateTransaction = 0;
+        if(totalNumTransaction.sum() != 0){
+            totalTransaction = totalNumTransaction.sum();
+            rateTransaction = numTransaction.sumThenReset() / elapsed;
+        }
+
+        String transactionLog = totalNumTransaction.sum() != 0 ? "---transaction: " + totalTransaction +
+                " transaction commit --- " + rateTransaction + " transaction/s" : "";
+
         log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
+            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s" + transactionLog,
             totalMessagesReceived,
             dec.format(rate),
             dec.format(throughput));
