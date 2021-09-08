@@ -102,7 +102,7 @@ helm delete <pulsar-release-name>
 ```
 
 For the purposes of continuity, these charts have some Kubernetes objects that are not removed when performing `helm delete`.
-These items we require you to *conciously* remove them, as they affect re-deployment should you choose to.
+These items we require you to *consciously* remove them, as they affect re-deployment should you choose to.
 
 * PVCs for stateful data, which you must *consciously* remove
     - ZooKeeper: This is your metadata.

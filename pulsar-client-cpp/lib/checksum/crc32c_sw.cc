@@ -36,6 +36,8 @@
 #include "crc32c_sw.h"
 #include <mutex>
 
+namespace pulsar {
+
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY 0x82f63b78
 
@@ -96,3 +98,5 @@ uint32_t crc32c_sw(uint32_t crci, const void *buf, int len) {
     }
     return (uint32_t)crc ^ 0xffffffff;
 }
+
+}  // namespace pulsar

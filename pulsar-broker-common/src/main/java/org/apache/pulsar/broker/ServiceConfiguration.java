@@ -40,6 +40,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -93,6 +94,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_TRANSACTION = "Transaction";
     @Category
     private static final String CATEGORY_PACKAGES_MANAGEMENT = "Packages Management";
+    @Category
+    private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -332,12 +335,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int backlogQuotaCheckIntervalInSeconds = 60;
 
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead.\""
+    )
+    private double backlogQuotaDefaultLimitGB = -1;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
                 + " Increase it if you want to allow larger msg backlog"
     )
-    private long backlogQuotaDefaultLimitGB = -1;
+    private long backlogQuotaDefaultLimitBytes = -1;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -1004,6 +1014,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable exposing broker entry metadata to client.")
+    private boolean exposingBrokerEntryMetadataToClientEnabled = false;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Enable namespaceIsolation policy update take effect ontime or not," +
             " if set to ture, then the related namespaces will be unloaded after reset policy to make it take effect."
@@ -1387,6 +1402,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds). Default is 60 seconds")
     private int managedLedgerCursorPositionFlushSeconds = 60;
 
+    @FieldContext(minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "How frequently to refresh the stats. (seconds). Default is 60 seconds")
+    private int managedLedgerStatsPeriodSeconds = 60;
+
     //
     //
     @FieldContext(
@@ -1600,6 +1620,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
     private String managedLedgerDataReadPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST
             .getValue();
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
+    private String managedLedgerInfoCompressionType = "NONE";
 
     /*** --- Load balancer --- ****/
     @FieldContext(
@@ -1916,11 +1941,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "   if you enable this setting, it will cause non-java clients failed to produce."
     )
     private boolean isSchemaValidationEnforced = false;
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The schema storage implementation used by this broker"
     )
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The list compatibility checkers to be used in schema registry"
@@ -1930,6 +1957,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
             "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
     );
+
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy in broker level. If this config in namespace policy is `UNDEFINED`"
+                    + ", schema compatibility strategy check will use it in broker level."
+    )
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.UNDEFINED;
 
     /**** --- WebSocket --- ****/
     @FieldContext(
@@ -2244,6 +2278,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String packagesManagementLedgerRootPath = "/ledgers";
 
     /* packages management service configurations (end) */
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate broker additional servlet"
+    )
+    private String additionalServletDirectory = "./brokerAdditionalServlet";
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of broker additional servlet to load, which is a list of broker additional servlet names"
+    )
+    private Set<String> additionalServlets = Sets.newTreeSet();
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

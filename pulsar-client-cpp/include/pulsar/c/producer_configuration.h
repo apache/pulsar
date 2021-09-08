@@ -144,6 +144,12 @@ PULSAR_PUBLIC void pulsar_producer_configuration_set_hashing_scheme(pulsar_produ
 PULSAR_PUBLIC pulsar_hashing_scheme
 pulsar_producer_configuration_get_hashing_scheme(pulsar_producer_configuration_t *conf);
 
+PULSAR_PUBLIC void pulsar_producer_configuration_set_lazy_start_partitioned_producers(
+    pulsar_producer_configuration_t *conf, int useLazyStartPartitionedProducers);
+
+PULSAR_PUBLIC int pulsar_producer_configuration_get_lazy_start_partitioned_producers(
+    pulsar_producer_configuration_t *conf);
+
 PULSAR_PUBLIC void pulsar_producer_configuration_set_block_if_queue_full(
     pulsar_producer_configuration_t *conf, int blockIfQueueFull);
 

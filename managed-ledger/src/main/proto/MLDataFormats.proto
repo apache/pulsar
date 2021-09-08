@@ -124,3 +124,16 @@ message ManagedCursorInfo {
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;
 }
+
+enum CompressionType {
+    NONE   = 0;
+    LZ4    = 1;
+    ZLIB   = 2;
+    ZSTD   = 3;
+    SNAPPY   = 4;
+}
+
+message ManagedLedgerInfoMetadata {
+    required CompressionType compressionType = 1;
+    required int32 uncompressedSize = 2;
+}

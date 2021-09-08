@@ -42,6 +42,7 @@ static inline bool isBuiltInSchema(SchemaType schemaType) {
         case JSON:
         case AVRO:
         case PROTOBUF:
+        case PROTOBUF_NATIVE:
             return true;
 
         default:
@@ -61,6 +62,8 @@ static inline proto::Schema_Type getSchemaType(SchemaType type) {
             return Schema_Type_Protobuf;
         case AVRO:
             return Schema_Type_Avro;
+        case PROTOBUF_NATIVE:
+            return Schema_Type_ProtobufNative;
         default:
             return Schema_Type_None;
     }
@@ -163,12 +166,11 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
         4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize;  // cmdLength + cmdSize + magicLength +
     // checksumSize + msgMetadataLength + msgMetadataSize
     int totalSize = headerContentSize + payloadSize;
-    int headersSize = 4 + headerContentSize;  // totalSize + headerLength
     int checksumReaderIndex = -1;
 
     headers.reset();
-    assert(headers.writableBytes() >= headersSize);
-    headers.writeUnsignedInt(totalSize);  // External frame
+    assert(headers.writableBytes() >= (4 + headerContentSize));  // totalSize + headerLength
+    headers.writeUnsignedInt(totalSize);                         // External frame
 
     // Write cmd
     headers.writeUnsignedInt(cmdSize);
@@ -641,6 +643,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
     };
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));
 }
 
 void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {

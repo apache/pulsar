@@ -199,16 +199,16 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_className;
         @Parameter(names = "--classname", description = "The class name of a Pulsar Function")
         protected String className;
-        @Parameter(names = "--jar", description = "Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
         @Parameter(
                 names = "--py",
-                description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python)",
+                description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.",
                 listConverter = StringConverter.class)
         protected String pyFile;
         @Parameter(
                 names = "--go",
-                description = "Path to the main Go executable binary for the function (if the function is written in Go)")
+                description = "Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.")
         protected String goFile;
         @Parameter(names = {"-i",
                 "--inputs"}, description = "The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function")

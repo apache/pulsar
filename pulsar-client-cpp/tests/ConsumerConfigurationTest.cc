@@ -272,9 +272,7 @@ TEST(ConsumerConfigurationTest, testSubscriptionInitialPosition) {
 }
 
 TEST(ConsumerConfigurationTest, testResetAckTimeOut) {
-    Result result;
-
-    uint64_t milliSeconds = 50000;
+    const uint64_t milliSeconds = 50000;
     ConsumerConfiguration config;
     config.setUnAckedMessagesTimeoutMs(milliSeconds);
     ASSERT_EQ(milliSeconds, config.getUnAckedMessagesTimeoutMs());

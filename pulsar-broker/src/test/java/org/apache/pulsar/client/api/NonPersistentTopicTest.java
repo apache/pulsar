@@ -26,9 +26,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Optional;
@@ -41,7 +39,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -60,7 +57,6 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
@@ -170,8 +166,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -213,8 +209,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -269,8 +265,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -311,8 +307,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -421,8 +417,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         for (int i = 0; i < totalProduceMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            Thread.sleep(10);
         }
+        producer.flush();
 
         // consume from shared-subscriptions
         Message<?> msg = null;

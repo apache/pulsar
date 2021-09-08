@@ -772,7 +772,7 @@ public class ServerCnxTest {
 
         // Create producer second time
         clientCommand = Commands.newSubscribe(successTopicName, //
-                successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                successSubName, 2 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(clientCommand);
 
@@ -780,7 +780,7 @@ public class ServerCnxTest {
             Object response = getResponse();
             assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
             CommandError error = (CommandError) response;
-            assertEquals(error.getError(), ServerError.ServiceNotReady);
+            assertEquals(error.getError(), ServerError.ConsumerBusy);
         });
         channel.finish();
     }
@@ -1125,9 +1125,7 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandError.class);
         assertEquals(((CommandError) response).getRequestId(), 3);
 
-        while (serverCnx.hasConsumer(1)) {
-            Thread.sleep(10);
-        }
+        Awaitility.await().until(() -> !serverCnx.hasConsumer(1));
 
         ByteBuf subscribe3 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 4 /* request id */, SubType.Exclusive, 0,
@@ -1563,69 +1561,50 @@ public class ServerCnxTest {
             }
         }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), any(AddEntryCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(300);
-                ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocationOnMock -> true).when(cursorMock).isDurable();
+
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            Thread.sleep(300);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
+            return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(300);
-                ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            Thread.sleep(300);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
+            return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
                 any(OpenCursorCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(300);
-                ((OpenCursorCallback) invocationOnMock.getArguments()[2])
-                        .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            Thread.sleep(300);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[2])
+                    .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
+            return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                Thread.sleep(300);
-                ((OpenCursorCallback) invocationOnMock.getArguments()[3])
-                        .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            Thread.sleep(300);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[3])
+                    .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
+            return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(Map.class),
                 any(OpenCursorCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
+            return null;
         }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((DeleteCursorCallback) invocationOnMock.getArguments()[1])
-                        .deleteCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((DeleteCursorCallback) invocationOnMock.getArguments()[1])
+                    .deleteCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
+            return null;
         }).when(ledgerMock).asyncDeleteCursor(matches(".*fail.*"), any(DeleteCursorCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((CloseCallback) invocationOnMock.getArguments()[0]).closeComplete(null);
-                return null;
-            }
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((CloseCallback) invocationOnMock.getArguments()[0]).closeComplete(null);
+            return null;
         }).when(cursorMock).asyncClose(any(CloseCallback.class), any());
 
         doReturn(successSubName).when(cursorMock).getName();

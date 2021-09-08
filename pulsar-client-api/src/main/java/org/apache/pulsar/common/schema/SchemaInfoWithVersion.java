@@ -45,6 +45,6 @@ public class SchemaInfoWithVersion {
 
     @Override
     public String toString(){
-        return DefaultImplementation.jsonifySchemaInfoWithVersion(this);
+        return DefaultImplementation.getDefaultImplementation().jsonifySchemaInfoWithVersion(this);
     }
 }

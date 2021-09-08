@@ -60,7 +60,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
         this.numberOfBookies = numberOfBookies;
     }
 
-    protected void configurePulsar(ServiceConfiguration config) {
+    protected void configurePulsar(ServiceConfiguration config) throws Exception {
         //overridable by subclasses
     }
 
@@ -87,7 +87,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
-            config.setZooKeeperOperationTimeoutSeconds(1);
+            config.setZooKeeperOperationTimeoutSeconds(10);
             config.setNumIOThreads(1);
             Properties properties = new Properties();
             properties.put("bookkeeper_numWorkerThreads", "1");

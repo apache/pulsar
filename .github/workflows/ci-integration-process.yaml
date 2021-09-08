@@ -71,15 +71,10 @@ jobs:
           distribution: 'adopt'
           java-version: 11
 
-      - name: Replace maven's wagon-http version
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: sudo ./build/replace_maven-wagon-http-version.sh
-
       - name: clean disk
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
-          sudo swapoff -a
-          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt clean
           docker rmi $(docker images -q) -f
           df -h
@@ -103,6 +98,11 @@ jobs:
       - name: run integration tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: ./build/run_integration_group.sh PULSAR_CONNECTORS_PROCESS
+
+      - name: Log dmesg when failed
+        if: ${{ failure() }}
+        continue-on-error: true
+        run: sudo dmesg
 
       - name: Upload container logs
         uses: actions/upload-artifact@v2

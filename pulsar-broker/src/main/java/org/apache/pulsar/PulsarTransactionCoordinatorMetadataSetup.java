@@ -22,6 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -52,6 +53,8 @@ public class PulsarTransactionCoordinatorMetadataSetup {
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
 
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -62,6 +65,12 @@ public class PulsarTransactionCoordinatorMetadataSetup {
             jcommander.parse(args);
             if (arguments.help) {
                 jcommander.usage();
+                return;
+            }
+            if (arguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("initialize-transaction-coordinator-metadata", arguments);
+                cmd.run(null);
                 return;
             }
         } catch (Exception e) {

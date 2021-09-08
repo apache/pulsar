@@ -90,6 +90,22 @@ func (m *MockMessageID) Serialize() []byte {
 	return []byte(`message-id`)
 }
 
+func (m *MockMessageID) LedgerID() int64 {
+	return 0
+}
+
+func (m *MockMessageID) EntryID() int64 {
+	return 0
+}
+
+func (m *MockMessageID) BatchIdx() int32 {
+	return 0
+}
+
+func (m *MockMessageID) PartitionIdx() int32 {
+	return 0
+}
+
 type MockPulsarProducer struct{}
 
 func (producer *MockPulsarProducer) Topic() string {

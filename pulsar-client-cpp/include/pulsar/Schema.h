@@ -90,6 +90,11 @@ enum SchemaType
     KEY_VALUE = 15,
 
     /**
+     * Protobuf native schema based on Descriptor.
+     */
+    PROTOBUF_NATIVE = 20,
+
+    /**
      * A bytes array.
      */
     BYTES = -1,

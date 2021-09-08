@@ -40,7 +40,7 @@ https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples
  * A C++ compiler that supports C++11, like GCC >= 4.8
  * CMake >= 3.4
  * [Boost](http://www.boost.org/)
- * [Protocol Buffer](https://developers.google.com/protocol-buffers/)
+ * [Protocol Buffer](https://developers.google.com/protocol-buffers/) >= 3
  * [libcurl](https://curl.se/libcurl/)
  * [openssl](https://github.com/openssl/openssl)
 
@@ -235,6 +235,26 @@ ${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCM
 #This will generate pulsar-cpp.sln. Open this in Visual Studio and build the desired configurations.
 ```
 
+#### Checks
+
+##### Client libraries are available in the following places.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.lib
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.dll
+```
+
+#### Examples
+
+##### Add windows environment paths.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release
+${PULSAR_PATH}/pulsar-client-cpp/vcpkg_installed
+```
+
+##### Examples are available in.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/examples/Release
+```
 
 ## Tests
 ```shell

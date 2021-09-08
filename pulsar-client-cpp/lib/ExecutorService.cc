@@ -22,6 +22,9 @@
 #include <functional>
 #include <memory>
 
+#include "LogUtils.h"
+DECLARE_LOG_OBJECT()
+
 namespace pulsar {
 
 ExecutorService::ExecutorService()
@@ -29,14 +32,7 @@ ExecutorService::ExecutorService()
       work_(new BackgroundWork(*io_service_)),
       worker_(std::bind(&ExecutorService::startWorker, this, io_service_)) {}
 
-ExecutorService::~ExecutorService() {
-    close();
-    // If the worker_ is still not joinable at this point just detach
-    // the thread so its destructor does not terminate the app
-    if (worker_.joinable()) {
-        worker_.detach();
-    }
-}
+ExecutorService::~ExecutorService() { close(); }
 
 void ExecutorService::startWorker(std::shared_ptr<boost::asio::io_service> io_service) { io_service_->run(); }
 
@@ -66,13 +62,22 @@ DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
 }
 
 void ExecutorService::close() {
+    bool expectedState = false;
+    if (!closed_.compare_exchange_strong(expectedState, true)) {
+        return;
+    }
+
     io_service_->stop();
     work_.reset();
-    // If this thread is attempting to join itself, do not. The destructor's
-    // call to close will handle joining if it does not occur here. This also ensures
-    // join is not called twice since it is not re-entrant on windows
-    if (std::this_thread::get_id() != worker_.get_id() && worker_.joinable()) {
-        worker_.join();
+    // Detach the worker thread instead of join to avoid potential deadlock
+    if (worker_.joinable()) {
+        try {
+            worker_.detach();
+        } catch (const std::system_error &e) {
+            // This condition will happen if we're forking the process, therefore the thread was not ported to
+            // the child side of the fork and the detach would be failing.
+            LOG_DEBUG("Failed to detach thread: " << e.what());
+        }
     }
 }
 
@@ -95,6 +100,8 @@ ExecutorServicePtr ExecutorServiceProvider::get() {
 }
 
 void ExecutorServiceProvider::close() {
+    Lock lock(mutex_);
+
     for (ExecutorList::iterator it = executors_.begin(); it != executors_.end(); ++it) {
         if (*it != NULL) {
             (*it)->close();

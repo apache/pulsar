@@ -32,11 +32,6 @@ using namespace pulsar;
 static const std::string serviceUrl = "pulsar://localhost:6650";
 static const std::string adminUrl = "http://localhost:8080/";
 
-static const std::string topicNameSuffix = "public/default/partitions-update-test-topic";
-static const std::string topicName = "persistent://" + topicNameSuffix;
-static const std::string topicOperateUrl =
-    adminUrl + "admin/v2/persistent/" + topicNameSuffix + "/partitions";
-
 static ClientConfiguration newClientConfig(bool enablePartitionsUpdate) {
     ClientConfiguration clientConfig;
     if (enablePartitionsUpdate) {
@@ -55,14 +50,16 @@ class PartitionsSet {
    public:
     size_t size() const { return names_.size(); }
 
-    Result initProducer(bool enablePartitionsUpdate) {
+    Result initProducer(std::string topicName, bool enablePartitionsUpdate,
+                        bool lazyStartPartitionedProducers) {
         clientForProducer_.reset(new Client(serviceUrl, newClientConfig(enablePartitionsUpdate)));
-        const auto producerConfig =
-            ProducerConfiguration().setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>());
+        const auto producerConfig = ProducerConfiguration()
+                                        .setMessageRouter(std::make_shared<SimpleRoundRobinRoutingPolicy>())
+                                        .setLazyStartPartitionedProducers(lazyStartPartitionedProducers);
         return clientForProducer_->createProducer(topicName, producerConfig, producer_);
     }
 
-    Result initConsumer(bool enablePartitionsUpdate) {
+    Result initConsumer(std::string topicName, bool enablePartitionsUpdate) {
         clientForConsumer_.reset(new Client(serviceUrl, newClientConfig(enablePartitionsUpdate)));
         return clientForConsumer_->subscribe(topicName, "SubscriptionName", consumer_);
     }
@@ -118,7 +115,10 @@ TEST(PartitionsUpdateTest, testConfigPartitionsUpdateInterval) {
     ASSERT_EQ(static_cast<unsigned int>(-1), clientConfig.getPartitionsUpdateInterval());
 }
 
-TEST(PartitionsUpdateTest, testPartitionsUpdate) {
+void testPartitionsUpdate(bool lazyStartPartitionedProducers, std::string topicNameSuffix) {
+    std::string topicName = "persistent://" + topicNameSuffix;
+    std::string topicOperateUrl = adminUrl + "admin/v2/persistent/" + topicNameSuffix + "/partitions";
+
     // Ensure `topicName` doesn't exist before created
     makeDeleteRequest(topicOperateUrl);
     // Create a 2 partitions topic
@@ -128,8 +128,8 @@ TEST(PartitionsUpdateTest, testPartitionsUpdate) {
     PartitionsSet partitionsSet;
 
     // 1. Both producer and consumer enable partitions update
-    ASSERT_EQ(ResultOk, partitionsSet.initProducer(true));
-    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(true));
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(topicName, true, lazyStartPartitionedProducers));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(topicName, true));
 
     res = makePostRequest(topicOperateUrl, "3");  // update partitions to 3
     ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
@@ -140,8 +140,8 @@ TEST(PartitionsUpdateTest, testPartitionsUpdate) {
     partitionsSet.close();
 
     // 2. Only producer enables partitions update
-    ASSERT_EQ(ResultOk, partitionsSet.initProducer(true));
-    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(false));
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(topicName, true, false));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(topicName, false));
 
     res = makePostRequest(topicOperateUrl, "5");  // update partitions to 5
     ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
@@ -152,8 +152,8 @@ TEST(PartitionsUpdateTest, testPartitionsUpdate) {
     partitionsSet.close();
 
     // 3. Only consumer enables partitions update
-    ASSERT_EQ(ResultOk, partitionsSet.initProducer(false));
-    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(true));
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(topicName, false, false));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(topicName, true));
 
     res = makePostRequest(topicOperateUrl, "7");  // update partitions to 7
     ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
@@ -164,8 +164,8 @@ TEST(PartitionsUpdateTest, testPartitionsUpdate) {
     partitionsSet.close();
 
     // 4. Both producer and consumer disables partitions update
-    ASSERT_EQ(ResultOk, partitionsSet.initProducer(false));
-    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(false));
+    ASSERT_EQ(ResultOk, partitionsSet.initProducer(topicName, false, false));
+    ASSERT_EQ(ResultOk, partitionsSet.initConsumer(topicName, false));
 
     res = makePostRequest(topicOperateUrl, "10");  // update partitions to 10
     ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
@@ -174,4 +174,12 @@ TEST(PartitionsUpdateTest, testPartitionsUpdate) {
     partitionsSet.doSendAndReceive(10, 10);
     ASSERT_EQ(7, partitionsSet.size());
     partitionsSet.close();
+}
+
+TEST(PartitionsUpdateTest, testPartitionsUpdate) {
+    testPartitionsUpdate(false, "public/default/partitions-update-test-topic");
+}
+
+TEST(PartitionsUpdateTest, testPartitionsUpdateWithLazyProducers) {
+    testPartitionsUpdate(true, "public/default/partitions-update-test-topic-lazy");
 }

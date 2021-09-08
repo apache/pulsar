@@ -141,7 +141,13 @@ public class PulsarWorkerService implements WorkerService {
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification());
                 } else {
-                    return WorkerUtils.getPulsarAdminClient(pulsarServiceUrl);
+                    return WorkerUtils.getPulsarAdminClient(
+                            pulsarServiceUrl,
+                            null,
+                            null,
+                            null,
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.isTlsEnableHostnameVerification());
                 }
             }
 
@@ -158,7 +164,14 @@ public class PulsarWorkerService implements WorkerService {
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification());
                 } else {
-                    return WorkerUtils.getPulsarClient(pulsarServiceUrl);
+                    return WorkerUtils.getPulsarClient(
+                            pulsarServiceUrl,
+                            null,
+                            null,
+                            null,
+                            null,
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.isTlsEnableHostnameVerification());
                 }
             }
         };
@@ -396,8 +409,7 @@ public class PulsarWorkerService implements WorkerService {
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
 
         try {
-            log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(workerConfig));
+            log.info("Worker Configs: {}", new ObjectMapper().writeValueAsString(workerConfig));
         } catch (JsonProcessingException e) {
             log.warn("Failed to print worker configs with error {}", e.getMessage(), e);
         }
