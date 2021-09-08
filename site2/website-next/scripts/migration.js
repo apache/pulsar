@@ -9,6 +9,7 @@ const nextSidebar = require("../sidebars");
 const _ = require("lodash");
 const fixTab = require("./fix-tab");
 const fixSpace = require("./fix-space");
+const fixTipNote = require("./fix-tip-note");
 
 function travel(dir, callback) {
   fs.readdirSync(dir).forEach((file) => {
@@ -135,6 +136,8 @@ try {
         let data = fs.readFileSync(pathname, "utf8");
         data = fixTab(data);
         // data = fixSpace(data);
+        data = fixTipNote(data);
+
         data = data
           .replace(reg, "id: ")
           .replace(/sidebar_label:\s*(.*):(.*)/, 'sidebar_label: "$1:$2"')

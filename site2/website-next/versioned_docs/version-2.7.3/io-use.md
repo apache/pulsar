@@ -15,9 +15,12 @@ This guide describes how to use Pulsar connectors.
 
 Pulsar bundles several [builtin connectors](io-connectors.md) used to move data in and out of commonly used systems (such as database and messaging system). Optionally, you can create and use your desired non-builtin connectors.
 
-> #### Note
-> 
-> When using a non-builtin connector, you need to specify the path of a archive file for the connector.
+:::note
+
+When using a non-builtin connector, you need to specify the path of a archive file for the connector.
+
+:::
+
 
 To set up a builtin connector, follow
 the instructions [here](getting-started-standalone.md#installing-builtin-connectors).
