@@ -248,7 +248,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
             brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
         }
 
-        bundleSplitStrategy = new BundleSplitterTask(pulsar);
+        bundleSplitStrategy = new BundleSplitterTask();
 
         conf = pulsar.getConfiguration();
 
