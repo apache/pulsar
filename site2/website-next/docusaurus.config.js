@@ -170,7 +170,7 @@ module.exports = {
         docs: {
           sidebarPath: require.resolve("./sidebars.js"),
           // Please change this to your repo.
-          editUrl: `${githubUrl}/edit/master/site2/website-next/docs`,
+          editUrl: `${githubUrl}/edit/master/site2/website-next`,
           remarkPlugins: [
             linkifyRegex(
               /{\@inject\:\s?(((?!endpoint)[^}])+):([^}]+):([^}]+)}/,
@@ -185,7 +185,7 @@ module.exports = {
         blog: {
           showReadingTime: true,
           // Please change this to your repo.
-          editUrl: `${githubUrl}/edit/master/site2/website-next/blog`,
+          editUrl: `${githubUrl}/edit/master/site2/website-next`,
         },
         theme: {
           customCss: require.resolve("./src/css/custom.css"),
