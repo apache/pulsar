@@ -374,6 +374,22 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(0), "component"), equalTo("foobar"));
     }
 
+    public enum BareEvents {
+        BARE_EVENT
+    }
+
+    @Test
+    public void testBareEnum() throws Exception {
+        StructuredEventLog log = StructuredEventLog.newLogger();
+        log.newRootEvent().log(BareEvents.BARE_EVENT);
+
+        List<Map<String, Object>> logged = getLogged();
+        System.out.println(logged);
+        assertThat(logged.get(0).get("message"), equalTo("BARE_EVENT"));
+        assertThat(logged.get(0).get("loggerName"), equalTo("stevlog.BARE_EVENT"));
+        assertThat(contextMapField(logged.get(0), "component"), nullValue());
+    }
+
     @SuppressWarnings("unchecked")
     private Object contextMapField(Map<String, Object> map, String field) {
         return ((Map<String, Object>)map.get("contextMap")).get(field);
