@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -381,16 +382,14 @@ public class PulsarStandalone implements AutoCloseable {
         final String globalCluster = "global";
         final String namespace = tenant + "/ns1";
         try {
-            if (!admin.clusters().getClusters().contains(cluster)) {
+            List<String> clusters = admin.clusters().getClusters();
+            if (!clusters.contains(cluster)) {
                 admin.clusters().createCluster(cluster, clusterData);
             } else {
                 admin.clusters().updateCluster(cluster, clusterData);
             }
-
             // Create marker for "global" cluster
-            try {
-                admin.clusters().getCluster(globalCluster);
-            } catch (PulsarAdminException.NotFoundException ex) {
+            if (!clusters.contains(globalCluster)) {
                 admin.clusters().createCluster(globalCluster, ClusterData.builder().build());
             }
 
