@@ -798,11 +798,13 @@ public class Commands {
         boolean authoritative, LookupType lookupType, long requestId, boolean proxyThroughServiceUrl) {
         BaseCommand cmd = localCmd(Type.LOOKUP_RESPONSE);
         CommandLookupTopicResponse response = cmd.setLookupTopicResponse()
-                .setBrokerServiceUrl(brokerServiceUrl)
                 .setResponse(lookupType)
                 .setRequestId(requestId)
                 .setAuthoritative(authoritative)
                 .setProxyThroughServiceUrl(proxyThroughServiceUrl);
+        if (brokerServiceUrl != null) {
+            response.setBrokerServiceUrl(brokerServiceUrl);
+        }
         if (brokerServiceUrlTls != null) {
             response.setBrokerServiceUrlTls(brokerServiceUrlTls);
         }
