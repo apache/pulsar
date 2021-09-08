@@ -1175,6 +1175,9 @@ public class BrokerService implements Closeable {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
                     }
+                }).exceptionally(ex -> {
+                    topicFuture.completeExceptionally(ex.getCause());
+                    return null;
                 });
 
         return topicFuture;
@@ -2227,7 +2230,7 @@ public class BrokerService implements Closeable {
 
         final String topic = pendingTopic.getLeft();
         try {
-            checkTopicNsOwnership(topic);
+            checkTopicNsOwnership(topic).get();
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
@@ -2245,7 +2248,7 @@ public class BrokerService implements Closeable {
             pendingTopic.getRight()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
-            inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
+            inactivityMonitor.schedule(this::createPendingLoadTopic, 100, TimeUnit.MILLISECONDS);
         }
 
     }
