@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.fail;
 
 /**
  * Token client exchange token mock test.
@@ -59,9 +60,7 @@ public class TokenClientTest {
         bodyMap.put("client_id", request.getClientId());
         bodyMap.put("client_secret", request.getClientSecret());
         bodyMap.put("audience", request.getAudience());
-        if (!StringUtils.isBlank(request.getScope())) {
-            bodyMap.put("scope", request.getScope());
-        }
+        bodyMap.put("scope", request.getScope());
         String body = tokenClient.buildClientCredentialsBody(bodyMap);
         BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
         Response response = mock(Response.class);
@@ -113,6 +112,11 @@ public class TokenClientTest {
         tokenResult.setAccessToken("test-access-token");
         tokenResult.setIdToken("test-id");
         when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
-        tokenClient.exchangeClientCredentials(request);
+        try {
+            tokenClient.exchangeClientCredentials(request);
+            fail("Because the body is missing the scope parameter, it should fail.");
+        } catch (NullPointerException e) {
+            // Skip this exception
+        }
     }
 }
