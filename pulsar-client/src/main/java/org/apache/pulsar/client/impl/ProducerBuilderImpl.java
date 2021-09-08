@@ -135,18 +135,21 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> sendTimeout(int sendTimeout, @NonNull TimeUnit unit) {
+        checkArgument(sendTimeout >= 0, "sendTimeout needs to be >= 0");
         conf.setSendTimeoutMs(sendTimeout, unit);
         return this;
     }
 
     @Override
     public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
+        checkArgument(maxPendingMessages >= 0, "maxPendingMessages needs to be >= 0");
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
 
     @Override
     public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
+        checkArgument(maxPendingMessagesAcrossPartitions >= 0, "maxPendingMessagesAcrossPartitions needs to be >= 0");
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
         return this;
     }

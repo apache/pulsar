@@ -93,10 +93,10 @@ public class ManagedLedgerWriter {
         @Parameter(names = { "-s", "--size" }, description = "Message size")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of managed ledgers")
+        @Parameter(names = { "-t", "--num-topic" }, description = "Number of managed ledgers", validateWith = ParameterValidator.class)
         public int numManagedLedgers = 1;
 
-        @Parameter(names = { "--threads" }, description = "Number of threads writing")
+        @Parameter(names = { "--threads" }, description = "Number of threads writing", validateWith = ParameterValidator.class)
         public int numThreads = 1;
 
         @Parameter(names = { "-zk", "--zookeeperServers" }, description = "ZooKeeper connection string", required = true)
@@ -110,7 +110,7 @@ public class ManagedLedgerWriter {
         public int maxConnections = 1;
 
         @Parameter(names = { "-m",
-                "--num-messages" }, description = "Number of messages to publish in total. If 0, it will keep publishing")
+                "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep publishing")
         public long numMessages = 0;
 
         @Parameter(names = { "-e", "--ensemble-size" }, description = "Ledger ensemble size")
@@ -126,7 +126,7 @@ public class ManagedLedgerWriter {
         public DigestType digestType = DigestType.CRC32C;
 
         @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
+                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
 
     }

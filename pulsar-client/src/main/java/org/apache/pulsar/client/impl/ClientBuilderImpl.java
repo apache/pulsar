@@ -37,6 +37,8 @@ import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 public class ClientBuilderImpl implements ClientBuilder {
     ClientConfigurationData conf;
 
@@ -152,6 +154,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder ioThreads(int numIoThreads) {
+        checkArgument(numIoThreads > 0, "ioThreads needs to be > 0");
         conf.setNumIoThreads(numIoThreads);
         return this;
     }
@@ -164,6 +167,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder connectionsPerBroker(int connectionsPerBroker) {
+        checkArgument(connectionsPerBroker >= 0, "connectionsPerBroker needs to be >= 0");
         conf.setConnectionsPerBroker(connectionsPerBroker);
         return this;
     }
@@ -242,6 +246,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
+        checkArgument(statsInterval >= 0, "statsInterval needs to be >= 0");
         conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
         return this;
     }
