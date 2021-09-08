@@ -2230,7 +2230,7 @@ public class BrokerService implements Closeable {
 
         final String topic = pendingTopic.getLeft();
         try {
-            checkTopicNsOwnership(topic).get();
+            checkTopicNsOwnership(topic).join();
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
