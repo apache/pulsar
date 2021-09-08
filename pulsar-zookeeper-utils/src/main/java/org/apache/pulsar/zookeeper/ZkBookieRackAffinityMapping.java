@@ -58,7 +58,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE = "zk_data_cache_bk_rack_conf_instance";
-    public static final String ZK_LEDGERS_DEFAULT_ROOT_PATH = "/ledgers";
+    private static final String ZK_LEDGERS_DEFAULT_ROOT_PATH = "/ledgers";
 
     private ZooKeeperDataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
@@ -132,8 +132,8 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 try {
                     final String metadataServiceUriStr = ((ClientConfiguration) conf).getMetadataServiceUri();
                     URI metadataServiceUri = URI.create(metadataServiceUriStr);
-                    String zkServers;
                     String ledgersRootPath = metadataServiceUri.getPath();
+                    String zkServers;
                     if (ZK_LEDGERS_DEFAULT_ROOT_PATH.equals(ledgersRootPath)) {
                         zkServers = getZKServersFromServiceUri(metadataServiceUri);
                     } else {
