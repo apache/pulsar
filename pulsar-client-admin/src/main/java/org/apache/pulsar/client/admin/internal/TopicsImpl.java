@@ -486,8 +486,15 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public PartitionedTopicMetadata getPartitionedTopicMetadata(String topic) throws PulsarAdminException {
+        return getPartitionedTopicMetadata(topic, false);
+    }
+
+    @Override
+    public PartitionedTopicMetadata getPartitionedTopicMetadata(String topic, boolean checkAllowAutoCreation)
+            throws PulsarAdminException {
         try {
-            return getPartitionedTopicMetadataAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getPartitionedTopicMetadataAsync(topic, checkAllowAutoCreation)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -500,8 +507,14 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic) {
+        return getPartitionedTopicMetadataAsync(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
+            String topic, boolean checkAllowAutoCreation) {
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "partitions");
+        WebTarget path = topicPath(tn, "partitions").queryParam("checkAllowAutoCreation", checkAllowAutoCreation);
         final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<PartitionedTopicMetadata>() {

@@ -482,6 +482,21 @@ public interface Topics {
     PartitionedTopicMetadata getPartitionedTopicMetadata(String topic) throws PulsarAdminException;
 
     /**
+     * Get metadata of a partitioned topic.
+     * <p/>
+     * Get metadata of a partitioned topic.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     * @param checkAllowAutoCreation
+     * @return Partitioned topic metadata
+     * @throws PulsarAdminException
+     */
+    PartitionedTopicMetadata getPartitionedTopicMetadata(String topic, boolean checkAllowAutoCreation)
+            throws PulsarAdminException;
+
+    /**
      * Get metadata of a partitioned topic asynchronously.
      * <p/>
      * Get metadata of a partitioned topic asynchronously.
@@ -492,6 +507,20 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic metadata is returned
      */
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
+
+    /**
+     * Get metadata of a partitioned topic asynchronously.
+     * <p/>
+     * Get metadata of a partitioned topic asynchronously.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     * @return a future that can be used to track when the partitioned topic metadata is returned
+     */
+    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic,
+                                                                                 boolean checkAllowAutoCreation);
+
 
     /**
      * Delete a partitioned topic.
