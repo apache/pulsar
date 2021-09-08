@@ -81,7 +81,11 @@ public class TransactionMarkerDeleteTest extends BrokerTestBase {
         ServiceConfiguration configuration = mock(ServiceConfiguration.class);
         doReturn(brokerService).when(topic).getBrokerService();
         doReturn(pulsarService).when(brokerService).getPulsar();
+        doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(configuration).when(pulsarService).getConfig();
+        doReturn(configuration).when(pulsarService).getConfiguration();
+        doReturn("org.apache.pulsar.broker.service.DefaultDispatcherProvider")
+                .when(configuration).getDispatcherProviderClassName();
         doReturn(false).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();
         ManagedCursor cursor = managedLedger.openCursor("test");
