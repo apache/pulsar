@@ -45,23 +45,47 @@ public class TokenClient implements ClientCredentialsExchanger {
     protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     private final URL tokenUrl;
-    AsyncHttpClient httpClient;
+    private final AsyncHttpClient httpClient;
 
     public TokenClient(URL tokenUrl) {
-        this.tokenUrl = tokenUrl;
+        this(tokenUrl, null);
+    }
 
-        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-        AsyncHttpClientConfig config = confBuilder.build();
-        httpClient = new DefaultAsyncHttpClient(config);
+    TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
+        if (httpClient == null) {
+            DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+            confBuilder.setFollowRedirect(true);
+            confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
+            confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+            confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+            AsyncHttpClientConfig config = confBuilder.build();
+            this.httpClient = new DefaultAsyncHttpClient(config);
+        } else {
+            this.httpClient = httpClient;
+        }
+        this.tokenUrl = tokenUrl;
     }
 
     @Override
     public void close() throws Exception {
         httpClient.close();
+    }
+
+    /**
+     * Constructing http request parameters.
+     * @param bodyMap List of parameters to be requested.
+     * @return Generate the final request body from a map.
+     */
+    String buildClientCredentialsBody(Map<String, String> bodyMap) {
+        return bodyMap.entrySet().stream()
+                .map(e -> {
+                    try {
+                        return URLEncoder.encode(e.getKey(), "UTF-8") + '=' + URLEncoder.encode(e.getValue(), "UTF-8");
+                    } catch (UnsupportedEncodingException e1) {
+                        throw new RuntimeException(e1);
+                    }
+                })
+                .collect(Collectors.joining("&"));
     }
 
     /**
@@ -80,15 +104,7 @@ public class TokenClient implements ClientCredentialsExchanger {
         if (!StringUtils.isBlank(req.getScope())) {
             bodyMap.put("scope", req.getScope());
         }
-        String body = bodyMap.entrySet().stream()
-                .map(e -> {
-                    try {
-                        return URLEncoder.encode(e.getKey(), "UTF-8") + '=' + URLEncoder.encode(e.getValue(), "UTF-8");
-                    } catch (UnsupportedEncodingException e1) {
-                        throw new RuntimeException(e1);
-                    }
-                })
-                .collect(Collectors.joining("&"));
+        String body = buildClientCredentialsBody(bodyMap);
 
         try {
 

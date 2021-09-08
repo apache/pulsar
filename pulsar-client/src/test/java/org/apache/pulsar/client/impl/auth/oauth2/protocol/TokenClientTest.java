@@ -28,13 +28,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -51,8 +48,7 @@ public class TokenClientTest {
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url);
-        tokenClient.httpClient = defaultAsyncHttpClient;
+        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
         Map<String, String> bodyMap = new TreeMap<>();
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .audience("test-audience")
@@ -67,17 +63,7 @@ public class TokenClientTest {
         if (!StringUtils.isBlank(request.getScope())) {
             bodyMap.put("scope", request.getScope());
         }
-        String body = bodyMap.entrySet().stream()
-            .map(e -> {
-                try {
-                    return URLEncoder.encode(
-                            e.getKey(),
-                            "UTF-8") + '=' + URLEncoder.encode(e.getValue(), "UTF-8");
-                } catch (UnsupportedEncodingException e1) {
-                    throw new RuntimeException(e1);
-                }
-            })
-        .collect(Collectors.joining("&"));
+        String body = tokenClient.buildClientCredentialsBody(bodyMap);
         BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
         Response response = mock(Response.class);
         ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
@@ -102,8 +88,7 @@ public class TokenClientTest {
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
-        TokenClient tokenClient = new TokenClient(url);
-        tokenClient.httpClient = defaultAsyncHttpClient;
+        TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
         Map<String, String> bodyMap = new TreeMap<>();
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .audience("test-audience")
@@ -115,17 +100,7 @@ public class TokenClientTest {
         bodyMap.put("client_id", request.getClientId());
         bodyMap.put("client_secret", request.getClientSecret());
         bodyMap.put("audience", request.getAudience());
-        String body = bodyMap.entrySet().stream()
-                .map(e -> {
-                    try {
-                        return URLEncoder.encode(
-                                e.getKey(),
-                                "UTF-8") + '=' + URLEncoder.encode(e.getValue(), "UTF-8");
-                    } catch (UnsupportedEncodingException e1) {
-                        throw new RuntimeException(e1);
-                    }
-                })
-                .collect(Collectors.joining("&"));
+        String body = tokenClient.buildClientCredentialsBody(bodyMap);
         BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
         Response response = mock(Response.class);
         ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
