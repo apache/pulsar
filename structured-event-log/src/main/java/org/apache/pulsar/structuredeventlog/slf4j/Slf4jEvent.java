@@ -22,12 +22,15 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.apache.pulsar.structuredeventlog.Event;
+import org.apache.pulsar.structuredeventlog.EventGroup;
 import org.apache.pulsar.structuredeventlog.EventResources;
 import org.apache.pulsar.structuredeventlog.EventResourcesImpl;
 
@@ -36,6 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class Slf4jEvent implements Event {
+    private static final ThreadLocal<Map<Object, Logger>> loggersTLS = ThreadLocal.withInitial(() -> new HashMap<>());
+    private static final Logger stringLogger = LoggerFactory.getLogger("stevlog");
+
     private final String id;
     private final Clock clock;
     private String traceId = null;
@@ -139,11 +145,37 @@ class Slf4jEvent implements Event {
 
     @Override
     public void log(Enum<?> event) {
-        throw new UnsupportedOperationException("TODO");
+        EventGroup g = event.getClass().getAnnotation(EventGroup.class);
+        Map<Object, Logger> loggers = loggersTLS.get();
+        Logger logger;
+        if (g != null) {
+            String component = g.component();
+            MDC.put("component", component);
+            // do get, then compute to avoid alloc for compute supplier
+            logger = loggers.get(event);
+            if (logger == null) {
+                logger = loggers.compute(event,
+                        (k, v) -> LoggerFactory.getLogger(
+                                new StringBuilder("stevlog.").append(component)
+                                .append(".").append(event).toString()));
+            }
+        } else {
+            logger = loggers.get(event);
+            if (logger == null) {
+                logger = loggers.compute(event,
+                        (k, v) -> LoggerFactory.getLogger(
+                                new StringBuilder("stevlog.").append(event).toString()));
+            }
+        }
+        logInternal(logger, event.toString());
     }
 
     @Override
     public void log(String event) {
+        logInternal(stringLogger, event);
+    }
+
+    private void logInternal(Logger logger, String event) {
         try {
             MDC.put("id", id);
             if (traceId != null) {
@@ -160,7 +192,6 @@ class Slf4jEvent implements Event {
                 MDC.put("startTimestamp", startTime.toString());
                 MDC.put("durationMs", String.valueOf(Duration.between(startTime, clock.instant()).toMillis()));
             }
-            Logger logger = LoggerFactory.getLogger("stevlog");
             switch (level) {
             case ERROR:
                 if (throwable != null) {
