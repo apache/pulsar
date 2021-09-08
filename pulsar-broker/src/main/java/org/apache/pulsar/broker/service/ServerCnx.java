@@ -153,6 +153,7 @@ import org.slf4j.LoggerFactory;
 public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
+    private final String listenerName;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private State state;
@@ -224,9 +225,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     public ServerCnx(PulsarService pulsar) {
+        this(pulsar, null);
+    }
+
+    public ServerCnx(PulsarService pulsar, String listenerName) {
         super(pulsar.getBrokerService().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
+        this.listenerName = listenerName;
         this.state = State.Start;
         ServiceConfiguration conf = pulsar.getConfiguration();
 
@@ -402,8 +408,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.isAuthoritative();
+
+        // use the connection-specific listener name by default.
         final String advertisedListenerName = lookup.hasAdvertisedListenerName() ? lookup.getAdvertisedListenerName()
-                : null;
+                : this.listenerName;
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }

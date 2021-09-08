@@ -121,13 +121,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String configurationStoreServers;
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving binary protobuf requests"
+        doc = "The port for serving binary protobuf requests."
+            + "If set, defines a server binding for bindAddress:brokerServicePort"
+            + "without an associated advertised listener."
+            + "The Default value is 6650."
     )
 
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving tls secured binary protobuf requests"
+        doc = "The port for serving TLS-secured binary protobuf requests."
+            + "If set, defines a server binding for bindAddress:brokerServicePortTls"
+            + "without an associated advertised listener."
     )
     private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
@@ -167,6 +172,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The listener name must contain in the advertisedListeners."
                     + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Used to specify additional bind addresses for the broker."
+                    + "The value must format as <listener_name>:pulsar://<host>:<port>,"
+                    + "multiple bind addresses should separate with commas."
+                    + "Associates each bind address with an advertised listener."
+                    + "Use 'pulsar+ssl' scheme to define a TLS-protected channel."
+                    + "Note that brokerServicePort and brokerServicePortTls define additional bindings."
+                    + ".")
+    private String bindAddresses;
 
     @FieldContext(category=CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")

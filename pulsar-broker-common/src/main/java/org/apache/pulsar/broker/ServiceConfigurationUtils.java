@@ -80,4 +80,11 @@ public class ServiceConfigurationUtils {
         return getDefaultOrConfiguredAddress(advertisedAddress);
     }
 
+    public static String brokerUrl(String host, int port) {
+        return String.format("pulsar://%s:%d", host, port);
+    }
+
+    public static String brokerUrlTls(String host, int port) {
+        return String.format("pulsar+ssl://%s:%d", host, port);
+    }
 }
