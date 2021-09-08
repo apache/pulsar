@@ -109,7 +109,7 @@ public class DefaultDispatcherProvider implements DispatcherProvider {
                 }
                 break;
             default:
-                break;
+                return null;
         }
 
         if (previousDispatcher != null) {
@@ -186,7 +186,7 @@ public class DefaultDispatcherProvider implements DispatcherProvider {
                 }
                 break;
             default:
-                break;
+                return null;
         }
         if (previousDispatcher != null) {
             previousDispatcher.close().thenRun(() -> {
