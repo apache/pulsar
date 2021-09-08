@@ -2,7 +2,7 @@
 name: PIP request
 about: Submit a PIP (Pulsar Improvement Proposal)
 title: ''
-labels: type/feature
+labels: PIP
 assignees: ''
 
 ---
