@@ -24,7 +24,12 @@ This diagram illustrates the relationship between source, Pulsar, and sink:
 
 ### Source
 
-> Sources **feed data from external systems into Pulsar**.
+:::note
+
+Sources **feed data from external systems into Pulsar**.
+
+:::
+
 
 Common sources include other messaging systems and firehose-style data pipeline APIs.
 
@@ -32,7 +37,12 @@ For the complete list of Pulsar built-in source connectors, see [source connecto
 
 ### Sink
 
-> Sinks **feed data from Pulsar into external systems**.
+:::note
+
+Sinks **feed data from Pulsar into external systems**.
+
+:::
+
 
 Common sinks include other messaging systems and SQL and NoSQL databases.
 
@@ -42,7 +52,12 @@ For the complete list of Pulsar built-in sink connectors, see [sink connector](i
 
 Processing guarantees are used to handle errors when writing messages to Pulsar topics.
   
-> Pulsar connectors and Functions use the **same** processing guarantees as below.
+:::note
+
+Pulsar connectors and Functions use the **same** processing guarantees as below.
+
+:::
+
 
 Delivery semantic | Description
 :------------------|:-------
@@ -50,7 +65,12 @@ Delivery semantic | Description
 `at-least-once`  | Each message sent to a connector is to be **processed once** or **more than once**.
 `effectively-once` | Each message sent to a connector has **one output associated** with it.
 
-> Processing guarantees for connectors not just rely on Pulsar guarantee but also **relate to external systems**, that is, **the implementation of source and sink**.
+:::note
+
+Processing guarantees for connectors not just rely on Pulsar guarantee but also **relate to external systems**, that is, **the implementation of source and sink**.
+
+:::
+
 
 * Source: Pulsar ensures that writing messages to Pulsar topics respects to the processing guarantees. It is within Pulsar's control.
 
@@ -66,7 +86,12 @@ When creating a connector, you can set the processing guarantee with the followi
   
 * EFFECTIVELY_ONCE
 
-> If `--processing-guarantees` is not specified when creating a connector, the default semantic is `ATLEAST_ONCE`.
+:::note
+
+If `--processing-guarantees` is not specified when creating a connector, the default semantic is `ATLEAST_ONCE`.
+
+:::
+
 
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 

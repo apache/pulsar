@@ -129,9 +129,12 @@ When Pulsar IO runtime encounters a `KVRecord`, it brings the following changes 
 - Set properly the `KeyValueSchema`
 - Encode the Message Key and the Message Value according to the `KeyValueEncoding` (SEPARATED or INLINE)
 
-> #### Tip
->
-> For more information about **how to create a source connector**, see {@inject: github:`KafkaSource`:/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java}.
+:::tip
+
+For more information about **how to create a source connector**, see {@inject: github:`KafkaSource`:/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java}.
+
+:::
+
 
 ### Sink
 
@@ -244,9 +247,12 @@ separate integration tests to verify end-to-end functionality.
 Pulsar uses
 [testcontainers](https://www.testcontainers.org/) **for all integration tests**. 
 
-> #### Tip
->
->For more information about **how to create integration tests for Pulsar connectors**, see {@inject: github:`IntegrationTests`:/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io}.
+:::tip
+
+For more information about **how to create integration tests for Pulsar connectors**, see {@inject: github:`IntegrationTests`:/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io}.
+
+:::
+
 
 ## Package
 
@@ -256,13 +262,20 @@ to a [Pulsar Functions](functions-overview.md) cluster.
 There are two methods to
 work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-jar).
 
-> #### Note
-> 
-> If you plan to package and distribute your connector for others to use, you are obligated to
+:::note
+
+If you plan to package and distribute your connector for others to use, you are obligated to
+
+:::
+
 license and copyright your own code properly. Remember to add the license and copyright to
 all libraries your code uses and to your distribution. 
->
-> If you use the [NAR](#nar) method, the NAR plugin 
+:::note
+
+If you use the [NAR](#nar) method, the NAR plugin 
+
+:::
+
 automatically creates a `DEPENDENCIES` file in the generated NAR package, including the proper
 licensing and copyrights of all libraries of your connector.
 
@@ -271,10 +284,13 @@ licensing and copyrights of all libraries of your connector.
 **NAR** stands for NiFi Archive, which is a custom packaging mechanism used by Apache NiFi, to provide
 a bit of Java ClassLoader isolation. 
 
-> #### Tip
-> 
-> For more information about **how NAR works**, see
-> [here](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd). 
+:::tip
+
+For more information about **how NAR works**, see
+[here](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd). 
+
+:::
+
 
 Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors). 
 
@@ -304,9 +320,12 @@ sinkClass: fully qualified class name (only if sink connector)
 
 If you are using the [Gradle NiFi plugin](https://github.com/sponiro/gradle-nar-plugin) you might need to create a directive to ensure your pulsar-io.yaml is [copied into the NAR file correctly](https://github.com/sponiro/gradle-nar-plugin/issues/5).
 
-> #### Tip
-> 
-> For more information about an **how to use NAR for Pulsar connectors**, see {@inject: github:`TwitterFirehose`:/pulsar-io/twitter/pom.xml}.
+:::tip
+
+For more information about an **how to use NAR for Pulsar connectors**, see {@inject: github:`TwitterFirehose`:/pulsar-io/twitter/pom.xml}.
+
+:::
+
 
 ### Uber JAR
 

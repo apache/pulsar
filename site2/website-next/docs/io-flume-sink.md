@@ -28,7 +28,12 @@ The configuration of the Flume sink connector has the following properties.
 
 Before using the Flume sink connector, you need to create a configuration file through one of the following methods.
 
-> For more information about the `sink.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/sink.conf).
+:::note
+
+For more information about the `sink.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/sink.conf).
+
+:::
+
 
 * JSON 
 

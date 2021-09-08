@@ -1,4 +1,4 @@
-version=2.7.3
+version=2.8.0
 chapter="Pulsar IO"
 prefix="io"
 

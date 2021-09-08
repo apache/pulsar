@@ -11,7 +11,12 @@ import TabItem from '@theme/TabItem';
 The JDBC sink connectors allow pulling messages from Pulsar topics 
 and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.
 
-> Currently, INSERT, DELETE and UPDATE operations are supported.
+:::note
+
+Currently, INSERT, DELETE and UPDATE operations are supported.
+
+:::
+
 
 ## Configuration 
 
