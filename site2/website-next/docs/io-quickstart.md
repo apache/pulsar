@@ -114,7 +114,7 @@ This example uses `cassandra` Docker image to start a single-node Cassandra clus
 
     :::note
 
-Before moving to the next steps, make sure the Cassandra cluster is running.
+    Before moving to the next steps, make sure the Cassandra cluster is running.
 
     :::
 
@@ -448,12 +448,11 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
      `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
      `-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
 
-     :::tip
+    :::tip
 
-     
-For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
+     For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 
-     :::
+    :::
 
 
 3. Check if PostgreSQL has been started successfully.
@@ -527,8 +526,7 @@ In this section, you need to configure a JDBC sink connector.
 
     :::tip
 
-    
-For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.9.1/).
+    For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.9.1/).
 
     :::
 
@@ -586,8 +584,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 
  :::tip
 
- 
-For more information about `pulsar-admin sinks create options`, see [here](io-cli.md#sinks).
+ For more information about `pulsar-admin sinks create options`, see [here](io-cli.md#sinks).
 
  :::
 
@@ -613,8 +610,7 @@ to monitor a connector and perform other operations on it.
 
   :::tip
 
-  
-For more information about `pulsar-admin sinks list options`, see [here](io-cli.md/#list-1).
+  For more information about `pulsar-admin sinks list options`, see [here](io-cli.md/#list-1).
 
   :::
 
@@ -638,8 +634,7 @@ For more information about `pulsar-admin sinks list options`, see [here](io-cli.
 
   :::tip
 
-  
-For more information about `pulsar-admin sinks get options`, see [here](io-cli.md/#get-1).
+  For more information about `pulsar-admin sinks get options`, see [here](io-cli.md/#get-1).
 
   :::
 
@@ -681,8 +676,7 @@ For more information about `pulsar-admin sinks get options`, see [here](io-cli.m
 
   :::tip
 
-  
-For more information about `pulsar-admin sinks status options`, see [here](io-cli.md/#status-1).
+  For more information about `pulsar-admin sinks status options`, see [here](io-cli.md/#status-1).
 
   :::
 
