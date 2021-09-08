@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutionException;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.fail;
 
 /**
  * Token client exchange token mock test.
@@ -84,7 +83,7 @@ public class TokenClientTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void exchangeClientCredentialsFailedByScopeTest() throws
+    public void exchangeClientCredentialsSuccessByNoScopeTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
@@ -94,7 +93,6 @@ public class TokenClientTest {
                 .audience("test-audience")
                 .clientId("test-client-id")
                 .clientSecret("test-client-secret")
-                .scope("test-scope")
                 .build();
         bodyMap.put("grant_type", "client_credentials");
         bodyMap.put("client_id", request.getClientId());
@@ -115,11 +113,6 @@ public class TokenClientTest {
         tokenResult.setAccessToken("test-access-token");
         tokenResult.setIdToken("test-id");
         when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
-        try {
-            tokenClient.exchangeClientCredentials(request);
-            fail("Because the body is missing the scope parameter, it should fail.");
-        } catch (NullPointerException e) {
-            // Skip this exception
-        }
+        tokenClient.exchangeClientCredentials(request);
     }
 }
