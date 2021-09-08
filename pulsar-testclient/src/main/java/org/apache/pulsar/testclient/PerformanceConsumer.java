@@ -348,9 +348,11 @@ public class PerformanceConsumer {
                     recorder.recordValue(latencyMillis);
                     cumulativeRecorder.recordValue(latencyMillis);
                 }
-
-                consumer.acknowledgeAsync(msg.getMessageId(), transaction);
-
+                if(arguments.isEnableTransaction) {
+                    consumer.acknowledgeAsync(msg.getMessageId(), transaction);
+                }else {
+                    consumer.acknowledgeAsync(msg);
+                }
                 if(arguments.poolMessages) {
                     msg.release();
                 }

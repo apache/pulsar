@@ -629,7 +629,8 @@ public class PerformanceProducer {
             }
             // Send messages on all topics/producers
             long totalSent = 0;
-            AtomicReference<Transaction> atomicReference = new AtomicReference<>(client.newTransaction().withTransactionTimeout(arguments.transactionTimeout,
+            AtomicReference<Transaction> atomicReference = new AtomicReference<>(client.newTransaction().
+                    withTransactionTimeout(arguments.transactionTimeout,
                     TimeUnit.SECONDS).build().get());
             AtomicLong messageTotal = new AtomicLong(0);
             while (true) {
@@ -670,9 +671,14 @@ public class PerformanceProducer {
                     } else {
                         payloadData = payloadBytes;
                     }
-
-                    TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage(transaction)
+                    TypedMessageBuilder<byte[]> messageBuilder;
+                    if(arguments.isEnableTransaction){
+                        messageBuilder = producer.newMessage(transaction)
                             .value(payloadData);
+                    }else {
+                         messageBuilder = producer.newMessage()
+                                .value(payloadData);
+                    }
                     if (arguments.delay >0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
                     }
