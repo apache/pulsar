@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
 import com.google.gson.Gson;
-import org.apache.commons.lang3.StringUtils;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.ListenableFuture;
@@ -35,7 +34,6 @@ import java.util.concurrent.ExecutionException;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.fail;
 
 /**
  * Token client exchange token mock test.
@@ -112,11 +110,7 @@ public class TokenClientTest {
         tokenResult.setAccessToken("test-access-token");
         tokenResult.setIdToken("test-id");
         when(response.getResponseBodyAsBytes()).thenReturn(new Gson().toJson(tokenResult).getBytes());
-        try {
-            tokenClient.exchangeClientCredentials(request);
-            fail("Because the body is missing the scope parameter, it should fail.");
-        } catch (NullPointerException e) {
-            // Skip this exception
-        }
+        TokenResult tr = tokenClient.exchangeClientCredentials(request);
+        Assert.assertNotNull(tr);
     }
 }
