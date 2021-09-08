@@ -95,6 +95,8 @@ class AdminProxyHandler extends ProxyServlet {
                 : config.getBrokerWebServiceURL();
         this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
                 : config.getFunctionWorkerWebServiceURL();
+
+        super.setTimeout(config.getHttpProxyTimeout());
     }
 
     @Override
@@ -135,11 +137,6 @@ class AdminProxyHandler extends ProxyServlet {
         if (value == null)
             value = "30000";
         client.setIdleTimeout(Long.parseLong(value));
-
-        value = config.getInitParameter("connectTimeout");
-        if (value == null)
-            value = "30000";
-        client.setConnectTimeout(Long.parseLong(value));
 
         value = config.getInitParameter("requestBufferSize");
         if (value != null)
