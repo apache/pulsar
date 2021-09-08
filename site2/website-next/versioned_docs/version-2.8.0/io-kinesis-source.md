@@ -46,8 +46,7 @@ Before using the Kinesis source connector, you need to create a configuration fi
 
 * JSON 
 
-
-```json
+    ```json
     {
         "awsEndpoint": "https://some.endpoint.aws",
         "awsRegion": "us-east-1",
@@ -61,12 +60,11 @@ Before using the Kinesis source connector, you need to create a configuration fi
         "initialPositionInStream": "TRIM_HORIZON",
         "startAtTime": "2019-03-05T19:28:58.000Z"
     }
-```
+    ```
 
 * YAML
 
-
-```yaml
+    ```yaml
     configs:
         awsEndpoint: "https://some.endpoint.aws"
         awsRegion: "us-east-1"
@@ -79,5 +77,5 @@ Before using the Kinesis source connector, you need to create a configuration fi
         receiveQueueSize: 2000
         initialPositionInStream: "TRIM_HORIZON"
         startAtTime: "2019-03-05T19:28:58.000Z"
-```
+    ```
 

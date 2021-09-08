@@ -43,8 +43,7 @@ Before using the Redis sink connector, you need to create a configuration file i
 
 * JSON
 
-
-```json
+    ```json
     {
         "redisHosts": "localhost:6379",
         "redisPassword": "mypassword",
@@ -55,12 +54,11 @@ Before using the Redis sink connector, you need to create a configuration file i
         "batchTimeMs": "1000",
         "connectTimeout": "3000"
     }
-```
+    ```
 
 * YAML
 
-
-```yaml
+    ```yaml
     configs:
         redisHosts: "localhost:6379"
         redisPassword: "mypassword"
@@ -70,34 +68,31 @@ Before using the Redis sink connector, you need to create a configuration file i
         batchSize: 1
         batchTimeMs: 1000
         connectTimeout: 3000
-```
-
+    ```
+  
 ### Usage
 
 This example shows how to write records to a Redis database using the Pulsar Redis connector.
 
 1. Start a Redis server.
 
-
-```bash
+    ```bash
     $ docker pull redis:5.0.5
     $ docker run -d -p 6379:6379 --name my-redis redis:5.0.5 --requirepass "mypassword"
-```
+    ```
 
 2. Start a Pulsar service locally in standalone mode.
 
-
-```bash
+    ```bash
     $ bin/pulsar standalone
-```
-Make sure the NAR file is available at `connectors/pulsar-io-redis-{{pulsar:version}}.nar`.
-
+    ```
+    Make sure the NAR file is available at `connectors/pulsar-io-redis-{{pulsar:version}}.nar`.
+   
 3. Start the Pulsar Redis connector in local run mode using one of the following methods.
 
-* Use the **JSON** configuration file as shown previously. 
-
-
-```bash
+   * Use the **JSON** configuration file as shown previously. 
+     
+        ```bash
         $ bin/pulsar-admin sinks localrun \
         --archive connectors/pulsar-io-redis-{{pulsar:version}}.nar \
         --tenant public \
@@ -105,12 +100,11 @@ Make sure the NAR file is available at `connectors/pulsar-io-redis-{{pulsar:vers
         --name my-redis-sink \
         --sink-config '{"redisHosts": "localhost:6379","redisPassword": "mypassword","redisDatabase": "0","clientMode": "Standalone","operationTimeout": "3000","batchSize": "1"}' \
         --inputs my-redis-topic
-```
-
-* Use the **YAML** configuration file as shown previously.
-
-
-```bash
+        ```
+   
+   * Use the **YAML** configuration file as shown previously.
+      
+        ```bash
         $ bin/pulsar-admin sinks localrun \
         --archive connectors/pulsar-io-redis-{{pulsar:version}}.nar \
         --tenant public \
@@ -118,31 +112,28 @@ Make sure the NAR file is available at `connectors/pulsar-io-redis-{{pulsar:vers
         --name my-redis-sink \
         --sink-config-file redis-sink-config.yaml \
         --inputs my-redis-topic
-```
-
+        ```
+     
 4. Publish records to the topic.
 
-
-```bash
+    ```bash
     $ bin/pulsar-client produce \
         persistent://public/default/my-redis-topic \
         -k "streaming" \
         -m "Pulsar"
-```     
+    ```     
 
 5. Start a Redis client in Docker.
-
-
-```bash
+   
+    ```bash
     $ docker exec -it my-redis redis-cli -a "mypassword"
-```
-
+    ```
+   
 6. Check the key/value in Redis.
 
-
-```
+    ```
     127.0.0.1:6379> keys *
     1) "streaming"
     127.0.0.1:6379> get "streaming"
     "Pulsar"
-```
+    ```

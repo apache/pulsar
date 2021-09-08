@@ -49,8 +49,7 @@ The configuration of the InfluxDB sink connector has the following properties.
 Before using the InfluxDB sink connector, you need to create a configuration file through one of the following methods.
 #### InfluxDBv2
 * JSON
-
-```json
+    ```json
     {
         "influxdbUrl": "http://localhost:9999",
         "organization": "example-org",
@@ -62,11 +61,10 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         "batchTimeMs": 1000,
         "batchSize": 100
     }
-```
-
+    ```
+  
 * YAML
-
-```yaml
+    ```yaml
     {
         influxdbUrl: "http://localhost:9999"
         organization: "example-org"
@@ -78,14 +76,13 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         batchTimeMs: 1000
         batchSize: 100
     }
-```
-
+    ```
+  
 #### InfluxDBv1
 
 * JSON 
 
-
-```json
+    ```json
     {
         "influxdbUrl": "http://localhost:8086",
         "database": "test_db",
@@ -96,12 +93,11 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         "batchTimeMs": 1000,
         "batchSize": 100
     }
-```
+    ```
 
 * YAML
 
-
-```yaml
+    ```yaml
     {
         influxdbUrl: "http://localhost:8086"
         database: "test_db"
@@ -112,4 +108,4 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         batchTimeMs: 1000
         batchSize: 100
     }
-```
+    ```

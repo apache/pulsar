@@ -33,8 +33,7 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
 
 1. Implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method. 
 
-
-```java
+    ```java
     /**
     * Open connector with configuration
     *
@@ -43,21 +42,20 @@ interface, which means you need to implement the {@inject: github:`open`:/pulsar
     * @throws Exception IO type exceptions when opening a connector
     */
     void open(final Map<String, Object> config, SourceContext sourceContext) throws Exception;
-```
+    ```
 
-This method is called when the source connector is initialized. 
+    This method is called when the source connector is initialized. 
 
-In this method, you can retrieve all connector specific settings through the passed-in `config` parameter and initialize all necessary resources. 
+    In this method, you can retrieve all connector specific settings through the passed-in `config` parameter and initialize all necessary resources. 
+    
+    For example, a Kafka connector can create a Kafka client in this `open` method.
 
-For example, a Kafka connector can create a Kafka client in this `open` method.
-
-Besides, Pulsar runtime also provides a `SourceContext` for the 
-connector to access runtime resources for tasks like collecting metrics. The implementation can save the `SourceContext` for future use.
+    Besides, Pulsar runtime also provides a `SourceContext` for the 
+    connector to access runtime resources for tasks like collecting metrics. The implementation can save the `SourceContext` for future use.
 
 2. Implement the {@inject: github:`read`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method.
 
-
-```java
+    ```java
         /**
         * Reads the next message from source.
         * If source does not have any new messages, this call should block.
@@ -65,32 +63,32 @@ connector to access runtime resources for tasks like collecting metrics. The imp
         * @throws Exception
         */
         Record<T> read() throws Exception;
-```
+    ```
 
-If nothing to return, the implementation should be blocking rather than returning `null`. 
+    If nothing to return, the implementation should be blocking rather than returning `null`. 
 
-The returned {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should encapsulate the following information, which is needed by Pulsar IO runtime. 
+    The returned {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should encapsulate the following information, which is needed by Pulsar IO runtime. 
 
-* {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following variables:
+    * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following variables:
 
-|Variable|Required|Description
-|---|---|---
-`TopicName`|No|Pulsar topic name from which the record is originated from.
-`Key`|No| Messages can optionally be tagged with keys.<br/><br/>For more information, see [Routing modes](concepts-messaging.md#routing-modes).|
-`Value`|Yes|Actual data of the record.
-`EventTime`|No|Event time of the record from the source.
-`PartitionId`|No| If the record is originated from a partitioned source, it returns its `PartitionId`. <br/><br/>`PartitionId` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
-`RecordSequence`|No|If the record is originated from a sequential source, it returns its `RecordSequence`.<br/><br/>`RecordSequence` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
-`Properties` |No| If the record carries user-defined properties, it returns those properties.
-`DestinationTopic`|No|Topic to which message should be written.
-`Message`|No|A class which carries data sent by users.<br/><br/>For more information, see [Message.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java).|
+      |Variable|Required|Description
+      |---|---|---
+      `TopicName`|No|Pulsar topic name from which the record is originated from.
+      `Key`|No| Messages can optionally be tagged with keys.<br/><br/>For more information, see [Routing modes](concepts-messaging.md#routing-modes).|
+      `Value`|Yes|Actual data of the record.
+      `EventTime`|No|Event time of the record from the source.
+      `PartitionId`|No| If the record is originated from a partitioned source, it returns its `PartitionId`. <br/><br/>`PartitionId` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
+      `RecordSequence`|No|If the record is originated from a sequential source, it returns its `RecordSequence`.<br/><br/>`RecordSequence` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
+      `Properties` |No| If the record carries user-defined properties, it returns those properties.
+      `DestinationTopic`|No|Topic to which message should be written.
+      `Message`|No|A class which carries data sent by users.<br/><br/>For more information, see [Message.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java).|
 
-* {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following methods:
+     * {@inject: github:`Record`:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following methods:
 
-Method|Description
-|---|---
-`ack` |Acknowledge that the record is fully processed.
-`fail`|Indicate that the record fails to be processed.
+        Method|Description
+        |---|---
+        `ack` |Acknowledge that the record is fully processed.
+        `fail`|Indicate that the record fails to be processed.
 
 > #### Tip
 >
@@ -102,8 +100,7 @@ Developing a sink connector **is similar to** developing a source connector, tha
 
 1. Implement the {@inject: github:`open`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
-
-```java
+    ```java
         /**
         * Open connector with configuration
         *
@@ -112,25 +109,24 @@ Developing a sink connector **is similar to** developing a source connector, tha
         * @throws Exception IO type exceptions when opening a connector
         */
         void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
-```
+    ```
 
 2. Implement the {@inject: github:`write`:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
-
-```java
+    ```java
         /**
         * Write a message to Sink
         * @param record record to write to sink
         * @throws Exception
         */
         void write(Record<T> record) throws Exception;
-```
+    ```
 
-During the implementation, you can decide how to write the `Value` and
-the `Key` to the actual source, and leverage all the provided information such as
-`PartitionId` and `RecordSequence` to achieve different processing guarantees. 
+    During the implementation, you can decide how to write the `Value` and
+    the `Key` to the actual source, and leverage all the provided information such as
+    `PartitionId` and `RecordSequence` to achieve different processing guarantees. 
 
-You also need to ack records (if messages are sent successfully) or fail records (if messages fail to send). 
+    You also need to ack records (if messages are sent successfully) or fail records (if messages fail to send). 
 
 ## Test
 
@@ -192,7 +188,6 @@ The easiest approach to package a Pulsar connector is to create a NAR package us
 
 Include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin) in your maven project for your connector as below. 
 
-
 ```xml
 <plugins>
   <plugin>
@@ -204,7 +199,6 @@ Include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apac
 ```
 
 You must also create a `resources/META-INF/services/pulsar-io.yaml` file with the following contents:
-
 
 ```yaml
 name: connector name
@@ -225,7 +219,6 @@ An alternative approach is to create an **uber JAR** that contains all of the co
 and other resource files. No directory internal structure is necessary.
 
 You can use [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/examples/includes-excludes.html) to create a uber JAR as below:
-
 
 ```xml
 <plugin>

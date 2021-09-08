@@ -15,7 +15,7 @@ It is helpful to review the [concepts](io-overview.md) for Pulsar I/O with runni
 At the end of this tutorial, you are able to:
 
 - [Connect Pulsar to Cassandra](#Connect-Pulsar-to-Cassandra)
-
+  
 - [Connect Pulsar to PostgreSQL](#Connect-Pulsar-to-PostgreSQL)
 
 > #### Tip
@@ -35,64 +35,56 @@ For more information about **how to install a standalone Pulsar and built-in con
 
 1. Start Pulsar locally.
 
-
-```bash
+    ```bash
     bin/pulsar standalone
-```
+    ```
 
-All the components of a Pulsar service are start in order. 
-
-You can curl those pulsar service endpoints to make sure Pulsar service is up running correctly.
+    All the components of a Pulsar service are start in order. 
+    
+    You can curl those pulsar service endpoints to make sure Pulsar service is up running correctly.
 
 2. Check Pulsar binary protocol port.
 
-
-```bash
+    ```bash
     telnet localhost 6650
-```
+    ```
 
 3. Check Pulsar Function cluster.
 
-
-```bash
+    ```bash
     curl -s http://localhost:8080/admin/v2/worker/cluster
-```
+    ```
 
-**Example output**
-
-```json
+    **Example output**
+    ```json
     [{"workerId":"c-standalone-fw-localhost-6750","workerHostname":"localhost","port":6750}]
-```
+    ```
 
 4. Make sure a public tenant and a default namespace exist.
 
-
-```bash
+    ```bash
     curl -s http://localhost:8080/admin/v2/namespaces/public
-```
+    ```
 
-**Example output**
-
-```json
+    **Example output**
+    ```json
     ["public/default","public/functions"]
-```
+    ```
 
 5. All built-in connectors should be listed as available.
 
-
-```bash
+    ```bash
     curl -s http://localhost:8080/admin/v2/functions/connectors
-```
+    ```
 
-**Example output**
+    **Example output**
 
-
-```json
+    ```json
     [{"name":"aerospike","description":"Aerospike database sink","sinkClass":"org.apache.pulsar.io.aerospike.AerospikeStringSink"},{"name":"cassandra","description":"Writes data into Cassandra","sinkClass":"org.apache.pulsar.io.cassandra.CassandraStringSink"},{"name":"kafka","description":"Kafka source and sink connector","sourceClass":"org.apache.pulsar.io.kafka.KafkaStringSource","sinkClass":"org.apache.pulsar.io.kafka.KafkaBytesSink"},{"name":"kinesis","description":"Kinesis sink connector","sinkClass":"org.apache.pulsar.io.kinesis.KinesisSink"},{"name":"rabbitmq","description":"RabbitMQ source connector","sourceClass":"org.apache.pulsar.io.rabbitmq.RabbitMQSource"},{"name":"twitter","description":"Ingest data from Twitter firehose","sourceClass":"org.apache.pulsar.io.twitter.TwitterFireHose"}]
-```
+    ```
 
-If an error occurs when starting Pulsar service, you may see an exception at the terminal running `pulsar/standalone`,
-or you can navigate to the `logs` directory under the Pulsar directory to view the logs.
+    If an error occurs when starting Pulsar service, you may see an exception at the terminal running `pulsar/standalone`,
+    or you can navigate to the `logs` directory under the Pulsar directory to view the logs.
 
 ## Connect Pulsar to Cassandra
 
@@ -110,73 +102,65 @@ This example uses `cassandra` Docker image to start a single-node Cassandra clus
 
 1. Start a Cassandra cluster.
 
-
-```bash
+    ```bash
     docker run -d --rm --name=cassandra -p 9042:9042 cassandra
-```
+    ```
 
-> **Note**
-> 
-> Before moving to the next steps, make sure the Cassandra cluster is running.
+    > **Note**
+    > 
+    > Before moving to the next steps, make sure the Cassandra cluster is running.
 
 2. Make sure the Docker process is running.
 
-
-```bash
+    ```bash
     docker ps
-```
+    ```
 
 3. Check the Cassandra logs to make sure the Cassandra process is running as expected.
 
-
-```bash
+    ```bash
     docker logs cassandra
-```
+    ```
 
 4. Check the status of the Cassandra cluster.
 
-
-```bash
+    ```bash
     docker exec cassandra nodetool status
-```
+    ```
 
-**Example output**
+    **Example output**
 
-
-```
+    ```
     Datacenter: datacenter1
     =======================
     Status=Up/Down
     |/ State=Normal/Leaving/Joining/Moving
     --  Address     Load       Tokens       Owns (effective)  Host ID                               Rack
     UN  172.17.0.2  103.67 KiB  256          100.0%            af0e4b2f-84e0-4f0b-bb14-bd5f9070ff26  rack1
-```
+    ```
 
 5. Use `cqlsh` to connect to the Cassandra cluster. 
 
-
-```bash
+    ```bash
     $ docker exec -ti cassandra cqlsh localhost
     Connected to Test Cluster at localhost:9042.
     [cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
     Use HELP for help.
     cqlsh>
-```
+    ```
 
 6. Create a keyspace `pulsar_test_keyspace`.
 
-
-```bash
+    ```bash
     cqlsh> CREATE KEYSPACE pulsar_test_keyspace WITH replication = {'class':'SimpleStrategy', 'replication_factor':1};
-```
+    ```
 
 7. Create a table `pulsar_test_table`.
 
-
-```bash
+    ```bash
     cqlsh> USE pulsar_test_keyspace;
     cqlsh:pulsar_test_keyspace> CREATE TABLE pulsar_test_table (key text PRIMARY KEY, col text);
-```
+    ```
 
 ### Configure a Cassandra sink
 
@@ -192,8 +176,7 @@ You can create a configuration file through one of the following methods.
 
 * JSON
 
-
-```json
+    ```json
     {
         "roots": "localhost:9042",
         "keyspace": "pulsar_test_keyspace",
@@ -201,20 +184,19 @@ You can create a configuration file through one of the following methods.
         "keyname": "key",
         "columnName": "col"
     }
-```
+    ```
 
 * YAML
-
-
-```yaml
+  
+    ```yaml
     configs:
         roots: "localhost:9042"
         keyspace: "pulsar_test_keyspace"
         columnFamily: "pulsar_test_table"
         keyname: "key"
         columnName: "col"
-```
-
+    ```
+  
 For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 ### Create a Cassandra sink
@@ -226,7 +208,6 @@ Run the following command to create a Cassandra sink connector with sink type _c
 
 #### Note
 > The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
-
 
 ```bash
 bin/pulsar-admin sinks create \
@@ -250,18 +231,16 @@ to monitor a connector and perform other operations on it.
 
 * Get the information of a Cassandra sink. 
 
-
-```bash
+  ```bash
   bin/pulsar-admin sinks get \
       --tenant public \
       --namespace default \
       --name cassandra-test-sink
-```
+  ```
 
-**Example output**
+  **Example output**
 
-
-```json
+  ```json
   {
     "tenant": "public",
     "namespace": "default",
@@ -285,22 +264,20 @@ to monitor a connector and perform other operations on it.
     "autoAck": true,
     "archive": "builtin://cassandra"
   }
-```
+  ```
 
 * Check the status of a Cassandra sink. 
 
-
-```bash
+  ```bash
   bin/pulsar-admin sinks status \
       --tenant public \
       --namespace default \
       --name cassandra-test-sink
-```
+  ```
 
-**Example output**
+  **Example output**
 
-
-```json
+  ```json
   {
     "numInstances" : 1,
     "numRunning" : 1,
@@ -321,33 +298,30 @@ to monitor a connector and perform other operations on it.
       }
     } ]
   }
-```
+  ```
 
 ### Verify a Cassandra sink
 
 1. Produce some messages to the input topic of the Cassandra sink _test_cassandra_.
 
-
-```bash
+    ```bash
     for i in {0..9}; do bin/pulsar-client produce -m "key-$i" -n 1 test_cassandra; done
-```
+    ```
 
 2. Inspect the status of the Cassandra sink _test_cassandra_.
 
-
-```bash
+    ```bash
     bin/pulsar-admin sinks status \
         --tenant public \
         --namespace default \
         --name cassandra-test-sink
-```
+    ```
 
-You can see 10 messages are processed by the Cassandra sink _test_cassandra_.
+    You can see 10 messages are processed by the Cassandra sink _test_cassandra_.
 
-**Example output**
+    **Example output**
 
-
-```json
+    ```json
     {
       "numInstances" : 1,
       "numRunning" : 1,
@@ -368,19 +342,17 @@ You can see 10 messages are processed by the Cassandra sink _test_cassandra_.
         }
       } ]
     }
-```
+    ```
 
 3. Use `cqlsh` to connect to the Cassandra cluster.
 
-
-```bash
+   ```bash
    docker exec -ti cassandra cqlsh localhost
-```
+   ```
 
 4. Check the data of the Cassandra table _pulsar_test_table_.
 
-
-```bash
+   ```bash
    cqlsh> use pulsar_test_keyspace;
    cqlsh:pulsar_test_keyspace> select * from pulsar_test_table;
 
@@ -396,13 +368,12 @@ You can see 10 messages are processed by the Cassandra sink _test_cassandra_.
      key-7 |  key-7
      key-4 |  key-4
      key-8 |  key-8
-```
+   ```
 
 ### Delete a Cassandra Sink
 
 You can use the [Connector Admin CLI](io-cli.md) 
 to delete a connector and perform other operations on it.
-
 
 ```bash
 bin/pulsar-admin sinks delete \
@@ -430,68 +401,62 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
 
 1. Pull the PostgreSQL 12 image from Docker.
 
-
-```bash
+    ```bash
     $ docker pull postgres:12
-```
+    ```
 
 2. Start PostgreSQL.
 
-
-```bash
+    ```bash
     $ docker run -d -it --rm \
     --name pulsar-postgres \
     -p 5432:5432 \
     -e POSTGRES_PASSWORD=password \
     -e POSTGRES_USER=postgres \    
     postgres:12
-```
+    ```
 
-#### Tip
+    #### Tip
+    
+     Flag | Description | This example
+     ---|---|---|
+     `-d` | To start a container in detached mode. | /
+     `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
+     `--rm` | Remove the container automatically when it exits. | /
+     `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
+     `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
+     `-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
 
-Flag | Description | This example
----|---|---|
-`-d` | To start a container in detached mode. | /
-`-it` | Keep STDIN open even if not attached and allocate a terminal. | /
-`--rm` | Remove the container automatically when it exits. | /
-`-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
-`-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
-`-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
-
-> #### Tip
->
-> For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
+     > #### Tip
+     >
+     > For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 
 3. Check if PostgreSQL has been started successfully.
 
-
-```bash
+    ```bash
     $ docker logs -f pulsar-postgres
-```
+    ```
 
-PostgreSQL has been started successfully if the following message appears.
+    PostgreSQL has been started successfully if the following message appears.
 
-
-```text
+    ```text
     2020-05-11 20:09:24.492 UTC [1] LOG:  starting PostgreSQL 12.2 (Debian 12.2-2.pgdg100+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 8.3.0-6) 8.3.0, 64-bit
     2020-05-11 20:09:24.492 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
     2020-05-11 20:09:24.492 UTC [1] LOG:  listening on IPv6 address "::", port 5432
     2020-05-11 20:09:24.499 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
     2020-05-11 20:09:24.523 UTC [55] LOG:  database system was shut down at 2020-05-11 20:09:24 UTC
     2020-05-11 20:09:24.533 UTC [1] LOG:  database system is ready to accept connections
-```
+    ```
 
 4. Access to PostgreSQL.
 
-
-```bash
+    ```bash
     $ docker exec -it pulsar-postgres /bin/bash     
-```
+    ```
 
 5. Create a PostgreSQL table _pulsar_postgres_jdbc_sink_.
 
-
-```bash
+    ```bash
     $ psql -U postgres postgres
     
     postgres=# create table if not exists pulsar_postgres_jdbc_sink
@@ -499,7 +464,7 @@ PostgreSQL has been started successfully if the following message appears.
     id serial PRIMARY KEY,
     name VARCHAR(255) NOT NULL    
     );
-```
+    ```
 
 ### Configure a JDBC sink
 
@@ -508,62 +473,57 @@ Now we have a PostgreSQL running locally.
 In this section, you need to configure a JDBC sink connector.
 
 1. Add a configuration file.   
+   
+    To run a JDBC sink connector, you need to prepare a YAML configuration file including the information that Pulsar connector runtime needs to know. 
+    
+    For example, how Pulsar connector can find the PostgreSQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages to.
 
-To run a JDBC sink connector, you need to prepare a YAML configuration file including the information that Pulsar connector runtime needs to know. 
+    Create a _pulsar-postgres-jdbc-sink.yaml_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
 
-For example, how Pulsar connector can find the PostgreSQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages to.
-
-Create a _pulsar-postgres-jdbc-sink.yaml_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
-
-
-```yaml
+    ```yaml
     configs:
       userName: "postgres"
       password: "password"
       jdbcUrl: "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"
       tableName: "pulsar_postgres_jdbc_sink"
-```
+    ```
 
 2. Create a schema.
 
-Create a _avro-schema_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
+    Create a _avro-schema_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
 
-
-```json
+    ```json
     {
       "type": "AVRO",
       "schema": "{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}",
       "properties": {}
     }
-```
+    ```
 
-> #### Tip
->
-> For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.9.1/).
+    > #### Tip
+    >
+    > For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.9.1/).
 
 
 3. Upload a schema to a topic.  
 
-This example uploads the _avro-schema_ schema to the _pulsar-postgres-jdbc-sink-topic_ topic.
+    This example uploads the _avro-schema_ schema to the _pulsar-postgres-jdbc-sink-topic_ topic.
 
-
-```bash
+    ```bash
     $ bin/pulsar-admin schemas upload pulsar-postgres-jdbc-sink-topic -f ./connectors/avro-schema
-```
+    ```
 
 4. Check if the schema has been uploaded successfully.
 
-
-```bash
+    ```bash
     $ bin/pulsar-admin schemas get pulsar-postgres-jdbc-sink-topic
-```
+    ```
 
-The schema has been uploaded successfully if the following message appears.
+    The schema has been uploaded successfully if the following message appears.
 
-
-```json
+    ```json
     {"name":"pulsar-postgres-jdbc-sink-topic","schema":"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}","type":"AVRO","properties":{}}
-```
+    ```
 
 ### Create a JDBC sink
 
@@ -571,7 +531,6 @@ You can use the [Connector Admin CLI](io-cli.md)
 to create a sink connector and perform other operations on it.
 
 This example creates a sink connector and specifies the desired information.
-
 
 ```bash
 $ bin/pulsar-admin sinks create \
@@ -586,22 +545,21 @@ Once the command is executed, Pulsar creates a sink connector _pulsar-postgres-j
 
 This sink connector runs as a Pulsar Function and writes the messages produced in the topic _pulsar-postgres-jdbc-sink-topic_ to the PostgreSQL table _pulsar_postgres_jdbc_sink_.
 
-#### Tip
+ #### Tip
 
-Flag | Description | This example 
----|---|---|
-`--archive` | The path to the archive file for the sink. | _pulsar-io-jdbc-postgres-{{pulsar:version}}.nar_ |
-`--inputs` | The input topic(s) of the sink. <br /><br /> Multiple topics can be specified as a comma-separated list.||
-`--name` | The name of the sink. | _pulsar-postgres-jdbc-sink_ |
-`--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-postgres-jdbc-sink.yaml_ |
-`--parallelism` | The parallelism factor of the sink. <br /><br /> For example, the number of sink instances to run. |  _1_ |
+ Flag | Description | This example 
+ ---|---|---|
+ `--archive` | The path to the archive file for the sink. | _pulsar-io-jdbc-postgres-{{pulsar:version}}.nar_ |
+ `--inputs` | The input topic(s) of the sink. <br /><br /> Multiple topics can be specified as a comma-separated list.||
+ `--name` | The name of the sink. | _pulsar-postgres-jdbc-sink_ |
+ `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-postgres-jdbc-sink.yaml_ |
+ `--parallelism` | The parallelism factor of the sink. <br /><br /> For example, the number of sink instances to run. |  _1_ |
 
-> #### Tip
->
-> For more information about `pulsar-admin sinks create options`, see [here](io-cli.md#sinks).
+ > #### Tip
+ >
+ > For more information about `pulsar-admin sinks create options`, see [here](io-cli.md#sinks).
 
 The sink has been created successfully if the following message appears.
-
 
 ```bash
 "Created successfully"
@@ -614,44 +572,40 @@ to monitor a connector and perform other operations on it.
 
 * List all running JDBC sink(s).
 
-
-```bash
+  ```bash
   $ bin/pulsar-admin sinks list \
   --tenant public \
   --namespace default
-```
+  ```
 
-> #### Tip
-> 
-> For more information about `pulsar-admin sinks list options`, see [here](io-cli.md/#list-1).
+  > #### Tip
+  > 
+  > For more information about `pulsar-admin sinks list options`, see [here](io-cli.md/#list-1).
 
-The result shows that only the _postgres-jdbc-sink_ sink is running.
+  The result shows that only the _postgres-jdbc-sink_ sink is running.
 
-
-```json
+  ```json
   [
   "pulsar-postgres-jdbc-sink"
   ]
-```
+  ```
 
 * Get the information of a JDBC sink.
 
-
-```bash
+  ```bash
   $ bin/pulsar-admin sinks get \
   --tenant public \
   --namespace default \
   --name pulsar-postgres-jdbc-sink
-```
+  ```
 
-> #### Tip
-> 
-> For more information about `pulsar-admin sinks get options`, see [here](io-cli.md/#get-1).
+  > #### Tip
+  > 
+  > For more information about `pulsar-admin sinks get options`, see [here](io-cli.md/#get-1).
 
-The result shows the information of the sink connector, including tenant, namespace, topic and so on.
+  The result shows the information of the sink connector, including tenant, namespace, topic and so on.
 
-
-```json
+  ```json
   {
     "tenant": "public",
     "namespace": "default",
@@ -673,26 +627,24 @@ The result shows the information of the sink connector, including tenant, namesp
     "retainOrdering": false,
     "autoAck": true
   }
-```
+  ```
 
 * Get the status of a JDBC sink
 
-
-```bash
+  ```bash
   $ bin/pulsar-admin sinks status \
   --tenant public \
   --namespace default \
   --name pulsar-postgres-jdbc-sink
-```
+  ```
 
-> #### Tip
-> 
-> For more information about `pulsar-admin sinks status options`, see [here](io-cli.md/#status-1).
+  > #### Tip
+  > 
+  > For more information about `pulsar-admin sinks status options`, see [here](io-cli.md/#status-1).
 
-The result shows the current status of sink connector, including the number of instance, running status, worker ID and so on.
+  The result shows the current status of sink connector, including the number of instance, running status, worker ID and so on.
 
-
-```json
+  ```json
   {
     "numInstances" : 1,
     "numRunning" : 1,
@@ -713,13 +665,12 @@ The result shows the current status of sink connector, including the number of i
       }
     } ]
   }
-```
+  ```
 
 ### Stop a JDBC sink
 
 You can use the [Connector Admin CLI](io-cli.md) 
 to stop a connector and perform other operations on it.
-
 
 ```bash
 $ bin/pulsar-admin sinks stop \
@@ -734,7 +685,6 @@ $ bin/pulsar-admin sinks stop \
 
 The sink instance has been stopped successfully if the following message disappears.
 
-
 ```bash
 "Stopped successfully"
 ```
@@ -743,7 +693,6 @@ The sink instance has been stopped successfully if the following message disappe
 
 You can use the [Connector Admin CLI](io-cli.md) 
 to restart a connector and perform other operations on it.
-
 
 ```bash
 $ bin/pulsar-admin sinks restart \
@@ -757,7 +706,6 @@ $ bin/pulsar-admin sinks restart \
 > For more information about `pulsar-admin sinks restart options`, see [here](io-cli.md/#restart-1).
 
 The sink instance has been started successfully if the following message disappears.
-
 
 ```bash
 "Started successfully"
@@ -778,7 +726,6 @@ to update a connector and perform other operations on it.
 
 This example updates the parallelism of the _pulsar-postgres-jdbc-sink_ sink connector to 2.
 
-
 ```bash
 $ bin/pulsar-admin sinks update \
 --name pulsar-postgres-jdbc-sink \
@@ -791,13 +738,11 @@ $ bin/pulsar-admin sinks update \
 
 The sink connector has been updated successfully if the following message disappears.
 
-
 ```bash
 "Updated successfully"
 ```
 
 This example double-checks the information.
-
 
 ```bash
 $ bin/pulsar-admin sinks get \
@@ -807,7 +752,6 @@ $ bin/pulsar-admin sinks get \
 ```
 
 The result shows that the parallelism is 2.
-
 
 ```json
 {
@@ -840,7 +784,6 @@ to delete a connector and perform other operations on it.
 
 This example deletes the _pulsar-postgres-jdbc-sink_ sink connector.
 
-
 ```bash
 $ bin/pulsar-admin sinks delete \
 --tenant public \
@@ -854,13 +797,11 @@ $ bin/pulsar-admin sinks delete \
 
 The sink connector has been deleted successfully if the following message appears.
 
-
 ```text
 "Deleted successfully"
 ```
 
 This example double-checks the status of the sink connector.
-
 
 ```bash
 $ bin/pulsar-admin sinks get \
@@ -870,7 +811,6 @@ $ bin/pulsar-admin sinks get \
 ```
 
 The result shows that the sink connector does not exist.
-
 
 ```text
 HTTP 404 Not Found

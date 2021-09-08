@@ -38,8 +38,7 @@ Before using the Kafka sink connector, you need to create a configuration file t
 
 * JSON 
 
-
-```json
+    ```json
     {
         "bootstrapServers": "localhost:6667",
         "topic": "test",
@@ -58,17 +57,17 @@ Before using the Kafka sink connector, you need to create a configuration file t
 
 * YAML
   
-```yaml
-configs:
-bootstrapServers: "localhost:6667"
-topic: "test"
-acks: "1"
-batchSize: "16384"
-maxRequestSize: "1048576"
-producerConfigProperties:
-client.id: "test-pulsar-producer"
-security.protocol: "SASL_PLAINTEXT"
-sasl.mechanism: "GSSAPI"
-sasl.kerberos.service.name: "kafka"
-acks: "all"   
-```
+    ```yaml
+    configs:
+        bootstrapServers: "localhost:6667"
+        topic: "test"
+        acks: "1"
+        batchSize: "16384"
+        maxRequestSize: "1048576"
+        producerConfigProperties:
+            client.id: "test-pulsar-producer"
+            security.protocol: "SASL_PLAINTEXT"
+            sasl.mechanism: "GSSAPI"
+            sasl.kerberos.service.name: "kafka"
+            acks: "all"   
+    ```

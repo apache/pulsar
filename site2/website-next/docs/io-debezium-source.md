@@ -70,8 +70,7 @@ You can use one of the following methods to create a configuration file.
 
 * JSON 
 
-
-```json
+    ```json
     {
         "database.hostname": "localhost",
         "database.port": "3306",
@@ -87,14 +86,13 @@ You can use one of the following methods to create a configuration file.
         "value.converter": "org.apache.kafka.connect.json.JsonConverter",
         "offset.storage.topic": "offset-topic"
     }
-```
+    ```
 
 * YAML 
 
-You can create a `debezium-mysql-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml) below to the `debezium-mysql-source-config.yaml` file.
+    You can create a `debezium-mysql-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml) below to the `debezium-mysql-source-config.yaml` file.
 
-
-```yaml
+    ```yaml
     tenant: "public"
     namespace: "default"
     name: "debezium-mysql-source"
@@ -122,7 +120,7 @@ You can create a `debezium-mysql-source-config.yaml` file and copy the [contents
 
         ## OFFSET_STORAGE_TOPIC_CONFIG
         offset.storage.topic: "offset-topic"
-```
+    ```
 
 ### Usage
 
@@ -130,79 +128,72 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 
 1. Start a MySQL server with a database from which Debezium can capture changes.
 
-
-```bash
+    ```bash
     $ docker run -it --rm \
     --name mysql \
     -p 3306:3306 \
     -e MYSQL_ROOT_PASSWORD=debezium \
     -e MYSQL_USER=mysqluser \
     -e MYSQL_PASSWORD=mysqlpw debezium/example-mysql:0.8
-```
+    ```
 
 2. Start a Pulsar service locally in standalone mode.
 
-
-```bash
+    ```bash
     $ bin/pulsar standalone
-```
+    ```
 
 3. Start the Pulsar Debezium connector in local run mode using one of the following methods.
 
-* Use the **JSON** configuration file as shown previously. 
+     * Use the **JSON** configuration file as shown previously. 
+   
+        Make sure the nar file is available at `connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar`.
 
-Make sure the nar file is available at `connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar`.
-
-
-```bash
+        ```bash
         $ bin/pulsar-admin source localrun \
         --archive connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar \
         --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
         --tenant public \
         --namespace default \
         --source-config '{"database.hostname": "localhost","database.port": "3306","database.user": "debezium","database.password": "dbz","database.server.id": "184054","database.server.name": "dbserver1","database.whitelist": "inventory","database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory","database.history.pulsar.topic": "history-topic","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650","key.converter": "org.apache.kafka.connect.json.JsonConverter","value.converter": "org.apache.kafka.connect.json.JsonConverter","pulsar.service.url": "pulsar://127.0.0.1:6650","offset.storage.topic": "offset-topic"}'
-```
+        ```
 
-* Use the **YAML** configuration file as shown previously.
-
-
-```bash
+    * Use the **YAML** configuration file as shown previously.
+  
+        ```bash
         $ bin/pulsar-admin source localrun \
         --source-config-file debezium-mysql-source-config.yaml
-```
+        ```
 
 4. Subscribe the topic _sub-products_ for the table _inventory.products_.
 
-
-```bash
+    ```bash
     $ bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
-```
+    ```
 
 5. Start a MySQL client in docker.
 
-
-```bash
+    ```bash
     $ docker run -it --rm \
     --name mysqlterm \
     --link mysql \
     --rm mysql:5.7 sh \
     -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
-```
+    ```
 
 6. A MySQL client pops out. 
+   
+   Use the following commands to change the data of the table _products_.
 
-Use the following commands to change the data of the table _products_.
-
-
-```
+    ```
     mysql> use inventory;
     mysql> show tables;
     mysql> SELECT * FROM  products;
     mysql> UPDATE products SET name='1111111111' WHERE id=101;
     mysql> UPDATE products SET name='1111111111' WHERE id=107;
-```
+    ```
 
-In the terminal window of subscribing topic, you can find the data changes have been kept in the _sub-products_ topic.
+    In the terminal window of subscribing topic, you can find the data changes have been kept in the _sub-products_ topic.
 
 ## Example of PostgreSQL
 
@@ -214,8 +205,7 @@ You can use one of the following methods to create a configuration file.
 
 * JSON 
 
-
-```json
+    ```json
     {
         "database.hostname": "localhost",
         "database.port": "5432",
@@ -228,14 +218,13 @@ You can use one of the following methods to create a configuration file.
         "table.whitelist": "public.users",
         "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
-```
+    ```
 
 * YAML 
 
-You can create a `debezium-postgres-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the `debezium-postgres-source-config.yaml` file.
+    You can create a `debezium-postgres-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the `debezium-postgres-source-config.yaml` file.
 
-
-```yaml
+    ```yaml
     tenant: "public"
     namespace: "default"
     name: "debezium-postgres-source"
@@ -258,8 +247,8 @@ You can create a `debezium-postgres-source-config.yaml` file and copy the [conte
 
         ## PULSAR_SERVICE_URL_CONFIG
         database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
-```
-
+    ```
+    
 Notice that `pgoutput` is a standard plugin of Postgres introduced in version 10 - [see Postgres architecture docu](https://www.postgresql.org/docs/10/logical-replication-architecture.html). You don't need to install anything, just make sure the WAL level is set to `logical` (see docker command below and [Postgres docu](https://www.postgresql.org/docs/current/runtime-config-wal.html)).
 
 ### Usage
@@ -269,30 +258,27 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
 1. Start a PostgreSQL server with a database from which Debezium can capture changes.
 
-
-```bash
+    ```bash
     $ docker run -d -it --rm \
     --name pulsar-postgres \
     -p 5432:5432 \
     -e POSTGRES_PASSWORD=changeme \
     postgres:13.3 -c wal_level=logical
-```
+    ```
 
 2. Start a Pulsar service locally in standalone mode.
 
-
-```bash
+    ```bash
     $ bin/pulsar standalone
-```
+    ```
 
 3. Start the Pulsar Debezium connector in local run mode using one of the following methods.
 
-* Use the **JSON** configuration file as shown previously. 
+   * Use the **JSON** configuration file as shown previously. 
+     
+     Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar`.
 
-Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar`.
-
-
-```bash
+        ```bash
         $ bin/pulsar-admin source localrun \
         --archive connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar \
         --name debezium-postgres-source \
@@ -300,36 +286,32 @@ Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-{
         --tenant public \
         --namespace default \
         --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "changeme","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "public","table.whitelist": "public.users","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
-```
-
-* Use the **YAML** configuration file as shown previously.
-
-
-```bash
+        ```
+   
+   * Use the **YAML** configuration file as shown previously.
+      
+        ```bash
         $ bin/pulsar-admin source localrun  \
         --source-config-file debezium-postgres-source-config.yaml
-```
+        ```
 
 4. Subscribe the topic _sub-users_ for the _public.users_ table.
 
-
-```
+    ```
     $ bin/pulsar-client consume -s "sub-users" public/default/dbserver1.public.users -n 0
-```
+    ```
 
 5. Start a PostgreSQL client in docker.
-
-
-```bash
+   
+    ```bash
     $ docker exec -it pulsar-postgresql /bin/bash
-```
+    ```
 
 6. A PostgreSQL client pops out. 
+   
+   Use the following commands to create sample data in the table _users_.
 
-Use the following commands to create sample data in the table _users_.
-
-
-```
+    ```
     psql -U postgres -h localhost -p 5432
     Password for user postgres:
     
@@ -355,24 +337,22 @@ Use the following commands to create sample data in the table _users_.
     
     postgres=# UPDATE users SET hash_firstname='maxim' WHERE id=1;
     UPDATE 1
-```
+    ```
 
-In the terminal window of subscribing topic, you can receive the following messages.
-
-
-```bash
+    In the terminal window of subscribing topic, you can receive the following messages.
+        
+    ```bash
     ----- got message -----
     {"before":null,"after":{"id":1,"hash_firstname":"maxim","hash_lastname":"292113d30a3ccee0e19733dd7f88b258","gender":"male"},"source:{"version":"1.0.0.Final","connector":"postgresql","name":"foobar","ts_ms":1624045862644,"snapshot":"false","db":"postgres","schema":"public","table":"users","txId":595,"lsn":24419784,"xmin":null},"op":"u","ts_ms":1624045862648}
     ...many more
-```
+    ```
 ## Example of MongoDB
 
 You need to create a configuration file before using the Pulsar Debezium connector.
 
 * JSON 
 
-
-```json
+    ```json
     {
         "mongodb.hosts": "rs0/mongodb:27017",
         "mongodb.name": "dbserver1",
@@ -382,14 +362,13 @@ You need to create a configuration file before using the Pulsar Debezium connect
         "database.whitelist": "inventory",
         "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
     }
-```
+    ```
 
 * YAML 
 
-You can create a `debezium-mongodb-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml) below to the `debezium-mongodb-source-config.yaml` file.
+    You can create a `debezium-mongodb-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml) below to the `debezium-mongodb-source-config.yaml` file.
 
-
-```yaml
+    ```yaml
     tenant: "public"
     namespace: "default"
     name: "debezium-mongodb-source"
@@ -407,7 +386,7 @@ You can create a `debezium-mongodb-source-config.yaml` file and copy the [conten
         mongodb.task.id: "1",
         database.whitelist: "inventory",
         database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
-```
+    ```
 
 ### Usage
 
@@ -416,38 +395,31 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 1. Start a MongoDB server with a database from which Debezium can capture changes.
 
-
-```bash
+    ```bash
     $ docker pull debezium/example-mongodb:0.10
     $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -p 27017:27017  debezium/example-mongodb:0.10
-```
-Use the following commands to initialize the data.
-
-
-``` bash
+    ```
+     Use the following commands to initialize the data.
+    
+     ``` bash
      ./usr/local/bin/init-inventory.sh
-```
-If the local host cannot access the container network, you can update the file
-```/etc/hosts``` and add a rule
-```127.0.0.1 6 f114527a95f```. f114527a95f is container id, you can try to get by
-```docker ps -a```
+     ```
+     If the local host cannot access the container network, you can update the file ```/etc/hosts``` and add a rule ```127.0.0.1 6 f114527a95f```. f114527a95f is container id, you can try to get by ```docker ps -a```
 
 
 2. Start a Pulsar service locally in standalone mode.
 
-
-```bash
+    ```bash
     $ bin/pulsar standalone
-```
+    ```
 
 3. Start the Pulsar Debezium connector in local run mode using one of the following methods.
 
-* Use the **JSON** configuration file as shown previously. 
+   * Use the **JSON** configuration file as shown previously. 
+     
+     Make sure the nar file is available at `connectors/pulsar-io-mongodb-{{pulsar:version}}.nar`.
 
-Make sure the nar file is available at `connectors/pulsar-io-mongodb-{{pulsar:version}}.nar`.
-
-
-```bash
+        ```bash
         $ bin/pulsar-admin source localrun \
         --archive connectors/pulsar-io-debezium-mongodb-{{pulsar:version}}.nar \
         --name debezium-mongodb-source \
@@ -455,50 +427,44 @@ Make sure the nar file is available at `connectors/pulsar-io-mongodb-{{pulsar:ve
         --tenant public \
         --namespace default \
         --source-config '{"mongodb.hosts": "rs0/mongodb:27017","mongodb.name": "dbserver1","mongodb.user": "debezium","mongodb.password": "dbz","mongodb.task.id": "1","database.whitelist": "inventory","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"}'
-```
-
-* Use the **YAML** configuration file as shown previously.
-
-
-```bash
+        ```
+   
+   * Use the **YAML** configuration file as shown previously.
+      
+        ```bash
         $ bin/pulsar-admin source localrun  \
         --source-config-file debezium-mongodb-source-config.yaml
-```
+        ```
 
 4. Subscribe the topic _sub-products_ for the _inventory.products_ table.
 
-
-```
+    ```
     $ bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
-```
+    ```
 
 5. Start a MongoDB client in docker.
-
-
-```bash
+   
+    ```bash
     $ docker exec -it pulsar-mongodb /bin/bash
-```
+    ```
 
 6. A MongoDB client pops out. 
-
-
-```bash
+   
+    ```bash
     mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory
     db.products.update({"_id":NumberLong(104)},{$set:{weight:1.25}})
-```
+    ```
 
-In the terminal window of subscribing topic, you can receive the following messages.
-
-
-```bash
+    In the terminal window of subscribing topic, you can receive the following messages.
+        
+    ```bash
     ----- got message -----
     {"schema":{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":"104"}}, value = {"schema":{"type":"struct","fields":[{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"after"},{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"patch"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":false,"field":"rs"},{"type":"string","optional":false,"field":"collection"},{"type":"int32","optional":false,"field":"ord"},{"type":"int64","optional":true,"field":"h"}],"optional":false,"name":"io.debezium.connector.mongo.Source","field":"source"},{"type":"string","optional":true,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"after":"{\"_id\": {\"$numberLong\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 1.25,\"quantity\": 4}","patch":null,"source":{"version":"0.10.0.Final","connector":"mongodb","name":"dbserver1","ts_ms":1573541905000,"snapshot":"true","db":"inventory","rs":"rs0","collection":"products","ord":1,"h":4983083486544392763},"op":"r","ts_ms":1573541909761}}.
-```
-
+    ```
+   
 ## FAQ
-
+ 
 ### Debezium postgres connector will hang when create snap
-
 
 ```$xslt
 #18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]
@@ -510,15 +476,15 @@ In the terminal window of subscribing topic, you can receive the following messa
      at java.util.concurrent.LinkedBlockingDeque.putLast(LinkedBlockingDeque.java:396)
      at java.util.concurrent.LinkedBlockingDeque.put(LinkedBlockingDeque.java:649)
      at io.debezium.connector.base.ChangeEventQueue.enqueue(ChangeEventQueue.java:132)
-     at io.debezium.connector.postgresql.PostgresConnectorTask$Lambda$203/385424085.accept(Unknown Source)
+     at io.debezium.connector.postgresql.PostgresConnectorTask$$Lambda$203/385424085.accept(Unknown Source)
      at io.debezium.connector.postgresql.RecordsSnapshotProducer.sendCurrentRecord(RecordsSnapshotProducer.java:402)
      at io.debezium.connector.postgresql.RecordsSnapshotProducer.readTable(RecordsSnapshotProducer.java:321)
      at io.debezium.connector.postgresql.RecordsSnapshotProducer.lambda$takeSnapshot$6(RecordsSnapshotProducer.java:226)
-     at io.debezium.connector.postgresql.RecordsSnapshotProducer$Lambda$240/1347039967.accept(Unknown Source)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$240/1347039967.accept(Unknown Source)
      at io.debezium.jdbc.JdbcConnection.queryWithBlockingConsumer(JdbcConnection.java:535)
      at io.debezium.connector.postgresql.RecordsSnapshotProducer.takeSnapshot(RecordsSnapshotProducer.java:224)
      at io.debezium.connector.postgresql.RecordsSnapshotProducer.lambda$start$0(RecordsSnapshotProducer.java:87)
-     at io.debezium.connector.postgresql.RecordsSnapshotProducer$Lambda$206/589332928.run(Unknown Source)
+     at io.debezium.connector.postgresql.RecordsSnapshotProducer$$Lambda$206/589332928.run(Unknown Source)
      at java.util.concurrent.CompletableFuture.uniRun(CompletableFuture.java:705)
      at java.util.concurrent.CompletableFuture.uniRunStage(CompletableFuture.java:717)
      at java.util.concurrent.CompletableFuture.thenRun(CompletableFuture.java:2010)
@@ -534,7 +500,6 @@ In the terminal window of subscribing topic, you can receive the following messa
 ``` 
 
 If you encounter the above problems in synchronizing data, please refer to [this](https://github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:
-
 
 ```$xslt
 max.queue.size=

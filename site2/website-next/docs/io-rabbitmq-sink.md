@@ -43,8 +43,7 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
 
 * JSON 
 
-
-```json
+    ```json
     {
         "host": "localhost",
         "port": "5672",
@@ -61,12 +60,11 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
         "exchangeName": "test-exchange",
         "routingKey": "test-key"
     }
-```
+    ```
 
 * YAML
 
-
-```yaml
+    ```yaml
     configs:
         host: "localhost"
         port: 5672
@@ -82,5 +80,5 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
         requestedHeartbeat: 60
         exchangeName: "test-exchange"
         routingKey: "test-key"
-```
+    ```
 

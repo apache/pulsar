@@ -44,8 +44,7 @@ Before using the Redis sink connector, you need to create a configuration file t
 
 * JSON
 
-
-```json
+    ```json
     {
         "redisHosts": "localhost:6379",
         "redisPassword": "fake@123",
@@ -56,12 +55,11 @@ Before using the Redis sink connector, you need to create a configuration file t
         "batchTimeMs": "1000",
         "connectTimeout": "3000"
     }
-```
+    ```
 
 * YAML
 
-
-```yaml
+    ```yaml
     {
         redisHosts: "localhost:6379"
         redisPassword: "fake@123"
@@ -72,5 +70,5 @@ Before using the Redis sink connector, you need to create a configuration file t
         batchTimeMs: 1000
         connectTimeout: 3000
     }
-```
+    ```
 

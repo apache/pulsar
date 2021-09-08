@@ -157,8 +157,9 @@ module.exports = {
       copyright: `Copyright © ${new Date().getFullYear()} Apache Pulsar, Inc.`,
     },
     prism: {
-      theme: lightCodeTheme,
-      darkTheme: darkCodeTheme,
+      // theme: lightCodeTheme,
+      // darkTheme: darkCodeTheme,
+      theme: require("prism-react-renderer/themes/dracula"),
       additionalLanguages: ["powershell", "java"],
     },
   },

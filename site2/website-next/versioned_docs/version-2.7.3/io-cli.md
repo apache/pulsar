@@ -10,11 +10,10 @@ import TabItem from '@theme/TabItem';
 
 
 The `pulsar-admin` tool helps you manage Pulsar connectors.
-
+  
 ## `sources`
 
 An interface for managing Pulsar IO sources (ingress data into Pulsar).
-
 
 ```bash
 $ pulsar-admin sources subcommands
@@ -23,25 +22,25 @@ $ pulsar-admin sources subcommands
 Subcommands are:
 
 * `create`
-
+  
 * `update`
-
+  
 * `delete`
-
+  
 * `get`
-
+  
 * `status`
-
+  
 * `list`
-
+  
 * `stop`
-
+  
 * `start`
-
+  
 * `restart`
-
+  
 * `localrun`
-
+  
 * `available-sources`
 
 * `reload`
@@ -52,7 +51,6 @@ Subcommands are:
 Submit a Pulsar IO source connector to run in a Pulsar cluster.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sources create options
@@ -85,7 +83,6 @@ $ pulsar-admin sources create options
 Update a already submitted Pulsar IO source connector.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sources update options
@@ -120,7 +117,6 @@ Delete a Pulsar IO source connector.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sources delete options
 ```
@@ -139,7 +135,6 @@ Get the information about a Pulsar IO source connector.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sources get options
 ```
@@ -157,7 +152,6 @@ $ pulsar-admin sources get options
 Check the current status of a Pulsar Source.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sources status options
@@ -178,7 +172,6 @@ List all running Pulsar IO source connectors.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sources list options
 ```
@@ -196,7 +189,6 @@ $ pulsar-admin sources list options
 Stop a source instance.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sources stop options
@@ -216,7 +208,6 @@ $ pulsar-admin sources stop options
 Start a source instance.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sources start options
@@ -238,7 +229,6 @@ Restart a source instance.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sources restart options
 ```
@@ -257,7 +247,6 @@ $ pulsar-admin sources restart options
 Run a Pulsar IO source connector locally rather than deploying it to the Pulsar cluster.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sources localrun options
@@ -298,7 +287,6 @@ Get the list of Pulsar IO connector sources supported by Pulsar cluster.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sources available-sources
 ```
@@ -309,7 +297,6 @@ Reload the available built-in connectors.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sources reload
 ```
@@ -318,7 +305,6 @@ $ pulsar-admin sources reload
 
 An interface for managing Pulsar IO sinks (egress data from Pulsar).
 
-
 ```bash
 $ pulsar-admin sinks subcommands
 ```
@@ -326,25 +312,25 @@ $ pulsar-admin sinks subcommands
 Subcommands are:
 
 * `create`
-
+  
 * `update`
-
+  
 * `delete`
-
+  
 * `get`
-
+  
 * `status`
-
+  
 * `list`
-
+  
 * `stop`
-
+  
 * `start`
-
+  
 * `restart`
-
+  
 * `localrun`
-
+  
 * `available-sinks`
 
 * `reload`
@@ -355,7 +341,6 @@ Subcommands are:
 Submit a Pulsar IO sink connector to run in a Pulsar cluster.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sinks create options
@@ -392,7 +377,6 @@ $ pulsar-admin sinks create options
 Update a Pulsar IO sink connector.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sinks update options
@@ -431,7 +415,6 @@ Delete a Pulsar IO sink connector.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sinks delete options
 ```
@@ -450,7 +433,6 @@ Get the information about a Pulsar IO sink connector.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sinks get options
 ```
@@ -468,7 +450,6 @@ $ pulsar-admin sinks get options
 Check the current status of a Pulsar sink.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sinks status options
@@ -490,7 +471,6 @@ List all running Pulsar IO sink connectors.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sinks list options
 ```
@@ -508,7 +488,6 @@ $ pulsar-admin sinks list options
 Stop a sink instance.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sinks stop options
@@ -528,7 +507,6 @@ $ pulsar-admin sinks stop options
 Start a sink instance.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sinks start options
@@ -550,7 +528,6 @@ Restart a sink instance.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sinks restart options
 ```
@@ -570,7 +547,6 @@ $ pulsar-admin sinks restart options
 Run a Pulsar IO sink connector locally rather than deploying it to the Pulsar cluster.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sinks localrun options
@@ -618,7 +594,6 @@ Get the list of Pulsar IO connector sinks supported by Pulsar cluster.
 
 #### Usage
 
-
 ```bash
 $ pulsar-admin sinks available-sinks
 ```
@@ -628,7 +603,6 @@ $ pulsar-admin sinks available-sinks
 Reload the available built-in connectors.
 
 #### Usage
-
 
 ```bash
 $ pulsar-admin sinks reload

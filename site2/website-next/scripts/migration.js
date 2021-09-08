@@ -134,14 +134,19 @@ try {
         let reg = new RegExp("id:\\s*version-" + version + "-");
         let data = fs.readFileSync(pathname, "utf8");
         data = fixTab(data);
-        data = fixSpace(data);
+        // data = fixSpace(data);
         data = data
           .replace(reg, "id: ")
           .replace(/sidebar_label:\s*(.*):(.*)/, 'sidebar_label: "$1:$2"')
           .replace(/\[\[pulsar:version_number\]\]/g, "<pulsar:version_number>")
-          .replace(/[\t ]+(```\w*)/g, "$1")
+          // .replace(/[\t ]+(```\w*)/g, "$1")
           // .replace(/(\S+)\n(```\w+)/gm, "$1\n\n$2")
-          .replace(/(```\w*)((((?!```).)*\n*)+)```/g, "\n$1$2```")
+          // .replace(/(```\w*)((((?!```).)*\n*)+)```/g, "\n$1$2```")
+          .replace(
+            /(.*)\n{3,}(\s*```\w*)((((?!```).)*\n*)+)```.*\n+/g,
+            "$1\n\n$2$3```\n\n"
+          )
+          .replace(/(^```\w+)((((?!```).)*\n)+)[\t ]+```/g, "$1$2```")
           .replace(/<empty string>/g, "|")
           .replace(/<li>(((?!<\/?li>|\|).)+)/g, "<li>$1</li>")
           .replace(/<\/li><\/li>/g, "</li>")

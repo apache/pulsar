@@ -33,8 +33,7 @@ Before using the Flume source connector, you need to create a configuration file
 
 * JSON 
 
-
-```json
+    ```json
     {
         "name": "a1",
         "confFile": "source.conf",
@@ -42,17 +41,16 @@ Before using the Flume source connector, you need to create a configuration file
         "zkConnString": "",
         "zkBasePath": ""
     }
-```
+    ```
 
 * YAML
 
-
-```yaml
+    ```yaml
     configs:
         name: a1
         confFile: source.conf
         noReloadConf: false
         zkConnString: ""
         zkBasePath: ""
-```
+    ```
 

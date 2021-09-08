@@ -41,7 +41,7 @@ For the complete list of Pulsar built-in sink connectors, see [sink connector](i
 ## Processing guarantee
 
 Processing guarantees are used to handle errors when writing messages to Pulsar topics.
-
+  
 > Pulsar connectors and Functions use the **same** processing guarantees as below.
 
 Delivery semantic | Description
@@ -61,9 +61,9 @@ Delivery semantic | Description
 When creating a connector, you can set the processing guarantee with the following semantics:
 
 * ATLEAST_ONCE
-
+  
 * ATMOST_ONCE
-
+  
 * EFFECTIVELY_ONCE
 
 > If `--processing-guarantees` is not specified when creating a connector, the default semantic is `ATLEAST_ONCE`.
@@ -71,20 +71,19 @@ When creating a connector, you can set the processing guarantee with the followi
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 <Tabs 
-defaultValue="Source"
-values={[
-{
-"label": "Source",
-"value": "Source"
-},
-{
-"label": "Sink",
-"value": "Sink"
-}
+  defaultValue="Source"
+  values={[
+  {
+    "label": "Source",
+    "value": "Source"
+  },
+  {
+    "label": "Sink",
+    "value": "Sink"
+  }
 ]}>
 
 <TabItem value="Source">
-
 
 ```bash
 $ bin/pulsar-admin sources create \
@@ -96,7 +95,6 @@ For more information about the options of `pulsar-admin sources create`, see [he
 
 </TabItem>
 <TabItem value="Sink">
-
 
 ```bash
 $ bin/pulsar-admin sinks create \
@@ -115,28 +113,27 @@ For more information about the options of `pulsar-admin sinks create`, see [here
 After creating a connector, you can update the processing guarantee with the following semantics:
 
 * ATLEAST_ONCE
-
+  
 * ATMOST_ONCE
-
+  
 * EFFECTIVELY_ONCE
-
+  
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 <Tabs 
-defaultValue="Source"
-values={[
-{
-"label": "Source",
-"value": "Source"
-},
-{
-"label": "Sink",
-"value": "Sink"
-}
+  defaultValue="Source"
+  values={[
+  {
+    "label": "Source",
+    "value": "Source"
+  },
+  {
+    "label": "Sink",
+    "value": "Sink"
+  }
 ]}>
 
 <TabItem value="Source">
-
 
 ```bash
 $ bin/pulsar-admin sources update \
@@ -148,7 +145,6 @@ For more information about the options of `pulsar-admin sources update`, see [he
 
 </TabItem>
 <TabItem value="Sink">
-
 
 ```bash
 $ bin/pulsar-admin sinks update \
