@@ -406,7 +406,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    @Test//(timeOut = 30000)
     public void producerBacklogQuotaExceededTest() throws Exception {
         String namespace = "my-property/ns-ws-quota";
         admin.namespaces().createNamespace(namespace);
@@ -922,7 +922,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test//(timeOut = 10000)
+    @Test(timeOut = 10000)
     public void cumulativeAckMessageTest() throws Exception {
         final String subscription = "my-sub";
         final String consumerTopic = "my-property/my-ns/my-topic11";
