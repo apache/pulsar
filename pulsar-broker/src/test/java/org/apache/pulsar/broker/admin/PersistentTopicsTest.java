@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
@@ -74,6 +75,8 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperManagedLedgerCache;
@@ -387,6 +390,27 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(persistentTopics
                         .getPartitionedMetadata(testTenant, testNamespace, nonPartitionTopic, true, true).partitions,
                 0);
+    }
+
+    @Test
+    public void testGetPartitionedMetadata() {
+
+        String testLocalTopicName = "test-topic";
+
+        // 1) Auto create non-partitioned topic.
+        PartitionedTopicMetadata partitionedMetadata = persistentTopics.getPartitionedMetadata(testTenant, testNamespace, testLocalTopicName, true, true);
+        Assert.assertEquals(0, partitionedMetadata.partitions);
+
+        // 2. Add validate policy assert.
+        doThrow(new RestException(Response.Status.FORBIDDEN, "mock message"))
+                .when(persistentTopics).validateTopicPolicyOperation(persistentTopics.topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
+        try {
+            persistentTopics.getPartitionedMetadata(testTenant, testNamespace, testLocalTopicName, true, true);
+            Assert.fail("Should fail validation on policy exception");
+        } catch (RestException e) {
+            Assert.assertEquals(Response.Status.FORBIDDEN.getStatusCode(), e.getResponse().getStatus());
+        }
+
     }
 
     @Test
