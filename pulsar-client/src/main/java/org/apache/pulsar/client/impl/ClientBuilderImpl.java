@@ -142,6 +142,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit) {
+        checkArgument(operationTimeout >= 0, "operationTimeout needs to be >= 0");
         conf.setOperationTimeoutMs(unit.toMillis(operationTimeout));
         return this;
     }
@@ -161,6 +162,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder listenerThreads(int numListenerThreads) {
+        checkArgument(numListenerThreads > 0, "listenerThreads needs to be > 0");
         conf.setNumListenerThreads(numListenerThreads);
         return this;
     }
@@ -246,7 +248,6 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
-        checkArgument(statsInterval >= 0, "statsInterval needs to be >= 0");
         conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
         return this;
     }

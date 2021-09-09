@@ -21,7 +21,6 @@ package org.apache.pulsar.testclient;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -83,13 +82,13 @@ public class PerformanceConsumer {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive", validateWith = PositiveNumberParameterValidator.class)
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)", validateWith = PositiveNumberParameterValidator.class)
         public int numSubscriptions = 1;
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)

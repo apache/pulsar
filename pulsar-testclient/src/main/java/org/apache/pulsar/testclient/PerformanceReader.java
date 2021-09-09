@@ -72,7 +72,7 @@ public class PerformanceReader {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")

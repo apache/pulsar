@@ -93,10 +93,10 @@ public class ManagedLedgerWriter {
         @Parameter(names = { "-s", "--size" }, description = "Message size")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of managed ledgers", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-t", "--num-topic" }, description = "Number of managed ledgers", validateWith = PositiveNumberParameterValidator.class)
         public int numManagedLedgers = 1;
 
-        @Parameter(names = { "--threads" }, description = "Number of threads writing", validateWith = ParameterValidator.class)
+        @Parameter(names = { "--threads" }, description = "Number of threads writing", validateWith = PositiveNumberParameterValidator.class)
         public int numThreads = 1;
 
         @Parameter(names = { "-zk", "--zookeeperServers" }, description = "ZooKeeper connection string", required = true)

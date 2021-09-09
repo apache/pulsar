@@ -22,7 +22,6 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import com.beust.jcommander.IParameterValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -109,7 +108,7 @@ public class PerformanceProducer {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topics;
 
-        @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads", validateWith = PositiveNumberParameterValidator.class)
         public int numTestThreads = 1;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
@@ -118,10 +117,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-s", "--size" }, description = "Message size (bytes)")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)", validateWith = ParameterValidator.class)
+        @Parameter(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)", validateWith = PositiveNumberParameterValidator.class)
         public int numProducers = 1;
 
         @Parameter(names = {"--separator"}, description = "Separator between the topic and topic number")
