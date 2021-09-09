@@ -147,10 +147,10 @@ public class PerformanceTransaction {
         public long transactionTimeout = 5;
 
         @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
-                description = "the number of a transaction produced")
+                description = "the number of messages optioned by  a transaction")
         public int numMessagesPerTransaction = 1;
 
-        @Parameter(names = {"-ntnx", "--number-txn"}, description = "the number of transaction")
+        @Parameter(names = {"-ntnx", "--number-txn"}, description = "the number of transaction, if o, it will keep opening")
         public long numTransactions = 0;
 
     }

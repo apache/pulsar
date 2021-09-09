@@ -261,10 +261,10 @@ public class PerformanceProducer {
         public long transactionTimeout = 5;
 
         @Parameter(names = {"-nmt", "---numMessage-perTransaction"},
-                description = "the number of a transaction produced")
+                description = "the number of messages produced by  a transaction")
         public int numMessagesPerTransaction = 50;
 
-        @Parameter(names = {"-txn", "--txn-enable"}, description = "transaction enable")
+        @Parameter(names = {"-txn", "--txn-enable"}, description = " whether transactions need to  be opened ")
         public boolean isEnableTransaction = false;
     }
 
