@@ -290,7 +290,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 // to properly calculate how many more messages we should dispatch to consumer. Use precise backlog size before
                 // and after the cumulative ack for the calculation.
                 // Use a writelock to prevent individual ack during the process which might cause incorrect result.
-                if (!this.pullMode) {PositionImpl
+                if (!this.pullMode) {
                     try {
                         pendingMessagesLock.writeLock().lock();
                         MessageIdImpl messageId = (MessageIdImpl) msgId;
