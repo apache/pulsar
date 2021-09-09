@@ -3281,7 +3281,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } catch (NullPointerException e) {
             next = lastConfirmedEntry.getNext();
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Can't find next valid position, fall back to the next position of the last position.", name, e);
+                log.debug("[{}] Can't find next valid position : {}, fall back to the next position of the last position : {}.", position, name, next, e);
             }
         }
         return next;
