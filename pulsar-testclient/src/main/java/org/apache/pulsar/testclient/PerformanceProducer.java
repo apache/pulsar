@@ -266,6 +266,8 @@ public class PerformanceProducer {
 
         @Parameter(names = {"-txn", "--txn-enable"}, description = " whether transactions need to  be opened ")
         public boolean isEnableTransaction = false;
+        @Parameter(names = {"-end"}, description = " how to end a transaction, commit or abort")
+        public boolean isCommitedTransaction = true;
     }
 
     public static void main(String[] args) throws Exception {
@@ -471,10 +473,10 @@ public class PerformanceProducer {
             double elapsed = (now - oldTime) / 1e9;
             long total = totalMessagesSent.sum();
             long totalTransaction = 0;
-            double rateTransaction = 0;
+            double averageTimePerTxn = 0;
             if(arguments.isEnableTransaction){
              totalTransaction = totalNumTransaction.sum();
-             rateTransaction = numTransaction.sumThenReset() / elapsed;
+             averageTimePerTxn = elapsed / numTransaction.sumThenReset();
             }
             double rate = messagesSent.sumThenReset() / elapsed;
 
@@ -484,7 +486,7 @@ public class PerformanceProducer {
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             String transactionLog = arguments.isEnableTransaction ? "---transaction: " + totalTransaction +
-                    " transaction commit --- " + rateTransaction + " transaction/s" : "";
+                    " transaction commit --- " + averageTimePerTxn + " s/perTxn" : "";
 
             log.info(
                     "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s --- failure {} msg/s  " +transactionLog + "--- Latency: mean: "
@@ -629,13 +631,10 @@ public class PerformanceProducer {
             }
             // Send messages on all topics/producers
             long totalSent = 0;
-            AtomicReference<Transaction> atomicReference = new AtomicReference<>(client.newTransaction().
-                    withTransactionTimeout(arguments.transactionTimeout,
-                    TimeUnit.SECONDS).build().get());
+            AtomicReference<Transaction> atomicReference = buildTransaction(client, arguments);
             AtomicLong messageTotal = new AtomicLong(0);
             while (true) {
                 for (Producer<byte[]> producer : producers) {
-                    Transaction transaction = atomicReference.get();
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
                             log.info("------------------- DONE -----------------------");
@@ -673,7 +672,7 @@ public class PerformanceProducer {
                     }
                     TypedMessageBuilder<byte[]> messageBuilder;
                     if(arguments.isEnableTransaction){
-                        messageBuilder = producer.newMessage(transaction)
+                        messageBuilder = producer.newMessage(atomicReference.get())
                             .value(payloadData);
                     }else {
                          messageBuilder = producer.newMessage()
@@ -703,11 +702,16 @@ public class PerformanceProducer {
                             recorder.recordValue(latencyMicros);
                             cumulativeRecorder.recordValue(latencyMicros);
                         }
-                        if(messageTotal.incrementAndGet() >= arguments.numMessagesPerTransaction){
+                        if(arguments.isEnableTransaction && messageTotal.incrementAndGet() >= arguments.numMessagesPerTransaction){
                             try {
+                                Transaction transaction = atomicReference.get();
                                 if(atomicReference.compareAndSet(transaction,
                                         pulsarClient.newTransaction().withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get())){
-                                    transaction.commit();
+                                    if(arguments.isCommitedTransaction){
+                                    transaction.commit();}
+                                    else {
+                                        transaction.abort();
+                                    }
                                     totalNumTransaction.increment();
                                     numTransaction.increment();
                                     messageTotal.set(0);
@@ -749,14 +753,14 @@ public class PerformanceProducer {
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
         long totalTransaction = 0;
-        double rateTransaction = 0;
+        double averageTimeTransaction = 0;
         if(totalNumTransaction.sum() != 0){
             totalTransaction = totalNumTransaction.sum();
-            rateTransaction = numTransaction.sumThenReset() / elapsed;
+            averageTimeTransaction = elapsed / numTransaction.sumThenReset();
         }
 
         String transactionLog = totalNumTransaction.sum() != 0 ? "---transaction: " + totalTransaction +
-                " transaction commit --- " + rateTransaction + " transaction/s" : "";
+                " transaction commit --- " + totalFormat.format(averageTimeTransaction) + " s/perTxn" : "";
 
         log.info(
             "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s" + transactionLog,
@@ -779,6 +783,18 @@ public class PerformanceProducer {
                 dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
                 dec.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0),
                 dec.format(reportHistogram.getMaxValue() / 1000.0));
+    }
+
+    private  static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments){
+        if(arguments.isEnableTransaction){
+            try {
+              return new AtomicReference(pulsarClient.newTransaction()
+                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build());
+            } catch (PulsarClientException e) {
+                log.error("Got transaction error: " + e.getMessage());
+            }
+        }
+        return null;
     }
 
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);

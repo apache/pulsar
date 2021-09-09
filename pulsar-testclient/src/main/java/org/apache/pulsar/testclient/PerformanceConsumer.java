@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -66,6 +67,9 @@ public class PerformanceConsumer {
 
     private static final LongAdder totalMessagesReceived = new LongAdder();
     private static final LongAdder totalBytesReceived = new LongAdder();
+
+    private static  final LongAdder totalMessageAck = new LongAdder();
+    private static  final LongAdder messageAck = new LongAdder();
 
     private static final LongAdder totalNumTransaction = new LongAdder();
     private static final LongAdder numTransaction = new LongAdder();
@@ -195,6 +199,10 @@ public class PerformanceConsumer {
         @Parameter(names = {"-txn", "--txn-enable"}, description = "whether transactions need to  be opened")
         public boolean isEnableTransaction = false;
 
+        @Parameter(names = {"-end"}, description = " how to end a transaction, commit or abort")
+        public boolean isCommitedTransaction = true;
+
+
     }
 
     public static void main(String[] args) throws Exception {
@@ -318,14 +326,12 @@ public class PerformanceConsumer {
         if (isNotBlank(arguments.listenerName)) {
             clientBuilder.listenerName(arguments.listenerName);
         }
-        AtomicReference<Transaction> atomicReference = new AtomicReference();
         PulsarClient  pulsarClient = clientBuilder.build();
+        AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments);
+
         AtomicLong messageTotal = new AtomicLong(0);
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
             try {
-                atomicReference.compareAndSet(null, pulsarClient.newTransaction().
-                        withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
-                Transaction transaction = atomicReference.get();
                 if (arguments.testTime > 0) {
                     if (System.nanoTime() > testEndTime) {
                         log.info("------------------- DONE -----------------------");
@@ -349,18 +355,26 @@ public class PerformanceConsumer {
                     cumulativeRecorder.recordValue(latencyMillis);
                 }
                 if(arguments.isEnableTransaction) {
-                    consumer.acknowledgeAsync(msg.getMessageId(), transaction);
+                    consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(()->{
+                        totalMessageAck.increment();
+                        messageAck.increment();
+                    });
                 }else {
                     consumer.acknowledgeAsync(msg);
                 }
                 if(arguments.poolMessages) {
                     msg.release();
                 }
-                if(messageTotal.incrementAndGet() >= arguments.numMessagesPerTransaction){
+                if(arguments.isEnableTransaction && messageTotal.incrementAndGet() >= arguments.numMessagesPerTransaction){
+                    Transaction transaction = atomicReference.get();
                     if(atomicReference.compareAndSet(transaction, pulsarClient.newTransaction().
                             withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get())){
                         messageTotal.set(0);
-                        transaction.commit();
+                        if(arguments.isCommitedTransaction){
+                            transaction.commit();}
+                        else {
+                            transaction.abort();
+                        }
                         totalNumTransaction.increment();
                         numTransaction.increment();
                     }
@@ -441,17 +455,17 @@ public class PerformanceConsumer {
             long total = totalMessagesReceived.sum();
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
-
+            double rateAck = messageAck.sum() / elapsed;
             long totalTransaction = 0;
-            double rateTransaction = 0;
+            double averageTimePerTransaction = 0;
             if(arguments.isEnableTransaction){
                 totalTransaction = totalNumTransaction.sum();
-                rateTransaction = numTransaction.sumThenReset() / elapsed;
+                averageTimePerTransaction = elapsed / numTransaction.sumThenReset();
             }
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             String transactionLog = arguments.isEnableTransaction ? "---transaction: " + totalTransaction +
-                    " transaction commit --- " + rateTransaction + " transaction/s" : "";
+                    " transaction commit --- " + averageTimePerTransaction  + " s/perTxn --- AckRate: " + rateAck +" msg/s" : "";
 
             log.info(
                     "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  " + transactionLog
@@ -475,14 +489,16 @@ public class PerformanceConsumer {
         double rate = totalMessagesReceived.sum() / elapsed;
         double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
         long totalTransaction = 0;
-        double rateTransaction = 0;
+        double rateAck = messageAck.sum() / elapsed;
+        double averageTimePerTransaction = 0;
         if(totalNumTransaction.sum() != 0){
             totalTransaction = totalNumTransaction.sum();
-            rateTransaction = numTransaction.sumThenReset() / elapsed;
+            averageTimePerTransaction = elapsed /  numTransaction.sumThenReset();
         }
 
         String transactionLog = totalNumTransaction.sum() != 0 ? "---transaction: " + totalTransaction +
-                " transaction commit --- " + rateTransaction + " transaction/s" : "";
+                " transaction commit --- " + averageTimePerTransaction + " s/perTxn --- AckRate:" + rateAck + " msg/s"
+                : "";
 
         log.info(
             "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s" + transactionLog,
@@ -502,5 +518,16 @@ public class PerformanceConsumer {
                 reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
+    private  static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments){
+        if(arguments.isEnableTransaction){
+            try {
+                return new AtomicReference(pulsarClient.newTransaction()
+                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build());
+            } catch (PulsarClientException e) {
+                log.error("Got transaction error: " + e.getMessage());
+            }
+        }
+        return null;
+    }
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
 }
