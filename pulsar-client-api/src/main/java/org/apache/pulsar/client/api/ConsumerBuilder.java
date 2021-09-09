@@ -775,8 +775,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff);
 
     /**
-     * Start the consumer in a paused state. When enabled, the consumer will not immediately fetch messages when
-     * {@link #subscribe()} is called. Instead, the consumer will wait to fetch messages until {@link Consumer#resume()} is called.
+     * Start the consumer in a paused state. When enabled, the consumer does not immediately fetch messages when
+     * {@link #subscribe()} is called. Instead, the consumer waits to fetch messages until {@link Consumer#resume()} is
+     * called.
      * <p/>
      * See also {@link Consumer#pause()}.
      */
