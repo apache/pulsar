@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -88,7 +88,6 @@ public class PerformanceTransaction {
 
     private static Recorder messageSendRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
     private static Recorder messageSendRCumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
-
 
 
     @Parameters(commandDescription = "Test pulsar transaction performance.")
@@ -353,10 +352,10 @@ public class PerformanceTransaction {
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if(arguments.isEnableTransaction){
-            printAggregatedThroughput(startTime);
-            }else {
-            printAggregatedThroughput(startTime, arguments);
+            if (arguments.isEnableTransaction) {
+                printAggregatedThroughput(startTime);
+            } else {
+                printAggregatedThroughput(startTime, arguments);
             }
             printAggregatedStats();
         }));
@@ -422,13 +421,14 @@ public class PerformanceTransaction {
                                 if (messageSend.sum() >= arguments.numMessagesProducedPerTransaction
                                         || messageReceived.sum() >= arguments.numMessagesReceivedPerTransaction) {
                                     if (arguments.isEnableTransaction) {
-                                            if (arguments.isCommitedTransaction) {
-                                                transaction.commit();
-                                            } else {
-                                                transaction.abort();
-                                            }
+                                        if (arguments.isCommitedTransaction) {
+                                            transaction.commit();
+                                        } else {
+                                            transaction.abort();
+                                        }
                                         atomicReference.compareAndSet(transaction, client.newTransaction()
-                                                .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+                                                .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                                .build().get());
                                     }
                                     totalNumTransaction.increment();
                                     numTransaction.increment();
@@ -494,9 +494,10 @@ public class PerformanceTransaction {
             double rate = numTransaction.sumThenReset() / elapsed;
 
             reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
-            reportAckHistogram  = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
+            reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
             log.info(
-                    "Throughput transaction: {} transaction --- {} transaction/s  ---send Latency: mean: {} ms - med: {} "
+                    "Throughput transaction: {} transaction --- {} transaction/s  ---send Latency: mean: {} ms - med:"
+                            + " {} "
                             + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}" + "---ack Latency: "
                             + "mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}"
                     ,
@@ -542,19 +543,21 @@ public class PerformanceTransaction {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalNumTransaction.sum() / elapsed;
         log.info(
-                "Aggregated throughput stats --- {} task executed --- {} task/s --- Message at most  - send {} - ack {}",
+                "Aggregated throughput stats --- {} task executed --- {} task/s --- Message at most  - send {} - ack "
+                        + "{}",
                 totalNumTransaction.sum(),
                 totalFormat.format(rate),
                 arguments.numMessagesProducedPerTransaction,
                 arguments.numMessagesReceivedPerTransaction
-                );
+        );
     }
 
     private static void printAggregatedStats() {
         Histogram reportAckHistogram = messageAckCumulativeRecorder.getIntervalHistogram();
         Histogram reportSendHistogram = messageSendRCumulativeRecorder.getIntervalHistogram();
         log.info(
-                "Messages ack aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - "
+                "Messages ack aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - "
+                        + "99.9pct: {} - "
                         + "99.99pct: {} - 99.999pct: {} - Max: {}",
                 dec.format(reportAckHistogram.getMean() / 1000.0),
                 dec.format(reportAckHistogram.getValueAtPercentile(50) / 1000.0),
@@ -565,7 +568,8 @@ public class PerformanceTransaction {
                 dec.format(reportAckHistogram.getValueAtPercentile(99.999) / 1000.0),
                 dec.format(reportAckHistogram.getMaxValue() / 1000.0));
         log.info(
-                "Messages send aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - "
+                "Messages send aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - "
+                        + "99.9pct: {} - "
                         + "99.99pct: {} - 99.999pct: {} - Max: {}",
                 dec.format(reportSendHistogram.getMean() / 1000.0),
                 dec.format(reportSendHistogram.getValueAtPercentile(50) / 1000.0),
@@ -576,8 +580,9 @@ public class PerformanceTransaction {
                 dec.format(reportSendHistogram.getValueAtPercentile(99.999) / 1000.0),
                 dec.format(reportSendHistogram.getMaxValue() / 1000.0));
     }
-    private  static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments){
-        if(arguments.isEnableTransaction){
+
+    private static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments) {
+        if (arguments.isEnableTransaction) {
             try {
                 return new AtomicReference(pulsarClient.newTransaction()
                         .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build());

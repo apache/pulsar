@@ -68,8 +68,8 @@ public class PerformanceConsumer {
     private static final LongAdder totalMessagesReceived = new LongAdder();
     private static final LongAdder totalBytesReceived = new LongAdder();
 
-    private static  final LongAdder totalMessageAck = new LongAdder();
-    private static  final LongAdder messageAck = new LongAdder();
+    private static final LongAdder totalMessageAck = new LongAdder();
+    private static final LongAdder messageAck = new LongAdder();
 
     private static final LongAdder totalNumTransaction = new LongAdder();
     private static final LongAdder numTransaction = new LongAdder();
@@ -80,110 +80,118 @@ public class PerformanceConsumer {
     @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments {
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
+        @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
         boolean help;
 
-        @Parameter(names = { "--conf-file" }, description = "Configuration file")
+        @Parameter(names = {"--conf-file"}, description = "Configuration file")
         public String confFile;
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
+        @Parameter(names = {"-t", "--num-topics"}, description = "Number of topics")
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive")
+        @Parameter(names = {"-n",
+                "--num-consumers"}, description = "Number of consumers (per subscription), only one consumer is "
+                + "allowed when subscriptionType is Exclusive")
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
+        @Parameter(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
+        @Parameter(names = {"-s", "--subscriber-name"}, description = "Subscriber name prefix")
         public String subscriberName = "sub";
 
-        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
+        @Parameter(names = {"-ss",
+                "--subscriptions"}, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
-        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
+        @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
-        @Parameter(names = { "-sp", "--subscription-position" }, description = "Subscription position")
+        @Parameter(names = {"-sp", "--subscription-position"}, description = "Subscription position")
         private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
+        @Parameter(names = {"-r", "--rate"}, description = "Simulate a slow message consumer (rate in msg/s)")
         public double rate = 0;
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+        @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" }, description = "Max total size of the receiver queue across partitions")
+        @Parameter(names = {"-p",
+                "--receiver-queue-size-across-partitions"}, description = "Max total size of the receiver queue "
+                + "across partitions")
         public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
-        @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
+        @Parameter(names = {"--replicated"}, description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
 
-        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
+        @Parameter(names = {"--acks-delay-millis"}, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single broker")
+        @Parameter(names = {"-c",
+                "--max-connections"}, description = "Max number of TCP connections to a single broker")
         public int maxConnections = 100;
 
-        @Parameter(names = { "-i",
-                "--stats-interval-seconds" }, description = "Statistics Interval Seconds. If 0, statistics will be disabled")
+        @Parameter(names = {"-i",
+                "--stats-interval-seconds"}, description = "Statistics Interval Seconds. If 0, statistics will be "
+                + "disabled")
         public long statsIntervalSeconds = 0;
 
-        @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
+        @Parameter(names = {"-u", "--service-url"}, description = "Pulsar Service URL")
         public String serviceURL;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
+        @Parameter(names = {"--auth_plugin"}, description = "Authentication plugin class name")
         public String authPluginClassName;
 
-        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+        @Parameter(names = {"--listener-name"}, description = "Listener name for the broker.")
         String listenerName = null;
 
-        @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        @Parameter(names = {"-mc", "--max_chunked_msg"}, description = "Max pending chunk messages")
         private int maxPendingChunkedMessage = 0;
 
-        @Parameter(names = { "-ac",
-                "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+        @Parameter(names = {"-ac",
+                "--auto_ack_chunk_q_full"}, description = "Auto ack for oldest message on queue is full")
         private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
-        @Parameter(names = { "-e",
-                "--expire_time_incomplete_chunked_messages" }, description = "Expire time in ms for incomplete chunk messages")
+        @Parameter(names = {"-e",
+                "--expire_time_incomplete_chunked_messages"}, description = "Expire time in ms for incomplete chunk "
+                + "messages")
         private long expireTimeOfIncompleteChunkedMessageMs = 0;
 
         @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation " +
-                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                names = {"--auth-params"},
+                description = "Authentication parameters, whose format is determined by the implementation " +
+                        "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
+                        "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
         public String authParams;
 
         @Parameter(names = {
-                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
+                "--trust-cert-file"}, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
 
         @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
+                "--tls-allow-insecure"}, description = "Allow insecure TLS connection")
         public Boolean tlsAllowInsecureConnection = null;
 
-        @Parameter(names = { "-v",
-                "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
+        @Parameter(names = {"-v",
+                "--encryption-key-value-file"}, description = "The file which contains the private key to decrypt "
+                + "payload")
         public String encKeyFile = null;
 
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
+        @Parameter(names = {"-time",
+                "--test-duration"}, description = "Test duration in secs. If 0, it will keep consuming")
         public long testTime = 0;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
-    
-        @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
+
+        @Parameter(names = {"--batch-index-ack"}, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
-        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+        @Parameter(names = {"-pm", "--pool-messages"}, description = "Use the pooled message")
         private boolean poolMessages = true;
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
@@ -256,7 +264,9 @@ public class PerformanceConsumer {
                 }
                 arguments.subscriptions = defaultSubscriptions;
             } else {
-                System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
+                System.out.println(
+                        "The size of subscriptions list should be equal to --num-consumers when subscriptionType "
+                                + "isn't Exclusive");
                 jc.usage();
                 PerfClientUtils.exit(-1);
             }
@@ -326,7 +336,7 @@ public class PerformanceConsumer {
         if (isNotBlank(arguments.listenerName)) {
             clientBuilder.listenerName(arguments.listenerName);
         }
-        PulsarClient  pulsarClient = clientBuilder.build();
+        PulsarClient pulsarClient = clientBuilder.build();
         AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments);
 
         AtomicLong messageTotal = new AtomicLong(0);
@@ -354,25 +364,26 @@ public class PerformanceConsumer {
                     recorder.recordValue(latencyMillis);
                     cumulativeRecorder.recordValue(latencyMillis);
                 }
-                if(arguments.isEnableTransaction) {
-                    consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(()->{
+                if (arguments.isEnableTransaction) {
+                    consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
                         totalMessageAck.increment();
                         messageAck.increment();
                     });
-                }else {
+                } else {
                     consumer.acknowledgeAsync(msg);
                 }
-                if(arguments.poolMessages) {
+                if (arguments.poolMessages) {
                     msg.release();
                 }
-                if(arguments.isEnableTransaction && messageTotal.incrementAndGet() >= arguments.numMessagesPerTransaction){
+                if (arguments.isEnableTransaction
+                        && messageTotal.incrementAndGet() >= arguments.numMessagesPerTransaction) {
                     Transaction transaction = atomicReference.get();
-                    if(atomicReference.compareAndSet(transaction, pulsarClient.newTransaction().
-                            withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get())){
+                    if (atomicReference.compareAndSet(transaction, pulsarClient.newTransaction().
+                            withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get())) {
                         messageTotal.set(0);
-                        if(arguments.isCommitedTransaction){
-                            transaction.commit();}
-                        else {
+                        if (arguments.isCommitedTransaction) {
+                            transaction.commit();
+                        } else {
                             transaction.abort();
                         }
                         totalNumTransaction.increment();
@@ -458,14 +469,15 @@ public class PerformanceConsumer {
             double rateAck = messageAck.sum() / elapsed;
             long totalTransaction = 0;
             double averageTimePerTransaction = 0;
-            if(arguments.isEnableTransaction){
+            if (arguments.isEnableTransaction) {
                 totalTransaction = totalNumTransaction.sum();
                 averageTimePerTransaction = elapsed / numTransaction.sumThenReset();
             }
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             String transactionLog = arguments.isEnableTransaction ? "---transaction: " + totalTransaction +
-                    " transaction commit --- " + averageTimePerTransaction  + " s/perTxn --- AckRate: " + rateAck +" msg/s" : "";
+                    " transaction commit --- " + averageTimePerTransaction + " s/perTxn --- AckRate: " + rateAck
+                    + " msg/s" : "";
 
             log.info(
                     "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  " + transactionLog
@@ -491,9 +503,9 @@ public class PerformanceConsumer {
         long totalTransaction = 0;
         double rateAck = messageAck.sum() / elapsed;
         double averageTimePerTransaction = 0;
-        if(totalNumTransaction.sum() != 0){
+        if (totalNumTransaction.sum() != 0) {
             totalTransaction = totalNumTransaction.sum();
-            averageTimePerTransaction = elapsed /  numTransaction.sumThenReset();
+            averageTimePerTransaction = elapsed / numTransaction.sumThenReset();
         }
 
         String transactionLog = totalNumTransaction.sum() != 0 ? "---transaction: " + totalTransaction +
@@ -501,25 +513,26 @@ public class PerformanceConsumer {
                 : "";
 
         log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s" + transactionLog,
-            totalMessagesReceived,
-            dec.format(rate),
-            dec.format(throughput));
+                "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s" + transactionLog,
+                totalMessagesReceived,
+                dec.format(rate),
+                dec.format(throughput));
     }
 
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - "
+                        + "99.99pct: {} - 99.999pct: {} - Max: {}",
                 dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
                 reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
                 reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
                 reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
-    private  static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments){
-        if(arguments.isEnableTransaction){
+    private static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments) {
+        if (arguments.isEnableTransaction) {
             try {
                 return new AtomicReference(pulsarClient.newTransaction()
                         .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build());
@@ -529,5 +542,6 @@ public class PerformanceConsumer {
         }
         return null;
     }
+
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
 }
