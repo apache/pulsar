@@ -65,34 +65,6 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
-
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
-                broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, tls) -> {
-                            return new PulsarChannelInitializer(_pulsar, tls) {
-                                @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar) throws Exception {
-                                    return new ServerCnx(pulsar) {
-
-                                        @Override
-                                        protected void handleFlow(CommandFlow flow) {
-                                            super.handleFlow(flow);
-                                            numFlow.incrementAndGet();
-                                        }
-                                    };
-                                }
-                            };
-                        });
-                return broker;
-            }
-        };
-    }
-
     @Test
     public void testNonDurableSubscription() throws Exception {
         String topicName = "persistent://my-property/my-ns/nonDurable-topic1";
