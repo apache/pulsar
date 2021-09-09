@@ -27,6 +27,7 @@ import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
+import com.ibm.j9ddr.vm29.pointer.generated._jbyteArrayPointer;
 import java.io.FileInputStream;
 
 import java.io.FileOutputStream;
@@ -352,7 +353,11 @@ public class PerformanceTransaction {
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if(arguments.isEnableTransaction){
             printAggregatedThroughput(startTime);
+            }else {
+            printAggregatedThroughput(startTime, arguments);
+            }
             printAggregatedStats();
         }));
         AtomicBoolean executing = new AtomicBoolean(true);
@@ -533,7 +538,17 @@ public class PerformanceTransaction {
                 totalFormat.format(rate));
     }
 
-
+    private static void printAggregatedThroughput(long start, Arguments arguments) {
+        double elapsed = (System.nanoTime() - start) / 1e9;
+        double rate = totalNumTransaction.sum() / elapsed;
+        log.info(
+                "Aggregated throughput stats --- {} task executed --- {} task/s --- Message at most  - send {} - ack {}",
+                totalNumTransaction.sum(),
+                totalFormat.format(rate),
+                arguments.numMessagesProducedPerTransaction,
+                arguments.numMessagesReceivedPerTransaction
+                );
+    }
 
     private static void printAggregatedStats() {
         Histogram reportAckHistogram = messageAckCumulativeRecorder.getIntervalHistogram();
