@@ -116,8 +116,8 @@ Public Member Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>A logger factory that is appending logs to a single file.</p>
-<p>The log format is "yyyy-mm-dd hh:MM:ss.xxx &lt;level&gt; &lt;thread-id&gt; &lt;file&gt;:&lt;line&gt; | &lt;msg&gt;", like</p>
-<div class="fragment"><div class="line">2021-03-24 17:35:46.571 INFO  [0x10a951e00] ConnectionPool:85 | Created connection <span class="keywordflow">for</span> ...</div></div><!-- fragment --><p>Example:</p>
+<p>The log format is "yyyy-MM-dd HH:mm:ss,SSS Z &lt;level&gt; &lt;thread-id&gt; &lt;file&gt;:&lt;line&gt; | &lt;msg&gt;", like</p>
+<div class="fragment"><div class="line">2021-03-24 17:35:46,571 +0800 INFO  [0x10a951e00] ConnectionPool:85 | Created connection <span class="keywordflow">for</span> ...</div></div><!-- fragment --><p>Example:</p>
 <div class="fragment"><div class="line">{c++}</div><div class="line"><span class="preprocessor">#include &lt;pulsar/FileLoggerFactory.h&gt;</span></div><div class="line"></div><div class="line">ClientConfiguration conf;</div><div class="line">conf.setLogger(<span class="keyword">new</span> <a class="code" href="classpulsar_1_1_file_logger_factory.html#a295a3b87a6a73a67bb8f805b3a4769b5">FileLoggerFactory</a>(Logger::LEVEL_DEBUG, <span class="stringliteral">&quot;pulsar-client-cpp.log&quot;</span>));</div><div class="line">Client client(<span class="stringliteral">&quot;pulsar://localhost:6650&quot;</span>, conf);</div></div><!-- fragment --> </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a class="anchor" id="a295a3b87a6a73a67bb8f805b3a4769b5"></a>
 <div class="memitem">

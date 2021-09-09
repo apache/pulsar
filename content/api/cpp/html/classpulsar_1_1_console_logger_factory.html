@@ -117,8 +117,8 @@ Public Member Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>The default <a class="el" href="classpulsar_1_1_logger_factory.html">LoggerFactory</a> of <a class="el" href="classpulsar_1_1_client.html">Client</a> if <code>USE_LOG4CXX</code> macro was not defined during compilation.</p>
-<p>The log format is "yyyy-mm-dd hh:MM:ss.xxx &lt;level&gt; &lt;thread-id&gt; &lt;file&gt;:&lt;line&gt; | &lt;msg&gt;", like</p>
-<div class="fragment"><div class="line">2021-03-24 17:35:46.571 INFO  [0x10a951e00] ConnectionPool:85 | Created connection <span class="keywordflow">for</span> ...</div></div><!-- fragment --><p>It uses <code>std::cout</code> to prints logs to standard output. You can use this factory class to change your log level simply.</p>
+<p>The log format is "yyyy-MM-dd HH:mm:ss,SSS Z &lt;level&gt; &lt;thread-id&gt; &lt;file&gt;:&lt;line&gt; | &lt;msg&gt;", like</p>
+<div class="fragment"><div class="line">2021-03-24 17:35:46,571 +0800 INFO  [0x10a951e00] ConnectionPool:85 | Created connection <span class="keywordflow">for</span> ...</div></div><!-- fragment --><p>It uses <code>std::cout</code> to prints logs to standard output. You can use this factory class to change your log level simply.</p>
 <div class="fragment"><div class="line">{c++}</div><div class="line"><span class="preprocessor">#include &lt;pulsar/ConsoleLoggerFactory.h&gt;</span></div><div class="line"></div><div class="line">ClientConfiguration conf;</div><div class="line">conf.setLogger(<span class="keyword">new</span> ConsoleLoggerFactory(Logger::LEVEL_DEBUG));</div><div class="line">Client client(<span class="stringliteral">&quot;pulsar://localhost:6650&quot;</span>, conf);</div></div><!-- fragment --> </div><h2 class="groupheader">Member Function Documentation</h2>
 <a class="anchor" id="af18f4e6dcf6de29d759319c5d231e27f"></a>
 <div class="memitem">
