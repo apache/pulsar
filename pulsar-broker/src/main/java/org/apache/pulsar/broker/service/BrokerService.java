@@ -27,6 +27,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
@@ -240,6 +241,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public static final String PRODUCER_NAME_GENERATOR_PATH = "/counters/producer-name";
 
     private final BacklogQuotaManager backlogQuotaManager;
+    private PulsarChannelInitializer.Factory pulsarChannelInitFactory = PulsarChannelInitializer.DEFAULT_FACTORY;
 
     private final int keepAliveIntervalSeconds;
     private final PulsarStats pulsarStats;
@@ -418,7 +420,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
-        bootstrap.childHandler(new PulsarChannelInitializer(pulsar, false));
+        bootstrap.childHandler(
+                pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, false));
 
         Optional<Integer> port = serviceConfig.getBrokerServicePort();
         if (port.isPresent()) {
@@ -435,7 +438,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         Optional<Integer> tlsPort = serviceConfig.getBrokerServicePortTls();
         if (tlsPort.isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
-            tlsBootstrap.childHandler(new PulsarChannelInitializer(pulsar, true));
+            tlsBootstrap.childHandler(pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, true));
             try {
                 listenChannelTls = tlsBootstrap.bind(new InetSocketAddress(
                         pulsar.getBindAddress(), tlsPort.get())).sync()
@@ -2701,5 +2704,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public long getPausedConnections() {
         return pausedConnections.longValue();
+    }
+
+    @VisibleForTesting
+    public void setPulsarChannelInitializerFactory(PulsarChannelInitializer.Factory factory) {
+        this.pulsarChannelInitFactory = factory;
     }
 }
