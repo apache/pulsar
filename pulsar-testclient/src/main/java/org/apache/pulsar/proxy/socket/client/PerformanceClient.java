@@ -249,6 +249,7 @@ public class PerformanceClient {
                         if (messages > 0) {
                             if (totalSent >= messages) {
                                 log.trace("------------------- DONE -----------------------");
+                                printAggregatedStats();
                                 Thread.sleep(10000);
                                 PerfClientUtils.exit(0);
                             }
@@ -348,6 +349,17 @@ public class PerformanceClient {
             return produceSocket;
         }
 
+    }
+
+    private static void printAggregatedStats() {
+        Histogram reportHistogram = SimpleTestProducerSocket.cumulativeRecorder.getIntervalHistogram();
+
+        log.info(
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);

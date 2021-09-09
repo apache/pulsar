@@ -216,6 +216,7 @@ public class PerformanceReader {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
+                    printAggregatedStats();
                     PerfClientUtils.exit(0);
                 }
             }
