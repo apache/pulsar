@@ -322,6 +322,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public long getNumberOfUnAckedEntries(Position position) {
+            return 0;
+        }
+
+        @Override
         public int getTotalNonContiguousDeletedMessagesRange() {
             return 0;
         }

@@ -896,6 +896,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public long getNumberOfUnAckedEntries(Position position) {
+        PositionImpl toPosition = (PositionImpl) position;
+        // if given position is smaller then current read position means there's no un-acked entries
+        if (markDeletePosition.compareTo(toPosition) > 0) {
+            return 0;
+        }
+        return getNumberOfEntries(Range.closedOpen(markDeletePosition, toPosition));
+    }
+
+    @Override
     public int getTotalNonContiguousDeletedMessagesRange() {
         return individualDeletedMessages.size();
     }

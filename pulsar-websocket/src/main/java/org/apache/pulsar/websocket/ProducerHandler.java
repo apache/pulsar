@@ -79,7 +79,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private final LongAdder numMsgsFailed;
     private final LongAdder numBytesSent;
     private final StatsBuckets publishLatencyStatsUSec;
-    private final ReadWriteLock producerConsumerSyncLock;
     private final boolean consumerPullMode;
     private final boolean consumerCumulativeAck;
 
@@ -98,8 +97,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
         this.consumerPullMode = Boolean.valueOf(queryParams.get("consumerPullMode"));
         this.consumerCumulativeAck = Boolean.valueOf(queryParams.get("consumerCumulativeAck"));
-        this.producerConsumerSyncLock = service.getCumulativeAckLocks()
-                .computeIfAbsent(topic.toString(), (ignored) -> new ReentrantReadWriteLock());
         if (!checkAuth(response)) {
             return;
         }
@@ -214,7 +211,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             // can't happen at the same time as produce will also affect backlog msg count which will affect
             // consumer permit calculation
             try {
-                producerConsumerSyncLock.readLock().lock();
                 MessageId msgId = builder.send();
                 sendMessageSucceed(msgSize, now, sendRequest, msgId);
             } catch (PulsarClientException exception) {
@@ -223,8 +219,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 numMsgsFailed.increment();
                 sendAckResponse(
                         new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
-            } finally {
-                producerConsumerSyncLock.readLock().unlock();
             }
         }
     }

@@ -406,7 +406,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test// (timeOut = 30000)
+    @Test(timeOut = 30000)
     public void producerBacklogQuotaExceededTest() throws Exception {
         String namespace = "my-property/ns-ws-quota";
         admin.namespaces().createNamespace(namespace);
@@ -922,7 +922,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test//(timeOut = 10000)
     public void cumulativeAckMessageTest() throws Exception {
         final String subscription = "my-sub";
         final String consumerTopic = "my-property/my-ns/my-topic11";
@@ -935,15 +935,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
                 "/ws/v2/producer/persistent/" + consumerTopic+
                 "?consumerCumulativeAck=true";
-        WebSocketClient consumeClient1 = new WebSocketClient();
-        SimpleConsumerSocket consumeSocket1 = new CumulativeAckConsumerSocket();
+        WebSocketClient consumeClient = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket = new CumulativeAckConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient();
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
         try {
-            consumeClient1.start();
+            consumeClient.start();
             ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, URI.create(consumerUri), consumeRequest1);
+            Future<Session> consumerFuture1 = consumeClient.connect(consumeSocket, URI.create(consumerUri), consumeRequest1);
 
             assertTrue(consumerFuture1.get().isOpen());
 
@@ -952,26 +952,23 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> producerFuture = produceClient.connect(produceSocket, URI.create(producerUri), produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
-            Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 10));
+            Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 10));
 
-            // only half message acked by individual ack
-            Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+            // cumulative ack on every 20 messages, send 10 message when connected, only half message acked by individual ack
+            Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
                     .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 5));
 
+            // send 10 more messages, all messages acked by cumulative ack
             produceSocket.sendMessage(10);
-
-            Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 20));
-
-            // all messages acked by cumulative ack
-            Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
+            Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 20));
+            Awaitility.await().atMost(100000, TimeUnit.MILLISECONDS)
                     .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 0));
 
             produceSocket.sendMessage(10);
-
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 30));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 30));
 
             assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getConsumers().get(0).getMsgOutCounter(), 30);
             // only half message acked by individual ack
@@ -981,7 +978,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             produceSocket.sendMessage(70);
 
             Awaitility.await().atMost(1000, TimeUnit.MILLISECONDS)
-                    .untilAsserted(() -> assertEquals(consumeSocket1.getReceivedMessagesCount(), 100));
+                    .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 100));
 
             assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getConsumers().get(0).getMsgOutCounter(), 100);
             // all messages acked by cumulative ack
@@ -989,7 +986,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                     .untilAsserted(() -> assertEquals(admin.topics().getStats(TopicDomain.persistent + "://" + consumerTopic, true, true).getSubscriptions().get(subscription).getMsgBacklogNoDelayed(), 0));
 
         } finally {
-            stopWebSocketClient(consumeClient1, produceClient);
+            stopWebSocketClient(consumeClient, produceClient);
         }
     }
 

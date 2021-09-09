@@ -641,6 +641,13 @@ public interface ManagedCursor {
     long getNumberOfEntriesSinceFirstNotAckedMessage();
 
     /**
+     * Returns total number of un-acked entries from mark delete position to given position.
+     *
+     * @return
+     */
+    long getNumberOfUnAckedEntries(Position position);
+
+    /**
      * Returns number of mark-Delete range.
      *
      * @return

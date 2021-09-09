@@ -1408,6 +1408,45 @@ public interface Topics {
     CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId);
 
     /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws ConflictException
+     *             Subscription already exists
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    long getNumberOfUnackedMessages(String topic, String subscriptionName, long ledgerId, long entryId)
+            throws PulsarAdminException;
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     */
+    CompletableFuture<Long> getNumberOfUnackedMessagesAsync(String topic, String subscriptionName,
+                                                            long ledgerId, long entryId);
+
+    /**
      * Reset cursor position on a topic subscription.
      *
      * @param topic

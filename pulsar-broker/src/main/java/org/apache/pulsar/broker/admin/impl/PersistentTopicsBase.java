@@ -2622,6 +2622,13 @@ public class PersistentTopicsBase extends AdminResource {
         return responseBuilder.entity(stream).build();
     }
 
+    protected long internalGetNumberOfUnAckedEntries(String subName, PositionImpl position) {
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        PersistentSubscription subscription = topic.getSubscription(subName);
+        return subscription.getCursor().getNumberOfUnAckedEntries(
+                new PositionImpl(position.getLedgerId(), position.getEntryId()));
+    }
+
     protected PersistentOfflineTopicStats internalGetBacklog(boolean authoritative) {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);

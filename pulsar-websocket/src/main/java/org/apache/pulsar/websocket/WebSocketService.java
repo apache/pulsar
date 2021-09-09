@@ -83,7 +83,6 @@ public class WebSocketService implements Closeable {
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> topicReaderMap;
-    private final ConcurrentOpenHashMap<String, ReadWriteLock> cumulativeAckLocks;
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
@@ -96,7 +95,6 @@ public class WebSocketService implements Closeable {
         this.topicProducerMap = new ConcurrentOpenHashMap<>();
         this.topicConsumerMap = new ConcurrentOpenHashMap<>();
         this.topicReaderMap = new ConcurrentOpenHashMap<>();
-        this.cumulativeAckLocks = new ConcurrentOpenHashMap<>();
         this.proxyStats = new ProxyStats(this);
     }
 
@@ -347,10 +345,6 @@ public class WebSocketService implements Closeable {
             return topicReaderMap.get(topicName).remove(reader);
         }
         return false;
-    }
-
-    public ConcurrentOpenHashMap<String, ReadWriteLock> getCumulativeAckLocks() {
-        return cumulativeAckLocks;
     }
 
     public ServiceConfiguration getConfig() {

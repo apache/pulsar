@@ -1350,6 +1350,43 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncPutRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
     }
 
+    public long getNumberOfUnackedMessages(String topic, String subscriptionName,
+                                           long ledgerId, long entryId)
+            throws PulsarAdminException {
+        try {
+            return getNumberOfUnackedMessagesAsync(topic, subscriptionName, ledgerId, entryId)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    public CompletableFuture<Long> getNumberOfUnackedMessagesAsync(String topic, String subscriptionName,
+                                                                   long ledgerId, long entryId) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subscriptionName);
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        WebTarget path = topicPath(tn, "subscription", encodedSubName, "ledger", Long.toString(ledgerId),
+                "entry", Long.toString(entryId), "unackedEntries");
+        asyncGetRequest(path, new InvocationCallback<Long>() {
+            @Override
+            public void completed(Long numberOfMessages) {
+                future.complete(numberOfMessages);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
     @Override
     public void resetCursor(String topic, String subName, long timestamp) throws PulsarAdminException {
         try {

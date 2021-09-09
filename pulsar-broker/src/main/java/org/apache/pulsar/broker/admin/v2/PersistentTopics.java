@@ -43,6 +43,8 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -1573,6 +1575,32 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetBacklog(authoritative);
+    }
+
+    @GET
+    @Path("{tenant}/{namespace}/{topic}/subscription/{subName}/ledger/{ledgerId}/entry/{entryId}/unackedEntries")
+    @ApiOperation(value = "Get number of unacked messages from market delete position to given position.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public long getNumberOfUnAckedEntries(
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription to be deleted")
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "The ledger id", required = true)
+            @PathParam("ledgerId") long ledgerId,
+            @ApiParam(value = "The entry id", required = true)
+            @PathParam("entryId") long entryId,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return internalGetNumberOfUnAckedEntries(decode(encodedSubName), new PositionImpl(ledgerId, entryId));
     }
 
     @GET
