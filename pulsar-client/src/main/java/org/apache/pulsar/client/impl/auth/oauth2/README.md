@@ -46,7 +46,7 @@ The following parameters are supported:
 | `type` | Oauth 2.0 auth type. Optional. | default: `client_credentials`  |
 | `issuerUrl` | URL of the provider which allows Pulsar to obtain an access token. Required. | `https://accounts.google.com` |
 | `privateKey` | URL to a JSON credentials file (in JSON format; see below). Required. | See "Supported Pattern Formats" |
-| `audience`  | An OAuth 2.0 "resource server" identifier for the Pulsar cluster. Required. | `https://broker.example.com` |
+| `audience`  | An OAuth 2.0 "resource server" identifier for the Pulsar cluster. Required by some Identity Providers. Optional for client. | `https://broker.example.com` |
 
 ### Supported Pattern Formats of `privateKey`
 The `privateKey` parameter supports the following three pattern formats, and contains client Credentials:

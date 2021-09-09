@@ -47,19 +47,13 @@ public class TokenClientTest {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
         TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
-        Map<String, String> bodyMap = new TreeMap<>();
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .audience("test-audience")
                 .clientId("test-client-id")
                 .clientSecret("test-client-secret")
                 .scope("test-scope")
                 .build();
-        bodyMap.put("grant_type", "client_credentials");
-        bodyMap.put("client_id", request.getClientId());
-        bodyMap.put("client_secret", request.getClientSecret());
-        bodyMap.put("audience", request.getAudience());
-        bodyMap.put("scope", request.getScope());
-        String body = tokenClient.buildClientCredentialsBody(bodyMap);
+        String body = tokenClient.buildClientCredentialsBody(request);
         BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
         Response response = mock(Response.class);
         ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
@@ -80,22 +74,16 @@ public class TokenClientTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void exchangeClientCredentialsSuccessByNoScopeTest() throws
+    public void exchangeClientCredentialsSuccessWithoutOptionalClientCredentialsTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
         DefaultAsyncHttpClient defaultAsyncHttpClient = mock(DefaultAsyncHttpClient.class);
         URL url = new URL("http://localhost");
         TokenClient tokenClient = new TokenClient(url, defaultAsyncHttpClient);
-        Map<String, String> bodyMap = new TreeMap<>();
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
-                .audience("test-audience")
                 .clientId("test-client-id")
                 .clientSecret("test-client-secret")
                 .build();
-        bodyMap.put("grant_type", "client_credentials");
-        bodyMap.put("client_id", request.getClientId());
-        bodyMap.put("client_secret", request.getClientSecret());
-        bodyMap.put("audience", request.getAudience());
-        String body = tokenClient.buildClientCredentialsBody(bodyMap);
+        String body = tokenClient.buildClientCredentialsBody(request);
         BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
         Response response = mock(Response.class);
         ListenableFuture<Response> listenableFuture = mock(ListenableFuture.class);
