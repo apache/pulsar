@@ -583,11 +583,11 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
  `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-postgres-jdbc-sink.yaml_ |
  `--parallelism` | The parallelism factor of the sink. <br /><br /> For example, the number of sink instances to run. |  _1_ |
 
- :::tip
+:::tip
 
- For more information about `pulsar-admin sinks create options`, see [here](io-cli.md#sinks).
+For more information about `pulsar-admin sinks create options`, see [here](io-cli.md#sinks).
 
- :::
+:::
 
 
 The sink has been created successfully if the following message appears.
