@@ -49,6 +49,20 @@
         "functions-cli",
         "window-functions-context"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        "io-overview",
+        "io-quickstart",
+        "io-use",
+        "io-debug",
+        "io-connectors",
+        "io-cdc",
+        "io-develop",
+        "io-cli"
+      ]
     }
   ]
 }
