@@ -2229,8 +2229,7 @@ public class BrokerService implements Closeable {
         }
 
         final String topic = pendingTopic.getLeft();
-        try {
-            checkTopicNsOwnership(topic).join();
+        checkTopicNsOwnership(topic).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
@@ -2243,14 +2242,14 @@ public class BrokerService implements Closeable {
                 createPendingLoadTopic();
                 return null;
             });
-        } catch (Exception e) {
+        }).exceptionally(e -> {
             log.error("Failed to create pending topic {}", topic, e);
             pendingTopic.getRight()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
             inactivityMonitor.schedule(this::createPendingLoadTopic, 100, TimeUnit.MILLISECONDS);
-        }
-
+            return null;
+        });
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
