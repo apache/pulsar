@@ -46,6 +46,7 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -316,7 +317,8 @@ public class PulsarBrokerStarter {
 
 
     public static void main(String[] args) throws Exception {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+        DateFormat dateFormat = new SimpleDateFormat(
+            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
             System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s",
                     dateFormat.format(new Date()), thread.getContextClassLoader(),
