@@ -554,8 +554,8 @@ public class PerformanceTransaction {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalNumTransaction.sum() / elapsed;
         log.info(
-                "Aggregated throughput stats --- {} task executed --- {} task/s --- Message at most  - send {} - ack "
-                        + "{}",
+                "Aggregated throughput stats --- {} task executed --- {} task/s --- Message at most for a task "
+                        + "- send {} - ack {}",
                 totalNumTransaction.sum(),
                 totalFormat.format(rate),
                 arguments.numMessagesProducedPerTransaction,
