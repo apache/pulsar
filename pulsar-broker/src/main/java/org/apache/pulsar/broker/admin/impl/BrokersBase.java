@@ -42,7 +42,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -472,7 +471,7 @@ public class BrokersBase extends PulsarWebResource {
                 try {
                     logger = rawLogger.trim();
                     Class.forName(logger);
-                } catch(ClassNotFoundException e) {
+                } catch (ClassNotFoundException e) {
                     // Logger not found
                     throw new RestException(Status.NOT_FOUND, "Logger not found.");
                 }
