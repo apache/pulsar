@@ -112,8 +112,6 @@ public class PerformanceTransaction {
         public int numTestThreads = 1;
 
 
-        @Parameter(names = {"--separator"}, description = "Separator between the topic and topic number")
-        public String separator = "-";
 
         @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
@@ -306,6 +304,7 @@ public class PerformanceTransaction {
         ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES) //
                 .subscriptionType(arguments.subscriptionType)
                 .receiverQueueSize(arguments.receiverQueueSize)
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
 
 
@@ -374,7 +373,7 @@ public class PerformanceTransaction {
                  rateLimiter = RateLimiter.create(arguments.openTxnRate / arguments.numTestThreads);
             }
             while (true) {
-                if (semaphore.tryAcquire() && (rateLimiter == null ||rateLimiter.tryAcquire())) {
+                if (semaphore.tryAcquire() && (rateLimiter == null || rateLimiter.tryAcquire())) {
                     LongAdder messageSend = new LongAdder();
                     LongAdder messageReceived = new LongAdder();
                     executorService.submit(() -> {
