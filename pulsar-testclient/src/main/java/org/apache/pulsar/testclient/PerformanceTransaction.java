@@ -27,7 +27,7 @@ import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
-import com.ibm.j9ddr.vm29.pointer.generated._jbyteArrayPointer;
+
 import java.io.FileInputStream;
 
 import java.io.FileOutputStream;
@@ -54,6 +54,7 @@ import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.commons.lang3.RandomUtils;
+import org.apache.curator.shaded.com.google.common.util.concurrent.RateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -175,8 +176,13 @@ public class PerformanceTransaction {
 
         @Parameter(names = {"-txn", "--txn-enable"}, description = " whether transactions need to  be opened ")
         public boolean isEnableTransaction = false;
+
         @Parameter(names = {"-end"}, description = " how to end a transaction, commit or abort")
         public boolean isCommitedTransaction = true;
+
+        @Parameter(names = "-txnRate", description = "the rate of transaction  open, if 0 , don`t limit")
+        public int openTxnRate = 0;
+
 
     }
 
@@ -359,10 +365,16 @@ public class PerformanceTransaction {
             }
             printAggregatedStats();
         }));
+
+
         AtomicBoolean executing = new AtomicBoolean(true);
         executorService.submit(() -> {
+            RateLimiter rateLimiter = null;
+            if(arguments.openTxnRate != 0){
+                 rateLimiter = RateLimiter.create(arguments.openTxnRate / arguments.numTestThreads);
+            }
             while (true) {
-                if (semaphore.tryAcquire()) {
+                if (semaphore.tryAcquire() && rateLimiter.tryAcquire()) {
                     LongAdder messageSend = new LongAdder();
                     LongAdder messageReceived = new LongAdder();
                     executorService.submit(() -> {
