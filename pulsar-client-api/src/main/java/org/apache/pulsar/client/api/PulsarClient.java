@@ -272,8 +272,7 @@ public interface PulsarClient extends Closeable {
      * this client has currently active. That implies that close and wait, asynchronously, until all pending producer
      * send requests are persisted.
      *
-     * @throws PulsarClientException
-     *             if the close operation fails
+     * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> closeAsync();
 
