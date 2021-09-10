@@ -21,7 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: pr-bot-test/auto-labeling@master
+      - uses: fengtao1998/auto-labeling@c1c6fc3afaa24bbb5128274f5783917379a3063b
         with:
           github-token: ${{ secrets.PULSARBOT_TOKEN }}
           label-pattern: '- \[(.*?)\] ?`(.+?)`' # matches '- [x] `label`'
+          bot-name: 'pr-bot-test'
