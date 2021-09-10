@@ -57,10 +57,12 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         op.maxPosition = maxPosition;
         op.ctx = ctx;
-        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
-        if (op.readPosition != null) {
-            op.nextReadPosition = PositionImpl.get(op.readPosition);
+        PositionImpl position = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
+        if (position == null) {
+            return null;
         }
+        op.readPosition = position;
+        op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;
     }
 
