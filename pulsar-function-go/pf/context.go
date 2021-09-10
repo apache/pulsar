@@ -36,6 +36,7 @@ type FunctionContext struct {
 	userConfigs   map[string]interface{}
 	logAppender   *LogAppender
 	outputMessage func(topic string) pulsar.Producer
+	recordMetric  func(metricName string, metricValue float64)
 	record        pulsar.Message
 }
 
@@ -172,6 +173,11 @@ func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
 //GetMetricsPort returns the port the pulsar function metrics listen on
 func (c *FunctionContext) GetMetricsPort() int {
 	return c.instanceConf.metricsPort
+}
+
+//RecordMetric records an observation to the user_metric summary with the provided value
+func (c *FunctionContext) RecordMetric(metricName string, metricValue float64) {
+	c.recordMetric(metricName, metricValue)
 }
 
 // An unexported type to be used as the key for types in this package. This

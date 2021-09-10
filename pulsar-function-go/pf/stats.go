@@ -35,6 +35,8 @@ var (
 	metricsLabelNames          = []string{"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"}
 	exceptionLabelNames        = []string{"error"}
 	exceptionMetricsLabelNames = append(metricsLabelNames, exceptionLabelNames...)
+	userLabelNames             = []string{"metric"}
+	userMetricLabelNames       = append(metricsLabelNames, userLabelNames...)
 )
 
 const (
@@ -52,6 +54,8 @@ const (
 	TotalUserExceptions1min        = "user_exceptions_total_1min"
 	ProcessLatencyMs1min           = "process_latency_ms_1min"
 	TotalReceived1min              = "received_total_1min"
+
+	UserMetric = "user_metric"
 )
 
 // Declare Prometheus
@@ -122,6 +126,11 @@ var (
 		prometheus.GaugeOpts{
 			Name: PulsarFunctionMetricsPrefix + "system_exception",
 			Help: "Exception from system code."}, exceptionMetricsLabelNames)
+
+	userMetricSummary = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name: PulsarFunctionMetricsPrefix + UserMetric,
+			Help: "Pulsar Function user defined metric"}, userMetricLabelNames)
 )
 
 type MetricsServicer struct {
@@ -146,6 +155,7 @@ func init() {
 	reg.MustRegister(statTotalReceived1min)
 	reg.MustRegister(userExceptions)
 	reg.MustRegister(systemExceptions)
+	reg.MustRegister(userMetricSummary)
 
 }
 

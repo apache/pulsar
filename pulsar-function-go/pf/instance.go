@@ -23,6 +23,7 @@ import (
 	"context"
 	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -31,6 +32,7 @@ import (
 
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
+	"github.com/prometheus/client_golang/prometheus"
 	prometheus_client "github.com/prometheus/client_model/go"
 )
 
@@ -75,9 +77,20 @@ func newGoInstance() *goInstance {
 		return producer
 	}
 
+	metricsLabels := goInstance.getMetricsLabels()
+
+	var userMetrics sync.Map
+	goInstance.context.recordMetric = func(metricName string, metricValue float64) {
+		v, ok := userMetrics.Load(metricName)
+		if !ok {
+			v, _ = userMetrics.LoadOrStore(metricName, userMetricSummary.WithLabelValues(append(metricsLabels, metricName)...))
+		}
+		v.(prometheus.Observer).Observe(metricValue)
+	}
+
 	goInstance.lastHealthCheckTs = now.UnixNano()
 	goInstance.properties = make(map[string]string)
-	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
+	goInstance.stats = NewStatWithLabelValues(metricsLabels...)
 	return goInstance
 }
 
