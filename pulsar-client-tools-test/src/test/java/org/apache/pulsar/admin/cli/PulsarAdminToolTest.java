@@ -139,6 +139,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("version"));
         verify(mockBrokers).getVersion();
+
+        brokers.run(split("reset-logger-level --logger root --level DEBUG"));
+        verify(mockBrokers).resetLoggerLevel("root", "DEBUG");
     }
 
     @Test

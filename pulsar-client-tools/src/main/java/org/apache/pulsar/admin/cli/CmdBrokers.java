@@ -159,6 +159,21 @@ public class CmdBrokers extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Reset logger level dynamically in runtime")
+    private class ResetLoggerLevelCmd extends CliCommand {
+
+        @Parameter(names = "--logger",
+                description = "logger name, \"root\" for rootLogger specifically", required = true)
+        private String logger;
+        @Parameter(names = "--level", description = "log level", required = true)
+        private String level;
+
+        @Override
+        void run() throws Exception {
+            getAdmin().brokers().resetLoggerLevel(logger, level);
+        }
+    }
+
     public CmdBrokers(Supplier<PulsarAdmin> admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
@@ -173,5 +188,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
         jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
         jcommander.addCommand("version", new PulsarVersion());
+        jcommander.addCommand("reset-logger-level", new ResetLoggerLevelCmd());
     }
 }

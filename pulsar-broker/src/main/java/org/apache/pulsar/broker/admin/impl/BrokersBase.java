@@ -42,6 +42,10 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
@@ -450,6 +454,69 @@ public class BrokersBase extends PulsarWebResource {
             @ApiResponse(code = 500, message = "Internal server error")})
     public String version() throws Exception {
         return PulsarVersion.getVersion();
+    }
+
+    /**
+     * Support for dynamically resetting logger level in runtime.
+     *
+     * @param rawLogger
+     * @param rawLevel
+     */
+    private synchronized void resetLoggerLevel(String rawLogger, String rawLevel) {
+        try {
+            String logger;
+            if (rawLogger.trim().toUpperCase().equals("ROOT")) {
+                // reset all loggers
+                logger = LogManager.ROOT_LOGGER_NAME;
+            } else {
+                try {
+                    logger = rawLogger.trim();
+                    Class.forName(logger);
+                } catch(ClassNotFoundException e) {
+                    // Logger not found
+                    throw new RestException(Status.NOT_FOUND, "Logger not found.");
+                }
+            }
+
+            Level level;
+            try {
+                level = Level.valueOf(rawLevel);
+            } catch (IllegalArgumentException e) {
+                // Level not found
+                throw new RestException(Status.PRECONDITION_FAILED, "Invalid logger level.");
+            }
+
+            if (logger != null && level != null) {
+                Level origin = LogManager.getLogger(logger).getLevel();
+                Configurator.setAllLevels(logger, level);
+                LOG.info("[{}] Successfully reset log level for {} ({} -> {})", clientAppId(), logger, origin, level);
+            } else {
+                LOG.error("[{}] Failed to reset log level for {}", clientAppId(), logger);
+            }
+        } catch (RestException re) {
+            LOG.error("[{}] Failed to reset log level for {} to {}", clientAppId(), rawLogger, rawLevel, re);
+            throw re;
+        } catch (Exception ie) {
+            LOG.error("[{}] Failed to reset log level for {} to {} due to internal error",
+                    clientAppId(), rawLogger, rawLevel, ie);
+            throw new RestException(ie);
+        }
+    }
+
+    @POST
+    @Path("/configuration/log4j/{logger}/{level}")
+    @ApiOperation(value =
+            "Update dynamic logger level in runtime. This operation requires Pulsar super-user privileges.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Service configuration updated successfully"),
+            @ApiResponse(code = 403, message = "You don't have admin permission to update service-configuration"),
+            @ApiResponse(code = 404, message = "Configuration not found"),
+            @ApiResponse(code = 412, message = "Invalid dynamic-config value"),
+            @ApiResponse(code = 500, message = "Internal server error") })
+    public void updateLoggerLevelDynamically(@PathParam("logger") String logger,
+                                           @PathParam("level") String level) throws Exception {
+        validateSuperUserAccess();
+        resetLoggerLevel(logger, level);
     }
 }
 
