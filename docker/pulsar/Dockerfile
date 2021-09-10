@@ -42,11 +42,6 @@ FROM ubuntu:20.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install software-properties-common
-RUN apt update \
-    && apt install software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa
-
 # Install some utilities
 RUN apt-get update \
      && apt-get -y dist-upgrade \
