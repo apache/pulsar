@@ -275,8 +275,8 @@ public class NamespaceBundleFactory {
                 if (sourceBundle.partitions[i] == range.lowerEndpoint()
                         && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
                     splitPartition = i;
-                    Long maxVal = sourceBundle.partitions[i + 1];
-                    Long minVal = sourceBundle.partitions[i];
+                    long maxVal = sourceBundle.partitions[i + 1];
+                    long minVal = sourceBundle.partitions[i];
                     long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
                     partitions[pos++] = minVal;
                     long curPartition = minVal + segSize;
