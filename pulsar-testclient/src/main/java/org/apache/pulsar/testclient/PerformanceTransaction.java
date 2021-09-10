@@ -374,7 +374,7 @@ public class PerformanceTransaction {
                  rateLimiter = RateLimiter.create(arguments.openTxnRate / arguments.numTestThreads);
             }
             while (true) {
-                if (semaphore.tryAcquire() && rateLimiter.tryAcquire()) {
+                if (semaphore.tryAcquire() && (rateLimiter == null ||rateLimiter.tryAcquire())) {
                     LongAdder messageSend = new LongAdder();
                     LongAdder messageReceived = new LongAdder();
                     executorService.submit(() -> {
