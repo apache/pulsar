@@ -75,3 +75,4 @@ RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go instal
 
 COPY target/java-test-functions.jar /pulsar/examples/
 RUN cp -a /go/bin/. /pulsar/examples/go-examples/
+
