@@ -64,6 +64,10 @@ func (m *MockMessage) Key() string {
 	return "key"
 }
 
+func (m *MockMessage) OrderingKey() string {
+	return "orderingKey"
+}
+
 func (m *MockMessage) RedeliveryCount() uint32 {
 	return 1
 }
@@ -76,10 +80,30 @@ func (m *MockMessage) GetReplicatedFrom() string {
 	return "mock-cluster"
 }
 
+func (m *MockMessage) GetSchemaValue(v interface{}) error {
+	return nil
+}
+
 type MockMessageID struct{}
 
 func (m *MockMessageID) Serialize() []byte {
 	return []byte(`message-id`)
+}
+
+func (m *MockMessageID) LedgerID() int64 {
+	return 0
+}
+
+func (m *MockMessageID) EntryID() int64 {
+	return 0
+}
+
+func (m *MockMessageID) BatchIdx() int32 {
+	return 0
+}
+
+func (m *MockMessageID) PartitionIdx() int32 {
+	return 0
 }
 
 type MockPulsarProducer struct{}
