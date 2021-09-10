@@ -2259,16 +2259,31 @@ public class BrokerService implements Closeable {
                 .thenCompose(topicExists -> {
                     return fetchPartitionedTopicMetadataAsync(topicName)
                             .thenCompose(metadata -> {
-                                // If topic is already exist, creating partitioned topic is not allowed.
-                                if (metadata.partitions == 0
-                                        && !topicExists
-                                        && !topicName.isPartitioned()
-                                        && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
-                                        && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
-                                    return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
-                                } else {
-                                    return CompletableFuture.completedFuture(metadata);
-                                }
+                                CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
+
+                                // There are a couple of potentially blocking calls, which we cannot make from the
+                                // MetadataStore callback thread.
+                                pulsar.getExecutor().execute(() -> {
+                                    // If topic is already exist, creating partitioned topic is not allowed.
+
+                                    if (metadata.partitions == 0
+                                            && !topicExists
+                                            && !topicName.isPartitioned()
+                                            && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
+                                            && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
+
+                                        pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName)
+                                                .thenAccept(md -> future.complete(md))
+                                                .exceptionally(ex -> {
+                                                    future.completeExceptionally(ex);
+                                                    return null;
+                                                });
+                                    } else {
+                                        future.complete(metadata);
+                                    }
+                                });
+
+                                return future;
                             });
                 });
     }
