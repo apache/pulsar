@@ -104,34 +104,34 @@
 <tr><th>选项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>auth-params</td><td>Set the authentication parameters, whose format is determined by the implementation of the <code>configure</code> method in the authentication plugin class, such as &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;.</td><td>N/A</td></tr>
-<tr><td>auth_plugin</td><td>Set the authentication plugin class name.</td><td>N/A</td></tr>
-<tr><td>batch-max-bytes</td><td>Set the maximum number of bytes for each batch.</td><td>4194304</td></tr>
-<tr><td>batch-max-messages</td><td>Set the maximum number of messages for each batch.</td><td>1000</td></tr>
-<tr><td>batch-time-window</td><td>Set a window for a batch of messages.</td><td>1 ms</td></tr>
-<tr><td>compression</td><td>Compress the message payload.</td><td>N/A</td></tr>
-<tr><td>conf-file</td><td>Set the configuration file.</td><td>N/A</td></tr>
-<tr><td>delay</td><td>Mark messages with a given delay.</td><td>0s</td></tr>
-<tr><td>encryption-key-name</td><td>Set the name of the public key used to encrypt the payload.</td><td>N/A</td></tr>
-<tr><td>encryption-key-value-file</td><td>Set the file which contains the public key used to encrypt the payload.</td><td>N/A</td></tr>
-<tr><td>exit-on-failure</td><td>Configure whether to exit from the process on publish failure.</td><td>false</td></tr>
-<tr><td>help</td><td>Configure the help message.</td><td>false</td></tr>
-<tr><td>max-connections</td><td>Set the maximum number of TCP connections to a single broker.</td><td>100</td></tr>
-<tr><td>max-outstanding</td><td>Set the maximum number of outstanding messages.</td><td>1000</td></tr>
-<tr><td>max-outstanding-across-partitions</td><td>Set the maximum number of outstanding messages across partitions.</td><td>50000</td></tr>
-<tr><td>num-messages</td><td>Set the number of messages to be published in total. If it is set to 0, it keeps publishing messages.</td><td>0</td></tr>
-<tr><td>num-producers</td><td>Set the number of producers for each topic.</td><td>1</td></tr>
-<tr><td>num-test-threads</td><td>Set the number of test threads.</td><td>1</td></tr>
-<tr><td>num-topic</td><td>Set the number of topics.</td><td>1</td></tr>
-<tr><td>payload-delimiter</td><td>Set the delimiter used to split lines when using payload from a file.</td><td>\n</td></tr>
+<tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
+<tr><td>auth_plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
+<tr><td>batch-max-bytes</td><td>设置每批次的最大字节数</td><td>4194304</td></tr>
+<tr><td>batch-max-messages</td><td>设置每批次的最大字节数</td><td>1000</td></tr>
+<tr><td>batch-time-window</td><td>设置每批消息的窗口大小</td><td>1 ms</td></tr>
+<tr><td>compression</td><td>指定消息载荷的压缩格式</td><td>N/A</td></tr>
+<tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
+<tr><td>delay</td><td>给消息标记延迟时间</td><td>0s</td></tr>
+<tr><td>encryption-key-name</td><td>设置用于加密有效载荷的公钥名称</td><td>N/A</td></tr>
+<tr><td>encryption-key-value-file</td><td>设置包含用于加密有效载荷的公钥文件</td><td>N/A</td></tr>
+<tr><td>exit-on-failure</td><td>配置发布失败时是否退出进程</td><td>false</td></tr>
+<tr><td>help</td><td>配置帮助信息</td><td>false</td></tr>
+<tr><td>max-connections</td><td>设置单个broker的最大TCP连接数</td><td>100</td></tr>
+<tr><td>max-outstanding</td><td>设置未处理消息的最大数量</td><td>1000</td></tr>
+<tr><td>max-outstanding-across-partitions</td><td>设置跨分区场景下的最大未处理消息数</td><td>50000</td></tr>
+<tr><td>num-messages</td><td>设置要发布的消息总数。 如果设为0则持续发布消息</td><td>0</td></tr>
+<tr><td>num-producers</td><td>设置每个主题的消费者数量</td><td>1</td></tr>
+<tr><td>num-test-threads</td><td>设置测试线程数量</td><td>1</td></tr>
+<tr><td>num-topic</td><td>设置主题数量</td><td>1</td></tr>
+<tr><td>payload-delimiter</td><td>当有效载荷来自文件时，设置每行之间的分隔符。</td><td>\n</td></tr>
 <tr><td>payload-file</td><td>Use the payload from an UTF-8 encoded text file and a payload is randomly selected when messages are published.</td><td>N/A</td></tr>
-<tr><td>rate</td><td>Set the publish rate of messages across topics.</td><td>100</td></tr>
-<tr><td>service-url</td><td>Set the Pulsar service URL.</td><td></td></tr>
-<tr><td>size</td><td>Set the message size.</td><td>1024 bytes</td></tr>
-<tr><td>stats-interval-seconds</td><td>Set the statistics interval. If it is set to 0, statistics is disabled.</td><td>0</td></tr>
-<tr><td>test-duration</td><td>Set the test duration. If it is set to 0, it keeps publishing tests.</td><td>0s</td></tr>
-<tr><td>trust-cert-file</td><td>Set the path for the trusted TLS certificate file.</td><td><empty string></td></tr>
-<tr><td>warmup-time</td><td>Set the warm-up time.</td><td>1s</td></tr>
+<tr><td>rate</td><td>设置主题的发布速率</td><td>100</td></tr>
+<tr><td>service-url</td><td>设置 Pulsar 服务的 URL</td><td></td></tr>
+<tr><td>size</td><td>设置消息大小</td><td>1024 bytes</td></tr>
+<tr><td>stats-interval-seconds</td><td>设置统计间隔。 如果置为0，则不统计。</td><td>0</td></tr>
+<tr><td>test-duration</td><td>设置测试持续时间。 如果设为0则持续保持发布测试</td><td>0s</td></tr>
+<tr><td>trust-cert-file</td><td>设置受信的TLS证书文件所在路径</td><td><empty string></td></tr>
+<tr><td>warmup-time</td><td>设置预热时间</td><td>1s</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume-messages"></a><a href="#consume-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consume messages</h3>
@@ -160,31 +160,31 @@
 <tr><th>选项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>acks-delay-millis</td><td>Set the acknowledgment grouping delay in milliseconds.</td><td>100 ms</td></tr>
-<tr><td>auth-params</td><td>Set the authentication parameters, whose format is determined by the implementation of the <code>configure</code> method in the authentication plugin class, such as &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;.</td><td>N/A</td></tr>
-<tr><td>auth_plugin</td><td>Set the authentication plugin class name.</td><td>N/A</td></tr>
-<tr><td>conf-file</td><td>Set the configuration file.</td><td>N/A</td></tr>
-<tr><td>encryption-key-name</td><td>Set the name of the public key used to encrypt the payload.</td><td>N/A</td></tr>
-<tr><td>encryption-key-value-file</td><td>Set the file which contains the public key used to encrypt the payload.</td><td>N/A</td></tr>
-<tr><td>help</td><td>Configure the help message.</td><td>false</td></tr>
-<tr><td>max-connections</td><td>Set the maximum number of TCP connections to a single broker.</td><td>100</td></tr>
-<tr><td>num-consumers</td><td>Set the number of consumers for each topic.</td><td>1</td></tr>
-<tr><td>num-topic</td><td>Set the number of topics.</td><td>1</td></tr>
-<tr><td>rate</td><td>Simulate a slow message consumer (rate in msg/s).</td><td>0.0</td></tr>
-<tr><td>receiver-queue-size</td><td>Set the size of the receiver queue.</td><td>1000</td></tr>
+<tr><td>acks-delay-millis</td><td>以毫秒为单位设置确认分组的延迟时间</td><td>100 ms</td></tr>
+<tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
+<tr><td>auth_plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
+<tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
+<tr><td>encryption-key-name</td><td>设置用于加密有效载荷的公钥名称</td><td>N/A</td></tr>
+<tr><td>encryption-key-value-file</td><td>设置包含用于加密有效载荷的公钥文件</td><td>N/A</td></tr>
+<tr><td>help</td><td>配置帮助信息</td><td>false</td></tr>
+<tr><td>max-connections</td><td>设置单个broker的最大TCP连接数</td><td>100</td></tr>
+<tr><td>num-consumers</td><td>设定每个主题的消费者数量</td><td>1</td></tr>
+<tr><td>num-topic</td><td>设置主题数量</td><td>1</td></tr>
+<tr><td>rate</td><td>模拟一个慢速消费者消费数据(速率 消息/秒)</td><td>0.0</td></tr>
+<tr><td>receiver-queue-size</td><td>设置接收队列大小</td><td>1000</td></tr>
 <tr><td>replicated</td><td>Configure whether the subscription status should be replicated.</td><td>false</td></tr>
-<tr><td>service-url</td><td>Set the Pulsar service URL.</td><td></td></tr>
-<tr><td>stats-interval-seconds</td><td>Set the statistics interval. If it is set to 0, statistics is disabled.</td><td>0</td></tr>
-<tr><td>subscriber-name</td><td>Set the subscriber name prefix.</td><td>sub</td></tr>
-<tr><td>subscription-type</td><td>Set the subscription type. <li> Exclusive <li> Shared（共享） <li> Failover（灾备） <li> Key_Shared</td><td>Exclusive</td></tr>
-<tr><td>trust-cert-file</td><td>Set the path for the trusted TLS certificate file.</td><td><empty string></td></tr>
+<tr><td>service-url</td><td>设置 Pulsar 服务的 URL</td><td></td></tr>
+<tr><td>stats-interval-seconds</td><td>设置统计间隔。 如果置为0，则不统计。</td><td>0</td></tr>
+<tr><td>subscriber-name</td><td>设置订阅者名称前缀</td><td>sub</td></tr>
+<tr><td>subscription-type</td><td>设置订阅类型 <li> Exclusive <li> Shared（共享） <li> Failover（灾备） <li> Key_Shared</td><td>Exclusive</td></tr>
+<tr><td>trust-cert-file</td><td>设置受信的TLS证书文件所在路径</td><td><empty string></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="configurations"></a><a href="#configurations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configurations</h3>
 <p>By default, the Pulsar Perf uses <code>conf/client.conf</code> as the default configuration and uses <code>conf/log4j2.yaml</code> as the default Log4j configuration. If you want to connect to other Pulsar clusters, you can update the <code>brokerServiceUrl</code> in the client configuration.</p>
 <p>You can use the following commands to change the configuration file and the Log4j configuration file.</p>
-<pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_CLIENT_CONF</span>=&lt;your-config-file&gt;
-<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_LOG_CONF</span>=&lt;your-log-config-file&gt;
+<pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_CLIENT_CONF</span>=&lt;你的配置文件&gt;
+<span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_LOG_CONF</span>=&lt;你的日志配置文件&gt;
 </code></pre>
 <p>In addition, you can use the following command to configure the JVM configuration through environment variables:</p>
 <pre><code class="hljs"><span class="hljs-builtin-name">export</span> <span class="hljs-attribute">PULSAR_EXTRA_OPTS</span>=<span class="hljs-string">'-Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g'</span>
@@ -193,20 +193,20 @@
 <p>The <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a> is a visualization tool for checking Pulsar Perf test results, which makes it easier to observe the test results.</p>
 <p>To check test results through the HdrHistogram Plotter, follow these steps:</p>
 <ol>
-<li><p>Clone the HdrHistogram repository from GitHub to the local.</p>
+<li><p>从GitHub 上克隆Histogram 仓库到本地</p>
 <pre><code class="hljs">git <span class="hljs-keyword">clone</span> <span class="hljs-title">https</span>://github.com/HdrHistogram/HdrHistogram.git
 </code></pre></li>
-<li><p>Switch to the HdrHistogram folder.</p>
+<li><p>切换到HdrHistogram文件夹</p>
 <pre><code class="hljs"><span class="hljs-built_in">cd</span> HdrHistogram
 </code></pre></li>
-<li><p>Install the HdrHistogram Plotter.</p>
+<li><p>安装HdrHistogram 绘图器</p>
 <pre><code class="hljs"><span class="hljs-keyword">mvn </span>clean install -DskipTests
 </code></pre></li>
 <li><p>Transform the file generated by the Pulsar Perf.</p>
 <pre><code class="hljs">./HistogramLogProcessor -i &lt;hgrm <span class="hljs-built_in">file</span> path <span class="hljs-keyword">that</span> pulsar-perf generated&gt; -o &lt;output <span class="hljs-built_in">file</span>&gt;
 </code></pre></li>
-<li><p>You will get two output files. Upload the output file with the filename extension of .hgrm to the <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>.</p></li>
-<li><p>Check the test result through the Graphical User Interface of the HdrHistogram Plotter, as shown blow.</p>
+<li><p>你将获得两个文件。 将扩展名为 .hgrm 的输出文件上传到<a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram</a></p></li>
+<li><p>可通过HdrHistogram 的图形化界面检查测试结果，如图所示</p>
 <p><img src="/docs/assets/perf-produce.png" alt=""></p></li>
 </ol>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.3/security-bouncy-castle"><span class="arrow-prev">← </span><span>Bouncy Castle Providers</span></a><a class="docs-next button" href="/docs/zh-CN/2.7.3/client-libraries"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-perf">Pulsar Perf</a><ul class="toc-headings"><li><a href="#produce-messages">Produce messages</a></li><li><a href="#consume-messages">Consume messages</a></li><li><a href="#configurations">Configurations</a></li></ul></li><li><a href="#hdrhistogram-plotter">HdrHistogram Plotter</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
