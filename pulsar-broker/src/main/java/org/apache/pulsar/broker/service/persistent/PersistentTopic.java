@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -505,7 +506,7 @@ public class PersistentTopic extends AbstractTopic
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
         if (!publishContext.isMarkerMessage()) {
-            lastDataMessagePublishedTimestamp = ((ManagedLedgerImpl) ledger).getClock().millis();
+            lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
         }
 
         publishContext.setMetadataFromEntryData(entryData);
