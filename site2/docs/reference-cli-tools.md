@@ -333,7 +333,7 @@ Options
 |`-k`, `--key`|Message key to add|key=value string, like k1=v1,k2=v2.|
 |`-p`, `--properties`|Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. `k1=v1,k2=v2`.| |
 |`-ekn`, `--encryption-key-name`|The public key name to encrypt payload.| |
-|`-ekv`, `--encryption-key-value`|The URI of public key to encrypt payload, for example file:///path/to/public.key or data:application/x-pem-file;base64,*****.| |
+|`-ekv`, `--encryption-key-value`|The URI of public key to encrypt payload. For example, `file:///path/to/public.key` or `data:application/x-pem-file;base64,*****`.| |
 
 
 ### `consume`
@@ -361,7 +361,7 @@ Options
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full.|false|
 |`--hide-content`|Do not print the message to the console.|false|
 |`-st`, `--schema-type`|Set the schema type. Use `auto_consume` to dump AVRO and other structured data types. Possible values: bytes, auto_consume.|bytes|
-|`-ekv`, `--encryption-key-value`|The URI of public key to encrypt payload, for example file:///path/to/public.key or data:application/x-pem-file;base64,*****.| |
+|`-ekv`, `--encryption-key-value`|The URI of public key to encrypt payload. For example, `file:///path/to/public.key` or `data:application/x-pem-file;base64,*****`.| |
 |`-pm`, `--pool-messages`|Use the pooled message.|true|
 
 ## `pulsar-daemon`
@@ -446,18 +446,18 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth_plugin`|Authentication plugin class name||
-|`-ac`, `--auto_ack_chunk_q_full`|Auto ack for oldest message on queue is full|false|
+|`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full|false|
 |`--listener-name`|Listener name for the broker||
 |`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
 |`--batch-index-ack`|Enable or disable the batch index acknowledgment|false|
-|`-bw`, `--busy-wait`|Enable Busy-Wait on the Pulsar client|false|
+|`-bw`, `--busy-wait`|Enable or disable Busy-Wait on the Pulsar client|false|
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
 |`--conf-file`|Configuration file||
 |`-m`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
-|`-e`, `--expire_time_incomplete_chunked_messages`|Expire time in ms for incomplete chunk messages|0|
+|`-e`, `--expire_time_incomplete_chunked_messages`|The expiration time for incomplete chunk messages (in milliseconds)|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
@@ -475,7 +475,7 @@ Options
 |`-ss`, `--subscriptions`|A list of subscriptions to consume on (e.g. sub1,sub2)|sub|
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
-|`-time`, `--test-duration`|Test duration in secs. If <= 0, it will keep consuming|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
@@ -492,16 +492,16 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-am`, `--access-mode`|Producer access mode, valid values: [Shared, Exclusive, WaitForExclusive]|Shared|
-|`-au`, `--admin-url`|Pulsar Admin URL||
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
+|`-am`, `--access-mode`|Producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`|Shared|
+|`-au`, `--admin-url`|Pulsar admin URL||
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`-bb`, `--batch-max-bytes`|Maximum number of bytes per batch|4194304|
 |`-bm`, `--batch-max-messages`|Maximum number of messages per batch|1000|
-|`-bw`, `--busy-wait`|Enable Busy-Wait on the Pulsar client|false|
-|`-ch`, `--chunking`|Should split the message and publish in chunks if message size is larger than allowed max size|false|
+|`-bw`, `--busy-wait`|Enable or disable Busy-Wait on the Pulsar client|false|
+|`-ch`, `--chunking`|Split the message and publish in chunks if the message size is larger than allowed max size|false|
 |`-d`, `--delay`|Mark messages with a given delay in seconds|0s|
 |`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.||
 |`--conf-file`|Configuration file||
@@ -514,13 +514,13 @@ Options
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
 |`-p`, `--max-outstanding-across-partitions`|Max number of outstanding messages across partitions|50000|
-|`-mk`, `--message-key-generation-mode`|The generation mode of message key, valid options: [autoIncrement, random]||
+|`-mk`, `--message-key-generation-mode`|The generation mode of message key. Valid options are `autoIncrement`, `random`||
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
-|`-m`, `--num-messages`|Number of messages to publish in total. If <= 0, it will keep publishing.|0|
+|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
 |`-threads`, `--num-test-threads`|Number of test threads|1|
 |`-t`, `--num-topic`|The number of topics|1|
-|`-np`, `--partitions`|Create partitioned topics with the given number of partitions, set 0 to not try to create the topic||
+|`-np`, `--partitions`|Create partitioned topics with the given number of partitions. Setting this value to 0 means not trying to create a topic||
 |`-f`, `--payload-file`|Use payload from an UTF-8 encoded text file and a payload will be randomly selected when publishing messages||
 |`-e`, `--payload-delimiter`|The delimiter used to split lines when using payload from a file|\n|
 |`-pn`, `--producer-name`|Producer Name||
@@ -530,7 +530,7 @@ Options
 |`-u`, `--service-url`|Pulsar service URL||
 |`-s`, `--size`|Message size (in bytes)|1024|
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
-|`-time`, `--test-duration`|Test duration in secs. If <= 0, it will keep publishing.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--warmup-time`|Warm-up time in seconds|1|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
@@ -548,7 +548,7 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`--conf-file`|Configuration file||
@@ -562,7 +562,7 @@ Options
 |`-u`, `--service-url`|Pulsar service URL||
 |`-m`, `--start-message-id`|Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'|earliest|
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
-|`-time`, `--test-duration`|Test duration in secs. If <= 0, it will keep consuming|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--use-tls`|Use TLS encryption on the connection|false|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
@@ -579,17 +579,17 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}.||
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
 |`--auth_plugin`|Authentication plugin class name||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
-|`-m`, `--num-messages`|Number of messages to publish in total. If <= 0, it will keep publishing|0|
+|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages|0|
 |`-t`, `--num-topic`|The number of topics|1|
 |`-f`, `--payload-file`|Use payload from a file instead of empty buffer||
 |`-u`, `--proxy-url`|Pulsar Proxy URL, e.g., "ws://localhost:8080/"||
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
 |`-s`, `--size`|Message size in byte|1024|
-|`-time`, `--test-duration`|Test duration in secs. If <=0, it will keep publishing|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages|0|
 
 
 ### `managed-ledger`
@@ -610,11 +610,11 @@ Options
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single bookie|1|
 |`-o`, `--max-outstanding`|Max number of outstanding requests|1000|
-|`-m`, `--num-messages`|Number of messages to publish in total. If <= 0, it will keep publishing|0|
+|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages|0|
 |`-t`, `--num-topic`|Number of managed ledgers|1|
 |`-r`, `--rate`|Write rate msg/s across managed ledgers|100|
 |`-s`, `--size`|Message size in byte|1024|
-|`-time`, `--test-duration`|Test duration in secs. If <= 0, it will keep publishing|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages|0|
 |`--threads`|Number of threads writing|1|
 |`-w`, `--write-quorum`|Ledger write quorum|1|
 |`-zk`, `--zookeeperServers`|ZooKeeper connection string||

@@ -42,8 +42,8 @@ The following table lists configuration options available for the `pulsar-perf p
 
 | Option | Description | Default value|
 |----|----|----|
-| access-mode | Set the producer access mode, valid values: [Shared, Exclusive, WaitForExclusive]. | Shared |
-| admin-url | Set the pulsar admin url. | N/A |
+| access-mode | Set the producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`. | Shared |
+| admin-url | Set the Pulsar admin URL. | N/A |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
 | auth_plugin | Set the authentication plugin class name. | N/A |
 | listener-name | Set the listener name for the broker. | N/A |
@@ -64,7 +64,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
 | max-outstanding | Set the maximum number of outstanding messages. | 1000 |
 | max-outstanding-across-partitions | Set the maximum number of outstanding messages across partitions. | 50000 |
-| message-key-generation-mode | Set the generation mode of message key, valid options: [autoIncrement, random]. | N/A |
+| message-key-generation-mode | Set the generation mode of message key. Valid options are `autoIncrement`, `random`. | N/A |
 | num-io-threads | Set the number of threads to be used for handling connections to brokers. | 1 |
 | num-messages | Set the number of messages to be published in total. If it is set to 0, it keeps publishing messages. | 0 |
 | num-producers | Set the number of producers for each topic. | 1 |
@@ -83,7 +83,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | test-duration | Set the test duration. If it is set to 0, it keeps publishing tests. | 0s |
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
 | warmup-time | Set the warm-up time. | 1s |
-| tls-allow-insecure | Set the allow insecure TLS connection. | N/A |
+| tls-allow-insecure | Set the allowed insecure TLS connection. | N/A |
 
 ## Consume messages
 
@@ -123,16 +123,15 @@ The following table lists configuration options available for the `pulsar-perf c
 | acks-delay-millis | Set the acknowledgment grouping delay in milliseconds. | 100 ms |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
 | auth_plugin | Set the authentication plugin class name. | N/A |
-| auto_ack_chunk_q_full | Configure whether to auto ack for oldest message on queue is full. | false |
+| auto_ack_chunk_q_full | Configure whether to automatically ack for the oldest message in receiver queue if the queue is full. | false |
 | listener-name | Set the listener name for the broker. | N/A |
-| acks-delay-millis | Set the acknowledgements grouping delay in millis. | 100 |
 | batch-index-ack | Enable or disable the batch index acknowledgment. | false |
 | busy-wait | Enable or disable Busy-Wait on the Pulsar client. | false |
 | conf-file | Set the configuration file. | N/A |
 | encryption-key-name | Set the name of the public key used to encrypt the payload. | N/A |
 | encryption-key-value-file | Set the file which contains the public key used to encrypt the payload. | N/A |
 | help | Configure the help message. | false |
-| expire_time_incomplete_chunked_messages | Set the expire time in ms for incomplete chunk messages. | 0 |
+| expire_time_incomplete_chunked_messages | Set the expiration time for incomplete chunk messages (in milliseconds). | 0 |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
 | max_chunked_msg | Set the max pending chunk messages. | 0 |
 | num-consumers | Set the number of consumers for each topic. | 1 |
@@ -146,11 +145,12 @@ The following table lists configuration options available for the `pulsar-perf c
 | replicated | Configure whether the subscription status should be replicated. | false |
 | service-url | Set the Pulsar service URL. | |
 | stats-interval-seconds | Set the statistics interval. If it is set to 0, statistics is disabled. | 0 |
-| subscriber-name | Set the subscriber name prefix. | sub |
+| subscriber-name | Set the subscriber name prefix. |  |
+| subscription-position | Set the subscription position. Valid values are `Latest`, `Earliest`.| Latest |
 | subscription-type | Set the subscription type. <li> Exclusive <li> Shared <li> Failover <li> Key_Shared | Exclusive |
+| test-duration | Set the test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages. | 0 |
+| tls-allow-insecure | Set the allowed insecure TLS connection. | N/A |
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
-| test-duration | Set the test duration in secs. If <= 0 it will keep consuming. | 0 |
-| batch-index-ack | Enable or disable the batch index acknowledgment. | false |
 
 ## Configurations
 
