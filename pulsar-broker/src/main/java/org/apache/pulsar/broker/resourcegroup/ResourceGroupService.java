@@ -535,7 +535,7 @@ public class ResourceGroupService {
             final TopicName topic = TopicName.get(topicName);
             final String tenantString = topic.getTenant();
             final String nsString = topic.getNamespacePortion();
-            final String fqNamespace = topic.getNamespace();
+            final NamespaceName fqNamespace = topic.getNamespaceObject();
 
             // Can't use containsKey here, as that checks for exact equality
             // (we need a check for string-comparison).

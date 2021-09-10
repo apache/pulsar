@@ -362,7 +362,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             final TopicName topic = TopicName.get(topicStr);
             final String tenantRG = TopicToTenantRGName(topic);
             final String namespaceRG = TopicToNamespaceRGName(topic);
-            final String tenantAndNamespace = topic.getNamespace();
+            final NamespaceName ns = topic.getNamespaceObject();
 
             // The tenant name and namespace name parts of the topic are the same as their corresponding RG-names.
             // Hence, the arguments to register look a little odd.
@@ -371,7 +371,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 registeredTenants.add(tenantRG);
             }
             if (!registeredNamespaces.contains(namespaceRG)) {
-                this.rgservice.registerNameSpace(namespaceRG, NamespaceName.get(tenantAndNamespace));
+                this.rgservice.registerNameSpace(namespaceRG, ns);
                 registeredNamespaces.add(namespaceRG);
             }
         }
