@@ -34,6 +34,35 @@
         "schema-evolution-compatibility",
         "schema-manage"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        "functions-overview",
+        "functions-runtime",
+        "functions-worker",
+        "functions-develop",
+        "functions-package",
+        "functions-debug",
+        "functions-deploy",
+        "functions-cli",
+        "window-functions-context"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        "io-overview",
+        "io-quickstart",
+        "io-use",
+        "io-debug",
+        "io-connectors",
+        "io-cdc",
+        "io-develop",
+        "io-cli"
+      ]
     }
   ]
 }

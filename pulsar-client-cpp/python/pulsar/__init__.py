@@ -865,6 +865,15 @@ class Client:
         _check_type(str, topic, 'topic')
         return self._client.get_topic_partitions(topic)
 
+    def shutdown(self):
+        """
+        Perform immediate shutdown of Pulsar client.
+
+        Release all resources and close all producer, consumer, and readers without waiting
+        for ongoing operations to complete.
+        """
+        self._client.shutdown()
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
