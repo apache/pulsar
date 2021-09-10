@@ -2,6 +2,7 @@
 ## Apache Pulsar Release Notes
 
 ### 2.8.1 &mdash; 2021-09-10 <a id=“2.8.1”></a>
+
 ### Broker
 - Fix all web threads get stuck when deleting the namespace [#11596](https://github.com/apache/pulsar/pull/11596)
 - Improve error logs in BacklogQuotaManager [#11469](https://github.com/apache/pulsar/pull/11469)
@@ -238,9 +239,6 @@
 - Allow Sinks to use native AVRO and JSON [#11322](https://github.com/apache/pulsar/pull/11322)
 - Refine the key in redis sink when key is null [#11192](https://github.com/apache/pulsar/pull/11192)
 - Change the nar package name for pulsar-io-kafka-connect-adaptor [#10976](https://github.com/apache/pulsar/pull/10976)
-
-
-
 
 ### 2.8.0 &mdash; 2021-06-12 <a id=“2.8.0”></a>
 
