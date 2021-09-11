@@ -1006,7 +1006,7 @@ class MetricRecorderFunction(Function):
             context.record_metric('elevens-count', 1)
 ```
 <!--Go-->
-The Go SDK [`Context`](#context) object enables you to record petrics on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message:
+The Go SDK [`Context`](#context) object enables you to record metrics on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message:
 
 ```go
 func metricRecorderFunction(ctx context.Context, in []byte) error {
