@@ -164,6 +164,7 @@ public class ServerCnxTest {
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
         svcConfig.setBacklogQuotaCheckEnabled(false);
         doReturn(svcConfig).when(pulsar).getConfiguration();
+        doReturn(mock(PulsarResources.class)).when(pulsar).getPulsarResources();
 
         doReturn("use").when(svcConfig).getClusterName();
 
