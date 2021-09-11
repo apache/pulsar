@@ -21,15 +21,20 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"github.com/apache/pulsar/pulsar-function-go/pf"
 )
 
 func metricRecorderFunction(ctx context.Context, in []byte) error {
 	inputstr := string(in)
-	ctx.RecordMetric("hit-count", 1)
-	if string == "eleven" {
-		ctx.RecordMetric("elevens-count", 1)
+	fctx, ok := pf.FromContext(ctx)
+	if !ok {
+		return errors.New("get Go Functions Context error")
+	}
+	fctx.RecordMetric("hit-count", 1)
+	if inputstr == "eleven" {
+		fctx.RecordMetric("elevens-count", 1)
 	}
 	return nil
 }
