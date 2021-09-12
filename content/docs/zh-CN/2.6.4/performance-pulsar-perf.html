@@ -75,7 +75,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Perf</h1></header><article><div><span><p>This document describes how to use the Pulsar Perf for performance testing. For detailed information about performance tuning, see <a href="https://streamnative.io/whitepaper/taking-a-deep-dive-into-apache-pulsar-architecture-for-performance-tuning/">here</a>.</p>
-<h2><a class="anchor" aria-hidden="true" id="pulsar-perf"></a><a href="#pulsar-perf" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Perf</h2>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-perf-性能测试"></a><a href="#pulsar-perf-性能测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Perf 性能测试</h2>
 <p>The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can use the Pulsar Perf to test message writing or reading performance.</p>
 <h3><a class="anchor" aria-hidden="true" id="produce-messages"></a><a href="#produce-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Produce messages</h3>
 <p>This example shows how the Pulsar Perf produces messages with default options. For all configuration options available for the <code>pulsar-perf produce</code> command, see <a href="#configuration-options-for-pulsar-perf-produce">configuration options</a>.</p>
@@ -106,10 +106,10 @@
 <tbody>
 <tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
 <tr><td>auth_plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
-<tr><td>batch-max-bytes</td><td>设置每批次的最大字节数</td><td>4194304</td></tr>
-<tr><td>batch-max-messages</td><td>设置每批次的最大字节数</td><td>1000</td></tr>
+<tr><td>batch-max-bytes</td><td>设置每个批消息的最大字节数</td><td>4194304</td></tr>
+<tr><td>batch-max-messages</td><td>设置每个批消息的最大消息数</td><td>1000</td></tr>
 <tr><td>batch-time-window</td><td>设置每批消息的窗口大小</td><td>1 ms</td></tr>
-<tr><td>compression</td><td>指定消息载荷的压缩格式</td><td>N/A</td></tr>
+<tr><td>compression</td><td>指定消息载荷（ payload）的压缩格式</td><td>N/A</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
 <tr><td>delay</td><td>给消息标记延迟时间</td><td>0s</td></tr>
 <tr><td>encryption-key-name</td><td>设置用于加密有效载荷的公钥名称</td><td>N/A</td></tr>
@@ -120,12 +120,12 @@
 <tr><td>max-outstanding</td><td>设置未处理消息的最大数量</td><td>1000</td></tr>
 <tr><td>max-outstanding-across-partitions</td><td>设置跨分区场景下的最大未处理消息数</td><td>50000</td></tr>
 <tr><td>num-messages</td><td>设置要发布的消息总数。 如果设为0则持续发布消息</td><td>0</td></tr>
-<tr><td>num-producers</td><td>设置每个主题的消费者数量</td><td>1</td></tr>
+<tr><td>num-producers</td><td>设置每个主题的生产者数量</td><td>1</td></tr>
 <tr><td>num-test-threads</td><td>设置测试线程数量</td><td>1</td></tr>
 <tr><td>num-topic</td><td>设置主题数量</td><td>1</td></tr>
-<tr><td>payload-delimiter</td><td>当有效载荷来自文件时，设置每行之间的分隔符。</td><td>\n</td></tr>
-<tr><td>payload-file</td><td>Use the payload from an UTF-8 encoded text file and a payload is randomly selected when messages are published.</td><td>N/A</td></tr>
-<tr><td>rate</td><td>设置主题的发布速率</td><td>100</td></tr>
+<tr><td>payload-delimiter</td><td>当使用来自文件的有效载荷（ payload）时，设置每行之间的分隔符。</td><td>\n</td></tr>
+<tr><td>payload-file</td><td>使用 UTF-8 编码的文本文件的有效载荷（payload），会在发布消息时随机选择一个有效载荷。</td><td>N/A</td></tr>
+<tr><td>rate</td><td>设置跨主题的消息发布速率</td><td>100</td></tr>
 <tr><td>service-url</td><td>设置 Pulsar 服务的 URL</td><td></td></tr>
 <tr><td>size</td><td>设置消息大小</td><td>1024 bytes</td></tr>
 <tr><td>stats-interval-seconds</td><td>设置统计间隔。 如果置为0，则不统计。</td><td>0</td></tr>
@@ -160,7 +160,7 @@
 <tr><th>选项</th><th>说明</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>acks-delay-millis</td><td>以毫秒为单位设置确认分组的延迟时间</td><td>100 ms</td></tr>
+<tr><td>acks-delay-millis</td><td>设置确认分组的延迟时间，以毫秒为单位</td><td>100 ms</td></tr>
 <tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
 <tr><td>auth_plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
@@ -172,7 +172,7 @@
 <tr><td>num-topic</td><td>设置主题数量</td><td>1</td></tr>
 <tr><td>rate</td><td>模拟一个慢速消费者消费数据(速率 消息/秒)</td><td>0.0</td></tr>
 <tr><td>receiver-queue-size</td><td>设置接收队列大小</td><td>1000</td></tr>
-<tr><td>replicated</td><td>Configure whether the subscription status should be replicated.</td><td>false</td></tr>
+<tr><td>replicated</td><td>配置是否复制订阅状态。</td><td>false</td></tr>
 <tr><td>service-url</td><td>设置 Pulsar 服务的 URL</td><td></td></tr>
 <tr><td>stats-interval-seconds</td><td>设置统计间隔。 如果置为0，则不统计。</td><td>0</td></tr>
 <tr><td>subscriber-name</td><td>设置订阅者名称前缀</td><td>sub</td></tr>
@@ -193,7 +193,7 @@
 <p>The <a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a> is a visualization tool for checking Pulsar Perf test results, which makes it easier to observe the test results.</p>
 <p>To check test results through the HdrHistogram Plotter, follow these steps:</p>
 <ol>
-<li><p>从GitHub 上克隆Histogram 仓库到本地</p>
+<li><p>从 GitHub 上克隆 HdrHistogram 仓库到本地</p>
 <pre><code class="hljs">git <span class="hljs-keyword">clone</span> <span class="hljs-title">https</span>://github.com/HdrHistogram/HdrHistogram.git
 </code></pre></li>
 <li><p>切换到HdrHistogram文件夹</p>
@@ -202,14 +202,14 @@
 <li><p>安装HdrHistogram 绘图器</p>
 <pre><code class="hljs"><span class="hljs-keyword">mvn </span>clean install -DskipTests
 </code></pre></li>
-<li><p>Transform the file generated by the Pulsar Perf.</p>
-<pre><code class="hljs">./HistogramLogProcessor -i &lt;hgrm <span class="hljs-built_in">file</span> path <span class="hljs-keyword">that</span> pulsar-perf generated&gt; -o &lt;output <span class="hljs-built_in">file</span>&gt;
+<li><p>转换 Pulsar Perf 生成的文件</p>
+<pre><code class="hljs">./HistogramLogProcessor -i <span class="hljs-tag">&lt;<span class="hljs-name">pulsar-perf生成的hgrm文件路径</span>&gt;</span> -o <span class="hljs-tag">&lt;<span class="hljs-name">输出文件</span>&gt;</span>
 </code></pre></li>
-<li><p>你将获得两个文件。 将扩展名为 .hgrm 的输出文件上传到<a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram</a></p></li>
-<li><p>可通过HdrHistogram 的图形化界面检查测试结果，如图所示</p>
+<li><p>你将获得两个文件。 将扩展名为 .hgrm 的输出文件上传到<a href="https://hdrhistogram.github.io/HdrHistogram/plotFiles.html">HdrHistogram Plotter</a>。</p></li>
+<li><p>可通过 HdrHistogram Plotter 的图形化界面检查测试结果，如图所示：</p>
 <p><img src="/docs/assets/perf-produce.png" alt=""></p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.4/security-bouncy-castle"><span class="arrow-prev">← </span><span>Bouncy Castle Providers</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.4/client-libraries-java"><span>Java</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-perf">Pulsar Perf</a><ul class="toc-headings"><li><a href="#produce-messages">Produce messages</a></li><li><a href="#consume-messages">Consume messages</a></li><li><a href="#configurations">Configurations</a></li></ul></li><li><a href="#hdrhistogram-plotter">HdrHistogram Plotter</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.4/security-bouncy-castle"><span class="arrow-prev">← </span><span>Bouncy Castle Providers</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.4/client-libraries-java"><span>Java</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-perf-性能测试">Pulsar Perf 性能测试</a><ul class="toc-headings"><li><a href="#produce-messages">Produce messages</a></li><li><a href="#consume-messages">Consume messages</a></li><li><a href="#configurations">Configurations</a></li></ul></li><li><a href="#hdrhistogram-plotter">HdrHistogram Plotter</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

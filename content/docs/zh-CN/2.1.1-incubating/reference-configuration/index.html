@@ -116,9 +116,9 @@
 <tr><td>compactionRate</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
 <tr><td>isThrottleByBytes</td><td>以字节或条目为单位进行阈值压缩</td><td>false</td></tr>
 <tr><td>compactionRateByEntries</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
-<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction reads entries. The unit is bytes added per second.</td><td>1000000</td></tr>
+<tr><td>compactionRateByBytes</td><td>设置压缩读取条目的速率。 单位是 Bytes/s。</td><td>1000000</td></tr>
 <tr><td>journalMaxSizeMB</td><td>日记文件的最大文件大小，以兆为单位。当旧文件达到文件大小限制时，将创建新的日志文件。</td><td>2048</td></tr>
-<tr><td>journalMaxBackups</td><td>The max number of old journal files to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
+<tr><td>journalMaxBackups</td><td>要保留的最大旧日志文件数。 保留一些旧的日志文件将有助于在特殊情况下进行数据恢复。</td><td>5</td></tr>
 <tr><td>journalPreAllocSizeMB</td><td>每次在日志中预分配的空间大小。</td><td>16</td></tr>
 <tr><td>journalWriteBufferSizeKB</td><td>日志使用的写缓冲区大小。</td><td>64</td></tr>
 <tr><td>journalRemoveFromPageCache</td><td>强制写入后，页是否应从页缓存中删除。</td><td>true</td></tr>
