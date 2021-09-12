@@ -248,7 +248,7 @@ public class PerformanceClient {
                     for (String topic : producersMap.keySet()) {
                         if (messages > 0) {
                             if (totalSent >= messages) {
-                                log.trace("------------------- DONE -----------------------");
+                                log.trace("------------- DONE (reached the maximum number: [{}] of production) --------------", messages);
                                 Thread.sleep(10000);
                                 PerfClientUtils.exit(0);
                             }
