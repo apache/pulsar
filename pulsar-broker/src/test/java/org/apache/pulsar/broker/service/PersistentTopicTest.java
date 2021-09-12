@@ -91,10 +91,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -117,6 +117,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -129,6 +130,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -215,6 +217,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         store = new ZKMetadataStore(mockZk);
         PulsarResources pulsarResources = spy(new PulsarResources(store, store));
+        NamespaceResources nsr = spy(new NamespaceResources(store, store, 30));
+        doReturn(nsr).when(pulsarResources).getNamespaceResources();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         doReturn(store).when(pulsar).getLocalMetadataStore();
@@ -1873,9 +1877,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Policies policies = new Policies();
         policies.compaction_threshold = 1L;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -1906,9 +1911,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Policies policies = new Policies();
         policies.compaction_threshold = 1L;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -1934,9 +1940,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Policies policies = new Policies();
         policies.compaction_threshold = 0L;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
 
         doReturn(1000L).when(ledgerMock).getEstimatedBacklogSize();
 
@@ -2085,9 +2092,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 50000, serverCnx, "app1", Collections.emptyMap(), false, InitialPosition.Latest, null, MessageId.latest);
         addConsumerToSubscription.invoke(topic, nonDeletableSubscription1, consumer);
 
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(new Policies()));
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(new Policies())).when(nsr).getPolicies(ns);
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         doReturn(5).when(svcConfig).getSubscriptionExpirationTimeMinutes();
