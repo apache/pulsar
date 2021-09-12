@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 public class TokensCliUtils {
@@ -303,6 +304,8 @@ public class TokensCliUtils {
         CommandValidateToken commandValidateToken = new CommandValidateToken();
         jcommander.addCommand("validate", commandValidateToken);
 
+        jcommander.addCommand("gen-doc", new Object());
+
         try {
             jcommander.parse(args);
 
@@ -329,6 +332,10 @@ public class TokensCliUtils {
             commandShowToken.run();
         } else if (cmd.equals("validate")) {
             commandValidateToken.run();
+        } else if (cmd.equals("gen-doc")) {
+            CmdGenerateDocs genDocCmd = new CmdGenerateDocs("pulsar");
+            genDocCmd.addCommand("tokens", jcommander);
+            genDocCmd.run(null);
         } else {
             System.err.println("Invalid command: " + cmd);
             System.exit(1);

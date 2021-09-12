@@ -1,0 +1,118 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: CI - Integration - Pulsar-IO Sinks and Sources
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - branch-*
+
+env:
+  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+
+jobs:
+
+  pulsar-io:
+    name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Detect changed files
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: .github/changes-filter.yaml
+
+      - name: Check changed files
+        id: check_changes
+        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+
+      - name: Cache local Maven repository
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        with:
+          distribution: 'adopt'
+          java-version: 11
+
+      - name: clean disk
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        run: |
+          sudo swapoff -a
+          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt clean
+          docker rmi $(docker images -q) -f
+          df -h
+
+      - name: run install by skip tests
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        run: mvn -q -B -ntp clean install -DskipTests
+
+      - name: build pulsar image
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker,-main -DskipTests -Ddocker.nocache=true
+
+      - name: build pulsar-all image
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        run: mvn -B -f docker/pulsar-all/pom.xml install -am -Pdocker,-main -DskipTests -Ddocker.nocache=true
+
+      - name: build artifacts and docker image
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker,-main -DskipTests
+
+      - name: run integration tests
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        run: ./build/run_integration_group.sh PULSAR_IO
+
+      - name: Upload container logs
+        uses: actions/upload-artifact@v2
+        if: ${{ cancelled() || failure() }}
+        continue-on-error: true
+        with:
+          name: container-logs
+          path: tests/integration/target/container-logs
+
+      - name: Upload surefire-reports
+        uses: actions/upload-artifact@v2
+        if: ${{ cancelled() || failure() }}
+        continue-on-error: true
+        with:
+          name: surefire-reports
+          path: tests/integration/target/surefire-reports

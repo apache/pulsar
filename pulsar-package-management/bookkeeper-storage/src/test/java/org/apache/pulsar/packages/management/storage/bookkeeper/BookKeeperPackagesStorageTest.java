@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.distributedlog.exceptions.LogNotFoundException;
 import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
@@ -41,7 +42,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     private PackagesStorage storage;
 
     public BookKeeperPackagesStorageTest() {
-        super(1);
+        super(2);
     }
 
     @BeforeMethod()
@@ -87,6 +88,23 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         String readResult = new String(readData.toByteArray(), StandardCharsets.UTF_8);
 
         assertEquals(testData, readResult);
+    }
+
+    @Test(timeOut = 60000)
+    public void testReadWriteLargeDataOperations() throws ExecutionException, InterruptedException {
+        byte[] data = RandomUtils.nextBytes(8192 * 3 + 4096);
+        ByteArrayInputStream testDataStream = new ByteArrayInputStream(data);
+        String testPath = "test-large-read-write";
+
+        // write some data to the dlog
+        storage.writeAsync(testPath, testDataStream).get();
+
+        // read the data from the dlog
+        ByteArrayOutputStream readData = new ByteArrayOutputStream();
+        storage.readAsync(testPath, readData).get();
+        byte[] readResult = readData.toByteArray();
+
+        assertEquals(data, readResult);
     }
 
     @Test(timeOut = 60000)

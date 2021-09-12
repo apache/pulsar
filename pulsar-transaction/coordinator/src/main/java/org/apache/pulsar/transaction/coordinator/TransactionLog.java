@@ -27,6 +27,11 @@ import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
  */
 public interface TransactionLog {
 
+    /**
+     * Initialize the TransactionLog implementation
+     */
+    CompletableFuture<Void> initialize();
+
 
     /**
      * Replay transaction log to load the transaction map.

@@ -190,6 +190,21 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public long getLastOffloadedLedgerId() {
+        return 0;
+    }
+
+    @Override
+    public long getLastOffloadedSuccessTimestamp() {
+        return 0;
+    }
+
+    @Override
+    public long getLastOffloadedFailureTimestamp() {
+        return 0;
+    }
+
+    @Override
     public void asyncTerminate(AsyncCallbacks.TerminateCallback callback, Object ctx) {
 
     }

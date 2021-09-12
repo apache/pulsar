@@ -103,7 +103,8 @@ Oauth2CachedToken::Oauth2CachedToken(Oauth2TokenResultPtr token) {
     if (expiredIn > 0) {
         expiresAt_ = expiredIn + currentTimeMillis();
     } else {
-        throw std::runtime_error("ExpiresIn in Oauth2TokenResult invalid value: " + expiredIn);
+        throw std::runtime_error("ExpiresIn in Oauth2TokenResult invalid value: " +
+                                 std::to_string(expiredIn));
     }
     authData_ = AuthenticationDataPtr(new AuthDataOauth2(token->getAccessToken()));
 }
@@ -118,14 +119,6 @@ bool Oauth2CachedToken::isExpired() { return expiresAt_ < currentTimeMillis(); }
 
 Oauth2Flow::Oauth2Flow() {}
 Oauth2Flow::~Oauth2Flow() {}
-
-// ClientCredentialFlow
-static std::string readFromFile(const std::string& credentialsFilePath) {
-    std::ifstream input(credentialsFilePath);
-    std::stringstream buffer;
-    buffer << input.rdbuf();
-    return buffer.str();
-}
 
 ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
                                            const std::string& clientSecret, const std::string& audience) {

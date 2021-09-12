@@ -84,7 +84,7 @@ public interface Producer extends Closeable {
     void flush() throws PulsarClientException;
 
     /**
-     * Flush all the messages buffered in the client and wait until all messages have been successfully persisted.
+     *  Flush all the messages buffered in the client asynchronously.
      *
      * @return a future that can be used to track when all the messages have been safely persisted.
      * @since 2.1.0

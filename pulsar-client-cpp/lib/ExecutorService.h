@@ -19,6 +19,7 @@
 #ifndef _PULSAR_EXECUTOR_SERVICE_HEADER_
 #define _PULSAR_EXECUTOR_SERVICE_HEADER_
 
+#include <atomic>
 #include <memory>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -47,6 +48,8 @@ class PULSAR_PUBLIC ExecutorService : private boost::noncopyable {
     void postWork(std::function<void(void)> task);
     void close();
 
+    boost::asio::io_service &getIOService() { return *io_service_; }
+
    private:
     /*
      *  only called once and within lock so no need to worry about thread-safety
@@ -71,6 +74,8 @@ class PULSAR_PUBLIC ExecutorService : private boost::noncopyable {
      * io_service
      */
     std::thread worker_;
+
+    std::atomic_bool closed_{false};
 };
 
 typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;

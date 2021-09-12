@@ -23,13 +23,17 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.discovery.service.DiscoveryService;
 import org.apache.pulsar.discovery.service.web.DiscoveryServiceServlet;
 import org.slf4j.Logger;
@@ -41,6 +45,16 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class DiscoveryServiceStarter {
+    private static class Arguments {
+        @Parameter(description = "config file")
+        private String configFile = "";
+
+        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        private boolean help = false;
+
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
+    }
 
     public static void checkConfig(ServiceConfig config) {
         checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
@@ -52,7 +66,8 @@ public class DiscoveryServiceStarter {
         removeHandlersForRootLogger();
         install();
 
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+        DateFormat dateFormat = new SimpleDateFormat(
+            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
         Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
             System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
         });
@@ -93,7 +108,27 @@ public class DiscoveryServiceStarter {
         log.info("Discovery service is started at {}", server.getServiceUri().toString());
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
+        Arguments arguments = new Arguments();
+        JCommander jcommander = new JCommander();
+        try {
+            jcommander.addObject(arguments);
+            jcommander.parse(args);
+            if (arguments.help) {
+                jcommander.usage();
+                return;
+            }
+            if (arguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("discovery", arguments);
+                cmd.run(null);
+                return;
+            }
+        } catch (Exception e) {
+            jcommander.usage();
+            return;
+        }
+
         checkArgument(args.length == 1, "Need to specify a configuration file");
 
         try {

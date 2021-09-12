@@ -176,7 +176,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
         asyncGetRequest(webTarget, new InvocationCallback<Response>(){
             @Override
             public void completed(Response response) {
-                if (response.getStatusInfo().equals(Response.Status.OK)) {
+                if (response.getStatus() == Response.Status.OK.getStatusCode()) {
                     try (InputStream inputStream = response.readEntity(InputStream.class)) {
                         Path destinyPath = Paths.get(path);
                         if (destinyPath.getParent() != null) {

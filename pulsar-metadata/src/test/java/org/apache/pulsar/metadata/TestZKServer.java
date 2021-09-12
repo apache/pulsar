@@ -28,10 +28,16 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.server.ContainerManager;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
+import org.apache.zookeeper.server.Request;
+import org.apache.zookeeper.server.RequestProcessor;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.SessionTracker;
 import org.apache.zookeeper.server.SessionTrackerImpl;
@@ -43,6 +49,8 @@ public class TestZKServer implements AutoCloseable {
     protected ZooKeeperServer zks;
     private final File zkDataDir;
     private ServerCnxnFactory serverFactory;
+    private ContainerManager containerManager;
+
     private int zkPort = 0;
 
     public TestZKServer() throws Exception {
@@ -66,6 +74,27 @@ public class TestZKServer implements AutoCloseable {
 
         boolean zkServerReady = waitForServerUp(this.getConnectionString(), 30_000);
         assertTrue(zkServerReady);
+
+        this.containerManager = new ContainerManager(zks.getZKDatabase(), new RequestProcessor() {
+            @Override
+            public void processRequest(Request request) throws RequestProcessorException {
+                String path = StandardCharsets.UTF_8.decode(request.request).toString();
+                try {
+                    zks.getZKDatabase().getDataTree().deleteNode(path, -1);
+                } catch (KeeperException.NoNodeException e) {
+                    // Ok
+                }
+            }
+
+            @Override
+            public void shutdown() {
+
+            }
+        }, 10, 10000, 0L);
+    }
+
+    public void checkContainers() throws Exception {
+        containerManager.checkContainers();
     }
 
     public void stop() throws Exception {

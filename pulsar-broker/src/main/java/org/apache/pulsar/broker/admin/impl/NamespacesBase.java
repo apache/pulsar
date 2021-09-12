@@ -23,6 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.MANAGED_LEDGER_ROOT;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.OWNER_INFO_ROOT;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
@@ -227,7 +229,8 @@ public abstract class NamespacesBase extends AdminResource {
         boolean isEmpty;
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
             topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
             isEmpty = topics.isEmpty();
@@ -305,11 +308,38 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             try {
+                final String globalPartitionedPath = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString());
+                final String managedLedgerPath = joinPath(MANAGED_LEDGER_ROOT, namespaceName.toString());
+                // check whether partitioned topics znode exist
+                if (namespaceResources().exists(globalPartitionedPath)) {
+                    deleteRecursive(namespaceResources(), globalPartitionedPath);
+                }
+
+                try {
+                    if (namespaceResources().exists(managedLedgerPath)) {
+                        pulsar().getPulsarResources().getTopicResources()
+                                .clearDomainPersistence(namespaceName).get();
+                        pulsar().getPulsarResources().getTopicResources()
+                                .clearNamespacePersistence(namespaceName).get();
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    // warn level log here since this failure has no side effect besides left a un-used metadata
+                    // and also will not affect the re-creation of namespace
+                    log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
+                }
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
                 final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+                final String namespacePath = joinPath(OWNER_INFO_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
+
+                try {
+                    namespaceResources().delete(namespacePath);
+                } catch (NotFoundException e) {
+                    // If the z-node with the modified information is not there anymore, we're already good
+                }
+
                 try {
                     getLocalPolicies().delete(localZkPolicyPath);
                 } catch (NotFoundException nne) {
@@ -390,7 +420,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> topics;
         try {
-            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName).join();
+            topics = pulsar().getNamespaceService().getFullListOfTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
@@ -413,13 +444,41 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             // firstly remove all topics including system topics
             if (!topics.isEmpty()) {
+                Set<String> partitionedTopics = new HashSet<>();
+                Set<String> nonPartitionedTopics = new HashSet<>();
+
                 for (String topic : topics) {
                     try {
-                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
+                        TopicName topicName = TopicName.get(topic);
+                        if (topicName.isPartitioned()) {
+                            String partitionedTopic = topicName.getPartitionedTopicName();
+                            if (!partitionedTopics.contains(partitionedTopic)) {
+                                // Distinguish partitioned topic to avoid duplicate deletion of the same schema
+                                futures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
+                                        partitionedTopic, true, true));
+                                partitionedTopics.add(partitionedTopic);
+                            }
+                        } else {
+                            futures.add(pulsar().getAdminClient().topics().deleteAsync(
+                                    topic, true, true));
+                            nonPartitionedTopics.add(topic);
+                        }
                     } catch (Exception e) {
-                        log.error("[{}] Failed to force delete topic {}", clientAppId(), topic, e);
-                        asyncResponse.resume(new RestException(e));
+                        String errorMessage = String.format("Failed to force delete topic %s, "
+                                        + "but the previous deletion command of partitioned-topics:%s "
+                                        + "and non-partitioned-topics:%s have been sent out asynchronously. "
+                                        + "Reason: %s",
+                                topic, partitionedTopics, nonPartitionedTopics, e.getCause());
+                        log.error("[{}] {}", clientAppId(), errorMessage, e);
+                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, errorMessage));
+                        return;
                     }
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Successfully send deletion command of partitioned-topics:{} "
+                                    + "and non-partitioned-topics:{} in namespace:{}.",
+                            partitionedTopics, nonPartitionedTopics, namespaceName);
                 }
             }
             // forcefully delete namespace bundles
@@ -458,11 +517,27 @@ public abstract class NamespacesBase extends AdminResource {
                     deleteRecursive(namespaceResources(), globalPartitionedPath);
                 }
 
+                try {
+                    pulsar().getPulsarResources().getTopicResources().clearDomainPersistence(namespaceName).get();
+                    pulsar().getPulsarResources().getTopicResources().clearNamespacePersistence(namespaceName).get();
+                } catch (ExecutionException | InterruptedException e) {
+                    // warn level log here since this failure has no side effect besides left a un-used metadata
+                    // and also will not affect the re-creation of namespace
+                    log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), namespaceName, e);
+                }
+
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
                 final String globalZkPolicyPath = path(POLICIES, namespaceName.toString());
                 final String localZkPolicyPath = joinPath(LOCAL_POLICIES_ROOT, namespaceName.toString());
+                final String namespacePath = joinPath(OWNER_INFO_ROOT, namespaceName.toString());
                 namespaceResources().delete(globalZkPolicyPath);
+
+                try {
+                    namespaceResources().delete(namespacePath);
+                } catch (NotFoundException e) {
+                    // If the z-node with the modified information is not there anymore, we're already good
+                }
 
                 try {
                     getLocalPolicies().delete(localZkPolicyPath);
@@ -542,7 +617,8 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             for (String topic : topics) {
                 NamespaceBundle topicBundle = pulsar().getNamespaceService()
                         .getBundle(TopicName.get(topic));
@@ -751,15 +827,6 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
             }
             validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-        for (String clusterId : replicationClusterSet) {
-            if (!clusters.contains(clusterId)) {
-                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
-            }
-            validatePeerClusterConflict(clusterId, replicationClusterSet);
-        }
-
-        for (String clusterId : replicationClusterSet) {
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), policies ->{
@@ -780,11 +847,11 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalSetSubscriptionExpirationTime(int expirationTime) {
+    protected void internalSetSubscriptionExpirationTime(Integer expirationTime) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
-        if (expirationTime < 0) {
+        if (expirationTime != null && expirationTime < 0) {
             throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for subscription expiration time");
         }
         updatePolicies(path(POLICIES, namespaceName.toString()), (policies) -> {
@@ -2335,8 +2402,11 @@ public abstract class NamespacesBase extends AdminResource {
         Policies policies = getNamespacePolicies(namespaceName);
         SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
         if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                    .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+            if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
+                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+            }
         }
         return schemaCompatibilityStrategy;
     }

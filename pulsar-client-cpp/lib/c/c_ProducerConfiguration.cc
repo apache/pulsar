@@ -135,6 +135,16 @@ void pulsar_producer_configuration_set_message_router(pulsar_producer_configurat
     conf->conf.setMessageRouter(std::make_shared<MessageRoutingPolicy>(router, ctx));
 }
 
+void pulsar_producer_configuration_set_lazy_start_partitioned_producers(
+    pulsar_producer_configuration_t *conf, int useLazyStartPartitionedProducers) {
+    conf->conf.setLazyStartPartitionedProducers(useLazyStartPartitionedProducers);
+}
+
+int pulsar_producer_configuration_get_lazy_start_partitioned_producers(
+    pulsar_producer_configuration_t *conf) {
+    return conf->conf.getLazyStartPartitionedProducers();
+}
+
 void pulsar_producer_configuration_set_block_if_queue_full(pulsar_producer_configuration_t *conf,
                                                            int blockIfQueueFull) {
     conf->conf.setBlockIfQueueFull(blockIfQueueFull);

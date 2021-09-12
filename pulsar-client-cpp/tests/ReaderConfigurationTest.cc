@@ -22,11 +22,8 @@
  */
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <lib/LogUtils.h>
 #include <lib/ReaderImpl.h>
 #include "NoOpsCryptoKeyReader.h"
-
-DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 

@@ -43,12 +43,12 @@ public class SolrSinkConfigTest {
         String path = yamlFile.getAbsolutePath();
         SolrSinkConfig config = SolrSinkConfig.load(path);
         assertNotNull(config);
-        assertEquals("localhost:2181,localhost:2182/chroot", config.getSolrUrl());
-        assertEquals("SolrCloud", config.getSolrMode());
-        assertEquals("techproducts", config.getSolrCollection());
-        assertEquals(Integer.parseInt("100"), config.getSolrCommitWithinMs());
-        assertEquals("fakeuser", config.getUsername());
-        assertEquals("fake@123", config.getPassword());
+        assertEquals(config.getSolrUrl(), "localhost:2181,localhost:2182/chroot");
+        assertEquals(config.getSolrMode(), "SolrCloud");
+        assertEquals(config.getSolrCollection(), "techproducts");
+        assertEquals(config.getSolrCommitWithinMs(), Integer.parseInt("100"));
+        assertEquals(config.getUsername(), "fakeuser");
+        assertEquals(config.getPassword(), "fake@123");
     }
 
     @Test
@@ -63,12 +63,12 @@ public class SolrSinkConfigTest {
 
         SolrSinkConfig config = SolrSinkConfig.load(map);
         assertNotNull(config);
-        assertEquals("localhost:2181,localhost:2182/chroot", config.getSolrUrl());
-        assertEquals("SolrCloud", config.getSolrMode());
-        assertEquals("techproducts", config.getSolrCollection());
-        assertEquals(Integer.parseInt("100"), config.getSolrCommitWithinMs());
-        assertEquals("fakeuser", config.getUsername());
-        assertEquals("fake@123", config.getPassword());
+        assertEquals(config.getSolrUrl(), "localhost:2181,localhost:2182/chroot");
+        assertEquals(config.getSolrMode(), "SolrCloud");
+        assertEquals(config.getSolrCollection(), "techproducts");
+        assertEquals(config.getSolrCommitWithinMs(), Integer.parseInt("100"));
+        assertEquals(config.getUsername(), "fakeuser");
+        assertEquals(config.getPassword(), "fake@123");
     }
 
     @Test

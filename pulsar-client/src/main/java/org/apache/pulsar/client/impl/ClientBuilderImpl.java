@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Set;
@@ -140,6 +141,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit) {
         conf.setOperationTimeoutMs(unit.toMillis(operationTimeout));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit) {
+        conf.setLookupTimeoutMs(unit.toMillis(lookupTimeout));
         return this;
     }
 
@@ -322,6 +329,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder enableTransaction(boolean enableTransaction) {
         conf.setEnableTransaction(enableTransaction);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress) {
+        conf.setSocks5ProxyAddress(socks5ProxyAddress);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder socks5ProxyUsername(String socks5ProxyUsername) {
+        conf.setSocks5ProxyUsername(socks5ProxyUsername);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder socks5ProxyPassword(String socks5ProxyPassword) {
+        conf.setSocks5ProxyPassword(socks5ProxyPassword);
         return this;
     }
 }

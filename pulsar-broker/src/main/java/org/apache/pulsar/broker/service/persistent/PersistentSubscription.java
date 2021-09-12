@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -59,7 +60,6 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -77,7 +77,6 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,14 +112,23 @@ public class PersistentSubscription implements Subscription {
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private volatile Position lastMarkDeleteForTransactionMarker;
-    private volatile boolean isDeleteTransactionMarkerInProcess = false;
     private final PendingAckHandle pendingAckHandle;
 
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
 
+    private DeleteTransactionMarkerState deleteTransactionMarkerState = DeleteTransactionMarkerState.None;
+
+    private final Object waitObject = new Object();
+
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+    }
+
+    public enum DeleteTransactionMarkerState {
+        Process,
+        Wait,
+        None
     }
 
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
@@ -141,10 +149,7 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !checkTopicIsEventsNames(TopicName.get(topicName))
-                && !topicName.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName())
-                && !topicName.startsWith(MLTransactionLogImpl.TRANSACTION_LOG_PREFIX)
-                && !topicName.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
+                && !checkTopicIsEventsNames(TopicName.get(topicName))) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -177,12 +182,25 @@ public class PersistentSubscription implements Subscription {
         return replicatedSubscriptionSnapshotCache != null;
     }
 
-    void setReplicated(boolean replicated) {
-        this.replicatedSubscriptionSnapshotCache = replicated
-                ? new ReplicatedSubscriptionSnapshotCache(subName,
-                        topic.getBrokerService().pulsar().getConfiguration()
-                                .getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription())
-                : null;
+    public boolean setReplicated(boolean replicated) {
+        ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
+
+        if (!replicated || !config.isEnableReplicatedSubscriptions()) {
+            this.replicatedSubscriptionSnapshotCache = null;
+        } else if (this.replicatedSubscriptionSnapshotCache == null) {
+            this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
+        }
+
+        if (this.cursor != null) {
+            if (replicated) {
+                return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+            } else {
+                return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
+            }
+        }
+
+        return false;
     }
 
     @Override
@@ -395,16 +413,7 @@ public class PersistentSubscription implements Subscription {
             }
         }
 
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && this.pendingAckHandle.isTransactionAckPresent()) {
-            Position currentMarkDeletePosition = cursor.getMarkDeletedPosition();
-            if ((lastMarkDeleteForTransactionMarker == null
-                    || ((PositionImpl) lastMarkDeleteForTransactionMarker)
-                    .compareTo((PositionImpl) currentMarkDeletePosition) < 0) && !isDeleteTransactionMarkerInProcess) {
-                isDeleteTransactionMarkerInProcess = true;
-                deleteTransactionMarker((PositionImpl) currentMarkDeletePosition, ackType, properties);
-            }
-        }
+        deleteTransactionMarker(properties);
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
@@ -414,39 +423,70 @@ public class PersistentSubscription implements Subscription {
         }
     }
 
-    private void deleteTransactionMarker(PositionImpl position, AckType ackType, Map<String, Long> properties) {
-        if (position != null) {
-            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
-            PositionImpl nextPosition = managedLedger.getNextValidPosition(position);
-            if (nextPosition != null
-                    && nextPosition.compareTo((PositionImpl) managedLedger.getLastConfirmedEntry()) <= 0) {
-                managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
-                    @Override
-                    public void readEntryComplete(Entry entry, Object ctx) {
-                        try {
-                            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                            isDeleteTransactionMarkerInProcess = false;
-                            if (Markers.isTxnCommitMarker(messageMetadata)
-                                    || Markers.isTxnAbortMarker(messageMetadata)) {
-                                lastMarkDeleteForTransactionMarker = position;
-                                acknowledgeMessage(Collections.singletonList(nextPosition), ackType, properties);
+    private void deleteTransactionMarker(Map<String, Long> properties) {
+
+        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            PositionImpl currentMarkDeletePosition = (PositionImpl) cursor.getMarkDeletedPosition();
+            if ((lastMarkDeleteForTransactionMarker == null
+                    || ((PositionImpl) lastMarkDeleteForTransactionMarker)
+                    .compareTo(currentMarkDeletePosition) < 0)) {
+                if (currentMarkDeletePosition != null) {
+                    ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+                    PositionImpl nextPosition = managedLedger.getNextValidPosition(currentMarkDeletePosition);
+                    if (nextPosition != null
+                            && nextPosition.compareTo((PositionImpl) managedLedger.getLastConfirmedEntry()) <= 0) {
+                        synchronized (waitObject) {
+                            if (deleteTransactionMarkerState == DeleteTransactionMarkerState.None) {
+                                deleteTransactionMarkerState = DeleteTransactionMarkerState.Process;
+                                managedLedger.asyncReadEntry(nextPosition, new ReadEntryCallback() {
+                                    @Override
+                                    public void readEntryComplete(Entry entry, Object ctx) {
+                                        try {
+                                            MessageMetadata messageMetadata =
+                                                    Commands.parseMessageMetadata(entry.getDataBuffer());
+                                            if (Markers.isTxnCommitMarker(messageMetadata)
+                                                    || Markers.isTxnAbortMarker(messageMetadata)) {
+                                                synchronized (waitObject) {
+                                                    deleteTransactionMarkerState = DeleteTransactionMarkerState.None;
+                                                }
+                                                lastMarkDeleteForTransactionMarker = currentMarkDeletePosition;
+                                                acknowledgeMessage(Collections.singletonList(nextPosition),
+                                                        AckType.Individual, properties);
+                                            } else {
+                                                synchronized (waitObject) {
+                                                    if (deleteTransactionMarkerState
+                                                            == DeleteTransactionMarkerState.Wait) {
+                                                        deleteTransactionMarkerState =
+                                                                DeleteTransactionMarkerState.None;
+                                                        deleteTransactionMarker(properties);
+                                                    } else {
+                                                        deleteTransactionMarkerState =
+                                                                DeleteTransactionMarkerState.None;
+                                                    }
+                                                }
+                                            }
+                                        } finally {
+                                            entry.release();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                                        synchronized (waitObject) {
+                                            deleteTransactionMarkerState =
+                                                    DeleteTransactionMarkerState.None;
+                                        }
+                                        log.error("Fail to read transaction marker! Position : {}",
+                                                currentMarkDeletePosition, exception);
+                                    }
+                                }, null);
+                            } else if (deleteTransactionMarkerState == DeleteTransactionMarkerState.Process) {
+                                deleteTransactionMarkerState = DeleteTransactionMarkerState.Wait;
                             }
-                        } finally {
-                            entry.release();
                         }
                     }
-
-                    @Override
-                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                        isDeleteTransactionMarkerInProcess = false;
-                        log.error("Fail to read transaction marker! Position : {}", position, exception);
-                    }
-                }, null);
-            } else {
-                isDeleteTransactionMarkerInProcess = false;
+                }
             }
-        } else {
-            isDeleteTransactionMarkerInProcess = false;
         }
     }
 

@@ -26,7 +26,7 @@ RUN yum update -y && \
                 python-devel createrepo libstdc++-static.x86_64
 
 # Download and compile boost
-RUN curl -O -L https://dl.bintray.com/boostorg/release/1.64.0/source/boost_1_64_0.tar.gz && \
+RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.64.0/source/boost_1_64_0.tar.gz && \
     tar xvfz boost_1_64_0.tar.gz && \
     cd /boost_1_64_0 && \
     ./bootstrap.sh --with-libraries=program_options,filesystem,regex,thread,system,python && \

@@ -92,7 +92,6 @@ public class NamespaceBundleFactory {
         CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
         // Read the static bundle data from the policies
         pulsar.getLocalMetadataStore().get(path).thenAccept(result -> {
-            NamespaceBundles namespaceBundles;
 
             if (result.isPresent()) {
                 try {
@@ -159,14 +158,16 @@ public class NamespaceBundleFactory {
 
     private void handleMetadataStoreNotification(Notification n) {
         if (n.getPath().startsWith(LOCAL_POLICIES_ROOT)) {
-            final NamespaceName namespace = NamespaceName.get(getNamespaceFromPoliciesPath(n.getPath()));
-
             try {
-                LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
-                // Trigger a background refresh to fetch new bundle data from the policies
-                bundlesCache.synchronous().invalidate(namespace);
+                final Optional<NamespaceName> namespace = NamespaceName.getIfValid(
+                        getNamespaceFromPoliciesPath(n.getPath()));
+                if (namespace.isPresent()) {
+                    LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
+                    // Trigger a background refresh to fetch new bundle data from the policies
+                    bundlesCache.synchronous().invalidate(namespace.get());
+                }
             } catch (Exception e) {
-                LOG.error("Failed to update the policy change for ns {}", namespace, e);
+                LOG.error("Failed to update the policy change for path {}", n.getPath(), e);
             }
         }
     }
@@ -192,7 +193,7 @@ public class NamespaceBundleFactory {
         return bundlesCache.get(nsname);
     }
 
-    public NamespaceBundles getBundles(NamespaceName nsname) throws Exception {
+    public NamespaceBundles getBundles(NamespaceName nsname) {
         return bundlesCache.synchronous().get(nsname);
     }
 
@@ -276,9 +277,9 @@ public class NamespaceBundleFactory {
                     splitPartition = i;
                     Long maxVal = sourceBundle.partitions[i + 1];
                     Long minVal = sourceBundle.partitions[i];
-                    Long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
+                    long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
                     partitions[pos++] = minVal;
-                    Long curPartition = minVal + segSize;
+                    long curPartition = minVal + segSize;
                     for (int j = 0; j < numBundles - 1; j++) {
                         partitions[pos++] = curPartition;
                         curPartition += segSize;

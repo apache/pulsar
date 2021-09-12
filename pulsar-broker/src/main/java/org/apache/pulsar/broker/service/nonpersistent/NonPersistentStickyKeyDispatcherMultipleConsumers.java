@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.protocol.Commands;
 
 public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersistentDispatcherMultipleConsumers {
 
@@ -89,7 +90,11 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
 
         for (Entry entry : entries) {
             Consumer consumer = selector.select(peekStickyKey(entry.getDataBuffer()));
-            groupedEntries.computeIfAbsent(consumer, k -> new ArrayList<>()).add(entry);
+            if (consumer != null) {
+                groupedEntries.computeIfAbsent(consumer, k -> new ArrayList<>()).add(entry);
+            } else {
+                entry.release();
+            }
         }
 
         for (Map.Entry<Consumer, List<Entry>> entriesByConsumer : groupedEntries.entrySet()) {
@@ -99,9 +104,21 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
             filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null, false);
-            consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
+
+            if (consumer.getAvailablePermits() > 0 && consumer.isWritable()) {
+                consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                        getRedeliveryTracker());
+                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
+            } else {
+                entriesForConsumer.forEach(e -> {
+                    int totalMsgs = Commands.getNumberOfMessagesInBatch(e.getDataBuffer(), subscription.toString(), -1);
+                    if (totalMsgs > 0) {
+                        msgDrop.recordEvent(totalMsgs);
+                    }
+                    e.release();
+                });
+            }
         }
     }
 }

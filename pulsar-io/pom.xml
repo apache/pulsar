@@ -35,7 +35,11 @@
     <profile>
       <id>main</id>
       <activation>
-        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>disableIoMainProfile</name>
+          <!-- always active unless true is passed as a value -->
+          <value>!true</value>
+        </property>
       </activation>
       <modules>
         <module>core</module>

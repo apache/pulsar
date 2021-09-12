@@ -85,7 +85,7 @@ You can configure filesystem offloader driver in the configuration file `broker.
     |---|---|---
     `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
     `fileSystemURI` | Connection address | hdfs://127.0.0.1:9000
-    `offloadersDirectory` | Hadoop profile path | ../conf/filesystem_offload_core_site.xml
+    `fileSystemProfilePath` | Hadoop profile path | ../conf/filesystem_offload_core_site.xml
 
 - **Optional** configurations are as below.
 

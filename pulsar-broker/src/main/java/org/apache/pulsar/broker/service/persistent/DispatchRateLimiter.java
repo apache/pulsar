@@ -76,6 +76,15 @@ public class DispatchRateLimiter {
     }
 
     /**
+     * returns available byte-permit if msg-dispatch-throttling is enabled else it returns -1.
+     *
+     * @return
+     */
+    public long getAvailableDispatchRateLimitOnByte() {
+        return dispatchRateLimiterOnByte == null ? -1 : dispatchRateLimiterOnByte.getAvailablePermits();
+    }
+
+    /**
      * It acquires msg and bytes permits from rate-limiter and returns if acquired permits succeed.
      *
      * @param msgPermits
@@ -349,8 +358,15 @@ public class DispatchRateLimiter {
         // update msg-rateLimiter
         if (msgRate > 0) {
             if (this.dispatchRateLimiterOnMessage == null) {
-                this.dispatchRateLimiterOnMessage = new RateLimiter(brokerService.pulsar().getExecutor(), msgRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg, true);
+                this.dispatchRateLimiterOnMessage =
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(msgRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterMsg)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
+                                .build();
             } else {
                 this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterMsg);
@@ -369,8 +385,15 @@ public class DispatchRateLimiter {
         // update byte-rateLimiter
         if (byteRate > 0) {
             if (this.dispatchRateLimiterOnByte == null) {
-                this.dispatchRateLimiterOnByte = new RateLimiter(brokerService.pulsar().getExecutor(), byteRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte, true);
+                this.dispatchRateLimiterOnByte =
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(byteRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterByte)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
+                                .build();
             } else {
                 this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterByte);

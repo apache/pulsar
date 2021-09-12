@@ -49,7 +49,7 @@ public class ServiceConfigurationTest {
     public void testInit() throws Exception {
         final String zookeeperServer = "localhost:2184";
         final int brokerServicePort = 1000;
-        InputStream newStream = updateProp(zookeeperServer, String.valueOf(brokerServicePort), "ns1,ns2");
+        InputStream newStream = updateProp(zookeeperServer, String.valueOf(brokerServicePort), "ns1,ns2", 0.05);
         final ServiceConfiguration config = PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
         assertTrue(isNotBlank(config.getZookeeperServers()));
         assertTrue(config.getBrokerServicePort().isPresent()
@@ -60,6 +60,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getSupportedNamespaceBundleSplitAlgorithms().size(), 1);
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
         assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
+        assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
     }
 
     @Test
@@ -78,6 +79,15 @@ public class ServiceConfigurationTest {
         assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.of(5.0));
     }
 
+    @Test
+    public void testServicePortsEmpty() throws Exception {
+        String confFile = "brokerServicePort=\nwebServicePort=\n";
+        InputStream stream = new ByteArrayInputStream(confFile.getBytes());
+        final ServiceConfiguration config = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        assertEquals(config.getBrokerServicePort(), Optional.empty());
+        assertEquals(config.getWebServicePort(), Optional.empty());
+    }
+
     /**
      * test {@link ServiceConfiguration} with incorrect values.
      *
@@ -86,11 +96,11 @@ public class ServiceConfigurationTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testInitFailure() throws Exception {
         final String zookeeperServer = "localhost:2184";
-        InputStream newStream = updateProp(zookeeperServer, "invalid-string", null);
+        InputStream newStream = updateProp(zookeeperServer, "invalid-string", null, 0.005);
         PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
     }
 
-    private InputStream updateProp(String zookeeperServer, String brokerServicePort, String namespace)
+    private InputStream updateProp(String zookeeperServer, String brokerServicePort, String namespace, double backlogQuotaGB)
             throws IOException {
         checkNotNull(fileName);
         Properties properties = new Properties();
@@ -98,6 +108,7 @@ public class ServiceConfigurationTest {
         properties.load(stream);
         properties.setProperty("zookeeperServers", zookeeperServer);
         properties.setProperty("brokerServicePort", brokerServicePort);
+        properties.setProperty("backlogQuotaDefaultLimitGB", "" + backlogQuotaGB);
         if (namespace != null)
             properties.setProperty("bootstrapNamespaces", namespace);
         StringWriter writer = new StringWriter();

@@ -50,4 +50,6 @@ public enum TopicOperation {
 
     GET_STATS,
     GET_METADATA,
+
+    SET_REPLICATED_SUBSCRIPTION_STATUS,
 }

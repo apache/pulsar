@@ -1,6 +1,6 @@
 {
   "version-2.1.1-incubating-docs": {
-    "Getting started": [
+    "Getting Started": [
       "version-2.1.1-incubating-pulsar-2.0",
       "version-2.1.1-incubating-standalone",
       "version-2.1.1-incubating-standalone-docker",
@@ -59,7 +59,7 @@
       "version-2.1.1-incubating-security-encryption",
       "version-2.1.1-incubating-security-extending"
     ],
-    "Client libraries": [
+    "Client Libraries": [
       "version-2.1.1-incubating-client-libraries-java",
       "version-2.1.1-incubating-client-libraries-go",
       "version-2.1.1-incubating-client-libraries-python",

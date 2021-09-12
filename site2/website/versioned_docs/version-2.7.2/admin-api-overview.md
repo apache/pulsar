@@ -18,7 +18,7 @@ You can currently interact with the admin interface via:
   $ bin/pulsar-admin
   ```
 
-  For the complete commands and descriptions of `pulsar-admin`, see [here](http://pulsar.apache.org/tools/pulsar-admin/2.7.0-SNAPSHOT/).
+  For the complete commands and descriptions of `pulsar-admin`, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.7.0-SNAPSHOT/).
 
 - A Java client interface.
 
@@ -110,6 +110,6 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   
 > **Tip**
 > 
-> - If you get an error in translating Pulsar object names into Kubernetes resource labels or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
+> - If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
 > 
 > - For how to configure Kubernetes runtime, see [here](https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime).

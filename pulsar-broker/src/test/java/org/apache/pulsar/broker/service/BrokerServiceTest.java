@@ -33,17 +33,22 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -69,19 +74,26 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -106,6 +118,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
     }
 
     // method for resetting state explicitly
@@ -232,6 +245,121 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(stats.getOffloadedStorageSize(), 0);
 
         assertEquals(subStats.getMsgBacklog(), 0);
+    }
+
+    @Test
+    public void testConnectionController() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(3);
+        conf.setBrokerMaxConnectionsPerIp(2);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(2);
+        conf.setBrokerMaxConnectionsPerIp(3);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+    }
+
+    @Test
+    public void testConnectionController2() throws Exception {
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        final String topicName = "persistent://prop/ns-abc/connection" + UUID.randomUUID();
+        List<PulsarClient> clients = new ArrayList<>();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().operationTimeout(1, TimeUnit.DAYS)
+                        .connectionTimeout(1, TimeUnit.DAYS)
+                        .serviceUrl(brokerUrl.toString());
+        long startTime = System.currentTimeMillis();
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(1);
+        conf.setBrokerMaxConnectionsPerIp(1);
+        setup();
+        startTime = System.currentTimeMillis();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        clients.add(createNewConnection(topicName, clientBuilder));
+        createNewConnectionAndCheckFail(topicName, clientBuilder);
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+        cleanup();
+        conf.setBrokerMaxConnections(0);
+        conf.setBrokerMaxConnectionsPerIp(0);
+        setup();
+        clientBuilder.serviceUrl(brokerUrl.toString());
+        startTime = System.currentTimeMillis();
+        for (int i = 0; i < 10; i++) {
+            clients.add(createNewConnection(topicName, clientBuilder));
+        }
+        assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
+        cleanClient(clients);
+        clients.clear();
+
+    }
+
+    private void createNewConnectionAndCheckFail(String topicName, ClientBuilder builder) throws Exception {
+        try {
+            createNewConnection(topicName, builder);
+            fail("should fail");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Reached the maximum number of connections"));
+        }
+    }
+
+    private PulsarClient createNewConnection(String topicName, ClientBuilder clientBuilder) throws PulsarClientException {
+        PulsarClient client1 = clientBuilder.build();
+        client1.newProducer().topic(topicName).create().close();
+        return client1;
+    }
+
+    private void cleanClient(List<PulsarClient> clients) throws Exception {
+        for (PulsarClient client : clients) {
+            if (client != null) {
+                client.close();
+            }
+        }
     }
 
     @Test
@@ -566,6 +694,38 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testTlsEnabledWithoutNonTlsServicePorts() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/newTopic";
+        final String subName = "newSub";
+
+        conf.setAuthenticationEnabled(false);
+        conf.setBrokerServicePort(Optional.empty());
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePort(Optional.empty());
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
+        restartBroker();
+
+        // Access with TLS (Allow insecure TLS connection)
+        try {
+            pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
+
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscribe();
+
+        } catch (Exception e) {
+            fail("should not fail");
+        } finally {
+            pulsarClient.close();
+        }
+    }
+
     @SuppressWarnings("deprecation")
     @Test
     public void testTlsAuthAllowInsecure() throws Exception {
@@ -759,42 +919,114 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
+        // This test looks like it could be flakey, if the broker responds
+        // quickly enough, there may never be concurrency in requests
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(1)
-                .maxLookupRequests(2)
-                .build();
+        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+        resolver.updateServiceUrl(pulsar.getBrokerServiceUrl());
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setConcurrentLookupRequest(1);
+        conf.setMaxLookupRequest(2);
 
-        // 2 lookup will success.
-        try {
-            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub1").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub2").subscribeAsync();
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
+                new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
+        long reqId = 0xdeadbeef;
+        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop)) {
+            // for PMR
+            // 2 lookup will succeed
+            long reqId1 = reqId++;
+            ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
+            CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request1, reqId1));
 
-            consumer1.get().close();
-            consumer2.get().close();
-        } catch (Exception e) {
-            fail("Subscribe should success with 2 requests");
-        }
+            long reqId2 = reqId++;
+            ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
+            CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request2, reqId2));
 
-        // 3 lookup will fail
-        try {
-            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub11").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub22").subscribeAsync();
-            CompletableFuture<Consumer<byte[]>> consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub33").subscribeAsync();
+            f1.get();
+            f2.get();
 
-            consumer1.get().close();
-            consumer2.get().close();
-            consumer3.get().close();
-            fail("It should fail as throttling should only receive 2 requests");
-        } catch (Exception e) {
-            if (!(e.getCause() instanceof
-                org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
-                fail("Subscribe should fail with TooManyRequestsException");
+            // 3 lookup will fail
+            long reqId3 = reqId++;
+            ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request3, reqId3));
+
+            long reqId4 = reqId++;
+            ByteBuf request4 = Commands.newPartitionMetadataRequest(topicName, reqId4);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request4, reqId4));
+
+            long reqId5 = reqId++;
+            ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
+            CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request5, reqId5));
+
+            try {
+                f1.get();
+                f2.get();
+                f3.get();
+                fail("At least one should fail");
+            } catch (ExecutionException e) {
+                Throwable rootCause = e;
+                while (rootCause instanceof ExecutionException) {
+                    rootCause = rootCause.getCause();
+                }
+                if (!(rootCause instanceof
+                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                    throw e;
+                }
             }
+
+            // for Lookup
+            // 2 lookup will succeed
+            long reqId6 = reqId++;
+            ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request6, reqId6));
+
+            long reqId7 = reqId++;
+            ByteBuf request7 = Commands.newLookup(topicName, true, reqId7);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request7, reqId7));
+
+            f1.get();
+            f2.get();
+
+            // 3 lookup will fail
+            long reqId8 = reqId++;
+            ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
+            f1 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request8, reqId8));
+
+            long reqId9 = reqId++;
+            ByteBuf request9 = Commands.newLookup(topicName, true, reqId9);
+            f2 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request9, reqId9));
+
+            long reqId10 = reqId++;
+            ByteBuf request10 = Commands.newLookup(topicName, true, reqId10);
+            f3 = pool.getConnection(resolver.resolveHost())
+                .thenCompose(clientCnx -> clientCnx.newLookup(request10, reqId10));
+
+            try {
+                f1.get();
+                f2.get();
+                f3.get();
+                fail("At least one should fail");
+            } catch (ExecutionException e) {
+                Throwable rootCause = e;
+                while (rootCause instanceof ExecutionException) {
+                    rootCause = rootCause.getCause();
+                }
+                if (!(rootCause instanceof
+                      org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                    throw e;
+                }
+            }
+
         }
     }
 

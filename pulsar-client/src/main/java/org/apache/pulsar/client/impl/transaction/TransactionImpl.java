@@ -208,6 +208,11 @@ public class TransactionImpl implements Transaction {
         });
     }
 
+    @Override
+    public TxnID getTxnID() {
+        return new TxnID(txnIdMostBits, txnIdLeastBits);
+    }
+
     private CompletableFuture<Void> checkIfOpen() {
         if (state == State.OPEN) {
             return CompletableFuture.completedFuture(null);

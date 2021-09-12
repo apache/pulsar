@@ -4,7 +4,7 @@ title: Pulsar Python client
 sidebar_label: Python
 ---
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [Python directory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
@@ -12,7 +12,7 @@ All the methods in producer, consumer, and reader of a Python client are thread-
 
 ## Install
 
-You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client) library either via [PyPi](https://pypi.python.org/pypi), using [pip](#installation-using-pip), or by building the library from source.
+You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client) library either via [PyPi](https://pypi.python.org/pypi), using [pip](#installation-using-pip), or by building the library from [source](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp).
 
 ### Install using pip
 
@@ -23,8 +23,7 @@ $ pip install pulsar-client=={{pulsar:version_number}}
 ```
 
 ### Optional dependencies
-
-To support aspects like pulsar functions or Avro serialization, additional optional components can be installed alongside the  `pulsar-client` library
+If you install the client libraries on Linux to support services like Pulsar functions or Avro serialization, you can install optional components alongside the  `pulsar-client` library.
 
 ```shell
 # avro serialization
@@ -62,7 +61,7 @@ The complete Python API reference is available at [api/python](/api/python).
 
 ## Examples
 
-You can find a variety of Python code examples for the `pulsar-client` library.
+You can find a variety of Python code examples for the [pulsar-client](/pulsar-client-cpp/python) library.
 
 ### Producer example
 
@@ -86,6 +85,10 @@ client.close()
 The following example creates a consumer with the `my-subscription` subscription name on the `my-topic` topic, receives incoming messages, prints the content and ID of messages that arrive, and acknowledges each message to the Pulsar broker.
 
 ```python
+import pulsar
+
+client = pulsar.Client('pulsar://localhost:6650')
+
 consumer = client.subscribe('my-topic', 'my-subscription')
 
 while True:
@@ -147,7 +150,7 @@ while True:
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
-The following is an example. 
+The following is an example: 
 
 ```python
 import re
@@ -401,5 +404,5 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     This is from the consumer side.
 
     ```
-    Received msg 'b'encryption message'' id = '(0,0,-1,-1)'
+    Received msg 'encryption message' id = '(0,0,-1,-1)'
     ```
