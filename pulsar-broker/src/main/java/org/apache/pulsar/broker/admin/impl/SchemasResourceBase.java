@@ -139,8 +139,12 @@ public class SchemasResourceBase extends AdminResource {
         getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
             SchemaCompatibilityStrategy schemaCompatibilityStrategy = policies.schema_compatibility_strategy;
             if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
-                schemaCompatibilityStrategy = SchemaCompatibilityStrategy
-                        .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+                schemaCompatibilityStrategy =
+                        pulsar().getConfig().getSchemaCompatibilityStrategy();
+                if (schemaCompatibilityStrategy == SchemaCompatibilityStrategy.UNDEFINED) {
+                    schemaCompatibilityStrategy = SchemaCompatibilityStrategy
+                            .fromAutoUpdatePolicy(policies.schema_auto_update_compatibility_strategy);
+                }
             }
             byte[] data;
             if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {

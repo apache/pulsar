@@ -2084,11 +2084,11 @@ $ pulsar-admin topics list tenant/cluster/namespace
 ```
 
 ### `terminate`
-Terminate a topic (disallow further messages from being published on the topic)
+Terminate a persistent topic (disallow further messages from being published on the topic)
 
 Usage
 ```bash
-$ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/topic
+$ pulsar-admin topics terminate persistent://tenant/namespace/topic
 ```
 
 ### `permissions`

@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
     public int topicsCount;
@@ -46,6 +48,16 @@ public class AggregatedNamespaceStats {
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
     public Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
+
+    long compactionRemovedEventCount;
+    long compactionSucceedCount;
+    long compactionFailedCount;
+    long compactionDurationTimeInMills;
+    double compactionReadThroughput;
+    double compactionWriteThroughput;
+    long compactionCompactedEntriesCount;
+    long compactionCompactedEntriesSize;
+    StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
 
     void updateStats(TopicStats stats) {
         topicsCount++;
@@ -112,6 +124,16 @@ public class AggregatedNamespaceStats {
                 consumerStats.unackedMessages += v.unackedMessages;
             });
         });
+
+        compactionRemovedEventCount += stats.compactionRemovedEventCount;
+        compactionSucceedCount += stats.compactionSucceedCount;
+        compactionFailedCount += stats.compactionFailedCount;
+        compactionDurationTimeInMills += stats.compactionDurationTimeInMills;
+        compactionReadThroughput += stats.compactionReadThroughput;
+        compactionWriteThroughput += stats.compactionWriteThroughput;
+        compactionCompactedEntriesCount += stats.compactionCompactedEntriesCount;
+        compactionCompactedEntriesSize += stats.compactionCompactedEntriesSize;
+        compactionLatencyBuckets.addAll(stats.compactionLatencyBuckets);
     }
 
     public void reset() {

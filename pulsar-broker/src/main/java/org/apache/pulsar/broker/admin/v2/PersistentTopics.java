@@ -2442,6 +2442,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message = "Termination of a partitioned topic is not allowed"),
+            @ApiResponse(code = 406, message = "Need to provide a persistent topic name"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -2454,7 +2455,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
+        validatePersistentTopicName(tenant, namespace, encodedTopic);
         return internalTerminate(authoritative);
     }
 

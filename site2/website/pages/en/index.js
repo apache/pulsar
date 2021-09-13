@@ -168,7 +168,7 @@ const UsersBlock = props => (
     id={props.id}
     background={props.background}>
 
-    <p align="center"><small style={{color: 'black', fontSize: '1.7rem'}}><a href="/powered-by">Used by companies such as ...</a></small></p>
+    <p align="center"><small style={{color: 'black', fontSize: '1.7rem'}}><a href="/powered-by">Companies Powered by Pulsar</a></small></p>
 
   </Container>
 );
