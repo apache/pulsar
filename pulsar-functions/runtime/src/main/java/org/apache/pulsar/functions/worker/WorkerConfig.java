@@ -196,7 +196,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String functionWebServiceUrl;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulser binary service url that function metadata manager talks to"
+        doc = "The pulsar binary service url that function metadata manager talks to"
     )
     private String pulsarServiceUrl;
     @FieldContext(
@@ -304,7 +304,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String bookkeeperClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
-        doc = "BookKeeper auth plugin implementatation specifics parameters name and values"
+        doc = "BookKeeper auth plugin implementation specifics parameters name and values"
     )
     private String bookkeeperClientAuthenticationParametersName;
     @FieldContext(
