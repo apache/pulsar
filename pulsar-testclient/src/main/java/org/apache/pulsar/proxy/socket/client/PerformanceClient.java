@@ -185,13 +185,11 @@ public class PerformanceClient {
             arguments.proxyURL += "/";
         }
 
-        arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
-
         return arguments;
 
     }
 
-    public void runPerformanceTest(long messages, long limit, int numOfTopic, int sizeOfMessage, String baseUrl,
+    public void runPerformanceTest(long messages, long limit, int numOfTopic, int sizeOfMessage, long testTime, String baseUrl,
             String topicName, String authPluginClassName, String authParams) throws InterruptedException, FileNotFoundException {
         ExecutorService executor = Executors.newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
         HashMap<String, Tuple> producersMap = new HashMap<>();
@@ -242,10 +240,18 @@ public class PerformanceClient {
         executor.submit(() -> {
             try {
                 RateLimiter rateLimiter = RateLimiter.create(limit);
+                long startTime = System.nanoTime();
+                long testEndTime = startTime + (long) (testTime * 1e9);
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
                     for (String topic : producersMap.keySet()) {
+                        if (testTime > 0 && System.nanoTime() > testEndTime) {
+                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", testTime);
+                            Thread.sleep(5000);
+                            PerfClientUtils.exit(0);
+                        }
+
                         if (messages > 0) {
                             if (totalSent >= messages) {
                                 log.trace("------------------- DONE -----------------------");
@@ -328,7 +334,7 @@ public class PerformanceClient {
         PerformanceClient test = new PerformanceClient();
         Arguments arguments = test.loadArguments(args);
         PerfClientUtils.printJVMInformation(log);
-        test.runPerformanceTest(arguments.numMessages, arguments.msgRate, arguments.numTopics, arguments.msgSize,
+        test.runPerformanceTest(arguments.numMessages, arguments.msgRate, arguments.numTopics, arguments.msgSize, arguments.testTime,
                 arguments.proxyURL, arguments.topics.get(0), arguments.authPluginClassName, arguments.authParams);
     }
 
