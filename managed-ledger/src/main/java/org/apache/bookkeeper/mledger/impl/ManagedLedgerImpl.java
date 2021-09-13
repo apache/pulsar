@@ -717,6 +717,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
+        if (!beforeAddEntry(addOperation)) {
+            return;
+        }
         pendingAddEntries.add(addOperation);
         final State state = STATE_UPDATER.get(this);
         if (state == State.Fenced) {
@@ -779,10 +782,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 addOperation.setCloseWhenDone(true);
                 STATE_UPDATER.set(this, State.ClosingLedger);
             }
-            // interceptor entry before add to bookie
-            if (beforeAddEntry(addOperation)) {
-                addOperation.initiate();
-            }
+            addOperation.initiate();
         }
     }
 
