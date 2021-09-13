@@ -58,14 +58,11 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
     static final String HTTP_HEADER_NAME = "Authorization";
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
-    // When symmetric key is configured
-    static final String CONF_TOKEN_SETTING_PREFIX = "";
-
     // The token's claim that corresponds to the "role" string
     static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
 
-    static final String CONF_ISSUER_URL = "issuerUrl";
+    static final String CONF_ISSUER_URL = "tokenAuthenticationOIDCIssuerUrl";
 
     // When using public key's, the algorithm of the key
     static final String CONF_TOKEN_PUBLIC_ALG = "tokenPublicKeytokenPublicKey";
@@ -116,14 +113,10 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
-        String prefix = (String) config.getProperty(CONF_TOKEN_SETTING_PREFIX);
-        if (null == prefix) {
-            prefix = "";
-        }
-        this.confTokenAuthClaimSettingName = prefix + CONF_TOKEN_AUTH_CLAIM;
-        this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
-        this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
-        this.confJWkUrlSettingName = prefix + CONF_ISSUER_URL;
+        this.confTokenAuthClaimSettingName = CONF_TOKEN_AUTH_CLAIM;
+        this.confTokenAudienceClaimSettingName = CONF_TOKEN_AUDIENCE_CLAIM;
+        this.confTokenAudienceSettingName = CONF_TOKEN_AUDIENCE;
+        this.confJWkUrlSettingName = CONF_ISSUER_URL;
 
 
         // we need to fetch the algorithm before we fetch the key
