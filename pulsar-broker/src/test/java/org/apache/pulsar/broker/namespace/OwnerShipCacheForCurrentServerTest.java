@@ -18,17 +18,22 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.testng.AssertJUnit.assertTrue;
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServerTestBase {
 
@@ -61,6 +66,23 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
             NamespaceBundle bundle = namespaceServices[i].getBundle(TopicName.get(TOPIC_TEST));
             Assert.assertEquals(namespaceServices[i].getOwnerAsync(bundle).get().get().getNativeUrl(),
                     namespaceServices[i].getOwnerAsync(bundle).get().get().getNativeUrl());
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testCreateTopicWithNotTopicNsOwnedBroker() {
+        String topicName = "persistent://" + TENANT + "/" + NAMESPACE + "/" + "testCreateTopic";
+
+        for (PulsarService pulsarService : this.getPulsarServiceList()) {
+            BrokerService bs = pulsarService.getBrokerService();
+            if (bs.isTopicNsOwnedByBroker(TopicName.get(topicName))) {
+                continue;
+            }
+            try {
+                bs.getOrCreateTopic(topicName).get();
+            } catch (Exception ex) {
+                assertTrue(ex.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+            }
         }
     }
 }
