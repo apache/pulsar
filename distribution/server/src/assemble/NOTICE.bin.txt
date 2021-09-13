@@ -87,6 +87,9 @@ RocksDB
 Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
 Copyright (c) 2011 The LevelDB Authors. All rights reserved.
 
+OAuth0
+Copyright (c) 2018 Auth0, Inc. <support@auth0.com> (http://auth0.com)
+
 ----------------------------------------------------------------------------------------------------
 Apache Log4j
 Copyright 1999-2017 Apache Software Foundation

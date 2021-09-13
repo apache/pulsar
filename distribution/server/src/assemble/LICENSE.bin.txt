@@ -506,6 +506,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.9.8.jar
     - io.vertx-vertx-web-3.9.8.jar
     - io.vertx-vertx-web-common-3.9.8.jar
+  * OAuth0
+    - com.oauth0-java-jwt-3.10.3.jar
+    - com.oauth0-java-rsa.0.11.0.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.6.3.jar
     - org.apache.zookeeper-zookeeper-jute-3.6.3.jar
@@ -634,6 +637,14 @@ and decompression library written by William Kinney. It can be obtained at:
    * licenses/LICENSE-jfastlz.txt (MIT License)
  * HOMEPAGE:
    * https://code.google.com/p/jfastlz/
+
+Contains a modified portion of and optionally depends on 'Protocol Buffers', Google's data
+interchange format, which can be obtained at:
+
+ * LICENSE:
+   * licenses/LICENSE-protobuf.txt (New BSD License)
+ * HOMEPAGE:
+* https://github.com/google/protobuf
 
 Contains a modified portion of and optionally depends on 'Protocol Buffers', Google's data
 interchange format, which can be obtained at:
