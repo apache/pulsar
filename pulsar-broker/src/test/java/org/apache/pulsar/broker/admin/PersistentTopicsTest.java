@@ -397,11 +397,19 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         String testLocalTopicName = "test-topic";
 
-        // 1) Auto create non-partitioned topic.
+        // 1. Not auto create topic.
+        try {
+            persistentTopics.getPartitionedMetadata(testTenant, testNamespace, testLocalTopicName, true, false);
+            Assert.fail("Should fail topic not exit exception");
+        } catch (RestException e) {
+            Assert.assertEquals(Response.Status.NOT_FOUND.getStatusCode(), e.getResponse().getStatus());
+        }
+
+        // 2. Auto create non-partitioned topic.
         PartitionedTopicMetadata partitionedMetadata = persistentTopics.getPartitionedMetadata(testTenant, testNamespace, testLocalTopicName, true, true);
         Assert.assertEquals(0, partitionedMetadata.partitions);
 
-        // 2. Add validate policy assert.
+        // 3. Add validate policy assert.
         doThrow(new RestException(Response.Status.FORBIDDEN, "mock message"))
                 .when(persistentTopics).validateTopicPolicyOperation(persistentTopics.topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
         try {
@@ -410,7 +418,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             Assert.assertEquals(Response.Status.FORBIDDEN.getStatusCode(), e.getResponse().getStatus());
         }
-
     }
 
     @Test
