@@ -1513,9 +1513,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ReferenceCountUtil.release(existsOp.data);
                 }
                 existsOp.setLedger(currentLedger);
-                if (beforeAddEntry(existsOp)) {
-                    pendingAddEntries.add(existsOp);
-                }
+                pendingAddEntries.add(existsOp);
             }
         } while (existsOp != null && --pendingSize > 0);
 
