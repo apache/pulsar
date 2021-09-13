@@ -90,6 +90,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -143,6 +144,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -157,6 +159,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -165,6 +168,7 @@ import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -1499,22 +1503,77 @@ public class BrokerService implements Closeable {
                         );
                     }
 
-
                     ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
                     managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
                     managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
                     managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
-                    if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
-                        managedLedgerConfig
-                                .setBookKeeperEnsemblePlacementPolicyClassName(
-                                        IsolatedBookieEnsemblePlacementPolicy.class);
-                        Map<String, Object> properties = Maps.newHashMap();
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
-                        properties.put(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
-                                localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
-                        managedLedgerConfig.setBookKeeperEnsemblePlacementPolicyProperties(properties);
+
+                    if (serviceConfig.isStrictBookieAffinityEnabled()) {
+                        try {
+                            Optional<GetResult> racksData =
+                                    this.pulsar.getLocalMetadataStore().
+                                            get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
+                            if (racksData.isPresent()) {
+                                BookiesRackConfiguration allGroupsBookieMapping =
+                                        ObjectMapperFactory.getThreadLocal().
+                                                readValue(racksData.get().getValue(), BookiesRackConfiguration.class);
+                                if (allGroupsBookieMapping.size() > 0) {
+                                    managedLedgerConfig
+                                            .setBookKeeperEnsemblePlacementPolicyClassName(
+                                                    IsolatedBookieEnsemblePlacementPolicy.class);
+                                    if (localPolicies.isPresent()
+                                            && localPolicies.get().bookieAffinityGroup != null) {
+                                        Map<String, Object> properties = Maps.newHashMap();
+                                        properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                                        .ISOLATION_BOOKIE_GROUPS,
+                                                localPolicies.get().bookieAffinityGroup
+                                                        .getBookkeeperAffinityGroupPrimary());
+                                        properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                                        .SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                                                localPolicies.get().bookieAffinityGroup
+                                                        .getBookkeeperAffinityGroupSecondary());
+                                        managedLedgerConfig.
+                                                setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                                    } else if (namespace.getTenant().equals("pulsar")) {
+                                        Map<String, Object> properties = Maps.newHashMap();
+                                        properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                                .ISOLATION_BOOKIE_GROUPS, "*");
+                                        properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                                .SECONDARY_ISOLATION_BOOKIE_GROUPS, "*");
+                                        managedLedgerConfig.
+                                                setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                                    } else {
+                                        Map<String, Object> properties = Maps.newHashMap();
+                                        properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                                .ISOLATION_BOOKIE_GROUPS, "");
+                                        properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                                .SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
+                                        managedLedgerConfig.
+                                                setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                            log.error("Error getting bookie isolation info from metadata store");
+                            throw new IllegalStateException(e);
+                        }
+                    } else {
+                        if (localPolicies.isPresent() && localPolicies.get().bookieAffinityGroup != null) {
+                            managedLedgerConfig
+                                    .setBookKeeperEnsemblePlacementPolicyClassName(
+                                            IsolatedBookieEnsemblePlacementPolicy.class);
+                            Map<String, Object> properties = Maps.newHashMap();
+                            properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                            .ISOLATION_BOOKIE_GROUPS,
+                                    localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupPrimary());
+                            properties.put(IsolatedBookieEnsemblePlacementPolicy
+                                            .SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                                    localPolicies.get().bookieAffinityGroup.getBookkeeperAffinityGroupSecondary());
+                            managedLedgerConfig.
+                                    setBookKeeperEnsemblePlacementPolicyProperties(properties);
+                        }
                     }
+
                     managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
                     managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
                     managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());

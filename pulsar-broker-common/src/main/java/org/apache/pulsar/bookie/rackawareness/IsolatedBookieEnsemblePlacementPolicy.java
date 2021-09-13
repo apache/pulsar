@@ -59,6 +59,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache;
 
+    private static final String PULSAR_METADATA_ISOLATION_GROUP = "*";
+
 
     public IsolatedBookieEnsemblePlacementPolicy() {
         super();
@@ -90,11 +92,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 for (String isolationGroup : isolationGroupsString.split(",")) {
                     primaryIsolationGroups.add(isolationGroup);
                 }
-
-                // Only add the bookieMappingCache if we have defined an isolation group
-                bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-                bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
             }
+            // Only add the bookieMappingCache if we have defined an isolation group
+            bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+            bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
@@ -200,6 +201,9 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     private Set<BookieId> getBlacklistedBookiesWithIsolationGroups(int ensembleSize,
         Pair<Set<String>, Set<String>> isolationGroups) {
         Set<BookieId> blacklistedBookies = new HashSet<>();
+        if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_METADATA_ISOLATION_GROUP))  {
+            return blacklistedBookies;
+        }
         try {
             if (bookieMappingCache != null) {
                 CompletableFuture<Optional<BookiesRackConfiguration>> future =
@@ -217,6 +221,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 int totalAvailableBookiesInPrimaryGroup = 0;
                 Set<String> primaryIsolationGroup = Collections.emptySet();
                 Set<String> secondaryIsolationGroup = Collections.emptySet();
+                Set<BookieId> primaryGroupBookies = new HashSet<>();
                 if (isolationGroups != null) {
                     primaryIsolationGroup = isolationGroups.getLeft();
                     secondaryIsolationGroup = isolationGroups.getRight();
@@ -231,9 +236,16 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                         for (String groupBookie : bookiesInGroup) {
                             totalAvailableBookiesInPrimaryGroup += knownBookies
                                 .containsKey(BookieId.parse(groupBookie)) ? 1 : 0;
+                            primaryGroupBookies.add(BookieId.parse(groupBookie));
                         }
                     }
                 }
+
+                Set<BookieId> otherGroupBookies = new HashSet<>(blacklistedBookies);
+                Set<BookieId> nonRegionBookies  = new HashSet<>(knownBookies.keySet());
+                nonRegionBookies.removeAll(primaryGroupBookies);
+                blacklistedBookies.addAll(nonRegionBookies);
+
                 // sometime while doing isolation, user might not want to remove isolated bookies from other default
                 // groups. so, same set of bookies could be overlapped into isolated-group and other default groups. so,
                 // try to remove those overlapped bookies from excluded-bookie list because they are also part of
@@ -247,6 +259,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     }
                 }
                 // if primary-isolated-bookies are not enough then add consider secondary isolated bookie group as well.
+                int totalAvailableBookiesFromPrimaryAndSecondary = totalAvailableBookiesInPrimaryGroup;
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
                     log.info(
                         "Not found enough available-bookies from primary isolation group [{}], checking secondary "
@@ -256,8 +269,19 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {
                             for (String bookieAddress : bookieGroup.keySet()) {
                                 blacklistedBookies.remove(BookieId.parse(bookieAddress));
+                                totalAvailableBookiesFromPrimaryAndSecondary += 1;
                             }
                         }
+                    }
+                }
+                if (totalAvailableBookiesFromPrimaryAndSecondary < ensembleSize) {
+                    log.info(
+                            "Not found enough available-bookies from primary isolation group [{}] and secondary "
+                                    + "isolation group [{}], checking from non-region bookies",
+                            primaryIsolationGroup, secondaryIsolationGroup);
+                    nonRegionBookies.removeAll(otherGroupBookies);
+                    for (BookieId bookie: nonRegionBookies) {
+                        blacklistedBookies.remove(bookie);
                     }
                 }
             }

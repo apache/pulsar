@@ -1250,6 +1250,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable or disable strict bookie affinity.")
+    private boolean strictBookieAffinityEnabled = false;
+
     /***** --- TLS. --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
