@@ -186,16 +186,52 @@ public class DockerUtils {
         }
     }
 
+    public static ContainerExecResult runCommandAsUser(String userId,
+                                                       DockerClient docker,
+                                                       String containerId,
+                                                       String... cmd)
+            throws ContainerExecException, ExecutionException, InterruptedException {
+        try {
+            return runCommandAsyncAsUser(userId, docker, containerId, cmd).get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof ContainerExecException) {
+                throw (ContainerExecException) e.getCause();
+            }
+            throw e;
+        }
+    }
+
+    public static CompletableFuture<ContainerExecResult> runCommandAsyncAsUser(String userId,
+                                                                               DockerClient dockerClient,
+                                                                               String containerId,
+                                                                               String... cmd) {
+        String execId = dockerClient.execCreateCmd(containerId)
+                .withCmd(cmd)
+                .withAttachStderr(true)
+                .withAttachStdout(true)
+                .withUser(userId)
+                .exec()
+                .getId();
+        return runCommandAsync(execId, dockerClient, containerId, cmd);
+    }
+
     public static CompletableFuture<ContainerExecResult> runCommandAsync(DockerClient dockerClient,
                                                                          String containerId,
                                                                          String... cmd) {
-        CompletableFuture<ContainerExecResult> future = new CompletableFuture<>();
         String execId = dockerClient.execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
                 .exec()
                 .getId();
+        return runCommandAsync(execId, dockerClient, containerId, cmd);
+    }
+
+    private static CompletableFuture<ContainerExecResult> runCommandAsync(String execId,
+                                                                          DockerClient dockerClient,
+                                                                          String containerId,
+                                                                          String... cmd) {
+        CompletableFuture<ContainerExecResult> future = new CompletableFuture<>();
         final String containerName = getContainerName(dockerClient, containerId);
         String cmdString = String.join(" ", cmd);
         StringBuilder stdout = new StringBuilder();
