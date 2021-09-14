@@ -63,6 +63,16 @@
         "io-develop",
         "io-cli"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        "sql-overview",
+        "sql-getting-started",
+        "sql-deployment-configurations",
+        "sql-rest-api"
+      ]
     }
   ]
 }

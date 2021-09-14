@@ -48,7 +48,7 @@ module.exports = {
     {
       name: 'Enrico Olivelli',
       apacheId: 'eolivelli',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Fangbin Sun',
@@ -69,7 +69,7 @@ module.exports = {
       name: 'Hang Chen',
       apacheId: 'chenhang',
       org: 'BIGO Technology',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Hiroyuki Sakai',
@@ -128,7 +128,7 @@ module.exports = {
       name: 'Lin Lin',
       apacheId: 'linlin',
       org: 'Tencent',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Ludwig Pummer',

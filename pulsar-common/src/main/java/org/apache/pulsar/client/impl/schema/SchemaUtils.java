@@ -301,8 +301,7 @@ public final class SchemaUtils {
     }
 
     public static JsonObject toJsonObject(String json) {
-        JsonParser parser = new JsonParser();
-        return parser.parse(json).getAsJsonObject();
+        return JsonParser.parseString(json).getAsJsonObject();
     }
 
     private static class SchemaInfoToStringAdapter implements JsonSerializer<SchemaInfo> {

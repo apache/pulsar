@@ -92,6 +92,18 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         return DockerUtils.runCommandAsync(client, dockerId, commands);
     }
 
+    public ContainerExecResult execCmdAsUser(String userId, String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsUser(userId, client, dockerId, commands);
+    }
+
+    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsyncAsUser(userId, client, dockerId, commands);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof ChaosContainer)) {

@@ -45,7 +45,6 @@ import org.slf4j.LoggerFactory;
 @WebSocket(maxTextMessageSize = 64 * 1024)
 public class SimpleTestProducerSocket {
     public static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
-    public static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
 
     private final CountDownLatch closeLatch;
     private volatile Session session;
@@ -83,7 +82,6 @@ public class SimpleTestProducerSocket {
         }
         long latencyNs = endTimeNs - startTime;
         recorder.recordValue(NANOSECONDS.toMicros(latencyNs));
-        cumulativeRecorder.recordValue(NANOSECONDS.toMicros(latencyNs));
     }
 
     public RemoteEndpoint getRemote() {
