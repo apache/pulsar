@@ -4,7 +4,7 @@
 ### 2.8.1 &mdash; 2021-09-10 <a id=“2.8.1”></a>
 
 ### Broker
-- Fix all web threads get stuck when deleting the namespace [#11596](https://github.com/apache/pulsar/pull/11596)
+- Fix the issue of all web threads get stuck when deleting a namespace [#11596](https://github.com/apache/pulsar/pull/11596)
 - Improve error logs in BacklogQuotaManager [#11469](https://github.com/apache/pulsar/pull/11469)
 - Solve the issue of precise rate limiting does not take effect [#11446](https://github.com/apache/pulsar/pull/11446)
 - Fix replicated subscriptions direct memory leak [#11396](https://github.com/apache/pulsar/pull/11396)
