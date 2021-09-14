@@ -165,39 +165,30 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                                 boolean isInCacheRequest) {
 
         if (!checkIfReady()) {
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             synchronized (PendingAckHandleImpl.this) {
-                if (state == State.Initializing) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                    return completableFuture;
-                } else if (state == State.None) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                    initPendingAckStore();
-                    return completableFuture;
-                } else if (checkIfReady()) {
-
-                } else {
-                    if (state == State.Error) {
-                        return FutureUtil.failedFuture(
+                switch (state) {
+                    case Initializing:
+                        addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
+                        return completableFuture;
+                    case None:
+                        addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
+                        initPendingAckStore();
+                        return completableFuture;
+                    case Error:
+                        completableFuture.completeExceptionally(
                                 new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
-                    } else {
-                        return FutureUtil.failedFuture(
+                        return completableFuture;
+                    case Close:
+                        completableFuture.completeExceptionally(
                                 new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
-                    }
+                        return completableFuture;
+                    default:
+                        break;
                 }
             }
         }
 
-        if (!acceptQueue.isEmpty() && !isInCacheRequest) {
-            synchronized (PendingAckHandleImpl.this) {
-                if (!acceptQueue.isEmpty()) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addIndividualAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                    return completableFuture;
-                }
-            }
-        }
         if (txnID == null) {
             return FutureUtil.failedFuture(new NotAllowedException("TransactionID can not be null."));
         }
@@ -315,37 +306,27 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                                 List<PositionImpl> positions,
                                                                 boolean isInCacheRequest) {
         if (!checkIfReady()) {
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             synchronized (PendingAckHandleImpl.this) {
-                if (state == State.Initializing) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addCumulativeAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                    return completableFuture;
-                } else if (state == State.None) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addCumulativeAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                    initPendingAckStore();
-                    return completableFuture;
-                } else if (checkIfReady()) {
-
-                } else {
-                    if (state == State.Error) {
-                        return FutureUtil.failedFuture(
+                switch (state) {
+                    case Initializing:
+                        addCumulativeAcknowledgeMessageRequest(txnID, positions, completableFuture);
+                        return completableFuture;
+                    case None:
+                        addCumulativeAcknowledgeMessageRequest(txnID, positions, completableFuture);
+                        initPendingAckStore();
+                        return completableFuture;
+                    case Error:
+                        completableFuture.completeExceptionally(
                                 new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
-                    } else {
-                        return FutureUtil.failedFuture(
+                        return completableFuture;
+                    case Close:
+                        completableFuture.completeExceptionally(
                                 new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
-                    }
+                        return completableFuture;
+                    default:
+                        break;
 
-                }
-            }
-        }
-
-        if (!acceptQueue.isEmpty() && !isInCacheRequest) {
-            synchronized (PendingAckHandleImpl.this) {
-                if (!acceptQueue.isEmpty()) {
-                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    addCumulativeAcknowledgeMessageRequest(txnID, positions, completableFuture);
-                    return completableFuture;
                 }
             }
         }
