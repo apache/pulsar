@@ -1757,8 +1757,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.addEntry("data".getBytes());
         ledger.addEntry("data".getBytes());
-        
-        assertEquals(ledger.getLedgersInfoAsList().size(), 2);    
+
+        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
     }
 
     @Test
