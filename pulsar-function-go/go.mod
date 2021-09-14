@@ -3,7 +3,7 @@ module github.com/apache/pulsar/pulsar-function-go
 go 1.13
 
 require (
-	github.com/apache/pulsar-client-go v0.2.0
+	github.com/apache/pulsar-client-go v0.6.0
 	github.com/golang/protobuf v1.4.2
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/client_model v0.2.0
