@@ -506,9 +506,9 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-3.9.8.jar
     - io.vertx-vertx-web-3.9.8.jar
     - io.vertx-vertx-web-common-3.9.8.jar
-  * OAuth0
-    - com.oauth0-java-jwt-3.10.3.jar
-    - com.oauth0-java-rsa.0.11.0.jar
+  * Auth0
+    - com.auth0-java-jwt-3.10.3.jar
+    - com.auth0-java-rsa.0.11.0.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.6.3.jar
     - org.apache.zookeeper-zookeeper-jute-3.6.3.jar
