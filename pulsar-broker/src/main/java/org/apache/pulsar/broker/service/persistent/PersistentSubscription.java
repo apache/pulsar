@@ -66,6 +66,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -256,9 +257,12 @@ public class PersistentSubscription implements Subscription {
                             }
                             break;
                         case Key_Shared:
-                            if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                            KeySharedMeta ksm = consumer.getKeySharedMeta();
+                            KeySharedMode keySharedMode = ksm.getKeySharedMode();
+                            if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
+                                    || ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getKeySharedMode()
+                                    != keySharedMode) {
                                 previousDispatcher = dispatcher;
-                                KeySharedMeta ksm = consumer.getKeySharedMeta();
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                         topic.getBrokerService().getPulsar().getConfiguration(), ksm);
                             }
