@@ -642,7 +642,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
-        case BaseCommand::TC_CLIENT_CONNECT
+        case BaseCommand::TC_CLIENT_CONNECT:
             return "TC_CLIENT_CONNECT";
             break;
     };
