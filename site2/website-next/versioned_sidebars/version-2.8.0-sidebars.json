@@ -175,6 +175,30 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-getting-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-deployment-configurations"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-rest-api"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
     }
   ]
 }
