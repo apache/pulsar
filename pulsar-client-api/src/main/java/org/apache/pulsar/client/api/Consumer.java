@@ -599,6 +599,15 @@ public interface Consumer<T> extends Closeable {
      */
     void seek(long timestamp) throws PulsarClientException;
 
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message index.
+     *
+     * @param index
+     *            the message index where to reposition the subscription
+     */
+    void seekByIndex(long index) throws PulsarClientException;
+
     /**
      * Reset the subscription associated with this consumer to a specific message ID or message publish time.
      * <p>
@@ -656,6 +665,17 @@ public interface Consumer<T> extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(long timestamp);
+
+    /**
+     * Reset the subscription associated with this consumer to a specific index.
+     *
+     * Note: "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor" must be added to
+     * "brokerEntryMetadataInterceptors" in broker configuration to enable index meta in broker.
+     *
+     * @param index the message index where to reposition the subscription
+     * @return a future to track the completion of the seek operation
+     */
+    CompletableFuture<Void> seekByIndexAsync(long index);
 
     /**
      * Get the last message id available for consume.

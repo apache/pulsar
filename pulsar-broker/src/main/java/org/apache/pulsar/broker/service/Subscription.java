@@ -81,6 +81,8 @@ public interface Subscription {
 
     CompletableFuture<Void> resetCursor(Position position);
 
+    CompletableFuture<Void> resetCursorByIndex(long index);
+
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
     boolean expireMessages(int messageTTLInSeconds);

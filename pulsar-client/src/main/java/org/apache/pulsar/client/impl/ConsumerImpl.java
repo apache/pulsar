@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -48,7 +47,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -59,7 +57,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -1777,6 +1774,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public void seekByIndex(long index) throws PulsarClientException {
+        try {
+            seekByIndexAsync(index).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
     public void seek(Function<String, Object> function) throws PulsarClientException {
         try {
             seekAsync(function).get();
@@ -1860,6 +1866,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             long requestId = client.newRequestId();
             return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
                 MessageId.earliest, seekBy);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> seekByIndexAsync(long index){
+        String seekBy = String.format("the index %d", index);
+        return seekAsyncCheckState(seekBy).orElseGet(() -> {
+            long requestId = client.newRequestId();
+            return seekAsyncInternal(requestId, Commands.newSeekByIndex(consumerId, requestId, index),
+                    MessageId.earliest, seekBy);
         });
     }
 
