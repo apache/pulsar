@@ -27,20 +27,16 @@ import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.Lists;
-
 import java.io.FileInputStream;
-
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
-
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -53,22 +49,20 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
-import org.apache.commons.lang3.RandomUtils;
 import org.apache.curator.shaded.com.google.common.util.concurrent.RateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -80,9 +74,9 @@ public class PerformanceTransaction {
     private static final LongAdder totalNumTransaction = new LongAdder();
     private static final LongAdder numTransaction = new LongAdder();
 
-    private static final LongAdder totalMessageAck = new LongAdder();
-    private static final LongAdder messageAck = new LongAdder();
-
+    private static final LongAdder numMessagesAckFailed = new LongAdder();
+    private static final LongAdder numMessagesSendFailed = new LongAdder();
+    private static final LongAdder numTransactionCommitFailed = new LongAdder();
 
     private static Recorder messageAckRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
     private static Recorder messageAckCumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
@@ -100,26 +94,26 @@ public class PerformanceTransaction {
         @Parameter(names = {"--conf-file"}, description = "Configuration file")
         public String confFile;
 
-        @Parameter(names = "--topic-c", description = "consumer will be created to consumer this topic", required =
+        @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
                 true)
-        public List<String> consumerTopic = Collections.singletonList("sub");
+        public List<String> consumerTopic = Collections.singletonList("test-consume");
 
-        @Parameter(names = "--topic-c", description = "producer will be created to produce message to this topic",
+        @Parameter(names = "--topics-p", description = "All topics that need produce for a transaction",
                 required = true)
-        public List<String> producerTopic = Collections.singletonList("test");
+        public List<String> producerTopic = Collections.singletonList("test-produce");
 
-        @Parameter(names = {"-threads", "--num-test-threads"}, description = "Number of test threads")
+        @Parameter(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
+                + "This thread is for new transaction and ack the consumerTopic message and produce message to "
+                + "producerTopic then commit or abort this transaction. "
+                + "Increasing the number of threads will increase the parallelism of the performance test, "
+                + "thereby increasing the intensity of the stress test.")
         public int numTestThreads = 1;
-
-
 
         @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
 
-
         @Parameter(names = {"-u", "--service-url"}, description = "Pulsar Service URL")
         public String serviceURL;
-
 
         @Parameter(names = {"-np",
                 "--partitions"}, description = "Create partitioned topics with the given number of partitions, set 0 "
@@ -134,7 +128,6 @@ public class PerformanceTransaction {
                 "--test-duration"}, description = "Test duration in secs. If 0, it will keep publishing")
         public long testTime = 0;
 
-
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
@@ -146,49 +139,51 @@ public class PerformanceTransaction {
         @Parameter(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
         public int numSubscriptions = 1;
 
-
         @Parameter(names = {"-sp", "--subscription-position"}, description = "Subscription position")
-        private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
-
+        private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
 
         @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
-        public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+        public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
         @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-
-        @Parameter(names = {"-timeout", "--txn-timeout"}, description = "transaction timeout")
+        @Parameter(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
+                + " and the TimeUnit is second. (Only --txn-enable true can it take effect) ")
         public long transactionTimeout = 5;
 
-        @Parameter(names = {"-nmp", "--numMessage-perTransaction-produce"},
-                description = "the number of messages produced by  a transaction")
-        public int numMessagesProducedPerTransaction = 1;
-        @Parameter(names = {"-nmc", "--numMessage-perTransaction-consume"},
-                description = "the number of messages consumed by  a transaction")
-        public int numMessagesReceivedPerTransaction = 1;
-
-        @Parameter(names = {"-ntnx",
-                "--number-txn"}, description = "the number of transaction, if o, it will keep opening")
+        @Parameter(names = {"-ntxn",
+                "--number-txn"}, description = "Set the number of transaction, if 0, it will keep opening."
+                + "If transaction disable, it means the number of task. The task or transaction will produce or "
+                + "and consume a specified number of messages.")
         public long numTransactions = 0;
 
-        @Parameter(names = {"-txn", "--txn-enable"}, description = " whether transactions need to  be opened ")
-        public boolean isEnableTransaction = false;
+        @Parameter(names = {"-nmp", "--numMessage-perTransaction-produce"},
+                description = "Set the number of messages produced in  a transaction."
+                        + "If transaction disable, it means the number of messages produced in a task.")
+        public int numMessagesProducedPerTransaction = 1;
 
-        @Parameter(names = {"-end"}, description = " how to end a transaction, commit or abort")
-        public boolean isCommitedTransaction = true;
+        @Parameter(names = {"-nmc", "--numMessage-perTransaction-consume"},
+                description = "Set the number of messages consumed in  a transaction."
+                        + "if transaction disable, it means the number of message consumed in a task.")
+        public int numMessagesReceivedPerTransaction = 1;
 
-        @Parameter(names = "-txnRate", description = "the rate of transaction  open, if 0 , don`t limit")
+        @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable transaction")
+        public boolean isEnableTransaction = true;
+
+        @Parameter(names = {"-end"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
+                + "true can it take effect)")
+        public boolean isCommitTransaction = true;
+
+        @Parameter(names = "-txnRate", description = "Set the rate of transaction/task open, if 0, it will don`t limit")
         public int openTxnRate = 0;
-
-
     }
 
     public static void main(String[] args)
             throws IOException, PulsarAdminException, ExecutionException, InterruptedException {
         final Arguments arguments = new Arguments();
         JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf produce");
+        jc.setProgramName("pulsar-perf transaction");
 
         try {
             jc.parse(args);
@@ -245,8 +240,6 @@ public class PerformanceTransaction {
         if (arguments.partitions != null) {
             PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
                     .serviceHttpUrl(arguments.adminURL);
-
-
             try (PulsarAdmin client = clientBuilder.build()) {
                 for (String topic : arguments.producerTopic) {
                     log.info("Creating  produce partitioned topic {} with {} partitions", topic, arguments.partitions);
@@ -266,175 +259,152 @@ public class PerformanceTransaction {
                         }
                     }
                 }
-                for (String topic : arguments.consumerTopic) {
-                    log.info("Creating  consume partitioned topic {} with {} partitions", topic, arguments.partitions);
-                    try {
-                        client.topics().createPartitionedTopic(topic, arguments.partitions);
-                    } catch (PulsarAdminException.ConflictException alreadyExists) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Topic {} already exists: {}", topic, alreadyExists);
-                        }
-                        PartitionedTopicMetadata partitionedTopicMetadata =
-                                client.topics().getPartitionedTopicMetadata(topic);
-                        if (partitionedTopicMetadata.partitions != arguments.partitions) {
-                            log.error(
-                                    "Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
-                                    topic, partitionedTopicMetadata.partitions, arguments.partitions);
-                            PerfClientUtils.exit(-1);
-                        }
-                    }
-                }
             }
         }
-
 
         PulsarClient client =
-                PulsarClient.builder().enableTransaction(arguments.isEnableTransaction).serviceUrl(arguments.serviceURL)
+                PulsarClient.builder().enableTransaction(arguments.isEnableTransaction)
+                        .serviceUrl(arguments.serviceURL)
                         .connectionsPerBroker(arguments.maxConnections)
-                        .ioThreads(arguments.ioThreads)
                         .statsInterval(0, TimeUnit.SECONDS)
-                        .ioThreads(arguments.ioThreads).build();
+                        .ioThreads(arguments.ioThreads)
+                        .build();
 
-        ProducerBuilder<byte[]> producerBuilder = client.newProducer()//
-                .sendTimeout(0, TimeUnit.SECONDS);
-
-        final List<Future<Producer<byte[]>>> producerFutures = Lists.newArrayList();
-
-
-        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES) //
-                .subscriptionType(arguments.subscriptionType)
-                .receiverQueueSize(arguments.receiverQueueSize)
-                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
-
-
-        Iterator<String> consumerTopicIterator = arguments.consumerTopic.iterator();
-        Iterator<String> producerTopicIterator = arguments.producerTopic.iterator();
-
-        final List<List<Consumer<byte[]>>> consumers = Lists.newArrayList();
-        for (int i = 0; i < arguments.numTestThreads; i++) {
-            final List<Consumer<byte[]>> subscriptions = Lists.newArrayListWithCapacity(arguments.numSubscriptions);
-            final List<Future<Consumer<byte[]>>> subscriptionFutures =
-                    Lists.newArrayListWithCapacity(arguments.numSubscriptions);
-            if (consumerTopicIterator.hasNext()) {
-                String topic = consumerTopicIterator.next();
-                log.info("create subscriptions for topic {}", topic);
-                final TopicName topicName = TopicName.get(topic);
-                for (int j = 0; j < arguments.numSubscriptions; j++) {
-                    String subscriberName = arguments.subscriptions.get(j);
-                    subscriptionFutures
-                            .add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
-                                    .subscribeAsync());
-                }
-            } else {
-                consumerTopicIterator = arguments.consumerTopic.iterator();
-            }
-            if (producerTopicIterator.hasNext()) {
-                String topic = producerTopicIterator.next();
-                log.info("create producer for topic {}", topic);
-                producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
-            } else {
-                producerTopicIterator = arguments.producerTopic.iterator();
-            }
-
-            for (Future<Consumer<byte[]>> future : subscriptionFutures) {
-                subscriptions.add(future.get());
-            }
-            consumers.add(subscriptions);
-        }
-        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(producerFutures.size());
-
-        for (Future<Producer<byte[]>> future : producerFutures) {
-            producers.add(future.get());
-        }
-
-
-        // start perf test
-
-        ExecutorService executorService = Executors.newFixedThreadPool(arguments.numTestThreads + 1);
-        Semaphore semaphore = new Semaphore(arguments.numTestThreads);
+        ExecutorService executorService = Executors.newFixedThreadPool(arguments.numTestThreads);
+        Semaphore testThreadLimit = new Semaphore(arguments.numTestThreads);
 
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             if (arguments.isEnableTransaction) {
-                printAggregatedThroughput(startTime);
+                printTxnAggregatedThroughput(startTime);
             } else {
-                printAggregatedThroughput(startTime, arguments);
+                printAggregatedThroughput(startTime);
             }
             printAggregatedStats();
         }));
 
-
+        // start perf test
         AtomicBoolean executing = new AtomicBoolean(true);
-        executorService.submit(() -> {
+        new Thread(() -> {
             RateLimiter rateLimiter = null;
             if(arguments.openTxnRate != 0){
-                 rateLimiter = RateLimiter.create(arguments.openTxnRate / arguments.numTestThreads);
+                rateLimiter = RateLimiter.create( (double)arguments.openTxnRate / arguments.numTestThreads);
             }
-            while (true) {
-                if (semaphore.tryAcquire() && (rateLimiter == null || rateLimiter.tryAcquire())) {
+            for(int i = 0; i < arguments.numTestThreads; i++) {
+                if (testThreadLimit.tryAcquire() && (rateLimiter == null || rateLimiter.tryAcquire())) {
                     LongAdder messageSend = new LongAdder();
                     LongAdder messageReceived = new LongAdder();
                     executorService.submit(() -> {
+                        //The producer and consumer clients are built in advance, and then this thread is
+                        //responsible for the production and consumption tasks of the transaction through the loop.
+                        //A thread may perform tasks of multiple transactions in a traversing manner.
+                        List<Producer<byte[]>> producers = null;
+                        List<List<Consumer<byte[]>>> consumers = null;
                         try {
-                            Producer<byte[]> producer = producers.get(RandomUtils.nextInt() % producers.size());
-                            List<Consumer<byte[]>> subscriptions =
-                                    consumers.get(RandomUtils.nextInt() % consumers.size());
+                            producers = buildProducers(client, arguments);
+                            consumers = buildConsumer(client, arguments);
+                        } catch (Exception e) {
+                            log.error("Failed to build Producer/Consumer with exception : " + e);
+                        }
+                        AtomicReference<Transaction> atomicReference = buildTransaction(client, arguments);
+                        //The while loop has no break, and finally ends the execution through the shutdownNow of
+                        //0the executorService
+                        while (true) {
+                            try {
+                                Transaction transaction = atomicReference.get();
+                                for (List<Consumer<byte[]>> subscriptions : consumers) {
+                                    if(messageReceived.sum() == arguments.numMessagesReceivedPerTransaction){
+                                        break;
+                                    }
+                                    for (Consumer<byte[]> consumer : subscriptions) {
+                                        if(messageReceived.sum() == arguments.numMessagesReceivedPerTransaction){
+                                            break;
+                                        }
+                                        Message message = null;
+                                        try {
+                                            message = consumer.receive(2, TimeUnit.SECONDS);
+                                            log.info("Receive message {} ", message);
+                                        }catch (Exception e){
+                                            log.error("{} can`t receive message in 2 sec with exception {}", consumer, e);
+                                        }
 
-                            AtomicReference<Transaction> atomicReference = buildTransaction(client, arguments);
-                            while (true) {
-                                for (Consumer<byte[]> consumer : subscriptions) {
-
-                                    consumer.receiveAsync().thenAccept(message -> {
+                                        messageReceived.increment();
                                         long receiveTime = System.nanoTime();
                                         if (arguments.isEnableTransaction) {
-                                            consumer.acknowledgeAsync(message.getMessageId(), atomicReference.get())
+                                            consumer.acknowledgeAsync(message.getMessageId(), transaction)
                                                     .thenRun(() -> {
                                                         long latencyMicros = NANOSECONDS.toMicros(
                                                                 System.nanoTime() - receiveTime);
                                                         messageAckRecorder.recordValue(latencyMicros);
                                                         messageAckCumulativeRecorder.recordValue(latencyMicros);
-                                                    });
+                                                    }).exceptionally(exception -> {
+                                                log.error("Ack message failed with transaction {} throw exception {}", transaction, exception);
+                                                numMessagesAckFailed.increment();
+                                                return null;
+                                            });
                                         } else {
                                             consumer.acknowledgeAsync(message).thenRun(() -> {
                                                 long latencyMicros = NANOSECONDS.toMicros(
                                                         System.nanoTime() - receiveTime);
                                                 messageAckRecorder.recordValue(latencyMicros);
                                                 messageAckCumulativeRecorder.recordValue(latencyMicros);
+                                            }).exceptionally(exception -> {
+                                                log.error("Ack message failed with transaction {} throw exception {}", transaction, exception);
+                                                numMessagesAckFailed.increment();
+                                                return null;
                                             });
                                         }
-                                        messageReceived.increment();
-                                    });
-                                }
-                                Transaction transaction = atomicReference.get();
-                                long sendTime = System.nanoTime();
-                                if (arguments.isEnableTransaction) {
-                                    producer.newMessage(transaction).value(payloadBytes)
-                                            .sendAsync().thenRun(() -> {
-                                        messageSend.increment();
-                                        long latencyMicros = NANOSECONDS.toMicros(
-                                                System.nanoTime() - sendTime);
-                                        messageAckRecorder.recordValue(latencyMicros);
-                                        messageAckCumulativeRecorder.recordValue(latencyMicros);
-                                    });
-                                } else {
-                                    producer.newMessage().value(payloadBytes)
-                                            .sendAsync().thenRun(() -> {
-                                        messageSend.increment();
-                                        long latencyMicros = NANOSECONDS.toMicros(
-                                                System.nanoTime() - sendTime);
-                                        messageAckRecorder.recordValue(latencyMicros);
-                                        messageAckCumulativeRecorder.recordValue(latencyMicros);
-                                    });
+                                    }
                                 }
 
-                                if (messageSend.sum() >= arguments.numMessagesProducedPerTransaction
-                                        || messageReceived.sum() >= arguments.numMessagesReceivedPerTransaction) {
+                                for(Producer<byte[]> producer : producers){
+                                    if(messageSend.sum() >= arguments.numMessagesProducedPerTransaction){
+                                        break;
+                                    }
+                                    long sendTime = System.nanoTime();
+                                    messageSend.increment();
                                     if (arguments.isEnableTransaction) {
-                                        if (arguments.isCommitedTransaction) {
-                                            transaction.commit();
+                                        producer.newMessage(transaction).value(payloadBytes)
+                                                .sendAsync().thenRun(() -> {
+                                            long latencyMicros = NANOSECONDS.toMicros(
+                                                    System.nanoTime() - sendTime);
+                                            messageSendRecorder.recordValue(latencyMicros);
+                                            messageSendRCumulativeRecorder.recordValue(latencyMicros);
+                                        }).exceptionally(exception -> {
+                                            log.error("Send transaction message failed with exception : " + exception);
+                                            numMessagesSendFailed.increment();
+                                            return null;
+                                        });
+                                    } else {
+                                        producer.newMessage().value(payloadBytes)
+                                                .sendAsync().thenRun(() -> {
+                                            long latencyMicros = NANOSECONDS.toMicros(
+                                                    System.nanoTime() - sendTime);
+                                            messageSendRecorder.recordValue(latencyMicros);
+                                            messageSendRCumulativeRecorder.recordValue(latencyMicros);
+                                        }).exceptionally(exception -> {
+                                            log.error("Send message failed with exception : " + exception);
+                                            numMessagesSendFailed.increment();
+                                            return null;
+                                        });
+                                    }
+                                }
+
+                                if (messageSend.sum() == arguments.numMessagesProducedPerTransaction
+                                        && messageReceived.sum() == arguments.numMessagesReceivedPerTransaction) {
+                                    if (arguments.isEnableTransaction) {
+                                        if (arguments.isCommitTransaction) {
+                                            log.info("Committing transaction {}", transaction.getTxnID().toString());
+                                            transaction.commit().exceptionally(exception -> {
+                                                log.error("Commit transaction {} failed with exception {}",
+                                                        transaction.getTxnID().toString(),
+                                                        exception);
+                                                numTransactionCommitFailed.increment();
+                                                return null;
+                                            });
                                         } else {
+                                            log.info("Aborting transaction {}", transaction.getTxnID().toString());
                                             transaction.abort();
                                         }
                                         atomicReference.compareAndSet(transaction, client.newTransaction()
@@ -443,33 +413,34 @@ public class PerformanceTransaction {
                                     }
                                     totalNumTransaction.increment();
                                     numTransaction.increment();
+                                    messageSend.reset();
+                                    messageReceived.reset();
+                                }
+                            } catch (Exception e) {
+                                log.error("A exception happened in a transaction work flow :" + e);
+                            }
+                            if (arguments.numTransactions > 0) {
+                                if (totalNumTransaction.sum() >= arguments.numTransactions) {
+                                    log.info("------------------- DONE -----------------------");
+                                    executing.compareAndSet(true, false);
+                                    executorService.shutdownNow();
                                     break;
                                 }
                             }
-
-                        } catch (Exception e) {
-                            log.error("Got error: " + e.getMessage());
+                            if (arguments.testTime > 0) {
+                                if (System.nanoTime() > testEndTime) {
+                                    log.info("------------------- DONE -----------------------");
+                                    executing.compareAndSet(true, false);
+                                    executorService.shutdownNow();
+                                    break;
+                                }
+                            }
                         }
                     });
-                    semaphore.release();
-                }
-
-                if (arguments.numTransactions > 0) {
-                    if (totalNumTransaction.sum() >= arguments.numTransactions) {
-                        log.info("------------------- DONE -----------------------");
-                        executing.compareAndSet(true, false);
-                        break;
-                    }
-                }
-                if (arguments.testTime > 0) {
-                    if (System.nanoTime() > testEndTime) {
-                        log.info("------------------- DONE -----------------------");
-                        executing.compareAndSet(true, false);
-                        break;
-                    }
+                    testThreadLimit.release();
                 }
             }
-        });
+        }).start();
 
 
         // Print report stats
@@ -488,22 +459,16 @@ public class PerformanceTransaction {
         histogramLogWriter.outputLogFormatVersion();
         histogramLogWriter.outputLegend();
 
-        while (true) {
+        while (executing.get()) {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
                 break;
             }
-
-            if (!executing.get()) {
-                break;
-            }
-
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
             long total = totalNumTransaction.sum();
             double rate = numTransaction.sumThenReset() / elapsed;
-
             reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
             reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
             log.info(
@@ -541,26 +506,34 @@ public class PerformanceTransaction {
     }
 
 
+    private static void printTxnAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;
+        double rate = totalNumTransaction.sum() / elapsed;
+        long numTransactionFailed = numTransactionCommitFailed.sum();
+        long numMessageAckFailed = numMessagesAckFailed.sum();
+        long numMessageSendFailed = numMessagesSendFailed.sum();
+        log.info(
+                "Aggregated throughput stats --- {} transaction executed --- {} transaction/s "
+                        + "--- {} transactionCommitFailed --- {} message ack failed --- {} message send failed",
+                totalNumTransaction.sum(),
+                totalFormat.format(rate),
+                numTransactionFailed,
+                numMessageAckFailed,
+                numMessageSendFailed);
+    }
+
     private static void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalNumTransaction.sum() / elapsed;
+        long numMessageAckFailed = numMessagesAckFailed.sum();
+        long numMessageSendFailed = numMessagesSendFailed.sum();
         log.info(
-                "Aggregated throughput stats --- {} transaction executed --- {} transaction/s",
-                totalNumTransaction.sum(),
-                totalFormat.format(rate));
-    }
-
-    private static void printAggregatedThroughput(long start, Arguments arguments) {
-        double elapsed = (System.nanoTime() - start) / 1e9;
-        double rate = totalNumTransaction.sum() / elapsed;
-        log.info(
-                "Aggregated throughput stats --- {} task executed --- {} task/s --- Message at most for a task "
-                        + "- send {} - ack {}",
+                "Aggregated throughput stats --- {} task executed --- {} task/s --- {} message ack failed "
+                        + "--- {} message send failed",
                 totalNumTransaction.sum(),
                 totalFormat.format(rate),
-                arguments.numMessagesProducedPerTransaction,
-                arguments.numMessagesReceivedPerTransaction
-        );
+                numMessageAckFailed,
+                numMessageSendFailed);
     }
 
     private static void printAggregatedStats() {
@@ -596,9 +569,9 @@ public class PerformanceTransaction {
         if (arguments.isEnableTransaction) {
             try {
                 return new AtomicReference(pulsarClient.newTransaction()
-                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build());
-            } catch (PulsarClientException e) {
-                log.error("Got transaction error: " + e.getMessage());
+                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
+            } catch (Exception e) {
+                log.error("Failed to build a new transaction with exception : " + e);
             }
         }
         return null;
@@ -609,4 +582,56 @@ public class PerformanceTransaction {
     static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
     static final DecimalFormat totalFormat = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
+
+
+    private static  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client, Arguments arguments)
+            throws ExecutionException, InterruptedException {
+        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES) //
+                .subscriptionType(arguments.subscriptionType)
+                .receiverQueueSize(arguments.receiverQueueSize)
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition);
+
+        Iterator<String> consumerTopicsIterator = arguments.consumerTopic.iterator();
+        List<List<Consumer<byte[]>>> consumers = Lists.newArrayListWithCapacity(arguments.consumerTopic.size());
+        while(consumerTopicsIterator.hasNext()){
+            String topic = consumerTopicsIterator.next();
+            final List<Consumer<byte[]>> subscriptions = Lists.newArrayListWithCapacity(arguments.numSubscriptions);
+            final List<Future<Consumer<byte[]>>> subscriptionFutures =
+                    Lists.newArrayListWithCapacity(arguments.numSubscriptions);
+            log.info("Create subscriptions for topic {}", topic);
+            for (int j = 0; j < arguments.numSubscriptions; j++) {
+                String subscriberName = arguments.subscriptions.get(j);
+                subscriptionFutures
+                        .add(consumerBuilder.clone().topic(topic).subscriptionName(subscriberName)
+                                .subscribeAsync());
+            }
+            for (Future<Consumer<byte[]>> future : subscriptionFutures) {
+                subscriptions.add(future.get());
+            }
+            consumers.add(subscriptions);
+        }
+        return consumers;
+    }
+
+    private static List<Producer<byte[]>> buildProducers(PulsarClient client, Arguments arguments)
+            throws ExecutionException, InterruptedException {
+
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer(Schema.BYTES) //
+                .sendTimeout(0, TimeUnit.SECONDS);
+
+        final List<Future<Producer<byte[]>>> producerFutures = Lists.newArrayList();
+        Iterator<String> produceTopicsIterator = arguments.producerTopic.iterator();
+        while(produceTopicsIterator.hasNext()){
+            String topic = produceTopicsIterator.next();
+            log.info("Create producer for topic {}", topic);
+            producerFutures.add(producerBuilder.clone().topic(topic).createAsync());
+        }
+        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(producerFutures.size());
+
+        for (Future<Producer<byte[]>> future : producerFutures) {
+            producers.add(future.get());
+        }
+        return  producers;
+    }
+
 }
