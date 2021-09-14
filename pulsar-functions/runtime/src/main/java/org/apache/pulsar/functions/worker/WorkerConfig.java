@@ -191,17 +191,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Boolean useCompactedMetadataTopic = false;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The web service url for function workers"
+        doc = "The web service URL for function workers"
     )
     private String functionWebServiceUrl;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulsar binary service url that function metadata manager talks to"
+        doc = "The pulsar binary service URL that function metadata manager talks to"
     )
     private String pulsarServiceUrl;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulsar web service url that function metadata manager talks to"
+        doc = "The pulsar web service URL that function metadata manager talks to"
     )
     private String pulsarWebServiceUrl;
     @FieldContext(
@@ -231,7 +231,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String downloadDirectory;
     @FieldContext(
         category = CATEGORY_STATE,
-        doc = "The service url of state storage"
+        doc = "The service URL of state storage"
     )
     private String stateStorageServiceUrl;
     @FieldContext(
