@@ -18,25 +18,11 @@
     under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <packaging>pom</packaging>
-  <parent>
-    <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar-io</artifactId>
-    <version>2.9.0-SNAPSHOT</version>
-  </parent>
-
-  <artifactId>pulsar-io-debezium</artifactId>
-  <name>Pulsar IO :: Debezium</name>
-
-  <modules>
-    <module>core</module>
-    <module>mysql</module>
-    <module>postgres</module>
-    <module>mongodb</module>
-    <module>oracle</module>
-  </modules>
-
-</project>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="Pulsar IO Oracle Source Integration Tests" verbose="2" annotations="JDK">
+    <test name="pulsar-function-process-test-suite" preserve-order="true" >
+        <classes>
+            <class name="org.apache.pulsar.tests.integration.io.sources.debezium.PulsarDebeziumOracleSourceTest" />
+        </classes>
+    </test>
+</suite>
