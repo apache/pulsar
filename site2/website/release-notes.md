@@ -9,7 +9,7 @@
 - Solve the issue of precise rate limiting does not take effect [#11446](https://github.com/apache/pulsar/pull/11446)
 - Fix replicated subscriptions direct memory leak [#11396](https://github.com/apache/pulsar/pull/11396)
 - Change ContextClassLoader to NarClassLoader in ProtocolHandler [#11276](https://github.com/apache/pulsar/pull/11276)
-- Fix ledger rollover scheduled task [#11116](https://github.com/apache/pulsar/pull/11116)
+- Fix the issue of ledger rollover scheduled tasks were executed before reaching the ledger maximum rollover time [#11116](https://github.com/apache/pulsar/pull/11116)
 - Fix publish_time not set error when broker entry metadata enable without AppendBrokerTimestampMetadataInterceptor [#11014](https://github.com/apache/pulsar/pull/11014)
 - Fix parseMessageMetadata error cause by not skip broker entry metadata [#10968](https://github.com/apache/pulsar/pull/10968)
 - Fix issue where Key_Shared consumers could get stuck [#10920](https://github.com/apache/pulsar/pull/10920)
