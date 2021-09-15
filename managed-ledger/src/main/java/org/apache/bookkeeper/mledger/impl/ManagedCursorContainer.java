@@ -19,18 +19,16 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Lists;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.tuple.Pair;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Contains all the cursors for a ManagedLedger.
@@ -69,6 +67,8 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
     private final StampedLock rwLock = new StampedLock();
 
+    private PositionImpl slowestReadPositionForActiveCursors;
+
     public void add(ManagedCursor cursor) {
         long stamp = rwLock.writeLock();
         try {
@@ -81,6 +81,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 heap.add(item);
                 siftUp(item);
             }
+            updateSlowestReadPositionForActiveCursors(cursor);
         } finally {
             rwLock.unlockWrite(stamp);
         }
@@ -109,6 +110,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 // Update the heap
                 siftDown(lastItem);
             }
+            updateSlowestReadPositionForActiveCursors(null);
         } finally {
             rwLock.unlockWrite(stamp);
         }
@@ -148,6 +150,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 PositionImpl newSlowestConsumer = heap.get(0).position;
                     return Pair.of(previousSlowestConsumer, newSlowestConsumer);
             }
+            updateSlowestReadPositionForActiveCursors(item.cursor);
             return null;
         } finally {
             rwLock.unlockWrite(stamp);
@@ -317,6 +320,34 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         // Update the indexes too
         item1.idx = idx2;
         item2.idx = idx1;
+    }
+
+    private void updateSlowestReadPositionForActiveCursors(ManagedCursor managedCursor) {
+        if (managedCursor == null) {
+            PositionImpl slowest = null;
+            for (ManagedCursor cursor : this) {
+                PositionImpl p = (PositionImpl) cursor.getReadPosition();
+                if (slowest == null) {
+                    slowest = p;
+                } else if (p.compareTo(slowest) < 0) {
+                    slowest = p;
+                }
+            }
+            slowestReadPositionForActiveCursors = slowest;
+            return;
+        }
+        PositionImpl position = (PositionImpl) managedCursor.getReadPosition();
+        if (slowestReadPositionForActiveCursors == null) {
+            slowestReadPositionForActiveCursors = position;
+            return;
+        }
+        if (slowestReadPositionForActiveCursors.compareTo(position) > 0) {
+            slowestReadPositionForActiveCursors = position;
+        }
+    }
+
+    public PositionImpl getSlowestReadPositionForActiveCursors() {
+        return slowestReadPositionForActiveCursors;
     }
 
     private Item getParent(Item item) {

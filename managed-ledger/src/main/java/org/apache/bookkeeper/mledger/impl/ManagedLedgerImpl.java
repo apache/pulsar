@@ -2111,7 +2111,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private PositionImpl getEarlierReadPositionForActiveCursors() {
-        return (PositionImpl) (activeCursors.getSlowestReader()).getReadPosition();
+        return activeCursors.getSlowestReadPositionForActiveCursors();
     }
 
     void updateCursor(ManagedCursorImpl cursor, PositionImpl newPosition) {

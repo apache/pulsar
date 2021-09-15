@@ -18,6 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -384,6 +387,31 @@ public class ManagedCursorContainerTest {
         public boolean checkAndUpdateReadPositionChanged() {
             return false;
         }
+    }
+
+    @Test
+    public void testSlowestReadPositionForActiveCursors() throws Exception {
+        ManagedCursorContainer container = new ManagedCursorContainer();
+        assertNull(container.getSlowestReadPositionForActiveCursors());
+
+        // Add durable cursor
+        PositionImpl position = PositionImpl.get(5,5);
+        ManagedCursor cursor1 = spy(new MockManagedCursor(container, "test1", position));
+        doReturn(position).when(cursor1).getReadPosition();
+        container.add(cursor1);
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
+
+        // Add no durable cursor
+        position = PositionImpl.get(1,1);
+        ManagedCursor cursor2 = spy(new MockManagedCursor(container, "test2", position));
+        doReturn(false).when(cursor1).isDurable();
+        doReturn(position).when(cursor2).getReadPosition();
+        container.add(cursor2);
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(1, 1));
+
+        // Remove cursor
+        container.removeCursor(cursor2.getName());
+        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
     }
 
     @Test
