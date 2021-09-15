@@ -72,47 +72,13 @@ Now you can start using the transaction API to send and receive messages. Below 
 
 Let’s walk through this example step by step.
 
-<table>
-<tbody>
-  <tr>
-   <td>Step
-   </td>
-   <td>Description
-   </td>
-  </tr>
-  <tr>
-   <td>1. Start a transaction.
-   </td>
-   <td>The application opens a new transaction by calling PulsarClient.newTransaction. It specifics the transaction timeout as 1 minute. If the transaction is not committed within 1 minute, the transaction is automatically aborted.
-   </td>
-  </tr>
-  <tr>
-   <td>2. Receive messages from topics.
-   </td>
-   <td>The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively.<br /><br />If you want to enable batch messages ack in transactions, call the enableBatchIndexAcknowledgment(true) method in the consumer builder. For the example, see [1] below this table.
-   </td>
-  </tr>
-  <tr>
-   <td>3. Publish messages to topics with the transaction.
-   </td>
-   <td>The application creates two producers to produce the resulting messages to the output topic _output-topic-1_ and output-topic-2 respectively. The application applies the processing logic and generates two output messages. The application sends those two output messages as part of the transaction opened in the first step via Producer.newMessage(Transaction).
-   </td>
-  </tr>
-  <tr>
-   <td>4. Acknowledge the messages with the transaction.
-   </td>
-   <td>In the same transaction, the application acknowledges the two input messages.
-   </td>
-  </tr>
-  <tr>
-   <td>5. Commit the transaction.
-   </td>
-   <td>The application commits the transaction by calling Transaction.commit() on the open transaction. The commit operation ensures the two input messages are marked as acknowledged and the two output messages are written successfully to the output topics. 
-   <br /><br />Tip: You can also call Transaction.abort() to abort the open transaction.
-   </td>
-  </tr>
-</tbody>
-</table>
+| Step  |  Description  | 
+| --- | --- |
+| 1. Start a transaction.  |  The application opens a new transaction by calling PulsarClient.newTransaction. It specifics the transaction timeout as 1 minute. If the transaction is not committed within 1 minute, the transaction is automatically aborted.  | 
+| 2. Receive messages from topics.  |  The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively. | 
+| 3. Publish messages to topics with the transaction.  |  The application creates two producers to produce the resulting messages to the output topic _output-topic-1_ and output-topic-2 respectively. The application applies the processing logic and generates two output messages. The application sends those two output messages as part of the transaction opened in the first step via Producer.newMessage(Transaction).  | 
+| 4. Acknowledge the messages with the transaction.  |  In the same transaction, the application acknowledges the two input messages.  | 
+| 5. Commit the transaction.  |  The application commits the transaction by calling Transaction.commit() on the open transaction. The commit operation ensures the two input messages are marked as acknowledged and the two output messages are written successfully to the output topics.  | 
 
 [1] Example of enabling batch messages ack in transactions in the consumer builder.
 
