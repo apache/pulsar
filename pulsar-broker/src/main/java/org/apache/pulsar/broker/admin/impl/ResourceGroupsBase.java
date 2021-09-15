@@ -42,6 +42,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
 
     protected ResourceGroup internalGetResourceGroup(String rgName) {
         try {
+            validateSuperUserAccess();
             ResourceGroup resourceGroup = resourceGroupResources().getResourceGroup(rgName)
                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "ResourceGroup does not exist"));
             return resourceGroup;
@@ -143,6 +144,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
          * need to walk the namespaces and make sure it is not in use
          */
         try {
+            validateSuperUserAccess();
             /*
              * walk the namespaces and make sure it is not in use.
              */

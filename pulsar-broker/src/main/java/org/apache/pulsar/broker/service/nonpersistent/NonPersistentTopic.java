@@ -144,7 +144,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenAccept(optPolicies -> {
                     if (!optPolicies.isPresent()) {
-                        log.warn("[{}] Policies not present {} and isEncryptionRequired will be set to false", topic);
+                        log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
                     } else {
                         Policies policies = optPolicies.get();

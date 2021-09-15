@@ -36,6 +36,7 @@
     <module>mysql</module>
     <module>postgres</module>
     <module>mongodb</module>
+    <module>oracle</module>
   </modules>
 
 </project>
