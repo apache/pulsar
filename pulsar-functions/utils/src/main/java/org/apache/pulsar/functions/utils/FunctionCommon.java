@@ -46,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -500,5 +501,14 @@ public class FunctionCommon {
         }
 
         return false;
+    }
+
+    public static SubscriptionInitialPosition convertFromFunctionDetailsSubscriptionPosition(
+            org.apache.pulsar.functions.proto.Function.SubscriptionPosition subscriptionPosition) {
+        if (org.apache.pulsar.functions.proto.Function.SubscriptionPosition.EARLIEST.equals(subscriptionPosition)) {
+            return SubscriptionInitialPosition.Earliest;
+        } else {
+            return SubscriptionInitialPosition.Latest;
+        }
     }
 }
