@@ -78,7 +78,7 @@ public interface TopicPolicies {
 
     /**
      * Remove a backlog quota policy from a topic.
-     * The namespace backlog policy will fall back to the default.
+     * The namespace backlog policy falls back to the default.
      *
      * @param topic
      *            Topic name
@@ -368,7 +368,7 @@ public interface TopicPolicies {
     CompletableFuture<Void> removeRetentionAsync(String topic);
 
     /**
-     * get max unacked messages on consumer of a topic.
+     * Get max unacked messages on a consumer of a topic.
      * @param topic
      * @return
      * @throws PulsarAdminException
