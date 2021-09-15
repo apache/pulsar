@@ -77,6 +77,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     public static final String DUMMY_TOPIC_NAME_PREFIX = "MultiTopicsConsumer-";
 
+    @VisibleForTesting
+    public static final int RECEIVE_ASYNC_RETRY_INTERVAL_SECONDS = 10;
+
     // Map <topic+partition, consumer>, when get do ACK, consumer will by find by topic name
     private final ConcurrentHashMap<String, ConsumerImpl<T>> consumers;
 
@@ -244,7 +247,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
+    @VisibleForTesting
+    public void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
         consumer.receiveAsync().thenAccept(message -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
@@ -270,8 +274,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
             }
         }).exceptionally(ex -> {
+            if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                log.warn("end receive retry, consumer already closed {} ", consumer);
+                return null;
+            }
             log.error("Receive operation failed on consumer {} - Retrying later", consumer, ex);
-            internalPinnedExecutor.schedule(() -> receiveMessageFromConsumer(consumer), 10, TimeUnit.SECONDS);
+            internalPinnedExecutor.schedule(() -> receiveMessageFromConsumer(consumer), RECEIVE_ASYNC_RETRY_INTERVAL_SECONDS, TimeUnit.SECONDS);
             return null;
         });
     }
