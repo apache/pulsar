@@ -786,7 +786,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
         validateTopicName(tenant, namespace, encodedTopic);
-        if (checkAllowAutoCreation) {
+        if (authoritative && checkAllowAutoCreation) {
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
         }
         return internalGetPartitionedMetadata(authoritative, checkAllowAutoCreation);
