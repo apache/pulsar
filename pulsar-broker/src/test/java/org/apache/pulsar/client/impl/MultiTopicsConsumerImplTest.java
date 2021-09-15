@@ -43,12 +43,9 @@ public class MultiTopicsConsumerImplTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30_000)
+    @Test(timeOut = 20_000)
     public void testReceiveAfterClose() throws Exception {
-        pulsarClient = PulsarClient.builder().
-                serviceUrl(lookupUrl.toString())
-                .memoryLimit(50, SizeUnit.KILO_BYTES)
-                .build();
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
         String topic = "persistent://public/default/receive-after-close1";
         String topic2 = "persistent://public/default/receive-after-close2";
         admin.topics().createPartitionedTopic(topic, 3);
