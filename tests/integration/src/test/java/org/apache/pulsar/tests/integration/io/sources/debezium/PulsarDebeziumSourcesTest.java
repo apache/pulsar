@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
@@ -192,10 +194,17 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         try {
             admin.tenants().createTenant("debezium", new TenantInfoImpl(Sets.newHashSet(),
                     Sets.newHashSet(pulsarCluster.getClusterName())));
-            admin.namespaces().createNamespace("debezium/mysql-json");
-            admin.namespaces().createNamespace("debezium/mysql-avro");
-            admin.namespaces().createNamespace("debezium/mongodb");
-            admin.namespaces().createNamespace("debezium/postgresql");
+            String [] namespaces = {
+                "debezium/mysql-json",
+                "debezium/mysql-avro",
+                "debezium/mongodb",
+                "debezium/postgresql",
+            };
+            Policies policies = new Policies();
+            policies.retention_policies = new RetentionPolicies(-1, 50);
+            for (String ns: namespaces) {
+                admin.namespaces().createNamespace(ns, policies);
+            }
         } catch (Exception e) {
             log.info("[initNamespace] msg: {}", e.getMessage());
         }

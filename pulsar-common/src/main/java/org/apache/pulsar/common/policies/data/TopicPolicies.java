@@ -45,30 +45,33 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Setter
 public class TopicPolicies {
 
+    @Builder.Default
     private Map<String, BacklogQuotaImpl> backLogQuotaMap = Maps.newHashMap();
-    private PersistencePolicies persistence = null;
-    private RetentionPolicies retentionPolicies = null;
-    private Boolean deduplicationEnabled = null;
-    private Integer messageTTLInSeconds = null;
-    private Integer maxProducerPerTopic = null;
-    private Integer maxConsumerPerTopic = null;
-    private Integer maxConsumersPerSubscription = null;
-    private Integer maxUnackedMessagesOnConsumer = null;
-    private Integer maxUnackedMessagesOnSubscription = null;
-    private Long delayedDeliveryTickTimeMillis = null;
-    private Boolean delayedDeliveryEnabled = null;
-    private OffloadPoliciesImpl offloadPolicies;
-    private InactiveTopicPolicies inactiveTopicPolicies = null;
-    private DispatchRateImpl dispatchRate = null;
-    private DispatchRateImpl subscriptionDispatchRate = null;
-    private Long compactionThreshold = null;
-    private PublishRate publishRate = null;
-    private SubscribeRate subscribeRate = null;
-    private Integer deduplicationSnapshotIntervalSeconds = null;
-    private Integer maxMessageSize = null;
-    private Integer maxSubscriptionsPerTopic = null;
-    private DispatchRateImpl replicatorDispatchRate = null;
+    @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
+
+    private PersistencePolicies persistence;
+    private RetentionPolicies retentionPolicies;
+    private Boolean deduplicationEnabled;
+    private Integer messageTTLInSeconds;
+    private Integer maxProducerPerTopic;
+    private Integer maxConsumerPerTopic;
+    private Integer maxConsumersPerSubscription;
+    private Integer maxUnackedMessagesOnConsumer;
+    private Integer maxUnackedMessagesOnSubscription;
+    private Long delayedDeliveryTickTimeMillis;
+    private Boolean delayedDeliveryEnabled;
+    private OffloadPoliciesImpl offloadPolicies;
+    private InactiveTopicPolicies inactiveTopicPolicies;
+    private DispatchRateImpl dispatchRate;
+    private DispatchRateImpl subscriptionDispatchRate;
+    private Long compactionThreshold;
+    private PublishRate publishRate;
+    private SubscribeRate subscribeRate;
+    private Integer deduplicationSnapshotIntervalSeconds;
+    private Integer maxMessageSize;
+    private Integer maxSubscriptionsPerTopic;
+    private DispatchRateImpl replicatorDispatchRate;
 
     public boolean isReplicatorDispatchRateSet() {
         return replicatorDispatchRate != null;

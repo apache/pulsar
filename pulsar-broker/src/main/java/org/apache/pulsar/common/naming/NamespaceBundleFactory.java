@@ -92,7 +92,6 @@ public class NamespaceBundleFactory {
         CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
         // Read the static bundle data from the policies
         pulsar.getLocalMetadataStore().get(path).thenAccept(result -> {
-            NamespaceBundles namespaceBundles;
 
             if (result.isPresent()) {
                 try {
@@ -276,11 +275,11 @@ public class NamespaceBundleFactory {
                 if (sourceBundle.partitions[i] == range.lowerEndpoint()
                         && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
                     splitPartition = i;
-                    Long maxVal = sourceBundle.partitions[i + 1];
-                    Long minVal = sourceBundle.partitions[i];
-                    Long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
+                    long maxVal = sourceBundle.partitions[i + 1];
+                    long minVal = sourceBundle.partitions[i];
+                    long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
                     partitions[pos++] = minVal;
-                    Long curPartition = minVal + segSize;
+                    long curPartition = minVal + segSize;
                     for (int j = 0; j < numBundles - 1; j++) {
                         partitions[pos++] = curPartition;
                         curPartition += segSize;

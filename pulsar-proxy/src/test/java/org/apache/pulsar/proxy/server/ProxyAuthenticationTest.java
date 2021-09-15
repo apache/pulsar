@@ -143,8 +143,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 				commandData = authData.getHttpHeader("BasicAuthentication");
 			}
 
-			JsonParser parser = new JsonParser();
-			JsonObject element = parser.parse(commandData).getAsJsonObject();
+			JsonObject element = JsonParser.parseString(commandData).getAsJsonObject();
 			long expiryTimeInMillis = Long.parseLong(element.get("expiryTime").getAsString());
 			long currentTimeInMillis = System.currentTimeMillis();
 			if (expiryTimeInMillis < currentTimeInMillis) {
