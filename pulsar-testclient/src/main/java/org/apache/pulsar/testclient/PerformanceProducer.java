@@ -601,7 +601,7 @@ public class PerformanceProducer {
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
-                            log.info("------------------- DONE -----------------------");
+                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);
@@ -611,7 +611,7 @@ public class PerformanceProducer {
 
                     if (numMessages > 0) {
                         if (totalSent++ >= numMessages) {
-                            log.info("------------------- DONE -----------------------");
+                            log.info("------------- DONE (reached the maximum number: {} of production) --------------", numMessages);
                             printAggregatedStats();
                             doneLatch.countDown();
                             Thread.sleep(5000);

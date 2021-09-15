@@ -51,6 +51,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
     protected final Map<String, Object> sourceConfig;
 
     protected int numEntriesToInsert = 1;
+    protected int numEntriesExpectAfterStart = 9;
 
     public static final Set<String> DEBEZIUM_FIELD_SET = new HashSet<String>() {{
         add("before");
@@ -113,7 +114,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
 
     public void validateSourceResultJson(Consumer<KeyValue<byte[], byte[]>> consumer, int number, String eventType) throws Exception {
         int recordsNumber = 0;
-        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
+        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(initialDelayForMsgReceive(), TimeUnit.SECONDS);
         while(msg != null) {
             recordsNumber ++;
             final String key = new String(msg.getValue().getKey());
@@ -135,7 +136,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
     public void validateSourceResultAvro(Consumer<KeyValue<GenericRecord, GenericRecord>> consumer,
                                      int number, String eventType) throws Exception {
         int recordsNumber = 0;
-        Message<KeyValue<GenericRecord, GenericRecord>> msg = consumer.receive(2, TimeUnit.SECONDS);
+        Message<KeyValue<GenericRecord, GenericRecord>> msg = consumer.receive(initialDelayForMsgReceive(), TimeUnit.SECONDS);
         while(msg != null) {
             recordsNumber ++;
             GenericRecord keyRecord = msg.getValue().getKey();
@@ -164,11 +165,15 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
         log.info("Stop {} server container. topic: {} has {} records.", getSourceType(), consumer.getTopic(), recordsNumber);
     }
 
-    public String keyContains(){
+    public int initialDelayForMsgReceive() {
+        return 2;
+    }
+
+    public String keyContains() {
         return "dbserver1.inventory.products.Key";
     }
 
-    public String valueContains(){
+    public String valueContains() {
         return "dbserver1.inventory.products.Value";
     }
 

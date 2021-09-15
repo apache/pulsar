@@ -150,8 +150,6 @@ public class ManagedLedgerWriter {
             PerfClientUtils.exit(-1);
         }
 
-        arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
-
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
@@ -240,7 +238,8 @@ public class ManagedLedgerWriter {
 
                     // Acquire 1 sec worth of messages to have a slower ramp-up
                     rateLimiter.acquire((int) msgRate);
-                    final long startTime = System.currentTimeMillis();
+                    final long startTime = System.nanoTime();
+                    final long testEndTime = startTime + (long) (arguments.testTime * 1e9);
 
                     final Semaphore semaphore = new Semaphore(maxOutstandingForThisThread);
 
@@ -270,8 +269,8 @@ public class ManagedLedgerWriter {
                     while (true) {
                         for (int j = 0; j < nunManagedLedgersForThisThread; j++) {
                             if (arguments.testTime > 0) {
-                                if (System.currentTimeMillis() - startTime > arguments.testTime) {
-                                    log.info("------------------- DONE -----------------------");
+                                if (System.nanoTime() > testEndTime) {
+                                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
                                     printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);
@@ -281,7 +280,7 @@ public class ManagedLedgerWriter {
 
                             if (numMessagesForThisThread > 0) {
                                 if (totalSent++ >= numMessagesForThisThread) {
-                                    log.info("------------------- DONE -----------------------");
+                                    log.info("------------- DONE (reached the maximum number: [{}] of production) --------------", numMessagesForThisThread);
                                     printAggregatedStats();
                                     isDone.set(true);
                                     Thread.sleep(5000);

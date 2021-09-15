@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.instance;
 
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 
@@ -675,14 +676,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
 
-            switch (sourceSpec.getSubscriptionPosition()) {
-                case EARLIEST:
-                    pulsarSourceConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
-                    break;
-                default:
-                    pulsarSourceConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
-                    break;
-            }
+            pulsarSourceConfig.setSubscriptionPosition(
+                    convertFromFunctionDetailsSubscriptionPosition(sourceSpec.getSubscriptionPosition())
+            );
 
             Preconditions.checkNotNull(contextImpl.getSubscriptionType());
             pulsarSourceConfig.setSubscriptionType(contextImpl.getSubscriptionType());
