@@ -27,7 +27,6 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * A bind address for the broker as a non-TLS and TLS pair.
@@ -39,21 +38,18 @@ import org.apache.commons.lang3.StringUtils;
 @ToString
 public class BindAddress {
 
+    /**
+     * The listener name associated with the bind address, or null if no listener is associated.
+     */
     @Getter
     @Setter
-    // the listener name associated with the bind address, or null if no listener is associated.
     private String listenerName;
 
+    /**
+     * The bind address.
+     */
     @Getter
     @Setter
     @NonNull
-    // the broker bind address
     private URI address;
-
-    /**
-     * A convenience method indicating whether the bind address should have TLS.
-     */
-    public boolean isTLS() {
-        return StringUtils.equalsIgnoreCase(this.address.getScheme(), "pulsar+ssl");
-    }
 }

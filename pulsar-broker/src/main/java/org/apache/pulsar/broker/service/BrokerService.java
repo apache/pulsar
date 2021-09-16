@@ -425,8 +425,9 @@ public class BrokerService implements Closeable {
         }
         for (BindAddress a : bindAddresses) {
             InetSocketAddress addr = new InetSocketAddress(a.getAddress().getHost(), a.getAddress().getPort());
+            boolean isTls = "pulsar+ssl".equals(a.getAddress().getScheme());
             PulsarChannelInitializer.PulsarChannelOptions opts = PulsarChannelInitializer.PulsarChannelOptions.builder()
-                            .enableTLS(a.isTLS())
+                            .enableTLS(isTls)
                             .listenerName(a.getListenerName()).build();
 
             ServerBootstrap b = defaultServerBootstrap.clone();
@@ -439,17 +440,18 @@ public class BrokerService implements Closeable {
                 // identify the primary channel. Note that the legacy bindings appear first and have no listener.
                 if (StringUtils.isBlank(a.getListenerName())
                         || StringUtils.equalsIgnoreCase(a.getListenerName(), internalListenerName)) {
-                    if (this.listenChannel == null && !a.isTLS()) {
+                    if (this.listenChannel == null && !isTls) {
                         this.listenChannel = ch;
                     }
-                    if (this.listenChannelTls == null && a.isTLS()) {
+                    if (this.listenChannelTls == null && isTls) {
                         this.listenChannelTls = ch;
                     }
                 }
 
-                log.info("Started Pulsar Broker service on {}, TLS: {}",
+                log.info("Started Pulsar Broker service on {}, TLS: {}, listener: {}",
                         ch.localAddress(),
-                        a.isTLS() ? SslContext.defaultServerProvider().toString() : "(none)");
+                        isTls ? SslContext.defaultServerProvider().toString() : "(none)",
+                        StringUtils.defaultString(a.getListenerName(), "(none)"));
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar broker on " + addr, e);
             }
