@@ -18,17 +18,12 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import javax.naming.AuthenticationException;
-
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.api.AuthData;
 
 @Slf4j
 public class SaslAuthenticationDataSource implements AuthenticationDataSource {
     private static final long serialVersionUID = 1L;
 
-    // server side token data, that will passed to sasl client side.
-    protected AuthData serverSideToken;
     private PulsarSaslServer pulsarSaslServer;
 
     public SaslAuthenticationDataSource(PulsarSaslServer saslServer) {
@@ -38,16 +33,6 @@ public class SaslAuthenticationDataSource implements AuthenticationDataSource {
     @Override
     public boolean hasDataFromCommand() {
         return true;
-    }
-
-    @Override
-    public AuthData authenticate(AuthData data) throws AuthenticationException {
-        serverSideToken = pulsarSaslServer.response(data);
-        return serverSideToken;
-    }
-
-    public boolean isComplete() {
-        return this.pulsarSaslServer.isComplete();
     }
 
     public String getAuthorizationID() {
