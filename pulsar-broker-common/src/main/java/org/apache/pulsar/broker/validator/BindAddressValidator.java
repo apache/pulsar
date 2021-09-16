@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.validator;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,23 +42,25 @@ public class BindAddressValidator {
     /**
      * Validate the configuration of `bindAddresses`.
      * @param config the pulsar broker configure.
+     * @param schemes a filter on the schemes of the bind addresses, or null to not apply a filter.
      * @return a list of bind addresses.
      */
-    public static List<BindAddress> validateBindAddresses(ServiceConfiguration config) {
+    public static List<BindAddress> validateBindAddresses(ServiceConfiguration config, Collection<String> schemes) {
         // migrate the existing configuration properties
         List<BindAddress> addresses = migrateBindAddresses(config);
-        if (StringUtils.isBlank(config.getBindAddresses())) {
-            return addresses;
-        }
 
         // parse the list of additional bind addresses
         Arrays
-                .stream(StringUtils.split(config.getBindAddresses(), ","))
+                .stream(StringUtils.split(StringUtils.defaultString(config.getBindAddresses()), ","))
                 .map(bindAddress::matcher)
                 .filter(Matcher::matches)
                 .map(m -> new BindAddress(m.group("name"), URI.create(m.group("url"))))
-                .filter(m -> StringUtils.equalsAnyIgnoreCase(m.getAddress().getScheme(), "pulsar", "pulsar+ssl"))
                 .forEach(addresses::add);
+
+        // apply the filter
+        if (schemes != null) {
+            addresses.removeIf(a -> !schemes.contains(a.getAddress().getScheme()));
+        }
 
         return addresses;
     }
@@ -77,6 +80,14 @@ public class BindAddressValidator {
         if (config.getBrokerServicePortTls().isPresent()) {
             addresses.add(new BindAddress(null, URI.create(
                     ServiceConfigurationUtils.brokerUrlTls(config.getBindAddress(), config.getBrokerServicePortTls().get()))));
+        }
+        if (config.getWebServicePort().isPresent()) {
+            addresses.add(new BindAddress(null, URI.create(
+                    ServiceConfigurationUtils.webServiceUrl(config.getBindAddress(), config.getWebServicePort().get()))));
+        }
+        if (config.getWebServicePortTls().isPresent()) {
+            addresses.add(new BindAddress(null, URI.create(
+                    ServiceConfigurationUtils.webServiceUrlTls(config.getBindAddress(), config.getWebServicePortTls().get()))));
         }
         return addresses;
     }

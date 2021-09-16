@@ -87,4 +87,12 @@ public class ServiceConfigurationUtils {
     public static String brokerUrlTls(String host, int port) {
         return String.format("pulsar+ssl://%s:%d", host, port);
     }
+
+    public static String webServiceUrl(String host, int port) {
+        return String.format("http://%s:%d", host, port);
+    }
+
+    public static String webServiceUrlTls(String host, int port) {
+        return String.format("https://%s:%d", host, port);
+    }
 }

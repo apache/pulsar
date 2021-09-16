@@ -47,6 +47,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -414,7 +415,8 @@ public class BrokerService implements Closeable {
                 PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
-        List<BindAddress> bindAddresses = BindAddressValidator.validateBindAddresses(serviceConfig);
+        List<BindAddress> bindAddresses = BindAddressValidator.validateBindAddresses(serviceConfig,
+                Arrays.asList("pulsar", "pulsar+ssl"));
         String internalListenerName = serviceConfig.getInternalListenerName();
 
         // create a channel for each bind address
