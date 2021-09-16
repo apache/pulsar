@@ -34,7 +34,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -399,7 +398,7 @@ public class SinkConfigUtils {
             sinkClass = sinkClassLoader.loadClass(sinkClassName);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(
-                    String.format("Sink class %s not found in class loader", sinkClassName, e));
+                    String.format("Sink class %s not found in class loader", sinkClassName), e);
         }
 
         // extract type from sink class
