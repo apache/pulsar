@@ -33,6 +33,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -294,9 +295,10 @@ public class TopicLookupBase extends PulsarWebResource {
                                                 newAuthoritative, LookupType.Redirect, requestId, false));
                             } else {
                                 // When running in standalone mode we want to redirect the client through the service
-                                // url, so that the advertised address configuration is not relevant anymore.
-                                boolean redirectThroughServiceUrl = pulsarService.getConfiguration()
-                                        .isRunningStandalone();
+                                // url, if the advertised address is localhost (per PulsarStandaloneStarter).
+                                ServiceConfiguration conf = pulsarService.getConfiguration();
+                                boolean isLocalhost = StringUtils.equals("localhost", conf.getAdvertisedAddress());
+                                boolean redirectThroughServiceUrl = conf.isRunningStandalone() && isLocalhost;
 
                                 lookupfuture.complete(newLookupResponse(lookupData.getBrokerUrl(),
                                         lookupData.getBrokerUrlTls(), true /* authoritative */, LookupType.Connect,
