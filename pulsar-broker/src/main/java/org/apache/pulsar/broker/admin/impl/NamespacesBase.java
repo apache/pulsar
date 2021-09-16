@@ -119,6 +119,10 @@ public abstract class NamespacesBase extends AdminResource {
         validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
 
         try {
+            if (!tenantResources().tenantExists(tenant)) {
+                throw new RestException(Status.NOT_FOUND, "Tenant not found");
+            }
+
             return tenantResources().getListOfNamespaces(tenant);
         } catch (Exception e) {
             log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
