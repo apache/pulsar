@@ -26,7 +26,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.apache.pulsar.common.util.Codec.decode;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import io.netty.channel.EventLoopGroup;
@@ -1129,16 +1128,15 @@ public class NamespaceService implements AutoCloseable {
             LOG.debug("Getting children from partitioned-topics now: {} - {}", namespaceName, topicDomain);
         }
 
-        return pulsar.getPulsarResources().getTopicResources().getExistingPartitions(namespaceName, topicDomain)
+        return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .listPartitionedTopicsAsync(namespaceName, topicDomain)
                 .thenCompose(topics -> {
             CompletableFuture<List<String>> result = new CompletableFuture<>();
             List<String> resultPartitions = Collections.synchronizedList(Lists.newArrayList());
             if (CollectionUtils.isNotEmpty(topics)) {
                 List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
                 for (String topic : topics) {
-                    String partitionedTopicName = String.format("%s://%s/%s", topicDomain.value(),
-                            namespaceName.toString(), decode(topic));
-                    CompletableFuture<List<String>> future = getPartitionsForTopic(TopicName.get(partitionedTopicName));
+                    CompletableFuture<List<String>> future = getPartitionsForTopic(TopicName.get(topic));
                     futures.add(future);
                     future.thenAccept(resultPartitions::addAll);
                 }

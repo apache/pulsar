@@ -38,6 +38,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -188,7 +189,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         public CompletableFuture<List<String>> listPartitionedTopicsAsync(NamespaceName ns, TopicDomain domain) {
             return getChildrenAsync(joinPath(PARTITIONED_TOPIC_PATH, ns.toString(), domain.value()))
                     .thenApply(list ->
-                            list.stream().map(x -> TopicName.get(domain.value(), ns, x).toString())
+                            list.stream().map(x -> TopicName.get(domain.value(), ns, Codec.decode(x)).toString())
                                     .collect(Collectors.toList())
                     );
         }
