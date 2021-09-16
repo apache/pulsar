@@ -675,7 +675,7 @@ func (gi *goInstance) getUserMetricsMap() map[string]float64 {
 			if count <= 0 {
 				userMetricMap[userLabelName] = 0
 			} else {
-				userMetricMap[userLabelName] = float64(summary.GetSampleSum()) / float64(count)
+				userMetricMap[userLabelName] = summary.GetSampleSum() / float64(count)
 			}
 		}
 	}
