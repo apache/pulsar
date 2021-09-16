@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -221,6 +222,9 @@ public class PersistentTopic extends AbstractTopic
 
     private final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     private final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
+
+    // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
+    private long lastDataMessagePublishedTimestamp = 0;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -500,6 +504,11 @@ public class PersistentTopic extends AbstractTopic
 
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
+
+        if (!publishContext.isMarkerMessage()) {
+            lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
+        }
+
         publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         // in order to sync the max position when cursor read entries
@@ -3260,5 +3269,9 @@ public class PersistentTopic extends AbstractTopic
                     + " not found subscription : " + subName)));
         }
         return subscription.getPendingAckManageLedger();
+    }
+
+    public long getLastDataMessagePublishedTimestamp() {
+        return lastDataMessagePublishedTimestamp;
     }
 }
