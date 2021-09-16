@@ -22,9 +22,11 @@ package pf
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/apache/pulsar-client-go/pulsar"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // FunctionContext provides contextual information to the executing function.
@@ -36,7 +38,7 @@ type FunctionContext struct {
 	userConfigs   map[string]interface{}
 	logAppender   *LogAppender
 	outputMessage func(topic string) pulsar.Producer
-	recordMetric  func(metricName string, metricValue float64)
+	userMetrics   sync.Map
 	record        pulsar.Message
 }
 
@@ -177,7 +179,19 @@ func (c *FunctionContext) GetMetricsPort() int {
 
 //RecordMetric records an observation to the user_metric summary with the provided value
 func (c *FunctionContext) RecordMetric(metricName string, metricValue float64) {
-	c.recordMetric(metricName, metricValue)
+	v, ok := c.userMetrics.Load(metricName)
+	if !ok {
+		v, _ = c.userMetrics.LoadOrStore(metricName, userMetricSummary.WithLabelValues(
+			c.GetFuncTenant(),
+			c.GetTenantAndNamespace(),
+			c.GetFuncName(),
+			c.GetFuncID(),
+			c.GetClusterName(),
+			c.GetTenantAndNamespaceAndName(),
+			metricName,
+		))
+	}
+	v.(prometheus.Observer).Observe(metricValue)
 }
 
 // An unexported type to be used as the key for types in this package. This

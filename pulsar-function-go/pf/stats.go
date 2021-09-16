@@ -130,7 +130,14 @@ var (
 	userMetricSummary = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name: PulsarFunctionMetricsPrefix + UserMetric,
-			Help: "Pulsar Function user defined metric"}, userMetricLabelNames)
+			Help: "User defined metric.",
+			Objectives: map[float64]float64{
+				0.5:   0.01,
+				0.9:   0.01,
+				0.99:  0.01,
+				0.999: 0.01,
+			},
+		}, userMetricLabelNames)
 )
 
 type MetricsServicer struct {
