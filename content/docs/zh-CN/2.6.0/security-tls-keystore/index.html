@@ -75,11 +75,11 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Using TLS with KeyStore configure</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="概述"></a><a href="#概述" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>概述</h2>
-<p>Apache Pulsar 支持在 Pulsar 服务端和客户端之间使用<a href="/docs/zh-CN/2.6.0/security-tls-transport"> TLS 加密</a>和<a href="/docs/zh-CN/2.6.0/security-tls-authentication"> TLS 认证</a>。 默认使用 PEM 格式的配置文件。 本文包含了使用<a href="https://en.wikipedia.org/wiki/Java_KeyStore">KeyStore</a>配置TLS的描述信息。</p>
-<h2><a class="anchor" aria-hidden="true" id="keystore-配置-tls-加密"></a><a href="#keystore-配置-tls-加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>KeyStore 配置 TLS 加密</h2>
-<h3><a class="anchor" aria-hidden="true" id="生成-tls-key-和证书"></a><a href="#生成-tls-key-和证书" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生成 TLS key 和证书</h3>
-<p>部署 TLS 的第一步是为集群中的每台机器生成秘钥和证书。 你可以使用 Java 的<code>keytool</code>工具去完成这个任务。 我们首先将为每台 Broker 生成一个临时的 keystore，以便我们能够使用 CA 导出和进行签名。</p>
-<pre><code class="hljs css language-shell">keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
+<p>Apache Pulsar 支持 <a href="/docs/zh-CN/2.6.0/security-tls-transport">TLS 加密</a> and <a href="/docs/zh-CN/2.6.0/security-tls-authentication">TLS 身份验证</a> 客户端和 Apache Pulsar 服务之间的TLS 身份验证 默认情况下，它使用 PEM 格式文件配置。 此页面试图使用 <a href="https://en.wikipedia.org/wiki/Java_KeyStore">KeyStore</a> 类型为 TLS 配置。</p>
+<h2><a class="anchor" aria-hidden="true" id="使用-keystore-配置的-tls-加密"></a><a href="#使用-keystore-配置的-tls-加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 KeyStore 配置的 TLS 加密</h2>
+<h3><a class="anchor" aria-hidden="true" id="生成-tls-密钥和证书"></a><a href="#生成-tls-密钥和证书" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生成 TLS 密钥和证书</h3>
+<p>部署TLS的第一步是为集群中的每台机器生成密钥和证书。 您可以使用 Java <code>keytool</code> 工具来完成这项任务。 我们首先将为每台 Broker 生成一个临时的 keystore，以便我们能够使用 CA 导出和进行签名。</p>
+<pre><code class="hljs css language-shell">keytool-keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
 </code></pre>
 <p>你必须在上面的命令中指定两个参数：</p>
 <ol>
@@ -106,7 +106,7 @@
 <p>下一步是使用我们生成的CA对密钥库中的所有证书进行签名。 首先，您需要从密钥库导出证书：</p>
 <pre><code class="hljs css language-shell">keytool -keystore broker.keystore.jks -alias localhost -certreq -file cert-file
 </code></pre>
-<p>然后在CA上签字：</p>
+<p>然后用CA签署：</p>
 <pre><code class="hljs css language-shell">openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days {validity} -CAcreateserial -passin pass:{ca-password}
 </code></pre>
 <p>最后，您需要将CA的证书和签名证书导入密钥库：</p>
@@ -116,34 +116,37 @@ keytool -keystore broker.keystore.jks -alias localhost -import -file cert-signed
 <p>参数的定义如下所示：</p>
 <ol>
 <li><code>keystore</code>: 密钥库的位置</li>
-<li><code>ca-cert</code>: the certificate of the CA</li>
-<li><code>ca-key</code>: the private key of the CA</li>
-<li><code>ca-password</code>: the passphrase of the CA</li>
-<li><code>cert-file</code>: the exported, unsigned certificate of the broker</li>
-<li><code>cert-signed</code>: the signed certificate of the broker</li>
+<li><code>ca-cert</code>：CA 的证书</li>
+<li><code>ca-key</code>：CA 的私钥</li>
+<li><code>ca-password</code>：CA 的密码</li>
+<li><code>cert-file</code>：broker 导出的、未签名的证书</li>
+<li><code>cert-signed</code>：broker 的签名证书</li>
 </ol>
-<h3><a class="anchor" aria-hidden="true" id="configuring-brokers"></a><a href="#configuring-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring brokers</h3>
-<p>Brokers enable TLS by provide valid <code>brokerServicePortTls</code> and <code>webServicePortTls</code>, and also need set <code>tlsEnabledWithKeyStore</code> to <code>true</code> for using KeyStore type configuration. Besides this, KeyStore path,  KeyStore password, TrustStore path, and TrustStore password need to provided. And since broker will create internal client/admin client to communicate with other brokers, user also need to provide config for them, this is similar to how user config the outside client/admin-client. If <code>tlsRequireTrustedClientCertOnConnect</code> is <code>true</code>, broker will reject the Connection if the Client Certificate is not trusted.</p>
-<p>The following TLS configs are needed on the broker side:</p>
+<h3><a class="anchor" aria-hidden="true" id="配置代理"></a><a href="#配置代理" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置代理</h3>
+<p>Brokers 通过提供有效的 <code>brokerServicePortTls</code> 和 <code>webServicePortTls</code> 来启用 TLS，并且还需要将 <code>tlsEnabledWithKeyStore</code> 设置为 <code>true</code> 以使用 KeyStore 类型配置. 除此之外，还需要提供 KeyStore 路径、KeyStore 密码、TrustStore 路径和 TrustStore 密码。 并且由于broker会创建内部client/admin客户端来与其他broker进行通信，用户还需要为他们提供配置，这类似于用户如何配置外部client/admin-client。 如果 <code>tlsRequireTrustedClientCertOnConnect</code> 是 <code>true</code>，如果客户端证书不受信任，代理将拒绝连接。</p>
+<p>代理端需要以下 TLS 配置：</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">tlsEnabledWithKeyStore</span>=<span class="hljs-string">true</span>
-<span class="hljs-comment"># key store</span>
+<span class="hljs-comment"># 密钥存储</span>
 <span class="hljs-attr">tlsKeyStoreType</span>=<span class="hljs-string">JKS</span>
 <span class="hljs-attr">tlsKeyStore</span>=<span class="hljs-string">/var/private/tls/broker.keystore.jks</span>
 <span class="hljs-attr">tlsKeyStorePassword</span>=<span class="hljs-string">brokerpw</span>
 <span class="hljs-comment">
-# trust store</span>
+# 信任存储</span>
 <span class="hljs-attr">tlsTrustStoreType</span>=<span class="hljs-string">JKS</span>
 <span class="hljs-attr">tlsTrustStore</span>=<span class="hljs-string">/var/private/tls/broker.truststore.jks</span>
 <span class="hljs-attr">tlsTrustStorePassword</span>=<span class="hljs-string">brokerpw</span>
 <span class="hljs-comment">
-# internal client/admin-client config</span>
+# 内部客户端/管理员客户端配置</span>
 <span class="hljs-attr">brokerClientTlsEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">brokerClientTlsEnabledWithKeyStore</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">brokerClientTlsTrustStoreType</span>=<span class="hljs-string">JKS</span>
 <span class="hljs-attr">brokerClientTlsTrustStore</span>=<span class="hljs-string">/var/private/tls/client.truststore.jks</span>
 <span class="hljs-attr">brokerClientTlsTrustStorePassword</span>=<span class="hljs-string">clientpw</span>
+ 
+<span class="hljs-attr">文本</span>
+<span class="hljs-attr">XPath</span>: <span class="hljs-string">/pre[8]/code</span>
 </code></pre>
-<p>NOTE: it is important to restrict access to the store files via filesystem permissions.</p>
+<p>注意：必须通过文件系统权限限制对存储文件的访问。</p>
 <p>Optional settings that may worth consider:</p>
 <ol>
 <li>tlsClientAuthentication=false: Enable/Disable using TLS for authentication. This config when enabled will authenticate the other end of the communication channel. It should be enabled on both brokers and clients for mutual TLS.</li>
@@ -154,7 +157,7 @@ keytool -keystore broker.keystore.jks -alias localhost -import -file cert-signed
 <p>This is similar to [TLS encryption configuing for client with PEM type](/docs/zh-CN/2.6.0/security-tls-transport#Client configuration). For a a minimal configuration, user need to provide the TrustStore information.</p>
 <p>例如：</p>
 <ol>
-<li><p>for <a href="/docs/zh-CN/2.6.0/reference-cli-tools">Command-line tools</a> like <a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code></a>, <a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>, and <a href="reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> use the <code>conf/client.conf</code> config file in a Pulsar installation.</p>
+<li><p>对于<a href="/docs/zh-CN/2.6.0/reference-cli-tools">命令行工具</a>，例如<a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code> </a>、<a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a> 和 [<code>pulsar-client</code>](reference-cli-tools#pulsar- client) 在 Pulsar 安装中使用 <code>conf/client.conf</code> 配置文件。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">https://broker.example.com:8443/</span>
 <span class="hljs-attr">brokerServiceUrl</span>=<span class="hljs-string">pulsar+ssl://broker.example.com:6651/</span>
 <span class="hljs-attr">useKeyStoreTls</span>=<span class="hljs-string">true</span>
@@ -162,7 +165,7 @@ keytool -keystore broker.keystore.jks -alias localhost -import -file cert-signed
 <span class="hljs-attr">tlsTrustStorePath</span>=<span class="hljs-string">/var/private/tls/client.truststore.jks</span>
 <span class="hljs-attr">tlsTrustStorePassword</span>=<span class="hljs-string">clientpw</span>
 </code></pre></li>
-<li><p>for java client</p>
+<li><p>用于 Java 客户端</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
@@ -183,7 +186,7 @@ PulsarClient client = PulsarClient.builder()
                 .allowTlsInsecureConnection(<span class="hljs-keyword">false</span>)
                 .build();
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="tls-authentication-with-keystore-configure"></a><a href="#tls-authentication-with-keystore-configure" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>TLS authentication with KeyStore configure</h2>
+<h2><a class="anchor" aria-hidden="true" id="使用-keystore-配置的-tls-身份验证"></a><a href="#使用-keystore-配置的-tls-身份验证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用 KeyStore 配置的 TLS 身份验证</h2>
 <p>This similar to <a href="/docs/zh-CN/2.6.0/security-tls-authentication">TLS authentication with PEM type</a></p>
 <h3><a class="anchor" aria-hidden="true" id="broker-authentication-config"></a><a href="#broker-authentication-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>broker authentication config</h3>
 <p><code>broker.conf</code></p>
@@ -215,7 +218,9 @@ PulsarClient client = PulsarClient.builder()
 <span class="hljs-attr">brokerClientTlsTrustStore</span>=<span class="hljs-string">/var/private/tls/client.truststore.jks</span>
 <span class="hljs-attr">brokerClientTlsTrustStorePassword</span>=<span class="hljs-string">clientpw</span>
 <span class="hljs-comment"># internal auth config</span>
-<span class="hljs-attr">brokerClientAuthenticationPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls</span>
+<span class="hljs-attr">brokerClientAuthenticationPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.</span>
+ 
+<span class="hljs-attr">XPath</span>: <span class="hljs-string">/pre[12]/codeAuthenticationKeyStoreTls</span>
 <span class="hljs-attr">brokerClientAuthenticationParameters</span>=<span class="hljs-string">keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw</span>
 <span class="hljs-comment"># currently websocket not support keystore type</span>
 <span class="hljs-attr">webSocketServiceEnabled</span>=<span class="hljs-string">false</span>
@@ -224,7 +229,7 @@ PulsarClient client = PulsarClient.builder()
 <p>Besides the TLS encryption configuring. The main work is configuring the KeyStore, which contains a valid CN as client role, for client.</p>
 <p>例如：</p>
 <ol>
-<li><p>for <a href="/docs/zh-CN/2.6.0/reference-cli-tools">Command-line tools</a> like <a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code></a>, <a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a>, and <a href="reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> use the <code>conf/client.conf</code> config file in a Pulsar installation.</p>
+<li><p>对于<a href="/docs/zh-CN/2.6.0/reference-cli-tools">命令行工具</a>，例如<a href="reference-cli-tools#pulsar-admin"><code>pulsar-admin</code> </a>、<a href="reference-cli-tools#pulsar-perf"><code>pulsar-perf</code></a> 和 [<code>pulsar-client</code>](reference-cli-tools#pulsar- client) 在 Pulsar 安装中使用 <code>conf/client.conf</code> 配置文件。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">https://broker.example.com:8443/</span>
 <span class="hljs-attr">brokerServiceUrl</span>=<span class="hljs-string">pulsar+ssl://broker.example.com:6651/</span>
 <span class="hljs-attr">useKeyStoreTls</span>=<span class="hljs-string">true</span>
@@ -234,7 +239,7 @@ PulsarClient client = PulsarClient.builder()
 <span class="hljs-attr">authPlugin</span>=<span class="hljs-string">org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls</span>
 <span class="hljs-attr">authParams</span>=<span class="hljs-string">{"keyStoreType":"JKS","keyStorePath":"/path/to/keystorefile","keyStorePassword":"keystorepw"}</span>
 </code></pre></li>
-<li><p>for java client</p>
+<li><p>用于 Java 客户端</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
@@ -266,7 +271,7 @@ PulsarClient client = PulsarClient.builder()
 <pre><code class="hljs css language-shell">-Djavax.net.debug=all
 </code></pre>
 <p>You can find more details on this in <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html">Oracle documentation</a> on <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html">debugging SSL/TLS connections</a>.</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/security-tls-authentication"><span class="arrow-prev">← </span><span>使用TLS进行认证</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/security-jwt"><span>使用 JWT 认证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#概述">概述</a></li><li><a href="#keystore-配置-tls-加密">KeyStore 配置 TLS 加密</a><ul class="toc-headings"><li><a href="#生成-tls-key-和证书">生成 TLS key 和证书</a></li><li><a href="#创建自定义-ca">创建自定义 CA</a></li><li><a href="#签署证书">签署证书</a></li><li><a href="#configuring-brokers">Configuring brokers</a></li><li><a href="#configuring-clients">Configuring Clients</a></li></ul></li><li><a href="#tls-authentication-with-keystore-configure">TLS authentication with KeyStore configure</a><ul class="toc-headings"><li><a href="#broker-authentication-config">broker authentication config</a></li><li><a href="#client-authentication-configuring">client authentication configuring</a></li></ul></li><li><a href="#启用-tls-日志">启用 TLS 日志</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/security-tls-authentication"><span class="arrow-prev">← </span><span>使用TLS进行认证</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/security-jwt"><span>使用 JWT 认证</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#概述">概述</a></li><li><a href="#使用-keystore-配置的-tls-加密">使用 KeyStore 配置的 TLS 加密</a><ul class="toc-headings"><li><a href="#生成-tls-密钥和证书">生成 TLS 密钥和证书</a></li><li><a href="#创建自定义-ca">创建自定义 CA</a></li><li><a href="#签署证书">签署证书</a></li><li><a href="#配置代理">配置代理</a></li><li><a href="#configuring-clients">Configuring Clients</a></li></ul></li><li><a href="#使用-keystore-配置的-tls-身份验证">使用 KeyStore 配置的 TLS 身份验证</a><ul class="toc-headings"><li><a href="#broker-authentication-config">broker authentication config</a></li><li><a href="#client-authentication-configuring">client authentication configuring</a></li></ul></li><li><a href="#启用-tls-日志">启用 TLS 日志</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
