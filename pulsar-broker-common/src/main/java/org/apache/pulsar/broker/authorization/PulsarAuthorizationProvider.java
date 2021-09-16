@@ -63,9 +63,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public PulsarAuthorizationProvider() {
     }
 
-    public PulsarAuthorizationProvider(ServiceConfiguration conf, ConfigurationCacheService configCache)
+    public PulsarAuthorizationProvider(ServiceConfiguration conf, PulsarResources resources)
             throws IOException {
-        initialize(conf, configCache);
+        initialize(conf, resources);
     }
 
     @Override
