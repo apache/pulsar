@@ -1361,17 +1361,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (send.hasTxnidMostBits() && send.hasTxnidLeastBits()) {
             TxnID txnID = new TxnID(send.getTxnidMostBits(), send.getTxnidLeastBits());
             producer.publishTxnMessage(txnID, producer.getProducerId(), send.getSequenceId(),
-                    send.getHighestSequenceId(), headersAndPayload, send.getNumMessages(), send.isIsChunk());
+                    send.getHighestSequenceId(), headersAndPayload, send.getNumMessages(), send.isIsChunk(),
+                    send.isMarker());
             return;
         }
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
-                    headersAndPayload, send.getNumMessages(), send.isIsChunk());
+                    headersAndPayload, send.getNumMessages(), send.isIsChunk(), send.isMarker());
         } else {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
-                    send.getNumMessages(), send.isIsChunk());
+                    send.getNumMessages(), send.isIsChunk(), send.isMarker());
         }
     }
 

@@ -504,6 +504,10 @@ public class Commands {
             send.setIsChunk(true);
         }
 
+        if (messageData.hasMarkerType()) {
+            send.setMarker(true);
+        }
+
         return serializeCommandSendWithSize(cmd, checksumType, messageData, payload);
     }
 

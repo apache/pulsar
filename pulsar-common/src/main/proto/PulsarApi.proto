@@ -493,6 +493,9 @@ message CommandSend {
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
     optional bool is_chunk     =7 [default = false];
+
+    // Specify if the message being published is a Pulsar marker or not
+    optional bool marker = 8 [default = false];
 }
 
 message CommandSendReceipt {
