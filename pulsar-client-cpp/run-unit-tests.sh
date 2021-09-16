@@ -64,6 +64,10 @@ if [ $RES -eq 0 ]; then
     WHEEL_FILE=$(ls dist/ | grep whl)
     echo "${WHEEL_FILE}"
     echo "dist/${WHEEL_FILE}[all]"
+    # Protobuf 3.18 only works with Python3. Since we're still using Python2 in CI, 
+    # let's pin the Python version to the previous one
+    pip install protobuf==3.17.3
+
     pip install dist/${WHEEL_FILE}[all]
 
     echo "---- Running Python unit tests"
