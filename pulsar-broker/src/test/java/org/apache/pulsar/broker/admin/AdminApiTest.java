@@ -71,7 +71,6 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -579,10 +578,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      * @throws Exception
      */
     @Test
-    public void testInvalidDynamicConfigContentInZK() throws Exception {
+    public void testInvalidDynamicConfigContentInMetadata() throws Exception {
         final int newValue = 10;
-        // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(),
+        // set invalid data into dynamic-config node so, broker startup fail to deserialize data
+        pulsar.getLocalMetadataStore().put("/admin/configuration", "$".getBytes(),
                 Optional.empty()).join();
         stopBroker();
 
@@ -593,7 +592,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
 
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+        pulsar.getLocalMetadataStore().put("/admin/configuration",
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated

@@ -102,7 +102,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils
                                 .value(Optional.of(new CacheGetResult<>(obj, optRes.get().getStat())));
                     } catch (Throwable t) {
-                        return FutureUtils.exception(new ContentDeserializationException(t));
+                        return FutureUtils.exception(new ContentDeserializationException(
+                                "Failed to deserialize payload for key '" + path + "'", t));
                     }
                 });
     }

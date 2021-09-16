@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCoun
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.slf4j.Logger;
@@ -113,7 +114,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final String tenantName = "SomeTenant";
         final String namespaceName = "SomeNameSpace";
         rgs.registerTenant(rgName, tenantName);
-        final String tenantAndNamespaceName = tenantName + "/" + namespaceName;
+        final NamespaceName tenantAndNamespaceName = NamespaceName.get(tenantName, namespaceName);
         rgs.registerNameSpace(rgName, tenantAndNamespaceName);
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
@@ -195,9 +196,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final String tenantName = topic.getTenant();
         final String namespaceName = topic.getNamespacePortion();
         rgs.registerTenant(rgName, tenantName);
-        // Registering with the (non-qualified) namespace should throw.
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.registerNameSpace(rgName, namespaceName));
-        final String tenantAndNamespace = tenantName + "/" + namespaceName;
+
+        final NamespaceName tenantAndNamespace = NamespaceName.get(tenantName, namespaceName);
         rgs.registerNameSpace(rgName, tenantAndNamespace);
 
         // Delete of our valid config should throw until we unref correspondingly.
@@ -233,8 +233,6 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         }
 
         rgs.unRegisterTenant(rgName, tenantName);
-        // Unregistering with the (non-qualified) namespace should throw.
-        Assert.assertThrows(PulsarAdminException.class, () -> rgs.unRegisterNameSpace(rgName, namespaceName));
         rgs.unRegisterNameSpace(rgName, tenantAndNamespace);
 
         BytesAndMessagesCount publishQuota = rgs.getPublishRateLimiters(rgName);

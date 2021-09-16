@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
-import java.util.Iterator;
 import java.util.List;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -29,7 +26,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,10 +33,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
     protected List<String> internalGetResourceGroups() {
         try {
             validateSuperUserAccess();
-            return getListOfResourcegroups("abc");
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to get ResourceGroups list ", clientAppId());
-            throw new RestException(Response.Status.NOT_FOUND, "Property does not exist");
+            return resourceGroupResources().listResourceGroups();
         } catch (Exception e) {
             log.error("[{}] Failed to get ResourceGroups list: {}", clientAppId(), e);
             throw new RestException(e);
@@ -49,9 +42,8 @@ public abstract class ResourceGroupsBase extends AdminResource {
 
     protected ResourceGroup internalGetResourceGroup(String rgName) {
         try {
-            final String resourceGroupPath = AdminResource.path(RESOURCEGROUPS, rgName);
             validateSuperUserAccess();
-            ResourceGroup resourceGroup = resourceGroupResources().get(resourceGroupPath)
+            ResourceGroup resourceGroup = resourceGroupResources().getResourceGroup(rgName)
                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "ResourceGroup does not exist"));
             return resourceGroup;
         } catch (RestException re) {
@@ -63,10 +55,9 @@ public abstract class ResourceGroupsBase extends AdminResource {
     }
 
     protected void internalUpdateResourceGroup(String rgName, ResourceGroup rgConfig) {
-        final String resourceGroupPath = AdminResource.path(RESOURCEGROUPS, rgName);
 
         try {
-            ResourceGroup resourceGroup = resourceGroupResources().get(resourceGroupPath).orElseThrow(() ->
+            ResourceGroup resourceGroup = resourceGroupResources().getResourceGroup(rgName).orElseThrow(() ->
                     new RestException(Response.Status.NOT_FOUND, "ResourceGroup does not exist"));
 
             /*
@@ -78,7 +69,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
             resourceGroup.setDispatchRateInBytes(rgConfig.getDispatchRateInBytes());
 
             // write back the new ResourceGroup config.
-            resourceGroupResources().set(resourceGroupPath, r -> resourceGroup);
+            resourceGroupResources().updateResourceGroup(rgName, r -> resourceGroup);
             log.info("[{}] Successfully updated the ResourceGroup {}", clientAppId(), rgName);
         } catch (RestException pfe) {
             throw pfe;
@@ -89,9 +80,8 @@ public abstract class ResourceGroupsBase extends AdminResource {
     }
 
     protected void internalCreateResourceGroup(String rgName, ResourceGroup rgConfig) {
-        final String resourceGroupPath = AdminResource.path(RESOURCEGROUPS, rgName);
         try {
-            resourceGroupResources().create(resourceGroupPath, rgConfig);
+            resourceGroupResources().createResourceGroup(rgName, rgConfig);
             log.info("[{}] Created ResourceGroup {}", clientAppId(), rgName);
         } catch (MetadataStoreException.AlreadyExistsException e) {
             log.warn("[{}] Failed to create ResourceGroup {} - already exists", clientAppId(), rgName);
@@ -109,10 +99,9 @@ public abstract class ResourceGroupsBase extends AdminResource {
             /*
              * see if ResourceGroup exists and treat the request as a update if it does.
              */
-            final String resourceGroupPath = AdminResource.path(RESOURCEGROUPS, rgName);
             boolean rgExists = false;
             try {
-                rgExists = resourceGroupResources().exists(resourceGroupPath);
+                rgExists = resourceGroupResources().resourceGroupExists(rgName);
             } catch (Exception e) {
                 log.error("[{}] Failed to create/update ResourceGroup {}: {}", clientAppId(), rgName, e);
             }
@@ -134,16 +123,9 @@ public abstract class ResourceGroupsBase extends AdminResource {
     }
 
     protected boolean internalCheckRgInUse(String rgName) {
-        List<String> tenants;
         try {
-            tenants = tenantResources().getChildren(path(POLICIES));
-            Iterator<String> tenantsIterator = tenants.iterator();
-            while (tenantsIterator.hasNext()) {
-                String tenant = tenantsIterator.next();
-                List<String> namespaces = getListOfNamespaces(tenant);
-                Iterator<String> namespaceIterator = namespaces.iterator();
-                while (namespaceIterator.hasNext()) {
-                    String namespace = namespaceIterator.next();
+            for (String tenant : tenantResources().listTenants()) {
+                for (String namespace : tenantResources().getListOfNamespaces(tenant)) {
                     Policies policies = getNamespacePolicies(NamespaceName.get(namespace));
                     if (null != policies && rgName.equals(policies.resource_group_name)) {
                         return true;
@@ -169,8 +151,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
             if (internalCheckRgInUse(rgName)) {
                 throw new RestException(Response.Status.PRECONDITION_FAILED, "ResourceGroup is in use");
             }
-            final String globalZkResourceGroupPath = path(RESOURCEGROUPS, rgName);
-            resourceGroupResources().delete(globalZkResourceGroupPath);
+            resourceGroupResources().deleteResourceGroup(rgName);
             log.info("[{}] Deleted ResourceGroup {}", clientAppId(), rgName);
         } catch (Exception e) {
             log.error("[{}] Failed to delete ResourceGroup {}.", clientAppId(), rgName, e);

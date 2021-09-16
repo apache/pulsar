@@ -48,7 +48,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.impl.GenericBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarLoadReportImpl;
@@ -181,13 +180,12 @@ public class SimpleLoadManagerImplTest {
                 .build();
         policies.setPolicy("primaryBrokerPolicy", policyData);
 
-        String path = AdminResource.path("clusters", "use", "namespaceIsolationPolicies");
         try {
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().create(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().createIsolationData("use",
                     policies.getPolicies());
         } catch (BadVersionException e) {
             // isolation policy already exist
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().set(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().setIsolationData("use",
                     data -> policies.getPolicies());
         }
     }

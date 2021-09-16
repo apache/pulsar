@@ -18,37 +18,34 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class BacklogQuotaManager {
-    private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManager.class);
     private final BacklogQuotaImpl defaultQuota;
-    private final ZooKeeperDataCache<Policies> zkCache;
     private final PulsarService pulsar;
     private final boolean isTopicLevelPoliciesEnable;
+    private final NamespaceResources namespaceResources;
 
 
     public BacklogQuotaManager(PulsarService pulsar) {
@@ -60,7 +57,7 @@ public class BacklogQuotaManager {
                 .limitTime(pulsar.getConfiguration().getBacklogQuotaDefaultLimitSecond())
                 .retentionPolicy(pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
                 .build();
-        this.zkCache = pulsar.getConfigurationCache().policiesCache();
+        this.namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
         this.pulsar = pulsar;
     }
 
@@ -68,9 +65,9 @@ public class BacklogQuotaManager {
         return this.defaultQuota;
     }
 
-    public BacklogQuotaImpl getBacklogQuota(String namespace, String policyPath, BacklogQuotaType backlogQuotaType) {
+    public BacklogQuotaImpl getBacklogQuota(NamespaceName namespace, BacklogQuotaType backlogQuotaType) {
         try {
-            return zkCache.get(policyPath)
+            return namespaceResources.getPolicies(namespace)
                     .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
                             .getOrDefault(backlogQuotaType, defaultQuota))
                     .orElse(defaultQuota);
@@ -81,16 +78,15 @@ public class BacklogQuotaManager {
     }
 
     public BacklogQuotaImpl getBacklogQuota(TopicName topicName, BacklogQuotaType backlogQuotaType) {
-        String policyPath = AdminResource.path(POLICIES, topicName.getNamespace());
         if (!isTopicLevelPoliciesEnable) {
-            return getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType);
+            return getBacklogQuota(topicName.getNamespaceObject(), backlogQuotaType);
         }
 
         try {
             return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
                     .map(TopicPolicies::getBackLogQuotaMap)
                     .map(map -> map.get(backlogQuotaType.name()))
-                    .orElseGet(() -> getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType));
+                    .orElseGet(() -> getBacklogQuota(topicName.getNamespaceObject(), backlogQuotaType));
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.debug("Topic policies cache have not init, will apply the namespace backlog quota: topicName={}",
                     topicName);
@@ -98,7 +94,7 @@ public class BacklogQuotaManager {
             log.error("Failed to read topic policies data, "
                             + "will apply the namespace backlog quota: topicName={}", topicName, e);
         }
-        return getBacklogQuota(topicName.getNamespace(), policyPath, backlogQuotaType);
+        return getBacklogQuota(topicName.getNamespaceObject(), backlogQuotaType);
     }
 
     public long getBacklogQuotaLimitInSize(TopicName topicName) {

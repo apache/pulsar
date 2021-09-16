@@ -226,9 +226,8 @@ public class WebSocketService implements Closeable {
                 "Failed to retrieve Cluster data due to empty ConfigurationStoreServers");
         }
         try {
-            String path = "/admin/clusters/" + config.getClusterName();
-            return localCluster = pulsarResources.getClusterResources().get(path)
-                    .orElseThrow(() -> new NotFoundException(path));
+            return localCluster = pulsarResources.getClusterResources().getCluster(config.getClusterName())
+                    .orElseThrow(() -> new NotFoundException("Cluster " + config.getClusterName()));
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }

@@ -68,6 +68,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -151,6 +152,9 @@ public class PersistentDispatcherFailoverConsumerTest {
         store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
         doReturn(store).when(pulsar).getLocalMetadataStore();
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
+
+        PulsarResources pulsarResources = new PulsarResources(store, store);
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
