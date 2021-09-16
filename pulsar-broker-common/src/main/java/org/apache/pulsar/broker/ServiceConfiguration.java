@@ -175,11 +175,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category=CATEGORY_SERVER,
             doc = "Used to specify additional bind addresses for the broker."
-                    + "The value must format as <listener_name>:pulsar://<host>:<port>,"
-                    + "multiple bind addresses should separate with commas."
-                    + "Associates each bind address with an advertised listener."
-                    + "Use 'pulsar+ssl' scheme to define a TLS-protected channel."
-                    + "Note that brokerServicePort and brokerServicePortTls define additional bindings."
+                    + "The value must format as <listener_name>:<scheme>://<host>:<port>,"
+                    + "multiple bind addresses should be separated with commas."
+                    + "Associates each bind address with an advertised listener and protocol handler."
+                    + "Note that the brokerServicePort, brokerServicePortTls, webServicePort, and "
+                    + "webServicePortTls properties define additional bindings."
                     + ".")
     private String bindAddresses;
 

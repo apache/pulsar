@@ -66,10 +66,7 @@ public class BindAddressValidator {
     }
 
     /**
-     * Generates bind addresses based on legacy configuration.
-     * When no bind addresses are defined:
-     * - generate a bind address for the internal listener
-     *   on bindAddress:brokerServicePort and/or bindAddress:brokerServicePortTls.
+     * Generates bind addresses based on legacy configuration properties.
      */
     private static List<BindAddress> migrateBindAddresses(ServiceConfiguration config) {
         List<BindAddress> addresses = new ArrayList<>(2);
