@@ -1127,20 +1127,23 @@ public class KubernetesRuntime implements Runtime {
 
     private List<V1ContainerPort> getFunctionContainerPorts() {
         List<V1ContainerPort> ports = new ArrayList<>();
-        final V1ContainerPort port = new V1ContainerPort();
-        port.setName("grpc");
-        port.setContainerPort(grpcPort);
-        ports.add(port);
+        ports.add(getGRPCPort());
+        ports.add(getPrometheusPort());
         return ports;
     }
 
-    private List<V1ContainerPort> getPrometheusContainerPorts() {
-        List<V1ContainerPort> ports = new ArrayList<>();
+    private V1ContainerPort getGRPCPort() {
+        final V1ContainerPort port = new V1ContainerPort();
+        port.setName("grpc");
+        port.setContainerPort(grpcPort);
+        return port;
+    }
+
+    private V1ContainerPort getPrometheusPort() {
         final V1ContainerPort port = new V1ContainerPort();
         port.setName("prometheus");
         port.setContainerPort(metricsPort);
-        ports.add(port);
-        return ports;
+        return port;
     }
 
     public static String createJobName(Function.FunctionDetails functionDetails, String jobName) {
