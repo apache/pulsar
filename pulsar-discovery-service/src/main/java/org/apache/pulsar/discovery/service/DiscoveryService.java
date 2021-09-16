@@ -61,7 +61,6 @@ public class DiscoveryService implements Closeable {
     private final ServiceConfig config;
     private String serviceUrl;
     private String serviceUrlTls;
-    private ConfigurationMetadataCacheService configurationCacheService;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private BrokerDiscoveryProvider discoveryProvider;
@@ -96,10 +95,9 @@ public class DiscoveryService implements Closeable {
         configMetadataStore = createConfigurationMetadataStore();
         pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
         discoveryProvider = new BrokerDiscoveryProvider(this.config, pulsarResources);
-        this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(config);
         authenticationService = new AuthenticationService(serviceConfiguration);
-        authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
+        authorizationService = new AuthorizationService(serviceConfiguration, pulsarResources);
         startServer();
     }
 
@@ -214,14 +212,6 @@ public class DiscoveryService implements Closeable {
 
     public AuthorizationService getAuthorizationService() {
         return authorizationService;
-    }
-
-    public ConfigurationCacheService getConfigurationCacheService() {
-        return configurationCacheService;
-    }
-
-    public void setConfigurationCacheService(ConfigurationMetadataCacheService configurationCacheService) {
-        this.configurationCacheService = configurationCacheService;
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {

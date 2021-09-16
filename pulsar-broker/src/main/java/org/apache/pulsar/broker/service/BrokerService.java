@@ -285,7 +285,7 @@ public class BrokerService implements Closeable {
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
-                pulsar.getConfiguration(), pulsar.getConfigurationCache());
+                pulsar.getConfiguration(), pulsar().getPulsarResources());
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
