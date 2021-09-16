@@ -69,11 +69,11 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+    public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
         checkNotNull(conf, "ServiceConfiguration can't be null");
-        checkNotNull(configCache, "ConfigurationCacheService can't be null");
+        checkNotNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
-        this.pulsarResources = configCache.getPulsarResources();
+        this.pulsarResources = pulsarResources;
 
     }
 
