@@ -46,6 +46,7 @@ struct ConsumerConfigurationImpl {
     int patternAutoDiscoveryPeriod{60};
     bool replicateSubscriptionStateEnabled{false};
     std::map<std::string, std::string> properties;
+    int priorityLevel{0};
     KeySharedPolicy keySharedPolicy;
 };
 }  // namespace pulsar
