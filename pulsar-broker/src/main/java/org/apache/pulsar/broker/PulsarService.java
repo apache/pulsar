@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -84,8 +83,6 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.ZookeeperSessionExpiredHandlers;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
@@ -168,10 +165,7 @@ import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
-import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
@@ -198,12 +192,8 @@ public class PulsarService implements AutoCloseable {
     private BrokerService brokerService = null;
     private WebService webService = null;
     private WebSocketService webSocketService = null;
-    private ConfigurationCacheService configurationCacheService = null;
-    private LocalZooKeeperCacheService localZkCacheService = null;
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
-    private ZooKeeperCache localZkCache;
-    private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private Compactor compactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
@@ -431,18 +421,9 @@ public class PulsarService implements AutoCloseable {
                 this.leaderElectionService = null;
             }
 
-            if (globalZkCache != null) {
-                globalZkCache.close();
-                globalZkCache = null;
+            if (localZooKeeperConnectionProvider != null) {
                 localZooKeeperConnectionProvider.close();
                 localZooKeeperConnectionProvider = null;
-            }
-
-            configurationCacheService = null;
-            localZkCacheService = null;
-            if (localZkCache != null) {
-                localZkCache.stop();
-                localZkCache = null;
             }
 
             if (adminClient != null) {
@@ -647,9 +628,6 @@ public class PulsarService implements AutoCloseable {
                         + config.getZookeeperSessionExpiredPolicy());
             }
             localZooKeeperConnectionProvider.start(sessionExpiredHandler);
-
-            // Initialize and start service to access configuration repository.
-            this.startZkCacheService();
 
             this.bkClientFactory = newBookKeeperClientFactory();
 
@@ -1008,27 +986,6 @@ public class PulsarService implements AutoCloseable {
         }
     }
 
-    protected void startZkCacheService() throws PulsarServerException {
-
-        LOG.info("starting configuration cache service");
-
-        this.localZkCache = new LocalZooKeeperCache(getZkClient(), config.getZooKeeperOperationTimeoutSeconds(),
-                getOrderedExecutor());
-        this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(),
-                config.getZooKeeperOperationTimeoutSeconds(), config.getConfigurationStoreServers(),
-                getOrderedExecutor(), this.cacheExecutor, config.getZooKeeperCacheExpirySeconds());
-        try {
-            this.globalZkCache.start();
-        } catch (IOException e) {
-            throw new PulsarServerException(e);
-        }
-
-        this.configurationCacheService = new ConfigurationCacheService(globalZkCache, this.config.getClusterName(),
-                pulsarResources);
-        this.localZkCacheService = new LocalZooKeeperCacheService(getLocalZkCache(), this.configurationCacheService);
-    }
-
     protected void startNamespaceService() throws PulsarServerException {
 
         LOG.info("Starting name space service, bootstrap namespaces=" + config.getBootstrapNamespaces());
@@ -1130,10 +1087,6 @@ public class PulsarService implements AutoCloseable {
             new ClientConfiguration().getZkLedgersRootPath(),
             metadataServiceUri,
             this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
-    }
-
-    public ConfigurationCacheService getConfigurationCache() {
-        return configurationCacheService;
     }
 
     /**
@@ -1267,10 +1220,6 @@ public class PulsarService implements AutoCloseable {
         return schemaStorage;
     }
 
-    public ZooKeeperCache getLocalZkCache() {
-        return localZkCache;
-    }
-
     public ScheduledExecutorService getExecutor() {
         return executor;
     }
@@ -1289,10 +1238,6 @@ public class PulsarService implements AutoCloseable {
 
     public OrderedExecutor getOrderedExecutor() {
         return orderedExecutor;
-    }
-
-    public LocalZooKeeperCacheService getLocalZkCacheService() {
-        return this.localZkCacheService;
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
@@ -1572,7 +1517,6 @@ public class PulsarService implements AutoCloseable {
                 config,
                 workerConfig,
                 pulsarResources,
-                getConfigurationCacheService(),
                 getInternalConfigurationData()
             );
 
@@ -1619,10 +1563,6 @@ public class PulsarService implements AutoCloseable {
 
     public CoordinationService getCoordinationService() {
         return coordinationService;
-    }
-
-    public CompletableFuture<Set<String>> getAvailableBookiesAsync() {
-        return this.localZkCacheService.availableBookiesCache().getAsync();
     }
 
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,

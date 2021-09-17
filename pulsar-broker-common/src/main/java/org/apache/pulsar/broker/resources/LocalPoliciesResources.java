@@ -18,11 +18,16 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.CacheGetResult;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -30,8 +35,8 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
     private static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
 
-    public LocalPoliciesResources(MetadataStore configurationStore, int operationTimeoutSec) {
-        super(configurationStore, LocalPolicies.class, operationTimeoutSec);
+    public LocalPoliciesResources(MetadataStore localStore, int operationTimeoutSec) {
+        super(localStore, LocalPolicies.class, operationTimeoutSec);
     }
 
     public void setLocalPolicies(NamespaceName ns, Function<LocalPolicies, LocalPolicies> modifyFunction)
@@ -51,7 +56,30 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
     }
 
+    public CompletableFuture<Void> createLocalPoliciesAsync(NamespaceName ns, LocalPolicies policies) {
+        return getCache().create(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), policies);
+    }
+
+    public CompletableFuture<Optional<CacheGetResult<LocalPolicies>>> getLocalPoliciesWithVersion(NamespaceName ns) {
+        return getCache().getWithStats(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+    }
+
+    public CompletableFuture<Void> setLocalPoliciesWithVersion(NamespaceName ns, LocalPolicies policies,
+                                                               Optional<Long> version) {
+        try {
+            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies);
+            return getStore().put(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), content, version)
+                    .thenApply(__ -> null);
+        } catch (JsonProcessingException e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
+
     public void deleteLocalPolicies(NamespaceName ns) throws MetadataStoreException {
         delete(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+    }
+
+    public static boolean isLocalPoliciesPath(String path) {
+        return path.startsWith(LOCAL_POLICIES_ROOT);
     }
 }

@@ -61,7 +61,6 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 
@@ -148,12 +147,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
     private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
         CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
-        Optional<MetadataStore> localStore = getPulsarResources().getLocalMetadataStore();
-        if (!localStore.isPresent()) {
-            result.completeExceptionally(new IllegalStateException("metadata store not initialized"));
-            return result;
-        }
-
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {

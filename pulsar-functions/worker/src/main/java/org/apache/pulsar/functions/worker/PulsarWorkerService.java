@@ -298,7 +298,6 @@ public class PulsarWorkerService implements WorkerService {
     public void initInBroker(ServiceConfiguration brokerConfig,
                              WorkerConfig workerConfig,
                              PulsarResources pulsarResources,
-                             ConfigurationCacheService configurationCacheService,
                              InternalConfigurationData internalConf) throws Exception {
 
         String namespace = workerConfig.getPulsarFunctionsNamespace();

@@ -37,7 +37,6 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -93,11 +92,6 @@ public class NamespaceBundlesTest {
     @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
-        LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
-        when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
-        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
-        doNothing().when(poilciesCache).registerListener(any());
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
         when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
