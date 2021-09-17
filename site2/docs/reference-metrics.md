@@ -47,7 +47,7 @@ The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a
 |---|---|---|
 | request_commit_queued | Counter | The total number of requests already committed by a particular server. |
 | updatelatency | Summary | The update requests latency calculated in milliseconds. |
-| readlatency | Summary | The update requests latency calculated in milliseconds. |
+| readlatency | Summary | The read requests latency calculated in milliseconds. |
 
 ## BookKeeper
 
