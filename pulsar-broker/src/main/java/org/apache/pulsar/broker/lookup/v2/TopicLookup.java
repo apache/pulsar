@@ -52,7 +52,7 @@ public class TopicLookup extends TopicLookupBase {
             @QueryParam("listenerName") String listenerName,
             @HeaderParam(LISTENERNAME_HEADER) String listenerNameHeader) {
         TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
-        if (StringUtils.isEmpty(listenerName)) {
+        if (StringUtils.isEmpty(listenerName) && StringUtils.isNotEmpty(listenerNameHeader)) {
             listenerName = listenerNameHeader;
         }
         internalLookupTopicAsync(topicName, authoritative, asyncResponse, listenerName);
