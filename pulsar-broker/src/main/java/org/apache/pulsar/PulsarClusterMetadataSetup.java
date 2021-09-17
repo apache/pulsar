@@ -245,11 +245,15 @@ public class PulsarClusterMetadataSetup {
                 .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
                 .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
                 .build();
-        resources.getClusterResources().createCluster(arguments.cluster, clusterData);
+        if (!resources.getClusterResources().clusterExists(arguments.cluster)) {
+            resources.getClusterResources().createCluster(arguments.cluster, clusterData);
+        }
 
         // Create marker for "global" cluster
         ClusterData globalClusterData = ClusterData.builder().build();
-        resources.getClusterResources().createCluster("global", globalClusterData);
+        if (!resources.getClusterResources().clusterExists("global")) {
+            resources.getClusterResources().createCluster("global", globalClusterData);
+        }
 
         // Create public tenant, whitelisted to use the this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
