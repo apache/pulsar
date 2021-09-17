@@ -992,6 +992,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         policies.max_consumers_per_topic = 3;
 
         when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
                 .thenReturn(Optional.of(policies));
         testMaxConsumersFailover();
