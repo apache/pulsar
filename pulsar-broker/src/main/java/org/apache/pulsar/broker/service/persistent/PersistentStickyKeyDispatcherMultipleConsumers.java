@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
 import org.slf4j.Logger;
@@ -59,6 +60,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final StickyKeyConsumerSelector selector;
 
     private boolean isDispatcherStuckOnReplays = false;
+    private final PulsarApi.KeySharedMode keySharedMode;
 
     /**
      * When a consumer joins, it will be added to this map with the current read position.
@@ -78,8 +80,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
         this.stuckConsumers = new HashSet<>();
         this.nextStuckConsumers = new HashSet<>();
-
-        switch (ksm.getKeySharedMode()) {
+        this.keySharedMode = ksm.getKeySharedMode();
+        switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
                 selector = new ConsistentHashingStickyKeyConsumerSelector(
@@ -399,6 +401,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     protected Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions) {
         return cursor.asyncReplayEntries(positions, this, ReadType.Replay, true);
+    }
+
+    public PulsarApi.KeySharedMode getKeySharedMode() {
+        return this.keySharedMode;
     }
 
     public LinkedHashMap<Consumer, PositionImpl> getRecentlyJoinedConsumers() {

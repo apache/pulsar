@@ -1701,7 +1701,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 .producerName("xxx")
                 .create();
 
-        assertEquals(admin.topics().getStats(topicName).getPublishers().size(), 1);
+        assertEquals(admin.topics().getStats(topicName).publishers.size(), 1);
 
         for (int i =0; i < 5; i++) {
             try {
@@ -1714,7 +1714,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 // Expected
             }
 
-            assertEquals(admin.topics().getStats(topicName).getPublishers().size(), 1);
+            assertEquals(admin.topics().getStats(topicName).publishers.size(), 1);
         }
 
         // Try from different connection
@@ -1733,6 +1733,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             // Expected
         }
 
-        assertEquals(admin.topics().getStats(topicName).getPublishers().size(), 1);
+        assertEquals(admin.topics().getStats(topicName).publishers.size(), 1);
     }
 }

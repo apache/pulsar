@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
@@ -212,10 +213,13 @@ public class PersistentSubscription implements Subscription {
                 }
                 break;
             case Key_Shared:
-                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
+                KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
+                        : KeySharedMeta.getDefaultInstance();
+                PulsarApi.KeySharedMode keySharedMode = ksm.getKeySharedMode();
+                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
+                        || ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getKeySharedMode()
+                        != keySharedMode) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
-                            : KeySharedMeta.getDefaultInstance();
                     dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                             topic.getBrokerService().getPulsar().getConfiguration(), ksm);
                 }
