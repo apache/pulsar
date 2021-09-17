@@ -1502,6 +1502,7 @@ public class PulsarService implements AutoCloseable {
         return webServiceAddress != null ? webServiceAddress : webServiceAddressTls;
     }
 
+    @Deprecated
     public String getSafeBrokerServiceUrl() {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
     }

@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.Cleanup;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.Logger;
@@ -48,7 +49,8 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
     public void run() {
         if (service.getConfiguration() != null) {
             LOG.info("messaging service shutdown hook started, lookup webservice="
-                    + service.getSafeWebServiceAddress() + ", broker url=" + service.getSafeBrokerServiceUrl());
+                    + service.getSafeWebServiceAddress() + ", broker url="
+                    + StringUtils.defaultString(service.getBrokerServiceUrl(), service.getBrokerServiceUrlTls()));
         }
 
         @Cleanup("shutdownNow")

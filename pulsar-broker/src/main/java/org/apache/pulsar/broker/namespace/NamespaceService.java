@@ -329,19 +329,15 @@ public class NamespaceService implements AutoCloseable {
      * @throws Exception
      */
     public boolean registerNamespace(NamespaceName nsname, boolean ensureOwned) throws PulsarServerException {
-
-        String myUrl = pulsar.getSafeBrokerServiceUrl();
-
         try {
-            String otherUrl = null;
             NamespaceBundle nsFullBundle = null;
 
             // all pre-registered namespace is assumed to have bundles disabled
             nsFullBundle = bundleFactory.getFullBundle(nsname);
             // v2 namespace will always use full bundle object
-            otherUrl = ownershipCache.tryAcquiringOwnership(nsFullBundle).get().getNativeUrl();
-
-            if (myUrl.equals(otherUrl)) {
+            NamespaceEphemeralData otherData = ownershipCache.tryAcquiringOwnership(nsFullBundle).get();
+            if (StringUtils.equals(pulsar.getBrokerServiceUrl(), otherData.getNativeUrl())
+                || StringUtils.equals(pulsar.getBrokerServiceUrlTls(), otherData.getNativeUrlTls())) {
                 if (nsFullBundle != null) {
                     // preload heartbeat namespace
                     pulsar.loadNamespaceTopics(nsFullBundle);
@@ -350,7 +346,9 @@ public class NamespaceService implements AutoCloseable {
             }
 
             String msg = String.format("namespace already owned by other broker : ns=%s expected=%s actual=%s",
-                    nsname, myUrl, otherUrl);
+                    nsname,
+                    StringUtils.defaultString(pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()),
+                    StringUtils.defaultString(otherData.getNativeUrl(), otherData.getNativeUrlTls()));
 
             // ignore if not be owned for now
             if (!ensureOwned) {
