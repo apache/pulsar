@@ -350,7 +350,6 @@ public abstract class PulsarWebResource {
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception e) {
-            e.printStackTrace();
             if (e.getCause() instanceof WebApplicationException) {
                 throw (WebApplicationException) e.getCause();
             }

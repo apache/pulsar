@@ -29,14 +29,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
-public class
-
-TopicResources {
+public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
     private final MetadataStore store;
 
-    TopicResources(MetadataStore store) {
+    public TopicResources(MetadataStore store) {
         this.store = store;
     }
 
