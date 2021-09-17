@@ -189,7 +189,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }).when(mlFactoryMock).asyncDelete(any(), any(), any());
 
         ZooKeeper mockZk = createMockZooKeeper();
-        doReturn(mockZk).when(pulsar).getZkClient();
         doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 

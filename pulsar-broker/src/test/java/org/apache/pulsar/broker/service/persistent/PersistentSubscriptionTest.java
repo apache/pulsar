@@ -171,7 +171,6 @@ public class PersistentSubscriptionTest {
         doReturn(mlFactoryMock).when(pulsarMock).getManagedLedgerFactory();
 
         ZooKeeper zkMock = createMockZooKeeper();
-        doReturn(zkMock).when(pulsarMock).getZkClient();
         doReturn(createMockBookKeeper(executor))
                 .when(pulsarMock).getBookKeeperClient();
 

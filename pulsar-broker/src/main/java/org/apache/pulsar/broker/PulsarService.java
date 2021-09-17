@@ -170,7 +170,6 @@ import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
-import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -323,6 +322,10 @@ public class PulsarService implements AutoCloseable {
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
                         .allowReadOnlyOperations(false)
                         .build());
+    }
+
+    public void closeMetadataServiceSession() throws IOException {
+        localZooKeeperConnectionProvider.close();
     }
 
     @Override
@@ -632,7 +635,8 @@ public class PulsarService implements AutoCloseable {
             this.bkClientFactory = newBookKeeperClientFactory();
 
             managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore, getZkClient(), bkClientFactory, ioEventLoopGroup
+                config, localMetadataStore, localZooKeeperConnectionProvider.getLocalZooKeeper(),
+                    bkClientFactory, ioEventLoopGroup
             );
 
             this.brokerService = newBrokerService(this);
@@ -1060,10 +1064,6 @@ public class PulsarService implements AutoCloseable {
             return null;
         }
         return config.getStatusFilePath();
-    }
-
-    public ZooKeeper getZkClient() {
-        return this.localZooKeeperConnectionProvider.getLocalZooKeeper();
     }
 
     /**

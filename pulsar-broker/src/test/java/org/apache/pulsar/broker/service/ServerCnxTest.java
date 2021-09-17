@@ -168,7 +168,6 @@ public class ServerCnxTest {
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
         ZooKeeper mockZk = createMockZooKeeper();
-        doReturn(mockZk).when(pulsar).getZkClient();
         doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
