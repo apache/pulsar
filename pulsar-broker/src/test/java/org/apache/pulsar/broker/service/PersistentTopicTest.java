@@ -563,6 +563,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         when(pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
                 .thenReturn(Optional.of(policies));
+
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                        .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                        .thenReturn(Optional.of(policies));
         testMaxProducers();
     }
 
@@ -895,6 +899,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Policies policies = new Policies();
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
+
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
         when(pulsar.getPulsarResources().getNamespaceResources()
                 .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
                 .thenReturn(Optional.of(policies));
