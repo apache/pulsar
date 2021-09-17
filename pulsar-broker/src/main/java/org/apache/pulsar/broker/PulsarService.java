@@ -21,7 +21,6 @@ package org.apache.pulsar.broker;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import com.google.common.annotations.VisibleForTesting;
@@ -83,7 +82,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.ZookeeperSessionExpiredHandlers;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -902,9 +900,9 @@ public class PulsarService implements AutoCloseable {
     }
 
     private void handleDeleteCluster(Notification notification) {
-        if (notification.getPath().startsWith(ClusterResources.CLUSTERS_ROOT)
+        if (ClusterResources.pathRepresentsClusterName(notification.getPath())
                 && notification.getType() == NotificationType.Deleted) {
-            final String clusterName = notification.getPath().substring(ClusterResources.CLUSTERS_ROOT.length() + 1);
+            final String clusterName = ClusterResources.clusterNameFromPath(notification.getPath());
             getBrokerService().closeAndRemoveReplicationClient(clusterName);
         }
     }
@@ -963,9 +961,8 @@ public class PulsarService implements AutoCloseable {
     protected void acquireSLANamespace() {
         try {
             // Namespace not created hence no need to unload it
-            String nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
-            if (!this.pulsarResources.getNamespaceResources().exists(
-                    AdminResource.path(POLICIES) + "/" + nsName)) {
+            NamespaceName nsName = NamespaceService.getSLAMonitorNamespace(getAdvertisedAddress(), config);
+            if (!this.pulsarResources.getNamespaceResources().namespaceExists(nsName)) {
                 LOG.info("SLA Namespace = {} doesn't exist.", nsName);
                 return;
             }

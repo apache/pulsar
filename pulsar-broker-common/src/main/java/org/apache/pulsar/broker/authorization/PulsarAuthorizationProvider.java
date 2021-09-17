@@ -58,24 +58,22 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     public ServiceConfiguration conf;
     private PulsarResources pulsarResources;
-    private static final String POLICY_ROOT = "/admin/policies/";
-    public static final String POLICIES = "policies";
-    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+
 
     public PulsarAuthorizationProvider() {
     }
 
-    public PulsarAuthorizationProvider(ServiceConfiguration conf, ConfigurationCacheService configCache)
+    public PulsarAuthorizationProvider(ServiceConfiguration conf, PulsarResources resources)
             throws IOException {
-        initialize(conf, configCache);
+        initialize(conf, resources);
     }
 
     @Override
-    public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+    public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
         checkNotNull(conf, "ServiceConfiguration can't be null");
-        checkNotNull(configCache, "ConfigurationCacheService can't be null");
+        checkNotNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
-        this.pulsarResources = configCache.getPulsarResources();
+        this.pulsarResources = pulsarResources;
 
     }
 
@@ -109,7 +107,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             AuthenticationDataSource authenticationData, String subscription) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                    .thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
@@ -229,7 +228,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                                                        AuthAction authAction) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + namespaceName.toString()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for namespace : {}", namespaceName);
@@ -285,9 +284,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             result.completeExceptionally(e);
         }
 
-        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
         try {
-            pulsarResources.getNamespaceResources().set(policiesPath, (policies)->{
+            pulsarResources.getNamespaceResources().setPolicies(namespaceName, policies -> {
                 policies.auth_policies.getNamespaceAuthentication().put(role, actions);
                 return policies;
             });
@@ -300,7 +298,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         } catch (BadVersionException e) {
             log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", role, namespaceName);
             result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
+                    "Concurrent modification on metadata: " + namespaceName + ", " + e.getMessage()));
         } catch (Exception e) {
             log.error("[{}] Failed to get permissions for namespace {}", role, namespaceName, e);
             result.completeExceptionally(
@@ -332,11 +330,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             result.completeExceptionally(e);
         }
 
-        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespace.toString());
-
         try {
-            Policies policies = pulsarResources.getNamespaceResources().get(policiesPath)
-                    .orElseThrow(() -> new NotFoundException(policiesPath + " not found"));
+            Policies policies = pulsarResources.getNamespaceResources().getPolicies(namespace)
+                    .orElseThrow(() -> new NotFoundException(namespace + " not found"));
             if (remove) {
                 if (policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName) != null) {
                     policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName).removeAll(roles);
@@ -348,7 +344,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             } else {
                 policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
             }
-            pulsarResources.getNamespaceResources().set(policiesPath, (data)->policies);
+            pulsarResources.getNamespaceResources().setPolicies(namespace, (data)->policies);
 
             log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName, roles);
             result.complete(null);
@@ -358,7 +354,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         } catch (BadVersionException e) {
             log.warn("[{}] Failed to set permissions for {} on namespace {}: concurrent modification", subscriptionName, roles, namespace);
             result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
+                    "Concurrent modification on metadata path: " + namespace + ", " + e.getMessage()));
         } catch (Exception e) {
             log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace, e);
             result.completeExceptionally(
@@ -388,7 +384,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            pulsarResources.getNamespaceResources().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
+            pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                    .thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
                         log.debug("Policies node couldn't be found for topic : {}", topicName);
@@ -497,10 +494,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         boolean arePoliciesReadOnly = true;
 
         try {
-            arePoliciesReadOnly = pulsarResources.getNamespaceResources().exists(POLICIES_READONLY_FLAG_PATH);
+            arePoliciesReadOnly = pulsarResources.getNamespaceResources().getPoliciesReadOnly();
         } catch (Exception e) {
-            log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
-            throw new IllegalStateException("Unable to fetch content from global zk");
+            log.warn("Unable to check if policies are read-only", e);
+            throw new IllegalStateException("Unable to fetch content from configuration metadata store");
         }
 
         if (arePoliciesReadOnly) {
@@ -632,7 +629,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     } else {
                         try {
                             TenantInfo tenantInfo = pulsarResources.getTenantResources()
-                                    .get(path(POLICIES, tenantName))
+                                    .getTenant(tenantName)
                                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
                             return isTenantAdmin(tenantName, role, tenantInfo, authData);
                         } catch (NotFoundException e) {

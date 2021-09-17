@@ -3,11 +3,7 @@
     {
       "type": "category",
       "label": "Get Started",
-      "items": [
-        "standalone",
-        "standalone-docker",
-        "kubernetes-helm"
-      ]
+      "items": ["standalone", "standalone-docker", "kubernetes-helm"]
     },
     {
       "type": "category",
@@ -72,6 +68,18 @@
         "sql-getting-started",
         "sql-deployment-configurations",
         "sql-rest-api"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        "tiered-storage-overview",
+        "tiered-storage-aws",
+        "tiered-storage-gcs",
+        "tiered-storage-filesystem",
+        "tiered-storage-azure",
+        "tiered-storage-aliyun"
       ]
     }
   ]

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -30,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -75,7 +75,6 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -224,6 +223,9 @@ public class PersistentTopic extends AbstractTopic
     private final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     private final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
 
+    // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
+    private long lastDataMessagePublishedTimestamp = 0;
+
     private static class TopicStatsHelper {
         public double averageMsgSize;
         public double aggMsgRateIn;
@@ -312,7 +314,7 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public CompletableFuture<Void> initialize() {
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenAccept(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         isEncryptionRequired = false;
@@ -502,6 +504,11 @@ public class PersistentTopic extends AbstractTopic
 
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
+
+        if (!publishContext.isMarkerMessage()) {
+            lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
+        }
+
         publishContext.setMetadataFromEntryData(entryData);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         // in order to sync the max position when cursor read entries
@@ -607,7 +614,7 @@ public class PersistentTopic extends AbstractTopic
     public CompletableFuture<Void> startReplProducers() {
         // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenAccept(optPolicies -> {
                     if (optPolicies.isPresent()) {
                         if (optPolicies.get().replication_clusters != null) {
@@ -1329,7 +1336,7 @@ public class PersistentTopic extends AbstractTopic
 
         CompletableFuture<Policies> policiesFuture = brokerService.pulsar().getPulsarResources()
                 .getNamespaceResources()
-                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenCompose(optPolicies -> {
                             if (!optPolicies.isPresent()) {
                                 return FutureUtil.failedFuture(
@@ -1421,7 +1428,7 @@ public class PersistentTopic extends AbstractTopic
 
         TopicName topicName = TopicName.get(topic);
         return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
-                .getPolicies(topicName.getNamespaceObject())
+                .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenApply(policies -> {
                     if (policies.isPresent()) {
                         return policies.get().compaction_threshold != null
@@ -1441,9 +1448,9 @@ public class PersistentTopic extends AbstractTopic
                 .map(TopicPolicies::getCompactionThreshold)
                 .orElse(null);
             if (compactionThreshold == null) {
-                Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()))
-                    .orElseThrow(() -> new MetadataStoreException.NotFoundException());
+                Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                        .getPolicies(name.getNamespaceObject())
+                        .orElseThrow(() -> new MetadataStoreException.NotFoundException());
                 compactionThreshold = policies.compaction_threshold;
             }
             if (compactionThreshold == null) {
@@ -2238,13 +2245,11 @@ public class PersistentTopic extends AbstractTopic
             return CompletableFuture.completedFuture(null);
         }
         TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
-        String path = AdminResource.path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE, topicName.getNamespace()
-                , topicName.getDomain().value(), topicName.getEncodedLocalName());
         try {
             PartitionedTopicResources partitionedTopicResources = getBrokerService().pulsar().getPulsarResources()
                     .getNamespaceResources()
                     .getPartitionedTopicResources();
-            if (topicName.isPartitioned() && !partitionedTopicResources.exists(path)) {
+            if (topicName.isPartitioned() && !partitionedTopicResources.partitionedTopicExists(topicName)) {
                 return CompletableFuture.completedFuture(null);
             }
             CompletableFuture<Void> deleteMetadataFuture = new CompletableFuture<>();
@@ -2269,7 +2274,8 @@ public class PersistentTopic extends AbstractTopic
                             }
                         }
                     }))
-                    .thenAccept((res) -> partitionedTopicResources.deleteAsync(path).thenAccept((r) -> {
+                    .thenAccept((res) -> partitionedTopicResources.deletePartitionedTopicAsync(topicName)
+                            .thenAccept((r) -> {
                         deleteMetadataFuture.complete(null);
                     }).exceptionally(ex -> {
                         deleteMetadataFuture.completeExceptionally(ex.getCause());
@@ -2292,8 +2298,8 @@ public class PersistentTopic extends AbstractTopic
     public void checkInactiveSubscriptions() {
         TopicName name = TopicName.get(topic);
         try {
-            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                    .getPolicies(name.getNamespaceObject())
                     .orElseThrow(() -> new MetadataStoreException.NotFoundException());
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
                     .getSubscriptionExpirationTimeMinutes();
@@ -2348,8 +2354,8 @@ public class PersistentTopic extends AbstractTopic
                     .orElse(null);
             if (retentionPolicies == null){
                 TopicName name = TopicName.get(topic);
-                retentionPolicies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                        .get(AdminResource.path(POLICIES, name.getNamespace()))
+                retentionPolicies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                        .getPolicies(name.getNamespaceObject())
                         .map(p -> p.retention_policies)
                         .orElse(null);
             }
@@ -2824,7 +2830,7 @@ public class PersistentTopic extends AbstractTopic
         TopicName name = TopicName.get(topic);
 
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenApply(optPolicies -> {
                     if (optPolicies.isPresent()) {
                         if (optPolicies.get().message_ttl_in_seconds != null) {
@@ -3212,8 +3218,8 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private boolean checkNsAndBrokerSubscriptionTypesEnable(TopicName topicName, SubType subType) throws Exception {
-        Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, topicName.getNamespaceObject().toString()));
+        Optional<Policies> policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                .getPolicies(topicName.getNamespaceObject());
         if (policies.isPresent()) {
             if (policies.get().subscription_types_enabled.isEmpty()) {
                 return getBrokerService().getPulsar().getConfiguration()
@@ -3263,5 +3269,9 @@ public class PersistentTopic extends AbstractTopic
                     + " not found subscription : " + subName)));
         }
         return subscription.getPendingAckManageLedger();
+    }
+
+    public long getLastDataMessagePublishedTimestamp() {
+        return lastDataMessagePublishedTimestamp;
     }
 }

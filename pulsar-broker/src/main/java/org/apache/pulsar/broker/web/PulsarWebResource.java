@@ -21,9 +21,6 @@ package org.apache.pulsar.broker.web;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.broker.admin.AdminResource.POLICIES_READONLY_FLAG_PATH;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -31,9 +28,6 @@ import com.google.common.collect.Range;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -53,13 +47,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.resources.BaseResources;
 import org.apache.pulsar.broker.resources.BookieResources;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
@@ -69,6 +61,7 @@ import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyReso
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.common.naming.Constants;
@@ -88,8 +81,6 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.zookeeper.common.PathUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -269,7 +260,7 @@ public abstract class PulsarWebResource {
                     (isClientAuthenticated(clientAppId)), clientAppId);
         }
 
-        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
+        TenantInfo tenantInfo = pulsar.getPulsarResources().getTenantResources().getTenant(tenant)
                 .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
@@ -325,7 +316,7 @@ public abstract class PulsarWebResource {
     protected void validateClusterForTenant(String tenant, String cluster) {
         TenantInfo tenantInfo;
         try {
-            tenantInfo = pulsar().getPulsarResources().getTenantResources().get(path(POLICIES, tenant))
+            tenantInfo = pulsar().getPulsarResources().getTenantResources().getTenant(tenant)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
             log.warn("Failed to get tenant admin data for tenant {}", tenant);
@@ -727,9 +718,9 @@ public abstract class PulsarWebResource {
         }
         final CompletableFuture<ClusterDataImpl> validationFuture = new CompletableFuture<>();
         final String localCluster = pulsarService.getConfiguration().getClusterName();
-        final String path = AdminResource.path(POLICIES, namespace.toString());
 
-        pulsarService.getConfigurationCache().policiesCache().getAsync(path).thenAccept(policiesResult -> {
+        pulsarService.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(namespace).thenAccept(policiesResult -> {
             if (policiesResult.isPresent()) {
                 Policies policies = policiesResult.get();
                 if (policies.replication_clusters.isEmpty()) {
@@ -905,6 +896,10 @@ public abstract class PulsarWebResource {
         return pulsar().getPulsarResources().getBookieResources();
     }
 
+    protected TopicResources topicResources() {
+        return pulsar().getPulsarResources().getTopicResources();
+    }
+
     protected NamespaceResources namespaceResources() {
         return pulsar().getPulsarResources().getNamespaceResources();
     }
@@ -931,80 +926,23 @@ public abstract class PulsarWebResource {
 
     public void validatePoliciesReadOnlyAccess() {
         try {
-            if (clusterResources().existsAsync(AdminResource.POLICIES_READONLY_FLAG_PATH).get()) {
+            if (namespaceResources().getPoliciesReadOnly()) {
                 log.debug("Policies are read-only. Broker cannot do read-write operations");
                 throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
             }
         } catch (Exception e) {
-            log.warn("Unable to fetch read-only policy config {}", POLICIES_READONLY_FLAG_PATH, e);
+            log.warn("Unable to fetch read-only policy config {}", e);
             throw new RestException(e);
         }
     }
 
     protected CompletableFuture<Void> hasActiveNamespace(String tenant) {
-        CompletableFuture<Void> activeNamespaceFuture = new CompletableFuture<>();
-        tenantResources().getChildrenAsync(path(POLICIES, tenant)).thenAccept(clusterOrNamespaceList -> {
-            if (clusterOrNamespaceList == null || clusterOrNamespaceList.isEmpty()) {
-                activeNamespaceFuture.complete(null);
-                return;
-            }
-            List<CompletableFuture<Void>> activeNamespaceListFuture = Lists.newArrayList();
-            clusterOrNamespaceList.forEach(clusterOrNamespace -> {
-                // get list of active V1 namespace
-                CompletableFuture<Void> checkNs = new CompletableFuture<>();
-                activeNamespaceListFuture.add(checkNs);
-                tenantResources().getChildrenAsync(path(POLICIES, tenant, clusterOrNamespace))
-                        .whenComplete((children, ex) -> {
-                            if (ex != null) {
-                                checkNs.completeExceptionally(ex);
-                                return;
-                            }
-                            if (children != null && !children.isEmpty()) {
-                                checkNs.completeExceptionally(
-                                        new RestException(Status.PRECONDITION_FAILED, "Tenant has active namespace"));
-                                return;
-                            }
-                            String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
-                            // if the length is 0 then this is probably a leftover cluster from namespace
-                            // created
-                            // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to
-                            // add it to the list
-                            namespaceResources().getAsync(path(POLICIES, namespace)).thenApply(data -> {
-                                if (data.isPresent()) {
-                                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
-                                            "Tenant has active namespace"));
-                                } else {
-                                    checkNs.complete(null);
-                                }
-                                return null;
-                            }).exceptionally(ex2 -> {
-                                if (ex2.getCause() instanceof MetadataStoreException.ContentDeserializationException) {
-                                    // it's not a valid namespace-node
-                                    checkNs.complete(null);
-                                } else {
-                                    checkNs.completeExceptionally(
-                                            new RestException(Status.INTERNAL_SERVER_ERROR, ex2.getCause()));
-                                }
-                                return null;
-                            });
-                        });
-                FutureUtil.waitForAll(activeNamespaceListFuture).thenAccept(r -> {
-                    activeNamespaceFuture.complete(null);
-                }).exceptionally(ex -> {
-                    activeNamespaceFuture.completeExceptionally(ex.getCause());
-                    return null;
-                });
-            });
-        }).exceptionally(ex -> {
-            activeNamespaceFuture.completeExceptionally(ex.getCause());
-            return null;
-        });
-        return activeNamespaceFuture;
+        return tenantResources().hasActiveNamespace(tenant);
     }
 
     protected void validateClusterExists(String cluster) {
         try {
-            if (!clusterResources().get(path("clusters", cluster)).isPresent()) {
+            if (!clusterResources().clusterExists(cluster)) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
             }
         } catch (Exception e) {
@@ -1021,7 +959,7 @@ public abstract class PulsarWebResource {
             }
             CompletableFuture<Void> checkNs = new CompletableFuture<>();
             activeNamespaceFuture.add(checkNs);
-            tenantResources().getChildrenAsync(path(POLICIES, tenant, cluster)).whenComplete((activeNamespaces, ex) -> {
+            tenantResources().getActiveNamespaces(tenant, cluster).whenComplete((activeNamespaces, ex) -> {
                 if (ex != null) {
                     log.warn("Failed to get namespaces under {}-{}, {}", tenant, cluster, ex.getCause().getMessage());
                     checkNs.completeExceptionally(ex.getCause());
@@ -1035,8 +973,7 @@ public abstract class PulsarWebResource {
                 checkNs.complete(null);
             });
         }
-        return activeNamespaceFuture.isEmpty() ? CompletableFuture.completedFuture(null)
-                : FutureUtil.waitForAll(activeNamespaceFuture);
+        return FutureUtil.waitForAll(activeNamespaceFuture);
     }
 
     /**
@@ -1105,92 +1042,4 @@ public abstract class PulsarWebResource {
         }
     }
 
-    /*
-     * Get the list of namespaces (on every cluster) for a given property.
-     *
-     * @param property the property name
-     * @return the list of namespaces
-     */
-    protected List<String> getListOfNamespaces(String tenant) throws Exception {
-        List<String> namespaces = Lists.newArrayList();
-
-        if (!tenantResources().exists(path(POLICIES, tenant))) {
-            throw new RestException(Status.NOT_FOUND, tenant + " doesn't exist");
-        }
-        // this will return a cluster in v1 and a namespace in v2
-        for (String clusterOrNamespace : tenantResources().getChildren(path(POLICIES, tenant))) {
-            // Then get the list of namespaces
-            final List<String> children = tenantResources().getChildren(path(POLICIES, tenant, clusterOrNamespace));
-            if (children == null || children.isEmpty()) {
-                String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
-                // if the length is 0 then this is probably a leftover cluster from namespace created
-                // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
-                try {
-                    if (namespaceResources().get(path(POLICIES, namespace)).isPresent()) {
-                        namespaces.add(namespace);
-                    }
-                } catch (MetadataStoreException.ContentDeserializationException e) {
-                    // not a namespace node
-                }
-
-            } else {
-                children.forEach(ns -> {
-                    namespaces.add(NamespaceName.get(tenant, clusterOrNamespace, ns).toString());
-                });
-            }
-        }
-
-        namespaces.sort(null);
-        return namespaces;
-    }
-
-    /**
-     * Get the list of resourcegroups.
-     *
-     * @return the list of resourcegroups
-     */
-
-    protected List<String> getListOfResourcegroups(String property) throws Exception {
-        List<String> resourcegroups = Lists.newArrayList();
-
-        for (String resourcegroup : resourceGroupResources().getChildren(path(RESOURCEGROUPS))) {
-            resourcegroups.add(resourcegroup);
-        }
-
-        resourcegroups.sort(null);
-        return resourcegroups;
-    }
-
-
-    public static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
-        PathUtils.validatePath(pathRoot);
-        List<String> tree = listSubTreeBFS(resources, pathRoot);
-        log.debug("Deleting {} with size {}", tree, tree.size());
-        log.debug("Deleting " + tree.size() + " subnodes ");
-        for (int i = tree.size() - 1; i >= 0; --i) {
-            // Delete the leaves first and eventually get rid of the root
-            resources.delete(tree.get(i));
-        }
-    }
-
-    public static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)
-            throws MetadataStoreException {
-        Deque<String> queue = new LinkedList<>();
-        List<String> tree = new ArrayList<>();
-        queue.add(pathRoot);
-        tree.add(pathRoot);
-        while (true) {
-            String node = queue.pollFirst();
-            if (node == null) {
-                break;
-            }
-            List<String> children = resources.getChildren(node);
-            for (final String child : children) {
-                final String childPath = node + "/" + child;
-                queue.add(childPath);
-                tree.add(childPath);
-            }
-        }
-        return tree;
-    }
 }

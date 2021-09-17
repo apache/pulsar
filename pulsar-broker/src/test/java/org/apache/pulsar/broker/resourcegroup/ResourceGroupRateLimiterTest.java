@@ -21,11 +21,13 @@ package org.apache.pulsar.broker.resourcegroup;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import javax.naming.Name;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -86,7 +88,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
 
         Awaitility.await().untilAsserted(() ->
           assertNotNull(pulsar.getResourceGroupServiceManager()
-            .getNamespaceResourceGroup(namespaceName)));
+            .getNamespaceResourceGroup(NamespaceName.get(namespaceName))));
 
         Awaitility.await().untilAsserted(() ->
           assertNotNull(pulsar.getResourceGroupServiceManager()

@@ -199,6 +199,34 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-gcs"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-filesystem"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-azure"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
     }
   ]
 }

@@ -164,6 +164,7 @@ public class ServerCnxTest {
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
         svcConfig.setBacklogQuotaCheckEnabled(false);
         doReturn(svcConfig).when(pulsar).getConfiguration();
+        doReturn(mock(PulsarResources.class)).when(pulsar).getPulsarResources();
 
         doReturn("use").when(svcConfig).getClusterName();
 
@@ -527,13 +528,14 @@ public class ServerCnxTest {
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(matches(".*nonexistent.*"));
 
-        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
+        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, pulsar.getPulsarResources()));
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         svcConfig.setAuthorizationEnabled(true);
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
-        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
+        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig,
+                pulsar.getPulsarResources()));
         providerField.set(authorizationService, authorizationProvider);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
@@ -559,10 +561,11 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testClusterAccess() throws Exception {
         svcConfig.setAuthorizationEnabled(true);
-        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
+        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, pulsar.getPulsarResources()));
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
-        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
+        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig,
+                pulsar.getPulsarResources()));
         providerField.set(authorizationService, authorizationProvider);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
@@ -589,12 +592,12 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testNonExistentTopicSuperUserAccess() throws Exception {
-        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
+        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, pulsar.getPulsarResources()));
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
-        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
+        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, pulsar.getPulsarResources()));
         providerField.set(authorizationService, authorizationProvider);
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
 
@@ -1349,7 +1352,7 @@ public class ServerCnxTest {
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
         policies.clusterDispatchRate = Maps.newHashMap();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
-                .getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+                .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
         // test failure case: unencrypted producer cannot connect
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 2 /* producer id */, 2 /* request id */,
@@ -1453,7 +1456,8 @@ public class ServerCnxTest {
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
         policies.clusterDispatchRate = Maps.newHashMap();
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
+                .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 1 /* producer id */, 1 /* request id */,
                 "prod-name", true, Collections.emptyMap());
