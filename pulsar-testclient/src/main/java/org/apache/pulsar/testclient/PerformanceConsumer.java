@@ -91,8 +91,8 @@ public class PerformanceConsumer {
         @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
-        public String subscriberName = "sub";
+        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+        public String subscriberName;
 
         @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
@@ -117,6 +117,10 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
+
+        @Parameter(names = {"-m",
+                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, it will keep consuming")
+        public long numMessages = 0;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -223,18 +227,19 @@ public class PerformanceConsumer {
             PerfClientUtils.exit(-1);
         }
 
-        if (arguments.subscriptionType != SubscriptionType.Exclusive &&
-                arguments.subscriptions != null &&
-                arguments.subscriptions.size() != arguments.numConsumers) {
+        if (arguments.subscriptions != null && arguments.subscriptions.size() != arguments.numSubscriptions) {
             // keep compatibility with the previous version
             if (arguments.subscriptions.size() == 1) {
+                if (arguments.subscriberName == null) {
+                    arguments.subscriberName = arguments.subscriptions.get(0);
+                }
                 List<String> defaultSubscriptions = Lists.newArrayList();
                 for (int i = 0; i < arguments.numSubscriptions; i++) {
                     defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
                 }
                 arguments.subscriptions = defaultSubscriptions;
             } else {
-                System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
+                System.out.println("The size of subscriptions list should be equal to --num-subscriptions");
                 jc.usage();
                 PerfClientUtils.exit(-1);
             }
@@ -287,10 +292,15 @@ public class PerformanceConsumer {
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
-                    log.info("------------------- DONE -----------------------");
+                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) --------------", arguments.testTime);
                     printAggregatedStats();
                     PerfClientUtils.exit(0);
                 }
+            }
+            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
+                printAggregatedStats();
+                PerfClientUtils.exit(0);
             }
             messagesReceived.increment();
             bytesReceived.add(msg.size());

@@ -1019,6 +1019,13 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer1 = pulsarClient2.newConsumer().topic(topic1)
                     .subscriptionName("my-subscriber-name").subscribe();
 
+            // there should be more than one topic to trigger split
+            final String topic2 = "persistent://" + namespace + "/topic2";
+            @Cleanup
+            Consumer<byte[]> consumer2 = pulsarClient2.newConsumer().topic(topic2)
+                    .subscriptionName("my-subscriber-name")
+                    .subscribe();
+
             // (4) Broker-1 will own topic-1
             final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
 
@@ -1054,7 +1061,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             updateAllMethod.invoke(loadManager);
             conf2.setLoadBalancerAutoBundleSplitEnabled(true);
             conf2.setLoadBalancerAutoUnloadSplitBundlesEnabled(true);
-            conf2.setLoadBalancerNamespaceBundleMaxTopics(0);
+            conf2.setLoadBalancerNamespaceBundleMaxTopics(1);
             loadManager.checkNamespaceBundleSplit();
 
             // (6) Broker-2 should get the watch and update bundle cache
@@ -1063,15 +1070,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             });
 
             // (7) Make lookup request again to Broker-2 which should succeed.
-            final String topic2 = "persistent://" + namespace + "/topic2";
+            final String topic3 = "persistent://" + namespace + "/topic3";
             @Cleanup
-            Consumer<byte[]> consumer2 = pulsarClient2.newConsumer().topic(topic2)
+            Consumer<byte[]> consumer3 = pulsarClient2.newConsumer().topic(topic3)
                     .subscriptionName("my-subscriber-name")
                     .subscribe();
 
             Awaitility.await().untilAsserted(() -> {
                 NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
-                        .getBundle(TopicName.get(topic2));
+                        .getBundle(TopicName.get(topic3));
                 assertNotEquals(bundleInBroker1AfterSplit.toString(), unsplitBundle);
             });
         } finally {

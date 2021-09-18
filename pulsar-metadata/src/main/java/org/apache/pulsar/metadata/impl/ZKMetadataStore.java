@@ -19,17 +19,16 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-
+import java.io.File;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -42,10 +41,11 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.zookeeper.AddWatchMode;
+import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -246,20 +246,19 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         try {
             if (hasVersion && expectedVersion == -1) {
                 CreateMode createMode = getCreateMode(options);
-                ZkUtils.asyncCreateFullPathOptimistic(zkc, path, value, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        createMode, (rc, path1, ctx, name) -> {
-                            execute(() -> {
-                                Code code = Code.get(rc);
-                                if (code == Code.OK) {
-                                    future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
-                                } else if (code == Code.NODEEXISTS) {
-                                    // We're emulating a request to create node, so the version is invalid
-                                    future.completeExceptionally(getException(Code.BADVERSION, path));
-                                } else {
-                                    future.completeExceptionally(getException(code, path));
-                                }
-                            }, future);
-                        }, null);
+                asyncCreateFullPathOptimistic(zkc, path, value, createMode, (rc, path1, ctx, name) -> {
+                    execute(() -> {
+                        Code code = Code.get(rc);
+                        if (code == Code.OK) {
+                            future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
+                        } else if (code == Code.NODEEXISTS) {
+                            // We're emulating a request to create node, so the version is invalid
+                            future.completeExceptionally(getException(Code.BADVERSION, path));
+                        } else {
+                            future.completeExceptionally(getException(code, path));
+                        }
+                    }, future);
+                });
             } else {
                 zkc.setData(path, value, expectedVersion, (rc, path1, ctx, stat) -> {
                     execute(() -> {
@@ -431,8 +430,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                     metadataStoreConfig.getSessionTimeoutMillis(), 0))
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
-                    ZkUtils.createFullPathOptimistic(chrootZk, chrootPath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                            CreateMode.PERSISTENT);
+                    createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);
                     log.info("Created zookeeper chroot path {} successfully", chrootPath);
                 }
             } catch (Exception e) {
@@ -440,5 +438,42 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             }
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    private static void asyncCreateFullPathOptimistic(final ZooKeeper zk, final String originalPath, final byte[] data,
+                                                      final CreateMode createMode,
+                                                      final AsyncCallback.StringCallback callback) {
+        zk.create(originalPath, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, createMode, (rc, path, ctx, name) -> {
+            if (rc != Code.NONODE.intValue()) {
+                callback.processResult(rc, path, ctx, name);
+            } else {
+                String parent = (new File(originalPath)).getParent().replace("\\", "/");
+
+                // Create parent nodes as "CONTAINER" so that ZK will automatically delete them when they're empty
+                asyncCreateFullPathOptimistic(zk, parent, new byte[0], CreateMode.CONTAINER,
+                        (rc1, path1, ctx1, name1) -> {
+                            if (rc1 != Code.OK.intValue() && rc1 != Code.NODEEXISTS.intValue()) {
+                                callback.processResult(rc1, path1, ctx1, name1);
+                            } else {
+                                asyncCreateFullPathOptimistic(zk, originalPath, data,
+                                        createMode, callback);
+                            }
+                        });
+            }
+        }, null);
+    }
+
+    private static void createFullPathOptimistic(ZooKeeper zkc, String path, byte[] data, CreateMode createMode)
+            throws KeeperException, InterruptedException {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicInteger rc = new AtomicInteger(Code.OK.intValue());
+        asyncCreateFullPathOptimistic(zkc, path, data, createMode, (rc2, path1, ctx, name) -> {
+            rc.set(rc2);
+            latch.countDown();
+        });
+        latch.await();
+        if (rc.get() != Code.OK.intValue()) {
+            throw KeeperException.create(Code.get(rc.get()));
+        }
     }
 }

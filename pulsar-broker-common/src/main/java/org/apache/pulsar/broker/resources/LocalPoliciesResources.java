@@ -18,12 +18,40 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
 
+    private static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
+
     public LocalPoliciesResources(MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, LocalPolicies.class, operationTimeoutSec);
+    }
+
+    public void setLocalPolicies(NamespaceName ns, Function<LocalPolicies, LocalPolicies> modifyFunction)
+            throws MetadataStoreException {
+        set(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), modifyFunction);
+    }
+
+    public Optional<LocalPolicies> getLocalPolicies(NamespaceName ns) throws MetadataStoreException{
+        return get(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+    }
+
+    public CompletableFuture<Optional<LocalPolicies>> getLocalPoliciesAsync(NamespaceName ns) {
+        return getCache().get(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+    }
+
+    public void setLocalPoliciesWithCreate(NamespaceName ns, Function<Optional<LocalPolicies>, LocalPolicies> createFunction) throws MetadataStoreException {
+        setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
+    }
+
+    public void deleteLocalPolicies(NamespaceName ns) throws MetadataStoreException {
+        delete(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 }

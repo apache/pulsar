@@ -880,15 +880,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             synchronized (this) {
                 setState(State.Closed);
                 client.cleanupProducer(this);
-                PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
-                    format("The producer %s of the topic %s was already closed when closing the producers",
-                        producerName, topic));
-                pendingMessages.forEach(msg -> {
-                    msg.sendComplete(ex);
-                    msg.cmd.release();
-                    msg.recycle();
-                });
-                pendingMessages.clear();
+                clearPendingMessagesWhenClose();
             }
 
             return CompletableFuture.completedFuture(null);
@@ -906,11 +898,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 synchronized (ProducerImpl.this) {
                     log.info("[{}] [{}] Closed Producer", topic, producerName);
                     setState(State.Closed);
-                    pendingMessages.forEach(msg -> {
-                        msg.cmd.release();
-                        msg.recycle();
-                    });
-                    pendingMessages.clear();
+                    clearPendingMessagesWhenClose();
                 }
 
                 closeFuture.complete(null);
@@ -923,6 +911,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         });
 
         return closeFuture;
+    }
+
+    private void clearPendingMessagesWhenClose() {
+        PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
+                format("The producer %s of the topic %s was already closed when closing the producers",
+                        producerName, topic));
+        pendingMessages.forEach(msg -> {
+            client.getMemoryLimitController().releaseMemory(msg.uncompressedSize);
+            msg.sendComplete(ex);
+            msg.cmd.release();
+            msg.recycle();
+        });
+        pendingMessages.clear();
     }
 
     @Override

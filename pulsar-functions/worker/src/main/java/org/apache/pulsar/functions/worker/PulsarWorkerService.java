@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -55,6 +54,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -303,7 +303,7 @@ public class PulsarWorkerService implements WorkerService {
 
         String namespace = workerConfig.getPulsarFunctionsNamespace();
         String[] a = workerConfig.getPulsarFunctionsNamespace().split("/");
-        String property = a[0];
+        String tenant = a[0];
         String cluster = workerConfig.getPulsarFunctionsCluster();
 
         int[] ar = null;
@@ -315,10 +315,10 @@ public class PulsarWorkerService implements WorkerService {
 
         // create tenant for function worker service
         try {
-            NamedEntity.checkName(property);
-            pulsarResources.getTenantResources().create(PolicyPath.path(POLICIES, property),
+            NamedEntity.checkName(tenant);
+            pulsarResources.getTenantResources().createTenant(tenant,
                     new TenantInfoImpl(Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
-            LOG.info("Created property {} for function worker", property);
+            LOG.info("Created tenant {} for function worker", tenant);
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
         } catch (IllegalArgumentException e) {
@@ -336,9 +336,7 @@ public class PulsarWorkerService implements WorkerService {
                     .serviceUrl(workerConfig.getPulsarWebServiceUrl())
                     .brokerServiceUrl(workerConfig.getPulsarServiceUrl())
                     .build();
-            pulsarResources.getClusterResources().create(
-                PolicyPath.path("clusters", cluster),
-                clusterData);
+            pulsarResources.getClusterResources().createCluster(cluster, clusterData);
             LOG.info("Created cluster {} for function worker", cluster);
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing cluster {} for function worker service", cluster, e);
@@ -358,8 +356,7 @@ public class PulsarWorkerService implements WorkerService {
             int defaultNumberOfBundles = brokerConfig.getDefaultNumberOfNamespaceBundles();
             policies.bundles = getBundles(defaultNumberOfBundles);
 
-            configurationCacheService.policiesCache().invalidate(PolicyPath.path(POLICIES, namespace));
-            pulsarResources.getNamespaceResources().create(PolicyPath.path(POLICIES, namespace), policies);
+            pulsarResources.getNamespaceResources().createPolicies(NamespaceName.get(namespace), policies);
             LOG.info("Created namespace {} for function worker service", namespace);
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);

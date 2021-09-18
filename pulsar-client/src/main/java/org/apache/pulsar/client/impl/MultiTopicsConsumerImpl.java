@@ -269,6 +269,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // recursion and stack overflow
                 internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
             }
+        }).exceptionally(ex -> {
+            if (ex instanceof PulsarClientException.AlreadyClosedException
+                    || ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                // ignore the exception that happens when the consumer is closed
+                return null;
+            }
+            log.error("Receive operation failed on consumer {} - Retrying later", consumer, ex);
+            internalPinnedExecutor.schedule(() -> receiveMessageFromConsumer(consumer), 10, TimeUnit.SECONDS);
+            return null;
         });
     }
 
@@ -891,7 +900,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // subscribe one more given topic, but already know the numberPartitions
-    @VisibleForTesting
     CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
         TopicName topicNameInstance = getTopicName(topicName);
         if (topicNameInstance == null) {

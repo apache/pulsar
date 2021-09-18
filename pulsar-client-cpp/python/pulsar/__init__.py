@@ -602,6 +602,7 @@ class Client:
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         p._schema = schema
+        p._client = self._client
         return p
 
     def subscribe(self, topic, subscription_name,
@@ -863,6 +864,15 @@ class Client:
         """
         _check_type(str, topic, 'topic')
         return self._client.get_topic_partitions(topic)
+
+    def shutdown(self):
+        """
+        Perform immediate shutdown of Pulsar client.
+
+        Release all resources and close all producer, consumer, and readers without waiting
+        for ongoing operations to complete.
+        """
+        self._client.shutdown()
 
     def close(self):
         """

@@ -1,0 +1,232 @@
+{
+  "version-2.7.3/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/kubernetes-helm"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-proxy-sni-routing"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/concepts-multiple-advertised-listeners"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/schema-manage"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-worker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-runtime"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-package"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/functions-cli"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/window-functions-context"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-use"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-connectors"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-cdc"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/io-cli"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/sql-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/sql-getting-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/sql-deployment-configurations"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/sql-rest-api"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-gcs"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-filesystem"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/tiered-storage-azure"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    }
+  ]
+}

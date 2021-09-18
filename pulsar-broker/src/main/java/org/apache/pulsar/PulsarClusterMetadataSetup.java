@@ -31,7 +31,8 @@ import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
-import org.apache.pulsar.broker.admin.ZkAdminPaths;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -339,23 +340,21 @@ public class PulsarClusterMetadataSetup {
 
     static void createPartitionedTopic(MetadataStore configStore, TopicName topicName, int numPartitions)
             throws InterruptedException, IOException, ExecutionException {
-        String partitionedTopicPath = ZkAdminPaths.partitionedTopicPath(topicName);
-        Optional<GetResult> getResult = configStore.get(partitionedTopicPath).get();
-        PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions);
-        if (!getResult.isPresent()) {
-            createMetadataNode(configStore, partitionedTopicPath,
-                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(metadata));
-        } else {
-            byte[] content = getResult.get().getValue();
-            PartitionedTopicMetadata existsMeta =
-                    ObjectMapperFactory.getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
+        PulsarResources resources = new PulsarResources(null, configStore);
+        NamespaceResources.PartitionedTopicResources partitionedTopicResources =
+                resources.getNamespaceResources().getPartitionedTopicResources();
 
-            // Only update z-node if the partitions should be modified
+        Optional<PartitionedTopicMetadata> getResult =
+                partitionedTopicResources.getPartitionedTopicMetadataAsync(topicName).get();
+        if (!getResult.isPresent()) {
+            partitionedTopicResources.createPartitionedTopic(topicName, new PartitionedTopicMetadata(numPartitions));
+        } else {
+            PartitionedTopicMetadata existsMeta = getResult.get();
+
+            // Only update metadata if the partitions should be modified
             if (existsMeta.partitions < numPartitions) {
-                configStore.put(
-                        partitionedTopicPath,
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(metadata),
-                        Optional.of(getResult.get().getStat().getVersion()));
+                partitionedTopicResources.updatePartitionedTopicAsync(topicName,
+                        __ -> new PartitionedTopicMetadata(numPartitions)).get();
             }
         }
     }
