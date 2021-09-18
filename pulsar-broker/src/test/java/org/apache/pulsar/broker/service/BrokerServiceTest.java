@@ -1175,6 +1175,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         final int totalBundle = 3;
         System.err.println("----------------");
         admin.namespaces().createNamespace(namespace, BundlesData.builder().numBundles(totalBundle).build());
+        admin.topics().createNonPartitionedTopic(namespace + "/test");
 
         Optional<LocalPolicies> policy = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(
                 NamespaceName.get(namespace));
