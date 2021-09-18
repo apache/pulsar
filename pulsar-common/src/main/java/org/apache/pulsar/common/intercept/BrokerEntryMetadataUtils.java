@@ -43,7 +43,8 @@ public class BrokerEntryMetadataUtils {
                             .loadClass(interceptorName, classLoader);
                     try {
                         interceptors.add(clz.getDeclaredConstructor().newInstance());
-                    } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                    } catch (InstantiationException | IllegalAccessException
+                            | InvocationTargetException | NoSuchMethodException e) {
                         log.error("Create new BrokerEntryMetadataInterceptor instance for {} failed.",
                                 interceptorName, e);
                         throw new RuntimeException(e);

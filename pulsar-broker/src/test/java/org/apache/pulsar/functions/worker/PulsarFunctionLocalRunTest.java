@@ -672,7 +672,8 @@ public class PulsarFunctionLocalRunTest {
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
-        producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass.getDeclaredConstructor().newInstance()).send();
+        producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass
+                .getDeclaredConstructor().newInstance()).send();
         Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(msg);
 

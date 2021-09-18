@@ -45,7 +45,8 @@ public class PulsarURLStreamHandlerFactory implements URLStreamHandlerFactory {
             } else {
                 urlStreamHandler = null;
             }
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+        } catch (InstantiationException | IllegalAccessException
+                | InvocationTargetException | NoSuchMethodException e) {
             urlStreamHandler = null;
         }
         return urlStreamHandler;
