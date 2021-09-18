@@ -55,7 +55,7 @@ public class AuthenticationService implements Closeable {
                     if (className.isEmpty()) {
                         continue;
                     }
-                    AuthenticationProvider provider = (AuthenticationProvider) Class.forName(className).newInstance();
+                    AuthenticationProvider provider = (AuthenticationProvider) Class.forName(className).getDeclaredConstructor().newInstance();
 
                     List<AuthenticationProvider> providerList = providerMap.get(provider.getAuthMethodName());
                     if (null == providerList) {

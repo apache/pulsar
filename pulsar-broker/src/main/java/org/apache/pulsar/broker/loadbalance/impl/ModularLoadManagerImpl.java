@@ -291,7 +291,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
     private LoadSheddingStrategy createLoadSheddingStrategy() {
         try {
             Class<?> loadSheddingClass = Class.forName(conf.getLoadBalancerLoadSheddingStrategy());
-            Object loadSheddingInstance = loadSheddingClass.newInstance();
+            Object loadSheddingInstance = loadSheddingClass.getDeclaredConstructor().newInstance();
             if (loadSheddingInstance instanceof LoadSheddingStrategy) {
                 return (LoadSheddingStrategy) loadSheddingInstance;
             } else {

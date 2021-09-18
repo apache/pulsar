@@ -35,7 +35,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
         for (String className : checkerClasses) {
             final Class<?> checkerClass = Class.forName(className);
-            SchemaCompatibilityCheck instance = (SchemaCompatibilityCheck) checkerClass.newInstance();
+            SchemaCompatibilityCheck instance = (SchemaCompatibilityCheck) checkerClass.getDeclaredConstructor().newInstance();
             checkers.put(instance.getSchemaType(), instance);
         }
         return checkers;
