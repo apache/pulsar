@@ -18,7 +18,7 @@
 - Add REST API to enable or disable replicated subscriptions [#10790](https://github.com/apache/pulsar/pull/10790)
 - Fix issue that message ordering could be broken when redelivering messages on Key_Shared subscription [#10762](https://github.com/apache/pulsar/pull/10762)
 - Fix set-publish-rate when using preciseTopicPublishRateLimiterEnable=true [#10384](https://github.com/apache/pulsar/pull/10384)
-- Upgrade BookKeeper version to resolve the BouncyCatle issue [#11759](https://github.com/apache/pulsar/pull/11759)
+- Upgrade BookKeeper version to resolve the BouncyCastle issue [#11759](https://github.com/apache/pulsar/pull/11759)
 - Fix getPreviousPosition NPE [#11621](https://github.com/apache/pulsar/pull/11621)
 - Remove duplicated configuration [#11283](https://github.com/apache/pulsar/pull/11283)
 - Source tarball: apply executable file permissions to shell scripts [#11858](https://github.com/apache/pulsar/pull/11858)
