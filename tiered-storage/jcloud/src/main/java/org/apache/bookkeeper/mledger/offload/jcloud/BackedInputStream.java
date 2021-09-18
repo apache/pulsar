@@ -27,4 +27,16 @@ import java.io.InputStream;
 public abstract class BackedInputStream extends InputStream {
     public abstract void seek(long position);
     public abstract void seekForward(long position) throws IOException;
+
+    /**
+     * Check whether the data stream have data to read or not.
+     *
+     * @return True indicate there are data could to be read.
+     */
+    public abstract boolean haveDataToRead();
+
+    /**
+     * Reset the data stream reader index.
+     */
+    public abstract void resetReaderIndex();
 }

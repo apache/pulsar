@@ -139,6 +139,13 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
             Assert.assertFalse(toWriteIter.hasNext());
             Assert.assertFalse(toTestIter.hasNext());
         }
+
+        try {
+            toTest.read(0, toWrite.getLastAddConfirmed());
+        } catch (Exception e) {
+            log.error("Failed to read offload data again.", e);
+            Assert.fail("Failed to read offload data again.");
+        }
     }
 
     @Test

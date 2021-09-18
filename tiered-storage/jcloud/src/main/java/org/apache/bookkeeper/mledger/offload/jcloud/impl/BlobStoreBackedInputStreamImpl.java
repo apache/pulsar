@@ -116,8 +116,8 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
 
     @Override
     public void seek(long position) {
-        log.debug("Seeking to {} on {}/{}, current position {} (bufStart:{}, bufEnd:{})",
-                position, bucket, key, cursor, bufferOffsetStart, bufferOffsetEnd);
+        log.debug("Seeking to {} on {}/{}, current position {} (bufStart:{}, bufEnd:{}, objectLen: {})",
+                position, bucket, key, cursor, bufferOffsetStart, bufferOffsetEnd, objectLen);
         if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
             long newIndex = position - bufferOffsetStart;
             buffer.readerIndex((int) newIndex);
@@ -135,6 +135,18 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             throw new IOException(String.format("Error seeking, new position %d < current position %d",
                                                 position, cursor));
         }
+    }
+
+    @Override
+    public boolean haveDataToRead() {
+        log.debug("haveDataToRead cursor: {}, objectLen: {}, readableBytes: {}.",
+                cursor, objectLen, this.buffer.readableBytes());
+        return cursor >= objectLen && this.buffer.readableBytes() > 0;
+    }
+
+    @Override
+    public void resetReaderIndex() {
+        this.buffer.resetReaderIndex();
     }
 
     @Override
