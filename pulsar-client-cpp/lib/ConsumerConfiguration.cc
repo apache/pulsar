@@ -209,9 +209,7 @@ ConsumerConfiguration& ConsumerConfiguration::setPriorityLevel(int priorityLevel
     return *this;
 }
 
-int ConsumerConfiguration::getPriorityLevel() const{
-    return impl_->priorityLevel;
-}
+int ConsumerConfiguration::getPriorityLevel() const { return impl_->priorityLevel; }
 
 ConsumerConfiguration& ConsumerConfiguration::setKeySharedPolicy(KeySharedPolicy keySharedPolicy) {
     impl_->keySharedPolicy = keySharedPolicy.clone();

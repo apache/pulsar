@@ -406,11 +406,11 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
 
     /**
-    * Set the Priority Level for consumer (0 is the default value and means the highest priority).
-    *
-    * @param priorityLevel the priority of this consumer
-    * @return the ConsumerConfiguration instance
-    */
+     * Set the Priority Level for consumer (0 is the default value and means the highest priority).
+     *
+     * @param priorityLevel the priority of this consumer
+     * @return the ConsumerConfiguration instance
+     */
     ConsumerConfiguration& setPriorityLevel(int priorityLevel);
 
     /**
