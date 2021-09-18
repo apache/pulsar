@@ -90,7 +90,7 @@ class Commands {
                                      const SchemaInfo& schemaInfo,
                                      proto::CommandSubscribe_InitialPosition subscriptionInitialPosition,
                                      bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
-                                     int priority_level = 0);
+                                     int priorityLevel = 0);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
