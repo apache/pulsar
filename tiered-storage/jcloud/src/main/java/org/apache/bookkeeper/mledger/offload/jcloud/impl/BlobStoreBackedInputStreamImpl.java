@@ -141,7 +141,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     public boolean haveDataToRead() {
         log.debug("haveDataToRead cursor: {}, objectLen: {}, readableBytes: {}.",
                 cursor, objectLen, this.buffer.readableBytes());
-        return cursor >= objectLen && this.buffer.readableBytes() > 0;
+        return cursor < objectLen || this.buffer.readableBytes() > 0;
     }
 
     @Override
