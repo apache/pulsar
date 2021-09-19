@@ -78,11 +78,15 @@ public class PerformanceTransaction {
     private static final LongAdder numMessagesSendFailed = new LongAdder();
     private static final LongAdder numTransactionCommitFailed = new LongAdder();
 
-    private static Recorder messageAckRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
-    private static Recorder messageAckCumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static final Recorder messageAckRecorder =
+            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static final Recorder messageAckCumulativeRecorder =
+            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
-    private static Recorder messageSendRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
-    private static Recorder messageSendRCumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static final Recorder messageSendRecorder =
+            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static final Recorder messageSendRCumulativeRecorder =
+            new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
 
     @Parameters(commandDescription = "Test pulsar transaction performance.")
@@ -171,7 +175,7 @@ public class PerformanceTransaction {
         @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable transaction")
         public boolean isEnableTransaction = true;
 
-        @Parameter(names = {"-end"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
+        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
                 + "true can it take effect)")
         public boolean isCommitTransaction = true;
 
@@ -271,7 +275,6 @@ public class PerformanceTransaction {
                         .build();
 
         ExecutorService executorService = Executors.newFixedThreadPool(arguments.numTestThreads);
-        Semaphore testThreadLimit = new Semaphore(arguments.numTestThreads);
 
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
@@ -287,12 +290,10 @@ public class PerformanceTransaction {
         // start perf test
         AtomicBoolean executing = new AtomicBoolean(true);
         new Thread(() -> {
-            RateLimiter rateLimiter = null;
-            if(arguments.openTxnRate != 0){
-                rateLimiter = RateLimiter.create( (double)arguments.openTxnRate / arguments.numTestThreads);
-            }
+                 RateLimiter rateLimiter = arguments.openTxnRate > 0
+                    ? RateLimiter.create(arguments.openTxnRate)
+                    : null;
             for(int i = 0; i < arguments.numTestThreads; i++) {
-                if (testThreadLimit.tryAcquire() && (rateLimiter == null || rateLimiter.tryAcquire())) {
                     LongAdder messageSend = new LongAdder();
                     LongAdder messageReceived = new LongAdder();
                     executorService.submit(() -> {
@@ -393,6 +394,9 @@ public class PerformanceTransaction {
 
                                 if (messageSend.sum() == arguments.numMessagesProducedPerTransaction
                                         && messageReceived.sum() == arguments.numMessagesReceivedPerTransaction) {
+                                    if(rateLimiter != null){
+                                    rateLimiter.tryAcquire();
+                                    }
                                     if (arguments.isEnableTransaction) {
                                         if (arguments.isCommitTransaction) {
                                             log.info("Committing transaction {}", transaction.getTxnID().toString());
@@ -437,8 +441,6 @@ public class PerformanceTransaction {
                             }
                         }
                     });
-                    testThreadLimit.release();
-                }
             }
         }).start();
 
@@ -471,8 +473,11 @@ public class PerformanceTransaction {
             double rate = numTransaction.sumThenReset() / elapsed;
             reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
             reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
+            String txnOrTaskLog = arguments.isEnableTransaction
+                    ? "Throughput transaction: {} transaction executes --- {} transaction/s"
+                    : "Throughput task: {} task executes --- {} task/s";
             log.info(
-                    "Throughput transaction: {} transaction --- {} transaction/s  ---send Latency: mean: {} ms - med:"
+                    txnOrTaskLog + "  ---send Latency: mean: {} ms - med:"
                             + " {} "
                             + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}" + "---ack Latency: "
                             + "mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}"
@@ -574,7 +579,7 @@ public class PerformanceTransaction {
                 log.error("Failed to build a new transaction with exception : " + e);
             }
         }
-        return null;
+        return new AtomicReference<>(null);
     }
 
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);

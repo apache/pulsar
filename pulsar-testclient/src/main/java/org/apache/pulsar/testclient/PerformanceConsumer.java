@@ -34,6 +34,7 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 
@@ -72,12 +73,12 @@ public class PerformanceConsumer {
     private static final LongAdder totalMessageAckFailed = new LongAdder();
     private static final LongAdder messageAck = new LongAdder();
 
-    private static final LongAdder totalNumTransaction = new LongAdder();
-    private static final LongAdder totalNumTransactionFailed = new LongAdder();
-    private static final LongAdder numTransaction = new LongAdder();
+    private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
+    private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+    private static final LongAdder numTxnOp = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
     static class Arguments {
@@ -203,7 +204,7 @@ public class PerformanceConsumer {
         @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-end"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
+        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
                 + "true can it take effect)")
         public boolean isCommitTransaction = true;
 
@@ -334,7 +335,7 @@ public class PerformanceConsumer {
         PulsarClient pulsarClient = clientBuilder.build();
         AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments);
 
-        LongAdder messageAckedCount = new LongAdder();
+        AtomicLong messageAckedCount = new AtomicLong();
         Semaphore semaphore = new Semaphore(arguments.numMessagesPerTransaction);
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
             try {
@@ -367,22 +368,18 @@ public class PerformanceConsumer {
                 consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
                         totalMessageAck.increment();
                         messageAck.increment();
-                        messageAckedCount.increment();
                     }).exceptionally(throwable ->{
                         log.error("Ack message {} failed with exception {}", msg, throwable.getMessage());
-                        messageAckedCount.increment();
                         totalMessageAckFailed.increment();
                         return null;
                     });
                 } else {
                     consumer.acknowledgeAsync(msg).thenRun(()->{
                         totalMessageAck.increment();
-                        messageAckedCount.increment();
                         messageAck.increment();
                     }
                     ).exceptionally(throwable ->{
                                 log.error("Ack message {} failed with exception {}", msg, throwable.getMessage());
-                                messageAckedCount.increment();
                                 totalMessageAckFailed.increment();
                                 return null;
                             }
@@ -393,26 +390,31 @@ public class PerformanceConsumer {
                 }
 
                 if (arguments.isEnableTransaction
-                        && messageAckedCount.sum() == arguments.numMessagesPerTransaction) {
+                        && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
                     Transaction transaction = atomicReference.get();
                     if (atomicReference.compareAndSet(transaction, pulsarClient.newTransaction().
                             withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get())) {
                         if (arguments.isCommitTransaction) {
-                            transaction.commit().exceptionally(exception -> {
-                                log.error("Commit transaction failed with exception : " + exception.getMessage());
-                                totalNumTransactionFailed.increment();
+                            transaction.commit()
+                                    .thenRun(() -> {
+                                        totalEndTxnOpSuccessNum.increment();
+                                    })
+                                    .exceptionally(exception -> {
+                                log.error("Commit transaction failed with exception : " + exception);
+                                totalEndTxnOpFailNum.increment();
                                 return null;
                             });
                         } else {
-                            transaction.abort(); }
-                        messageAckedCount.reset();
+                            transaction.abort();
+                            totalEndTxnOpSuccessNum.increment();
+                        }
+                        messageAckedCount.set(0);
                         semaphore.release(arguments.numMessagesPerTransaction);
-                        totalNumTransaction.increment();
-                        numTransaction.increment();
+                        numTxnOp.increment();
                     }
                 }
             } catch (Exception e) {
-                log.error("Exception  got in listener : " + e.getMessage());
+                log.error("Consume  fail : " + e);
             }
 
         };
@@ -488,17 +490,25 @@ public class PerformanceConsumer {
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
             double rateAck = messageAck.sumThenReset() / elapsed;
-            long totalTransaction = 0;
+            long totalTxnOpSuccessNum = 0;
+            long totalTxnOpFailNum = 0;
             double averageTimePerTransaction = 0;
             if (arguments.isEnableTransaction) {
-                totalTransaction = totalNumTransaction.sum();
-                averageTimePerTransaction = elapsed / numTransaction.sumThenReset();
+                totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
+                totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
+                averageTimePerTransaction = elapsed / numTxnOp.sumThenReset();
             }
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            String transactionLog = arguments.isEnableTransaction ? "---transaction: " + totalTransaction +
-                    " transaction commit --- " + averageTimePerTransaction + " s/perTxn --- AckRate: " + rateAck
-                    + " msg/s" : "";
+            String transactionLog = "";
+            if(arguments.isEnableTransaction){
+            transactionLog = arguments.isCommitTransaction
+                    ? "--- transaction: " + totalTxnOpSuccessNum + " transaction commit successfully --- "
+                    + totalTxnOpFailNum + " transaction commit failed --- "
+                    : "--- transaction: " + totalTxnOpSuccessNum + " transaction aborted --- ";
+            transactionLog = transactionLog + averageTimePerTransaction
+                    + " s/perTxn --- AckRate: " + rateAck + " msg/s";
+            }
 
             log.info(
                     "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  " + transactionLog
@@ -521,28 +531,28 @@ public class PerformanceConsumer {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesReceived.sum() / elapsed;
         double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
-        long totalTransaction = 0;
-        long totalTransactionFailed = 0;
+        long totalEndTxnSuccess = 0;
+        long totalEndTxnFail = 0;
         long totalnumMessageAckFailed = 0;
         double rateAck = totalMessageAck.sum() / elapsed;
         double averageTimePerTransaction = 0;
         if (arguments.isEnableTransaction) {
-            totalTransaction = totalNumTransaction.sum();
-            averageTimePerTransaction = elapsed / totalNumTransaction.sum();
-            totalTransactionFailed = totalNumTransactionFailed.sum();
+            totalEndTxnSuccess = totalEndTxnOpSuccessNum.sum();
+            totalEndTxnFail = totalEndTxnOpFailNum.sum();
+            averageTimePerTransaction = elapsed / (totalEndTxnSuccess + totalEndTxnFail);
             totalnumMessageAckFailed = totalMessageAckFailed.sum();
         }
+        String transactionLog = "";
+        if(arguments.isEnableTransaction) {
+            transactionLog = arguments.isCommitTransaction
+                    ? "--- transaction: " + totalEndTxnSuccess + " transaction commit successfully --- "
+                    + totalEndTxnFail + " transaction commit failed --- "
+                    : "--- transaction: " + totalEndTxnSuccess + " transaction aborted --- ";
 
-            String commitOrAbortTransaction = arguments.isEnableTransaction
-                    ? " transaction commit --- " + totalTransactionFailed + "transaction commit Failed --- "
-                    : " transaction abort --- ";
-
-
-        String transactionLog = totalNumTransaction.sum() != 0 ? "---transaction: " + totalTransaction +
-                commitOrAbortTransaction + averageTimePerTransaction + " s/Txn "  : "";
-
+             transactionLog = transactionLog + averageTimePerTransaction + " s/Txn ";
+        }
         log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s" + transactionLog + ""
+            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s" + transactionLog
                     + "--- AckRate: {}  msg/s --- ack failed {} msg",
             totalMessagesReceived,
             dec.format(rate),
@@ -571,7 +581,7 @@ public class PerformanceConsumer {
                 log.error("Got transaction error: " + e.getMessage());
             }
         }
-        return null;
+        return new AtomicReference<>(null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);

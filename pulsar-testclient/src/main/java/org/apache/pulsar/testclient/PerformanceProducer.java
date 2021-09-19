@@ -95,12 +95,12 @@ public class PerformanceProducer {
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static final Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
-    private static final LongAdder totalNumTransaction = new LongAdder();
-    private static final LongAdder totalNumTransactionFailed = new LongAdder();
-    private static final LongAdder numTransaction = new LongAdder();
+    private static final LongAdder totalTxnOpSuccessNum = new LongAdder();
+    private static final LongAdder totalTxnOpFailNum = new LongAdder();
+    private static final LongAdder numTxnOp = new LongAdder();
 
     private static IMessageFormatter messageFormatter = null;
 
@@ -271,7 +271,7 @@ public class PerformanceProducer {
         @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-end"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
+        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
                 + "true can it take effect)")
         public boolean isCommitTransaction = true;
     }
@@ -478,19 +478,27 @@ public class PerformanceProducer {
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
             long total = totalMessagesSent.sum();
-            long totalTransaction = 0;
+            long totalTxnSuccess = 0;
+            long totalTxnFail = 0;
             double averageTimePerTxn = 0;
             if (arguments.isEnableTransaction) {
-                totalTransaction = totalNumTransaction.sum();
-                averageTimePerTxn = elapsed / numTransaction.sumThenReset();
+                totalTxnSuccess = totalTxnOpSuccessNum.sum();
+                totalTxnFail = totalTxnOpFailNum.sum();
+                averageTimePerTxn = elapsed / numTxnOp.sumThenReset();
             }
             double rate = messagesSent.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            String transactionLog = arguments.isEnableTransaction ? "--- transaction: " + totalTransaction +
-                    " transaction commit --- " + averageTimePerTxn + " s/perTxn" : "";
+            String transactionLog = "";
+            if(arguments.isEnableTransaction){
+                transactionLog = arguments.isCommitTransaction
+                        ? "--- transaction : " + totalTxnSuccess + " transaction commit successfully ---"
+                        + totalTxnFail + " transaction commit failed --- "
+                        : totalTxnSuccess + " transaction aborted --- ";
+                transactionLog = transactionLog + averageTimePerTxn+ " s/Txn";
+            }
 
             log.info(
                     "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s  " + transactionLog
@@ -636,8 +644,9 @@ public class PerformanceProducer {
             long totalSent = 0;
             AtomicReference<Transaction> transactionAtomicReference = buildTransaction(client, arguments);
             AtomicLong numMessageSend = new AtomicLong(0);
-            Semaphore semaphore = new Semaphore(arguments.numMessagesPerTransaction);
+            Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
+                //if transaction is disable, transaction will be null.
                 Transaction transaction = transactionAtomicReference.get();
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
@@ -660,7 +669,9 @@ public class PerformanceProducer {
                         }
                     }
                     rateLimiter.acquire();
-                    semaphore.acquire();
+                    if(arguments.isEnableTransaction && arguments.numMessagesPerTransaction > 0){
+                    numMsgPerTxnLimit.acquire();
+                    }
                     final long sendTime = System.nanoTime();
 
                     byte[] payloadData;
@@ -714,19 +725,23 @@ public class PerformanceProducer {
                                                 .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
                                                 .build().get())) {
                                     if (arguments.isCommitTransaction) {
-                                        transaction.commit().exceptionally(exception -> {
+                                        transaction.commit()
+                                                .thenRun(() -> {
+                                                    totalTxnOpSuccessNum.increment();
+                                                })
+                                                .exceptionally(exception -> {
                                             log.error("Commit transaction failed with exception : "
                                                     + exception.getMessage());
-                                            totalNumTransactionFailed.increment();
+                                            totalTxnOpFailNum.increment();
                                             return null;
                                         });
                                     } else {
                                         transaction.abort();
+                                        totalTxnOpSuccessNum.increment();
                                     }
-                                    totalNumTransaction.increment();
-                                    numTransaction.increment();
+                                    numTxnOp.increment();
                                     numMessageSend.set(0);
-                                    semaphore.release(arguments.numMessagesPerTransaction);
+                                    numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
                                 }
                             } catch (Exception e) {
                                 log.error("Got error : " + e);
@@ -764,19 +779,24 @@ public class PerformanceProducer {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
-        long totalTransaction = 0;
-        long totalTransactionFailed = 0;
+        long totalTxnSuccess = 0;
+        long totalTxnFail = 0;
         double averageTimeTransaction = 0;
         if (arguments.isEnableTransaction) {
-            totalTransaction = totalNumTransaction.sum();
-            averageTimeTransaction = elapsed / numTransaction.sumThenReset();
-            totalTransactionFailed = totalNumTransactionFailed.sum();
+            totalTxnSuccess = totalTxnOpSuccessNum.sum();
+            totalTxnFail = totalTxnOpFailNum.sum();
+            averageTimeTransaction = elapsed / (totalTxnFail + totalTxnSuccess);
         }
-        String commitOrAbortTransaction = arguments.isCommitTransaction
-                ? " transaction commit --- " + totalTransactionFailed + " transaction commit failed --- "
-                : "transaction abort --- " ;
-        String transactionLog = totalNumTransaction.sum() != 0 ? "---transaction: " + totalTransaction +
-                commitOrAbortTransaction + totalFormat.format(averageTimeTransaction) + " s/Txn" : "";
+
+        String transactionLog = "";
+        if(arguments.isEnableTransaction){
+            transactionLog = arguments.isCommitTransaction
+                    ? "--- transaction : " + totalTxnSuccess + " transaction commit successfully ---"
+                    + totalTxnFail + " transaction commit failed --- "
+                    : totalTxnSuccess + " transaction aborted --- ";
+            transactionLog = transactionLog + totalFormat.format(averageTimeTransaction) + " s/Txn";
+        }
+
         log.info(
             "Aggregated throughput stats --- {} records sent --- {} records send failed --- {} msg/s --- {} Mbit/s "
                     + transactionLog,
@@ -802,6 +822,7 @@ public class PerformanceProducer {
     }
 
     private static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments) {
+
         if (arguments.isEnableTransaction) {
             try {
                 return new AtomicReference(pulsarClient.newTransaction()
@@ -810,7 +831,7 @@ public class PerformanceProducer {
                 log.error("Got transaction error: " + e.getMessage());
             }
         }
-        return null;
+        return new AtomicReference<>(null);
     }
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
