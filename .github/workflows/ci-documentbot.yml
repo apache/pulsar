@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: fengtao1998/auto-labeling@c1c6fc3afaa24bbb5128274f5783917379a3063b
+      - uses: apache/pulsar-test-infra/doc-label-check@master
         with:
           github-token: ${{ secrets.PULSARBOT_TOKEN }}
           label-pattern: '- \[(.*?)\] ?`(.+?)`' # matches '- [x] `label`'
