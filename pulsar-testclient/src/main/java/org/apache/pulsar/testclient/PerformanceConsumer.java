@@ -405,8 +405,16 @@ public class PerformanceConsumer {
                                 return null;
                             });
                         } else {
-                            transaction.abort();
-                            totalEndTxnOpSuccessNum.increment();
+                            transaction.abort().thenRun(() -> {
+                                log.info("Abort transaction {}", transaction.getTxnID().toString());
+                                totalEndTxnOpSuccessNum.increment();
+                            }).exceptionally(exception -> {
+                                log.error("Commit transaction {} failed with exception {}",
+                                        transaction.getTxnID().toString(),
+                                        exception);
+                                totalEndTxnOpFailNum.increment();
+                                return null;
+                            });
                         }
                         messageAckedCount.set(0);
                         semaphore.release(arguments.numMessagesPerTransaction);
@@ -492,26 +500,34 @@ public class PerformanceConsumer {
             double rateAck = messageAck.sumThenReset() / elapsed;
             long totalTxnOpSuccessNum = 0;
             long totalTxnOpFailNum = 0;
-            double averageTimePerTransaction = 0;
+            double rateOpenTxn = 0;
             if (arguments.isEnableTransaction) {
                 totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
-                averageTimePerTransaction = elapsed / numTxnOp.sumThenReset();
+                rateOpenTxn = numTxnOp.sumThenReset() / elapsed;
             }
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            String transactionLog = "";
-            if(arguments.isEnableTransaction){
-            transactionLog = arguments.isCommitTransaction
-                    ? "--- transaction: " + totalTxnOpSuccessNum + " transaction commit successfully --- "
-                    + totalTxnOpFailNum + " transaction commit failed --- "
-                    : "--- transaction: " + totalTxnOpSuccessNum + " transaction aborted --- ";
-            transactionLog = transactionLog + averageTimePerTransaction
-                    + " s/perTxn --- AckRate: " + rateAck + " msg/s";
-            }
-
+            if(arguments.isEnableTransaction) {
+                log.info(
+                        "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  "
+                                + "--- Transaction: {} transaction end successfully --- {} transaction end failed "
+                                + "--- {}  Txn/s --- AckRate: {} msg/s"
+                                + "--- Latency: mean: {} ms - med: {} "
+                                + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                        intFormat.format(total),
+                        dec.format(rate), dec.format(throughput),
+                        totalTxnOpSuccessNum,
+                        totalTxnOpFailNum,
+                        dec.format(rateOpenTxn),
+                        dec.format(rateAck),
+                        dec.format(reportHistogram.getMean()),
+                        reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
+                        reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
+                        reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+            }else {
             log.info(
-                    "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  " + transactionLog
+                    "Throughput received: {} msg --- {}  msg/s -- {} Mbit/s  "
                             + "--- Latency: mean: {} ms - med: {} "
                             + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
@@ -519,10 +535,9 @@ public class PerformanceConsumer {
                     reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
                     reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
                     reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
-
             reportHistogram.reset();
             oldTime = now;
-        }
+        }}
 
         pulsarClient.close();
     }
@@ -535,31 +550,37 @@ public class PerformanceConsumer {
         long totalEndTxnFail = 0;
         long totalnumMessageAckFailed = 0;
         double rateAck = totalMessageAck.sum() / elapsed;
-        double averageTimePerTransaction = 0;
+        double rateOpenTxn = 0;
         if (arguments.isEnableTransaction) {
             totalEndTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalEndTxnFail = totalEndTxnOpFailNum.sum();
-            averageTimePerTransaction = elapsed / (totalEndTxnSuccess + totalEndTxnFail);
+            rateOpenTxn = (totalEndTxnSuccess + totalEndTxnFail) / elapsed;
             totalnumMessageAckFailed = totalMessageAckFailed.sum();
         }
-        String transactionLog = "";
-        if(arguments.isEnableTransaction) {
-            transactionLog = arguments.isCommitTransaction
-                    ? "--- transaction: " + totalEndTxnSuccess + " transaction commit successfully --- "
-                    + totalEndTxnFail + " transaction commit failed --- "
-                    : "--- transaction: " + totalEndTxnSuccess + " transaction aborted --- ";
-
-             transactionLog = transactionLog + averageTimePerTransaction + " s/Txn ";
-        }
+        if(arguments.isEnableTransaction){
+            log.info(
+                    "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s -"
+                            + "-- Transaction: {}  transaction end successfully --- {} transaction end failed "
+                            + "--- {} Txn/s"
+                            + " --- AckRate: {}  msg/s --- ack failed {} msg",
+                    totalMessagesReceived.sum(),
+                    dec.format(rate),
+                    dec.format(throughput),
+                    totalEndTxnSuccess,
+                    totalEndTxnFail,
+                    dec.format(rateOpenTxn),
+                    dec.format(rateAck),
+                    totalnumMessageAckFailed);
+        }else {
         log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s" + transactionLog
-                    + "--- AckRate: {}  msg/s --- ack failed {} msg",
-            totalMessagesReceived,
+            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s"
+                 + "--- AckRate: {}  msg/s --- ack failed {} msg",
+            totalMessagesReceived.sum(),
             dec.format(rate),
             dec.format(throughput),
                 rateAck,
                 totalnumMessageAckFailed);
-    }
+    }}
 
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();

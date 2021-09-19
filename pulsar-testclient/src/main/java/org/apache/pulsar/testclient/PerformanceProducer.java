@@ -98,8 +98,8 @@ public class PerformanceProducer {
     private static final Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
-    private static final LongAdder totalTxnOpSuccessNum = new LongAdder();
-    private static final LongAdder totalTxnOpFailNum = new LongAdder();
+    private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
+    private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
     private static final LongAdder numTxnOp = new LongAdder();
 
     private static IMessageFormatter messageFormatter = null;
@@ -478,42 +478,50 @@ public class PerformanceProducer {
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
             long total = totalMessagesSent.sum();
-            long totalTxnSuccess = 0;
-            long totalTxnFail = 0;
-            double averageTimePerTxn = 0;
+            long totalTxnOpSuccess = 0;
+            long totalTxnOpFail = 0;
+            double rateOpenTxn = 0;
             if (arguments.isEnableTransaction) {
-                totalTxnSuccess = totalTxnOpSuccessNum.sum();
-                totalTxnFail = totalTxnOpFailNum.sum();
-                averageTimePerTxn = elapsed / numTxnOp.sumThenReset();
+                totalTxnOpSuccess = totalEndTxnOpSuccessNum.sum();
+                totalTxnOpFail = totalEndTxnOpFailNum.sum();
+                rateOpenTxn = numTxnOp.sumThenReset() / elapsed;
             }
             double rate = messagesSent.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            String transactionLog = "";
             if(arguments.isEnableTransaction){
-                transactionLog = arguments.isCommitTransaction
-                        ? "--- transaction : " + totalTxnSuccess + " transaction commit successfully ---"
-                        + totalTxnFail + " transaction commit failed --- "
-                        : totalTxnSuccess + " transaction aborted --- ";
-                transactionLog = transactionLog + averageTimePerTxn+ " s/Txn";
-            }
-
-            log.info(
-                    "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s  " + transactionLog
-                            + "--- Latency: mean: "
-                            + "{} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    intFormat.format(total),
-                    throughputFormat.format(rate), throughputFormat.format(throughput),
-                    dec.format(reportHistogram.getMean() / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                    dec.format(reportHistogram.getMaxValue() / 1000.0));
-
+                log.info(
+                        "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s  "
+                                + "--- Transaction : {} transaction end successfully ---{} transaction end failed "
+                                + "--- {} Txn/s"
+                                + "--- Latency: mean: "
+                                + "{} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                        intFormat.format(total),
+                        throughputFormat.format(rate), throughputFormat.format(throughput),
+                        totalTxnOpSuccess, totalTxnOpFail, totalFormat.format(rateOpenTxn),
+                        dec.format(reportHistogram.getMean() / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
+                        dec.format(reportHistogram.getMaxValue() / 1000.0));
+            }else {
+                log.info(
+                        "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s  "
+                                + "--- Latency: mean: "
+                                + "{} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                        intFormat.format(total),
+                        throughputFormat.format(rate), throughputFormat.format(throughput),
+                        dec.format(reportHistogram.getMean() / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
+                        dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
+                        dec.format(reportHistogram.getMaxValue() / 1000.0)); }
             histogramLogWriter.outputIntervalHistogram(reportHistogram);
             reportHistogram.reset();
 
@@ -727,17 +735,25 @@ public class PerformanceProducer {
                                     if (arguments.isCommitTransaction) {
                                         transaction.commit()
                                                 .thenRun(() -> {
-                                                    totalTxnOpSuccessNum.increment();
+                                                    totalEndTxnOpSuccessNum.increment();
                                                 })
                                                 .exceptionally(exception -> {
                                             log.error("Commit transaction failed with exception : "
                                                     + exception.getMessage());
-                                            totalTxnOpFailNum.increment();
+                                                    totalEndTxnOpFailNum.increment();
                                             return null;
                                         });
                                     } else {
-                                        transaction.abort();
-                                        totalTxnOpSuccessNum.increment();
+                                        transaction.abort().thenRun(() -> {
+                                            log.info("Abort transaction {}", transaction.getTxnID().toString());
+                                            totalEndTxnOpSuccessNum.increment();
+                                        }).exceptionally(exception -> {
+                                            log.error("Commit transaction {} failed with exception {}",
+                                                    transaction.getTxnID().toString(),
+                                                    exception);
+                                            totalEndTxnOpFailNum.increment();
+                                            return null;
+                                        });
                                     }
                                     numTxnOp.increment();
                                     numMessageSend.set(0);
@@ -781,29 +797,34 @@ public class PerformanceProducer {
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
         long totalTxnSuccess = 0;
         long totalTxnFail = 0;
-        double averageTimeTransaction = 0;
+        double rateOpenTxn = 0;
         if (arguments.isEnableTransaction) {
-            totalTxnSuccess = totalTxnOpSuccessNum.sum();
-            totalTxnFail = totalTxnOpFailNum.sum();
-            averageTimeTransaction = elapsed / (totalTxnFail + totalTxnSuccess);
+            totalTxnSuccess = totalEndTxnOpSuccessNum.sum();
+            totalTxnFail = totalEndTxnOpFailNum.sum();
+            rateOpenTxn = elapsed / (totalTxnFail + totalTxnSuccess);
         }
 
-        String transactionLog = "";
         if(arguments.isEnableTransaction){
-            transactionLog = arguments.isCommitTransaction
-                    ? "--- transaction : " + totalTxnSuccess + " transaction commit successfully ---"
-                    + totalTxnFail + " transaction commit failed --- "
-                    : totalTxnSuccess + " transaction aborted --- ";
-            transactionLog = transactionLog + totalFormat.format(averageTimeTransaction) + " s/Txn";
-        }
-
+            log.info(
+                    "Aggregated throughput stats --- {} records sent --- {} records send failed --- {} msg/s "
+                            + "--- {} Mbit/s "
+                            + "--- Transaction : {} transaction end successfully --- {} transaction end failed "
+                            + "--- {} Txn/s",
+                    totalMessagesSent.sum(),
+                    totalMessagesSendFailed.sum(),
+                    totalFormat.format(rate),
+                    totalFormat.format(throughput),
+                    totalTxnSuccess,
+                    totalTxnFail,
+                    totalFormat.format(rateOpenTxn));
+        }else{
         log.info(
-            "Aggregated throughput stats --- {} records sent --- {} records send failed --- {} msg/s --- {} Mbit/s "
-                    + transactionLog,
-            totalMessagesSent,
-            totalMessagesSendFailed,
+            "Aggregated throughput stats --- {} records sent --- {} records send failed --- {} msg/s --- {} Mbit/s ",
+            totalMessagesSent.sum(),
+            totalMessagesSendFailed.sum(),
             totalFormat.format(rate),
             totalFormat.format(throughput));
+        }
     }
 
     private static void printAggregatedStats() {

@@ -82,7 +82,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMsg() throws Exception {
-        String argString = "--topics-c %s --topics-p %s -threads 5 -ntxn 5 -u %s -ss %s -np 1 -au %s";
+        String argString = "--topics-c %s --topics-p %s -threads 5 -ntxn 500 -u %s -ss %s -np 1 -au %s";
         String testConsumeTopic = testTopic + UUID.randomUUID().toString();
         String testProduceTopic = testTopic + UUID.randomUUID().toString();
         String testSub = "testSub";
@@ -104,7 +104,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         CountDownLatch countDownLatch = new CountDownLatch(500);
-        for (int i = 0; i < 500
+        for (int i = 0; i < 5000
                 ; i++) {
             produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(() -> {
                 countDownLatch.countDown();
