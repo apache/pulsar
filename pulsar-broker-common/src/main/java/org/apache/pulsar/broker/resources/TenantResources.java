@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfo;

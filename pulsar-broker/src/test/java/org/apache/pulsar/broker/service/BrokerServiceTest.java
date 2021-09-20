@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -87,6 +85,7 @@ import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -1176,10 +1175,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         final int totalBundle = 3;
         System.err.println("----------------");
         admin.namespaces().createNamespace(namespace, BundlesData.builder().numBundles(totalBundle).build());
+        admin.topics().createNonPartitionedTopic(namespace + "/test");
 
-        String globalPath = joinPath(LOCAL_POLICIES_ROOT, namespace);
-        pulsar.getLocalZkCacheService().policiesCache().clear();
-        Optional<LocalPolicies> policy = pulsar.getLocalZkCacheService().policiesCache().get(globalPath);
+        Optional<LocalPolicies> policy = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(
+                NamespaceName.get(namespace));
         assertTrue(policy.isPresent());
         assertEquals(policy.get().bundles.getNumBundles(), totalBundle);
     }
