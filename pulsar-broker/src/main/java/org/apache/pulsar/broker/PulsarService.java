@@ -325,6 +325,13 @@ public class PulsarService implements AutoCloseable {
                         .build());
     }
 
+    /**
+     * Close the session to the metadata service.
+     *
+     * This will immediately release all the resource locks held by this broker on the coordination service.
+     *
+     * @throws IOException if the close operation fails
+     */
     public void closeMetadataServiceSession() throws IOException {
         localZooKeeperConnectionProvider.close();
     }
