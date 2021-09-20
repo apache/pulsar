@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
@@ -88,6 +89,18 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
             return producer.newMessage().key(getEventKey(event)).value(event).sendAsync();
         }
 
+        @Override
+        public MessageId delete(PulsarEvent event) throws PulsarClientException {
+            validateActionType(event);
+            return producer.newMessage().key(getEventKey(event)).value(null).send();
+        }
+
+        @Override
+        public CompletableFuture<MessageId> deleteAsync(PulsarEvent event) {
+            validateActionType(event);
+            return producer.newMessage().key(getEventKey(event)).value(null).sendAsync();
+        }
+
         private String getEventKey(PulsarEvent event) {
             return TopicName.get(event.getTopicPoliciesEvent().getDomain(),
                 event.getTopicPoliciesEvent().getTenant(),
@@ -112,6 +125,12 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public SystemTopicClient<PulsarEvent> getSystemTopicClient() {
             return systemTopicClient;
+        }
+    }
+
+    private static void validateActionType(PulsarEvent event) {
+        if (event == null || !ActionType.DELETE.equals(event.getActionType())) {
+            throw new UnsupportedOperationException("The only supported ActionType is DELETE");
         }
     }
 
