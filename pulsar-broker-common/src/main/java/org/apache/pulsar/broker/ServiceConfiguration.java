@@ -122,17 +122,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf requests."
-            + "If set, defines a server binding for bindAddress:brokerServicePort"
-            + "without an associated advertised listener."
-            + "The Default value is 6650."
+            + " If set, defines a server binding for bindAddress:brokerServicePort."
+            + " The Default value is 6650."
     )
 
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving TLS-secured binary protobuf requests."
-            + "If set, defines a server binding for bindAddress:brokerServicePortTls"
-            + "without an associated advertised listener."
+            + " If set, defines a server binding for bindAddress:brokerServicePortTls."
     )
     private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
@@ -175,12 +173,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category=CATEGORY_SERVER,
             doc = "Used to specify additional bind addresses for the broker."
-                    + "The value must format as <listener_name>:<scheme>://<host>:<port>,"
-                    + "multiple bind addresses should be separated with commas."
-                    + "Associates each bind address with an advertised listener and protocol handler."
-                    + "Note that the brokerServicePort, brokerServicePortTls, webServicePort, and "
-                    + "webServicePortTls properties define additional bindings."
-                    + ".")
+                    + " The value must format as <listener_name>:<scheme>://<host>:<port>,"
+                    + " multiple bind addresses should be separated with commas."
+                    + " Associates each bind address with an advertised listener and protocol handler."
+                    + " Note that the brokerServicePort, brokerServicePortTls, webServicePort, and"
+                    + " webServicePortTls properties define additional bindings.")
     private String bindAddresses;
 
     @FieldContext(category=CATEGORY_SERVER,

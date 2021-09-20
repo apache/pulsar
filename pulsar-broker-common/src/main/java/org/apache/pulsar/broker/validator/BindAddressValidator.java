@@ -30,14 +30,12 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.configuration.BindAddress;
 
-import static java.util.stream.Collectors.toList;
-
 /**
  * Validates bind address configurations.
  */
 public class BindAddressValidator {
 
-    private static final Pattern bindAddress = Pattern.compile("(?<name>\\w+):(?<url>.+)$");
+    private static final Pattern BIND_ADDRESSES_PATTERN = Pattern.compile("(?<name>\\w+):(?<url>.+)$");
 
     /**
      * Validate the configuration of `bindAddresses`.
@@ -52,8 +50,13 @@ public class BindAddressValidator {
         // parse the list of additional bind addresses
         Arrays
                 .stream(StringUtils.split(StringUtils.defaultString(config.getBindAddresses()), ","))
-                .map(bindAddress::matcher)
-                .filter(Matcher::matches)
+                .map(s -> {
+                    Matcher m = BIND_ADDRESSES_PATTERN.matcher(s);
+                    if (!m.matches()) {
+                        throw new IllegalArgumentException("bindAddresses: malformed: " + s);
+                    }
+                    return m;
+                })
                 .map(m -> new BindAddress(m.group("name"), URI.create(m.group("url"))))
                 .forEach(addresses::add);
 
