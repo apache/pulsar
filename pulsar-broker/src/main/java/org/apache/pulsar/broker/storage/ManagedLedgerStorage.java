@@ -93,7 +93,7 @@ public interface ManagedLedgerStorage extends AutoCloseable {
                                        BookKeeperClientFactory bkProvider,
                                        EventLoopGroup eventLoopGroup) throws Exception {
         final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
-        final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.newInstance();
+        final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.getDeclaredConstructor().newInstance();
         storage.initialize(conf, metadataStore, zkClient, bkProvider, eventLoopGroup);
         return storage;
     }

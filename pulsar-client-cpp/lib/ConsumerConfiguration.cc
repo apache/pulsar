@@ -201,6 +201,16 @@ ConsumerConfiguration& ConsumerConfiguration::setProperties(
     return *this;
 }
 
+ConsumerConfiguration& ConsumerConfiguration::setPriorityLevel(int priorityLevel) {
+    if (priorityLevel < 0) {
+        throw std::invalid_argument("Consumer Config Exception: PriorityLevel should be nonnegative number.");
+    }
+    impl_->priorityLevel = priorityLevel;
+    return *this;
+}
+
+int ConsumerConfiguration::getPriorityLevel() const { return impl_->priorityLevel; }
+
 ConsumerConfiguration& ConsumerConfiguration::setKeySharedPolicy(KeySharedPolicy keySharedPolicy) {
     impl_->keySharedPolicy = keySharedPolicy.clone();
     return *this;

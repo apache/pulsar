@@ -50,6 +50,7 @@ TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.isEncryptionEnabled(), false);
     ASSERT_EQ(conf.isReplicateSubscriptionStateEnabled(), false);
     ASSERT_EQ(conf.getProperties().empty(), true);
+    ASSERT_EQ(conf.getPriorityLevel(), 0);
 }
 
 TEST(ConsumerConfigurationTest, testCustomConfig) {
@@ -124,6 +125,9 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
     conf.setProperty("k1", "v1");
     ASSERT_EQ(conf.getProperties()["k1"], "v1");
     ASSERT_EQ(conf.hasProperty("k1"), true);
+
+    conf.setPriorityLevel(1);
+    ASSERT_EQ(conf.getPriorityLevel(), 1);
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {

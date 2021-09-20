@@ -62,7 +62,8 @@ public class AuthorizationService {
         try {
             final String providerClassname = conf.getAuthorizationProvider();
             if (StringUtils.isNotBlank(providerClassname)) {
-                provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
+                provider = (AuthorizationProvider) Class.forName(providerClassname)
+                        .getDeclaredConstructor().newInstance();
                 provider.initialize(conf, pulsarResources);
                 log.info("{} has been loaded.", providerClassname);
             } else {
