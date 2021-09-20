@@ -38,7 +38,7 @@ public interface TransactionPendingAckStoreProvider {
         Class<?> providerClass;
         try {
             providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
+            Object obj = providerClass.getDeclaredConstructor().newInstance();
             checkArgument(obj instanceof TransactionPendingAckStoreProvider,
                     "The factory has to be an instance of "
                             + TransactionPendingAckStoreProvider.class.getName());

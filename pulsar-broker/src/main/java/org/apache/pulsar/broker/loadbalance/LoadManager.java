@@ -130,7 +130,7 @@ public interface LoadManager {
             final ServiceConfiguration conf = pulsar.getConfiguration();
             final Class<?> loadManagerClass = Class.forName(conf.getLoadManagerClassName());
             // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = loadManagerClass.newInstance();
+            final Object loadManagerInstance = loadManagerClass.getDeclaredConstructor().newInstance();
             if (loadManagerInstance instanceof LoadManager) {
                 final LoadManager casted = (LoadManager) loadManagerInstance;
                 casted.initialize(pulsar);

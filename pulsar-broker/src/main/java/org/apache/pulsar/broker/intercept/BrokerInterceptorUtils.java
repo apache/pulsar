@@ -130,7 +130,7 @@ public class BrokerInterceptorUtils {
 
         try {
             Class interceptorClass = ncl.loadClass(def.getInterceptorClass());
-            Object interceptor = interceptorClass.newInstance();
+            Object interceptor = interceptorClass.getDeclaredConstructor().newInstance();
             if (!(interceptor instanceof BrokerInterceptor)) {
                 throw new IOException("Class " + def.getInterceptorClass()
                         + " does not implement broker interceptor interface");
