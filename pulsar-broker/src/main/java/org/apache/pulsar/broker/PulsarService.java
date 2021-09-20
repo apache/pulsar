@@ -170,6 +170,7 @@ import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
+import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
@@ -1214,7 +1215,7 @@ public class PulsarService implements AutoCloseable {
     private SchemaStorage createAndStartSchemaStorage() throws Exception {
         final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
         Object factoryInstance = storageClass.newInstance();
-        Method createMethod = storageClass.getMethod("create", PulsarService.class);
+        Method createMethod = storageClass.getMethod("create", PulsarService.class, ZooKeeper.class);
         SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this,
                 localZooKeeperConnectionProvider.getLocalZooKeeper());
         schemaStorage.start();
