@@ -524,6 +524,7 @@ BSD 3-clause "New" or "Revised" License
     - com.google.auth-google-auth-library-oauth2-http-0.20.0.jar -- licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
+ * JLine -- jline-jline-2.14.6.jar -- licenses/LICENSE-JLine.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- licenses/LICENSE-HdrHistogram.txt
