@@ -2328,6 +2328,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
+        if (!factory.isMetadataServiceAvailable()) {
+            // Defer trimming of ledger if we cannot connect to metadata service
+            promise.complete(null);
+            return;
+        }
+
         // Ensure only one trimming operation is active
         if (!trimmerMutex.tryLock()) {
             scheduleDeferredTrimming(isTruncate, promise);
