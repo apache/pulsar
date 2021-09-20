@@ -110,6 +110,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
@@ -1777,6 +1778,61 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.addEntry("data".getBytes());
         ledger.addEntry("data".getBytes());
+        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+    }
+
+    @Test
+    public void testNoRolloverIfNoMetadataSession() throws Exception {
+        ManagedLedgerConfig conf = new ManagedLedgerConfig();
+        conf.setMaxEntriesPerLedger(1);
+        conf.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testNoRolloverIfNoMetadataSession", conf);
+        ledger.openCursor("c1");
+
+        metadataStore.triggerSessionEvent(SessionEvent.SessionLost);
+
+        for (int i = 1; i < 10; i++) {
+            ledger.addEntry("data".getBytes());
+        }
+
+        // This should not have changed
+        assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+
+        metadataStore.triggerSessionEvent(SessionEvent.SessionReestablished);
+        ledger.addEntry("data".getBytes());
+        ledger.addEntry("data".getBytes());
+        ledger.addEntry("data".getBytes());
+
+        // After the re-establishment, we'll be creating new ledgers
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+    }
+
+    @Test
+    public void testNoRolloverIfNoMetadataSessionWithExistingData() throws Exception {
+        ManagedLedgerConfig conf = new ManagedLedgerConfig();
+        conf.setMaxEntriesPerLedger(2);
+        conf.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testNoRolloverIfNoMetadataSession", conf);
+        ledger.openCursor("c1");
+
+        ledger.addEntry("data".getBytes());
+
+        assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+
+        metadataStore.triggerSessionEvent(SessionEvent.SessionLost);
+
+        for (int i = 1; i < 10; i++) {
+            ledger.addEntry("data".getBytes());
+        }
+
+        // This should not have changed
+        assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+
+        metadataStore.triggerSessionEvent(SessionEvent.SessionReestablished);
+        ledger.addEntry("data".getBytes());
+        ledger.addEntry("data".getBytes());
+
+        // After the re-establishment, we'll be creating new ledgers
         assertEquals(ledger.getLedgersInfoAsList().size(), 2);
     }
 
