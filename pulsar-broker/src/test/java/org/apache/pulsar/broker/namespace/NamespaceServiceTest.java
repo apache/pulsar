@@ -30,15 +30,14 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,9 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -66,16 +63,13 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -341,12 +335,16 @@ public class NamespaceServiceTest extends BrokerTestBase {
         String path1 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri1.getHost(), uri1.getPort());
         String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
 
-        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path1,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
-        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path2,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
+        pulsar.getLocalMetadataStore().put(path1,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
+                Optional.empty(),
+                EnumSet.of(CreateOption.Ephemeral)
+                ).join();
+        pulsar.getLocalMetadataStore().put(path2,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
+                Optional.empty(),
+                EnumSet.of(CreateOption.Ephemeral)
+        ).join();
         LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1, false, null).get();
 
         // update to new load manager
@@ -371,9 +369,11 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
         URI uri = new URI(candidateBroker);
         String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
-        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
+
+        pulsar.getLocalMetadataStore().put(path,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
+                Optional.empty(),
+                EnumSet.of(CreateOption.Ephemeral));
 
         LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
         LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();

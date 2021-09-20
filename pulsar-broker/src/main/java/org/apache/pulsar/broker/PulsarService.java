@@ -325,6 +325,17 @@ public class PulsarService implements AutoCloseable {
                         .build());
     }
 
+    /**
+     * Close the session to the metadata service.
+     *
+     * This will immediately release all the resource locks held by this broker on the coordination service.
+     *
+     * @throws IOException if the close operation fails
+     */
+    public void closeMetadataServiceSession() throws IOException {
+        localZooKeeperConnectionProvider.close();
+    }
+
     @Override
     public void close() throws PulsarServerException {
         try {
@@ -632,7 +643,8 @@ public class PulsarService implements AutoCloseable {
             this.bkClientFactory = newBookKeeperClientFactory();
 
             managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore, getZkClient(), bkClientFactory, ioEventLoopGroup
+                config, localMetadataStore, localZooKeeperConnectionProvider.getLocalZooKeeper(),
+                    bkClientFactory, ioEventLoopGroup
             );
 
             this.brokerService = newBrokerService(this);
@@ -1062,10 +1074,6 @@ public class PulsarService implements AutoCloseable {
         return config.getStatusFilePath();
     }
 
-    public ZooKeeper getZkClient() {
-        return this.localZooKeeperConnectionProvider.getLocalZooKeeper();
-    }
-
     /**
      * Get default bookkeeper metadata service uri.
      */
@@ -1214,8 +1222,9 @@ public class PulsarService implements AutoCloseable {
     private SchemaStorage createAndStartSchemaStorage() throws Exception {
         final Class<?> storageClass = Class.forName(config.getSchemaRegistryStorageClassName());
         Object factoryInstance = storageClass.getDeclaredConstructor().newInstance();
-        Method createMethod = storageClass.getMethod("create", PulsarService.class);
-        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this);
+        Method createMethod = storageClass.getMethod("create", PulsarService.class, ZooKeeper.class);
+        SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, this,
+                localZooKeeperConnectionProvider.getLocalZooKeeper());
         schemaStorage.start();
         return schemaStorage;
     }
