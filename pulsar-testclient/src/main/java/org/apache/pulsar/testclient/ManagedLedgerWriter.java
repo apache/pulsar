@@ -77,6 +77,8 @@ public class ManagedLedgerWriter {
 
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
+    private static final LongAdder totalMessagesSent = new LongAdder();
+    private static final LongAdder totalBytesSent = new LongAdder();
 
     private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
@@ -214,11 +216,11 @@ public class ManagedLedgerWriter {
 
         log.info("Created {} managed ledgers", managedLedgers.size());
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                printAggregatedStats();
-            }
-        });
+        long start = System.nanoTime();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            printAggregatedThroughput(start);
+            printAggregatedStats();
+        }));
 
         Collections.shuffle(managedLedgers);
         AtomicBoolean isDone = new AtomicBoolean();
@@ -249,6 +251,8 @@ public class ManagedLedgerWriter {
                             long sendTime = (Long) (ctx);
                             messagesSent.increment();
                             bytesSent.add(payloadData.length);
+                            totalMessagesSent.increment();
+                            totalBytesSent.add(payloadData.length);
 
                             long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - sendTime);
                             recorder.recordValue(latencyMicros);
@@ -380,6 +384,17 @@ public class ManagedLedgerWriter {
         return map;
     }
 
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;
+        double rate = totalMessagesSent.sum() / elapsed;
+        double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
+        log.info(
+                "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
+                totalMessagesSent,
+                totalFormat.format(rate),
+                totalFormat.format(throughput));
+    }
+
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
@@ -397,5 +412,6 @@ public class ManagedLedgerWriter {
 
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
+    static final DecimalFormat totalFormat = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerWriter.class);
 }
