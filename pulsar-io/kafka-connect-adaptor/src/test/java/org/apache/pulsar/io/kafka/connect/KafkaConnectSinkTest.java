@@ -265,8 +265,6 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
                 .failFunction(status::decrementAndGet)
                 .build();
 
-        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(schema);
-
         sink.write(record);
         sink.flush();
 
