@@ -92,6 +92,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
 
+    private static final byte[] EMPTY_CREDENTIALS = new byte[0];
+
     enum State {
         Init,
 
@@ -315,7 +317,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 return;
             }
 
-            AuthData clientData = AuthData.of(connect.hasAuthData() ? connect.getAuthData() : null);
+            AuthData clientData = AuthData.of(connect.hasAuthData() ? connect.getAuthData() : EMPTY_CREDENTIALS);
             if (connect.hasAuthMethodName()) {
                 authMethod = connect.getAuthMethodName();
             } else if (connect.hasAuthMethod()) {
