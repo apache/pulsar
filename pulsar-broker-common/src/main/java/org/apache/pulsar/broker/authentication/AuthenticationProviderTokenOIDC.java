@@ -25,10 +25,10 @@ import java.net.MalformedURLException;
 import java.net.SocketAddress;
 import java.net.URL;
 
-import java.nio.charset.Charset;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 import java.util.List;
+
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
@@ -52,6 +52,7 @@ import org.apache.pulsar.common.api.AuthData;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import com.auth0.jwt.interfaces.DecodedJWT;
+
 
 public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
 
@@ -100,6 +101,7 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
     private String confJWkUrlSettingName;
 
 
+
     @Override
     public void close() throws IOException {
         // noop
@@ -118,25 +120,19 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
         this.confTokenAudienceSettingName = CONF_TOKEN_AUDIENCE;
         this.confJWkUrlSettingName = CONF_ISSUER_URL;
 
-
         // we need to fetch the algorithm before we fetch the key
         this.roleClaim = getTokenRoleClaim(config);
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
         this.issuerUrl = getIssuerUrl(config);
 
-        try {
-            URL url = new URL(this.issuerUrl+"/.well-known/openid-configuration");
-            if(!url.getProtocol().equals("https")){
-                throw new MalformedURLException("protocol needs to be https");
-            }
-            //extracting the jwks_uri
-            JsonObject json = new Gson().fromJson(IOUtils.toString(url, UTF_8), JsonObject.class);
-            this.provider = new UrlJwkProvider(new URL(json.get("jwks_uri").getAsString()));
-        } catch (MalformedURLException e){
-            throw new MalformedURLException("Url is malformed");
+        URL url = new URL(this.issuerUrl+"/.well-known/openid-configuration");
+        if(!url.getProtocol().equals("https")){
+            throw new MalformedURLException("protocol needs to be https");
         }
-
+        //extracting the jwks_uri
+        JsonObject json = new Gson().fromJson(IOUtils.toString(url, UTF_8), JsonObject.class);
+        this.provider = new UrlJwkProvider(new URL(json.get("jwks_uri").getAsString()));
 
 
 
