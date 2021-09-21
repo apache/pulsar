@@ -143,7 +143,7 @@ public class NonPersistentSubscription implements Subscription {
                 break;
             case Key_Shared:
                 KeySharedMeta ksm = consumer.getKeySharedMeta();
-                KeySharedMode keySharedMode = ksm.getKeySharedMode();
+                keySharedMode = ksm.getKeySharedMode();
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
                         || ((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getKeySharedMode()
                         != keySharedMode) {

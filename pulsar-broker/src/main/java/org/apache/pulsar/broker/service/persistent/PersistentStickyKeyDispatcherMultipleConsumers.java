@@ -54,7 +54,6 @@ import org.slf4j.LoggerFactory;
 
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers {
 
-    private final KeySharedMode keySharedMode;
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
 
@@ -75,7 +74,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
 
-        this.keySharedMode = ksm.getKeySharedMode();
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
         this.stuckConsumers = new HashSet<>();
@@ -426,10 +424,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     public boolean isAllowOutOfOrderDelivery() {
         return allowOutOfOrderDelivery;
-    }
-
-    public KeySharedMode getKeySharedMode() {
-        return keySharedMode;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
