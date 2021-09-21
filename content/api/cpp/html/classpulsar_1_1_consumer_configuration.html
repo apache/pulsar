@@ -199,6 +199,10 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a8399c4f4aa28a7373c46709f9206ecf3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab2c0ddeaf2537c4f7959b81f2ef64a5d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#ab2c0ddeaf2537c4f7959b81f2ef64a5d">setProperties</a> (const std::map&lt; std::string, std::string &gt; &amp;properties)</td></tr>
 <tr class="separator:ab2c0ddeaf2537c4f7959b81f2ef64a5d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa9693c31afb355845c28afc29a37b2e1"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#aa9693c31afb355845c28afc29a37b2e1">setPriorityLevel</a> (int priorityLevel)</td></tr>
+<tr class="separator:aa9693c31afb355845c28afc29a37b2e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a742efdf93be5237b73e3a466f35a093a"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a742efdf93be5237b73e3a466f35a093a">getPriorityLevel</a> () const </td></tr>
+<tr class="separator:a742efdf93be5237b73e3a466f35a093a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -417,6 +421,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>the time duration for the PatternMultiTopicsConsumer performs a pattern auto discovery </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a742efdf93be5237b73e3a466f35a093a"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int pulsar::ConsumerConfiguration::getPriorityLevel </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the configured priority for the consumer </dd></dl>
 
 </div>
 </div>
@@ -891,6 +911,30 @@ false if the property is not defined </dd></dl>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a class="anchor" id="aa9693c31afb355845c28afc29a37b2e1"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a>&amp; pulsar::ConsumerConfiguration::setPriorityLevel </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>priorityLevel</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the Priority Level for consumer (0 is the default value and means the highest priority).</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">priorityLevel</td><td>the priority of this consumer </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>the <a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> instance </dd></dl>
 
 </div>
 </div>
