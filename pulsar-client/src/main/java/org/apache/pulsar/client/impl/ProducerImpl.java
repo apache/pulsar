@@ -29,9 +29,7 @@ import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Auto;
 import static org.apache.pulsar.client.impl.ProducerBase.MultiSchemaMode.Enabled;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
-
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -39,10 +37,10 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -50,13 +48,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -100,7 +98,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // Variable is used through the atomic updater
     private volatile long msgIdGenerator;
 
-    private final Queue<OpSendMsg> pendingMessages;
+    private final OpSendMsgQueue pendingMessages;
     private final Optional<Semaphore> semaphore;
     private volatile Timeout sendTimeout = null;
     private final long lookupDeadline;
@@ -260,8 +258,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         grabCnx();
     }
 
-    protected Queue<OpSendMsg> createPendingMessagesQueue() {
-        return new ArrayDeque<>();
+    protected OpSendMsgQueue createPendingMessagesQueue() {
+        return new OpSendMsgQueue();
     }
 
     public ConnectionHandler getConnectionHandler() {
@@ -1288,6 +1286,72 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 return new OpSendMsg(handle);
             }
         };
+    }
+
+    /**
+     * Queue implementation that is used as the pending messages queue.
+     *
+     * This implementation postpones adding of new OpSendMsg entries that happen
+     * while the forEach call is in progress. This is needed for preventing
+     * ConcurrentModificationExceptions that would occur when the forEach action
+     * calls the add method via a callback in user code.
+     *
+     * This queue is not thread safe.
+     */
+    protected static class OpSendMsgQueue implements Iterable<OpSendMsg> {
+        private final Queue<OpSendMsg> delegate = new ArrayDeque<>();
+        private int forEachDepth = 0;
+        private List<OpSendMsg> postponedOpSendMgs;
+
+        @Override
+        public void forEach(Consumer<? super OpSendMsg> action) {
+            try {
+                // track any forEach call that is in progress in the current call stack
+                // so that adding a new item while iterating doesn't cause ConcurrentModificationException
+                forEachDepth++;
+                delegate.forEach(action);
+            } finally {
+                forEachDepth--;
+                // if this is the top-most forEach call and there are postponed items, add them
+                if (forEachDepth == 0 && postponedOpSendMgs != null && !postponedOpSendMgs.isEmpty()) {
+                    delegate.addAll(postponedOpSendMgs);
+                    postponedOpSendMgs.clear();
+                }
+            }
+        }
+
+        public boolean add(OpSendMsg o) {
+            // postpone adding to the queue while forEach iteration is in progress
+            if (forEachDepth > 0) {
+                if (postponedOpSendMgs == null) {
+                    postponedOpSendMgs = new ArrayList<>();
+                }
+                return postponedOpSendMgs.add(o);
+            } else {
+                return delegate.add(o);
+            }
+        }
+
+        public void clear() {
+            delegate.clear();
+        }
+
+        public void remove() {
+            delegate.remove();
+        }
+
+        public OpSendMsg peek() {
+            return delegate.peek();
+        }
+
+        public int size() {
+            return delegate.size();
+        }
+
+        @Override
+        public Iterator<OpSendMsg> iterator() {
+            return delegate.iterator();
+        }
     }
 
     @Override
