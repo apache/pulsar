@@ -108,7 +108,7 @@ public interface AuthenticationProvider extends Closeable {
      * Validate the authentication for the given credentials with the specified authentication data.
      *
      * <p>Warning: the calling thread is an IO thread. Any implementations that rely on blocking behavior
-     * should ensure that the execution is completed on using a separate thread pool to ensure IO threads
+     * must ensure that the execution is completed on using a separate thread pool to ensure IO threads
      * are never blocked.</p>
      *
      * <p>Note: this method is marked as unstable because the Pulsar code base only calls it for the
