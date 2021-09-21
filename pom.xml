@@ -1964,7 +1964,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
@@ -2028,7 +2027,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-sasl</module>
