@@ -2724,23 +2724,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void asyncCloseCursorLedger(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        LedgerHandle lh = cursorLedger;
-        ledger.mbean.startCursorLedgerCloseOp();
-        log.info("[{}] [{}] Closing metadata ledger {}", ledger.getName(), name, lh.getId());
-        lh.asyncClose(new CloseCallback() {
-            @Override
-            public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
-                ledger.mbean.endCursorLedgerCloseOp();
-                if (rc == BKException.Code.OK) {
-                    callback.closeComplete(ctx);
-                } else {
-                    callback.closeFailed(createManagedLedgerException(rc), ctx);
-                }
-            }
-        }, ctx);
-    }
-
     void decrementPendingMarkDeleteCount() {
         if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.decrementAndGet(this) == 0) {
             final State state = STATE_UPDATER.get(this);
