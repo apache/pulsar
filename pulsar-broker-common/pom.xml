@@ -77,6 +77,13 @@
     </dependency>
 
     <dependency>
+      <groupId>com.github.tomakehurst</groupId>
+      <artifactId>wiremock-jre8</artifactId>
+      <version>2.31.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-jackson</artifactId>
     </dependency>
