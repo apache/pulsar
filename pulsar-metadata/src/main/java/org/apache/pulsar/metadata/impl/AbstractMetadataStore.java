@@ -40,6 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.common.util.FutureUtil;
@@ -65,6 +67,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
 
+    @Getter
+    private boolean isConnected = true;
+
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
@@ -85,7 +90,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     @Override
                     public CompletableFuture<List<String>> asyncReload(String key, List<String> oldValue,
                             Executor executor) {
-                        return getChildrenFromStore(key);
+                        if (isConnected) {
+                            return getChildrenFromStore(key);
+                        } else {
+                            // Do not refresh if we're not connected
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
 
@@ -100,7 +110,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
                             Executor executor) {
-                        return existsFromStore(key);
+                        if (isConnected) {
+                            return existsFromStore(key);
+                        } else {
+                            // Do not refresh if we're not connected
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
     }
@@ -246,6 +261,18 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     protected void receivedSessionEvent(SessionEvent event) {
+        switch (event) {
+            case Reconnected:
+            case SessionReestablished:
+                isConnected = true;
+                break;
+
+            case ConnectionLost:
+            case SessionLost:
+                isConnected = false;
+                break;
+        }
+
         sessionListeners.forEach(l -> {
             try {
                 l.accept(event);
