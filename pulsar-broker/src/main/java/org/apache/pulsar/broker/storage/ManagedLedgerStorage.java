@@ -27,7 +27,7 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
 import org.apache.pulsar.common.classification.InterfaceStability.Unstable;
-import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.zookeeper.ZooKeeper;
 
 /**
@@ -46,7 +46,7 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * @throws Exception
      */
     void initialize(ServiceConfiguration conf,
-                    MetadataStore metadataStore,
+                    MetadataStoreExtended metadataStore,
                     ZooKeeper zkClient,
                     BookKeeperClientFactory bookkeeperProvider,
                     EventLoopGroup eventLoopGroup) throws Exception;
@@ -88,7 +88,7 @@ public interface ManagedLedgerStorage extends AutoCloseable {
      * @return the initialized managed ledger storage.
      */
     static ManagedLedgerStorage create(ServiceConfiguration conf,
-                                       MetadataStore metadataStore,
+                                       MetadataStoreExtended metadataStore,
                                        ZooKeeper zkClient,
                                        BookKeeperClientFactory bkProvider,
                                        EventLoopGroup eventLoopGroup) throws Exception {
