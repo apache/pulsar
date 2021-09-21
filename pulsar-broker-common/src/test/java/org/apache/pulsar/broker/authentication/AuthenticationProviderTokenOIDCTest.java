@@ -20,15 +20,11 @@
 package org.apache.pulsar.broker.authentication;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
 
-import jdk.internal.net.http.common.Log;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.Properties;
