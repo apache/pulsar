@@ -73,6 +73,19 @@ MessageListener ConsumerConfiguration::getMessageListener() const { return impl_
 
 bool ConsumerConfiguration::hasMessageListener() const { return impl_->hasMessageListener; }
 
+ConsumerConfiguration& ConsumerConfiguration::setConsumerEventListener(
+    ConsumerEventListenerPtr eventListener) {
+    impl_->eventListener = eventListener;
+    impl_->hasConsumerEventListener = true;
+    return *this;
+}
+
+ConsumerEventListenerPtr ConsumerConfiguration::getConsumerEventListener() const {
+    return impl_->eventListener;
+}
+
+bool ConsumerConfiguration::hasConsumerEventListener() const { return impl_->hasConsumerEventListener; }
+
 void ConsumerConfiguration::setReceiverQueueSize(int size) { impl_->receiverQueueSize = size; }
 
 int ConsumerConfiguration::getReceiverQueueSize() const { return impl_->receiverQueueSize; }

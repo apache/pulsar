@@ -47,6 +47,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       subscription_(subscriptionName),
       originalSubscriptionName_(subscriptionName),
       messageListener_(config_.getMessageListener()),
+      eventListener_(config_.getConsumerEventListener()),
       hasParent_(hasParent),
       consumerTopicType_(consumerTopicType),
       subscriptionMode_(subscriptionMode),
@@ -385,6 +386,25 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         while (numOfMessageReceived--) {
             listenerExecutor_->postWork(std::bind(&ConsumerImpl::internalListener, shared_from_this()));
         }
+    }
+}
+
+void ConsumerImpl::activeConsumerChanged(bool isActive) {
+    if (eventListener_) {
+        listenerExecutor_->postWork(
+            std::bind(&ConsumerImpl::internalConsumerChangeListener, shared_from_this(), isActive));
+    }
+}
+
+void ConsumerImpl::internalConsumerChangeListener(bool isActive) {
+    try {
+        if (isActive) {
+            eventListener_->becomeActive(Consumer(shared_from_this()), partitionIndex_);
+        } else {
+            eventListener_->becomeInactive(Consumer(shared_from_this()), partitionIndex_);
+        }
+    } catch (const std::exception& e) {
+        LOG_ERROR(getName() << "Exception thrown from event listener " << e.what());
     }
 }
 

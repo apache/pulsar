@@ -28,11 +28,19 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
+class DummyEventListener : public ConsumerEventListener {
+   public:
+    virtual void becomeActive(Consumer consumer, int partitionId) override {}
+
+    virtual void becomeInactive(Consumer consumer, int partitionId) override {}
+};
+
 TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ConsumerConfiguration conf;
     ASSERT_EQ(conf.getSchema().getSchemaType(), SchemaType::BYTES);
     ASSERT_EQ(conf.getConsumerType(), ConsumerExclusive);
     ASSERT_EQ(conf.hasMessageListener(), false);
+    ASSERT_EQ(conf.hasConsumerEventListener(), false);
     ASSERT_EQ(conf.getReceiverQueueSize(), 1000);
     ASSERT_EQ(conf.getMaxTotalReceiverQueueSizeAcrossPartitions(), 50000);
     ASSERT_EQ(conf.getConsumerName(), "");
@@ -71,6 +79,9 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
 
     conf.setMessageListener([](Consumer consumer, const Message& msg) {});
     ASSERT_EQ(conf.hasMessageListener(), true);
+
+    conf.setConsumerEventListener(std::make_shared<DummyEventListener>());
+    ASSERT_EQ(conf.hasConsumerEventListener(), true);
 
     conf.setReceiverQueueSize(2000);
     ASSERT_EQ(conf.getReceiverQueueSize(), 2000);

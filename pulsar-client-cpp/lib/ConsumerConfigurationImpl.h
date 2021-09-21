@@ -35,6 +35,8 @@ struct ConsumerConfigurationImpl {
     ConsumerType consumerType{ConsumerExclusive};
     MessageListener messageListener;
     bool hasMessageListener{false};
+    ConsumerEventListenerPtr eventListener;
+    bool hasConsumerEventListener{false};
     int receiverQueueSize{1000};
     int maxTotalReceiverQueueSizeAcrossPartitions{50000};
     std::string consumerName;
