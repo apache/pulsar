@@ -223,7 +223,7 @@ public class SubscribeRateLimiter {
         SubscribeRate subscribeRate = getPoliciesSubscribeRate(serviceConfig.getClusterName(), policies, topicName);
         if (subscribeRate == null) {
             return serviceConfig.getSubscribeThrottlingRatePerConsumer() > 0
-                    || serviceConfig.getSubscribeRatePeriodPerConsumerInSecond() > 0;
+                    && serviceConfig.getSubscribeRatePeriodPerConsumerInSecond() > 0;
         }
         return true;
     }
