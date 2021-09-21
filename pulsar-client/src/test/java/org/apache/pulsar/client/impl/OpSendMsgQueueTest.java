@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import java.util.ArrayList;
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -56,7 +56,7 @@ public class OpSendMsgQueueTest {
         });
 
         // then
-        assertEquals(new ArrayList<>(queue), Arrays.asList(opSendMsg, opSendMsg2));
+        assertEquals(Lists.newArrayList(queue), Arrays.asList(opSendMsg, opSendMsg2));
     }
 
     @Test
@@ -80,6 +80,6 @@ public class OpSendMsgQueueTest {
         });
 
         // then
-        assertEquals(new ArrayList<>(queue), Arrays.asList(opSendMsg, opSendMsg2, opSendMsg3, opSendMsg4));
+        assertEquals(Lists.newArrayList(queue), Arrays.asList(opSendMsg, opSendMsg2, opSendMsg3, opSendMsg4));
     }
 }

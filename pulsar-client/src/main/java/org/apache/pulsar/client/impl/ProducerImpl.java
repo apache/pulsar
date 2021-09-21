@@ -98,7 +98,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // Variable is used through the atomic updater
     private volatile long msgIdGenerator;
 
-    private final Queue<OpSendMsg> pendingMessages;
+    private final OpSendMsgQueue pendingMessages;
     private final Optional<Semaphore> semaphore;
     private volatile Timeout sendTimeout = null;
     private final long lookupDeadline;
@@ -258,7 +258,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         grabCnx();
     }
 
-    protected Queue<OpSendMsg> createPendingMessagesQueue() {
+    protected OpSendMsgQueue createPendingMessagesQueue() {
         return new OpSendMsgQueue();
     }
 
@@ -1299,37 +1299,59 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      *
      * This queue is not thread safe.
      */
-    protected static class OpSendMsgQueue extends ArrayDeque<OpSendMsg> {
-        // SpotBugs requires this class to follow rules for serializable classes
-        private static final long serialVersionUID = 1L;
+    protected static class OpSendMsgQueue implements Iterable<OpSendMsg> {
+        private final Queue<OpSendMsg> delegate = new ArrayDeque<>();
         private int forEachDepth = 0;
-        private final transient List<OpSendMsg> postponedOpSendMgs = new ArrayList<>();
+        private List<OpSendMsg> postponedOpSendMgs;
 
         @Override
-        public void forEach(Consumer action) {
+        public void forEach(Consumer<? super OpSendMsg> action) {
             try {
                 // track any forEach call that is in progress in the current call stack
                 // so that adding a new item while iterating doesn't cause ConcurrentModificationException
                 forEachDepth++;
-                super.forEach(action);
+                delegate.forEach(action);
             } finally {
                 forEachDepth--;
                 // if this is the top-most forEach call and there are postponed items, add them
-                if (forEachDepth == 0 && !postponedOpSendMgs.isEmpty()) {
-                    super.addAll(postponedOpSendMgs);
+                if (forEachDepth == 0 && postponedOpSendMgs != null && !postponedOpSendMgs.isEmpty()) {
+                    delegate.addAll(postponedOpSendMgs);
                     postponedOpSendMgs.clear();
                 }
             }
         }
 
-        @Override
         public boolean add(OpSendMsg o) {
             // postpone adding to the queue while forEach iteration is in progress
             if (forEachDepth > 0) {
+                if (postponedOpSendMgs == null) {
+                    postponedOpSendMgs = new ArrayList<>();
+                }
                 return postponedOpSendMgs.add(o);
             } else {
-                return super.add(o);
+                return delegate.add(o);
             }
+        }
+
+        public void clear() {
+            delegate.clear();
+        }
+
+        public void remove() {
+            delegate.remove();
+        }
+
+        public OpSendMsg peek() {
+            return delegate.peek();
+        }
+
+        public int size() {
+            return delegate.size();
+        }
+
+        @Override
+        public Iterator<OpSendMsg> iterator() {
+            return delegate.iterator();
         }
     }
 
