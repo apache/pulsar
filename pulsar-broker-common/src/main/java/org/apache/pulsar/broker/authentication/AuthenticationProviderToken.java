@@ -54,7 +54,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When symmetric key is configured
-    static final String CONF_TOKEN_SETTING_PREFIX = "";
+    static final String CONF_TOKEN_SETTING_PREFIX = "tokenSettingPrefix";
 
     // When symmetric key is configured
     static final String CONF_TOKEN_SECRET_KEY = "tokenSecretKey";
@@ -253,14 +253,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
      * Try to get the validation key for tokens from several possible config options.
      */
     private Key getValidationKey(ServiceConfiguration conf) throws IOException {
-        if (conf.getProperty(confTokenSecretKeySettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenSecretKeySettingName))) {
-            final String validationKeyConfig = (String) conf.getProperty(confTokenSecretKeySettingName);
+        Object tokenSecretKey = conf.getProperty(confTokenSecretKeySettingName);
+        Object tokenPublicKey = conf.getProperty(confTokenPublicKeySettingName);
+        if (tokenSecretKey != null && StringUtils.isNotBlank((String) tokenSecretKey)) {
+            final String validationKeyConfig = (String) tokenSecretKey;
             final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
             return AuthTokenUtils.decodeSecretKey(validationKey);
-        } else if (conf.getProperty(confTokenPublicKeySettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenPublicKeySettingName))) {
-            final String validationKeyConfig = (String) conf.getProperty(confTokenPublicKeySettingName);
+        } else if (tokenPublicKey != null && StringUtils.isNotBlank((String) tokenPublicKey)) {
+            final String validationKeyConfig = (String) tokenPublicKey;
             final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
             return AuthTokenUtils.decodePublicKey(validationKey, publicKeyAlg);
         } else {
@@ -269,18 +269,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     private String getTokenRoleClaim(ServiceConfiguration conf) throws IOException {
-        if (conf.getProperty(confTokenAuthClaimSettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenAuthClaimSettingName))) {
-            return (String) conf.getProperty(confTokenAuthClaimSettingName);
+        Object tokenAuthClaim = conf.getProperty(confTokenAuthClaimSettingName);
+        if (tokenAuthClaim != null && StringUtils.isNotBlank((String) tokenAuthClaim)) {
+            return (String) tokenAuthClaim;
         } else {
             return Claims.SUBJECT;
         }
     }
 
     private SignatureAlgorithm getPublicKeyAlgType(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(confTokenPublicAlgSettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenPublicAlgSettingName))) {
-            String alg = (String) conf.getProperty(confTokenPublicAlgSettingName);
+        Object tokenPublicAlg = conf.getProperty(confTokenPublicAlgSettingName);
+        if (tokenPublicAlg != null && StringUtils.isNotBlank((String) tokenPublicAlg)) {
+            String alg = (String) tokenPublicAlg;
             try {
                 return SignatureAlgorithm.forName(alg);
             } catch (SignatureException ex) {
@@ -293,9 +293,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // get Token Audience Claim from configuration, if not configured return null.
     private String getTokenAudienceClaim(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(confTokenAudienceClaimSettingName) != null
-            && StringUtils.isNotBlank((String) conf.getProperty(confTokenAudienceClaimSettingName))) {
-            return (String) conf.getProperty(confTokenAudienceClaimSettingName);
+        Object tokenAudienceClaim = conf.getProperty(confTokenAudienceClaimSettingName);
+        if (tokenAudienceClaim != null && StringUtils.isNotBlank((String) tokenAudienceClaim)) {
+            return (String) tokenAudienceClaim;
         } else {
             return null;
         }
@@ -303,9 +303,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // get Token Audience that stands for this broker from configuration, if not configured return null.
     private String getTokenAudience(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(confTokenAudienceSettingName) != null
-            && StringUtils.isNotBlank((String) conf.getProperty(confTokenAudienceSettingName))) {
-            return (String) conf.getProperty(confTokenAudienceSettingName);
+        Object tokenAudience = conf.getProperty(confTokenAudienceSettingName);
+        if (tokenAudience != null && StringUtils.isNotBlank((String) tokenAudience)) {
+            return (String) tokenAudience;
         } else {
             return null;
         }
