@@ -52,6 +52,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -150,6 +151,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
+    private ConcurrentHashMap<String, MessageIdImpl> chunkMessageIds;
+
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
@@ -170,6 +173,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.semaphore = Optional.empty();
         }
+        this.chunkMessageIds = new ConcurrentHashMap<>();
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
@@ -1000,6 +1004,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         OpSendMsg finalOp = op;
         LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
         op.setMessageId(ledgerId, entryId, partitionIndex);
+        if (op.totalChunks > 1) {
+            if (op.chunkId == 0) {
+                chunkMessageIds.put(op.msg.getMessageBuilder().getUuid(),
+                        new MessageIdImpl(ledgerId, entryId, partitionIndex));
+            } else if (op.chunkId == op.totalChunks - 1) {
+                MessageIdImpl firstChunkMsgId = chunkMessageIds.get(op.msg.getMessageBuilder().getUuid());
+                if (firstChunkMsgId != null) {
+                    op.setMessageId(firstChunkMsgId.ledgerId, firstChunkMsgId.entryId, firstChunkMsgId.partitionIndex);
+                }
+            }
+        }
+
         // if message is chunked then call callback only on last chunk
         if (op.totalChunks <= 1 || (op.chunkId == op.totalChunks - 1)) {
             try {
