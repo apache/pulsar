@@ -54,8 +54,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -97,7 +95,6 @@ public class PersistentSubscriptionTest {
     private MetadataStore store;
     private ManagedLedger ledgerMock;
     private ManagedCursorImpl cursorMock;
-    private ConfigurationCacheService configCacheServiceMock;
     private PersistentTopic topic;
     private PersistentSubscription persistentSubscription;
     private Consumer consumerMock;
@@ -174,28 +171,8 @@ public class PersistentSubscriptionTest {
         doReturn(mlFactoryMock).when(pulsarMock).getManagedLedgerFactory();
 
         ZooKeeper zkMock = createMockZooKeeper();
-        doReturn(zkMock).when(pulsarMock).getZkClient();
         doReturn(createMockBookKeeper(executor))
                 .when(pulsarMock).getBookKeeperClient();
-
-        ZooKeeperCache cache = mock(ZooKeeperCache.class);
-        doReturn(30).when(cache).getZkOperationTimeoutSeconds();
-        CompletableFuture getDataFuture = new CompletableFuture();
-        getDataFuture.complete(Optional.empty());
-        doReturn(getDataFuture).when(cache).getDataAsync(anyString(), any(), any());
-        doReturn(cache).when(pulsarMock).getLocalZkCache();
-
-        configCacheServiceMock = mock(ConfigurationCacheService.class);
-        @SuppressWarnings("unchecked")
-        ZooKeeperDataCache<Policies> zkPoliciesDataCacheMock = mock(ZooKeeperDataCache.class);
-        doReturn(zkPoliciesDataCacheMock).when(configCacheServiceMock).policiesCache();
-        doReturn(configCacheServiceMock).when(pulsarMock).getConfigurationCache();
-        doReturn(Optional.empty()).when(zkPoliciesDataCacheMock).get(anyString());
-
-        LocalZooKeeperCacheService zkCacheMock = mock(LocalZooKeeperCacheService.class);
-        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkPoliciesDataCacheMock).getAsync(any());
-        doReturn(zkPoliciesDataCacheMock).when(zkCacheMock).policiesCache();
-        doReturn(zkCacheMock).when(pulsarMock).getLocalZkCacheService();
 
         store = new ZKMetadataStore(zkMock);
         doReturn(store).when(pulsarMock).getLocalMetadataStore();

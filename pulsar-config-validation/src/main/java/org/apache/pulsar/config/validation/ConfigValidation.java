@@ -95,7 +95,7 @@ public class ConfigValidation {
                     if (hasConstructor(clazz, Map.class)) {
                         o = clazz.getConstructor(Map.class).newInstance(params);
                     } else { //If not call default constructor
-                        o = clazz.newInstance();
+                        o = clazz.getDeclaredConstructor().newInstance();
                     }
                     o.validateField(fieldName, value);
                 }

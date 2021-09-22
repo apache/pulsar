@@ -484,7 +484,7 @@ public class PerformanceProducer {
         try {
             ClassLoader classLoader = PerformanceProducer.class.getClassLoader();
             Class clz = classLoader.loadClass(formatterClass);
-            return (IMessageFormatter) clz.newInstance();
+            return (IMessageFormatter) clz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             return null;
         }

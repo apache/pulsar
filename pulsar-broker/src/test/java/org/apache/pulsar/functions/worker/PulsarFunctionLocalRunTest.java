@@ -630,7 +630,7 @@ public class PulsarFunctionLocalRunTest {
         int totalMsgs = 5;
         Method setBaseValueMethod = avroTestObjectClass.getMethod("setBaseValue", new Class[]{int.class});
         for (int i = 0; i < totalMsgs; i++) {
-            Object avroTestObject = avroTestObjectClass.newInstance();
+            Object avroTestObject = avroTestObjectClass.getDeclaredConstructor().newInstance();
             setBaseValueMethod.invoke(avroTestObject, i);
             producer.newMessage().property(propertyKey, propertyValue)
                     .value(avroTestObject).send();
@@ -672,7 +672,8 @@ public class PulsarFunctionLocalRunTest {
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
-        producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass.newInstance()).send();
+        producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass
+                .getDeclaredConstructor().newInstance()).send();
         Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(msg);
 

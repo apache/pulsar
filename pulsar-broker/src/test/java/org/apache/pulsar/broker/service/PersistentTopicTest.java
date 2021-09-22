@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
@@ -91,8 +90,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -158,7 +155,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private MetadataStore store;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
-    private ConfigurationCacheService configCacheService;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     final String successPartitionTopicName = "persistent://prop/use/ns-abc/successTopic-partition-0";
@@ -193,26 +189,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         }).when(mlFactoryMock).asyncDelete(any(), any(), any());
 
         ZooKeeper mockZk = createMockZooKeeper();
-        doReturn(mockZk).when(pulsar).getZkClient();
         doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
-        ZooKeeperCache cache = mock(ZooKeeperCache.class);
-        doReturn(30).when(cache).getZkOperationTimeoutSeconds();
-        doReturn(cache).when(pulsar).getLocalZkCache();
-
-        configCacheService = mock(ConfigurationCacheService.class);
-        @SuppressWarnings("unchecked")
-        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
-        doReturn(zkDataCache).when(configCacheService).policiesCache();
-        doReturn(configCacheService).when(pulsar).getConfigurationCache();
-        doReturn(Optional.empty()).when(zkDataCache).get(any());
-
-        LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
-        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
-        doReturn(zkDataCache).when(zkCache).policiesCache();
-        doReturn(configCacheService).when(pulsar).getConfigurationCache();
-        doReturn(zkCache).when(pulsar).getLocalZkCacheService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
         store = new ZKMetadataStore(mockZk);
@@ -580,9 +559,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // set max clients
         Policies policies = new Policies();
         policies.max_producers_per_topic = 2;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
                 .thenReturn(Optional.of(policies));
+
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                        .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                        .thenReturn(Optional.of(policies));
         testMaxProducers();
     }
 
@@ -915,9 +898,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Policies policies = new Policies();
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(policies);
+
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
 
         testMaxConsumersShared();
     }
@@ -1011,9 +998,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
 
-        when(pulsar.getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(policies);
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
         testMaxConsumersFailover();
     }
 
