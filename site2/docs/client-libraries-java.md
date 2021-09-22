@@ -171,7 +171,7 @@ stringProducer.send("My message");
 
 ### Configure producer
 
-If you instantiate a `Producer` object by specifying only a topic name as the example above, the default configuration of producer is used.. 
+If you instantiate a `Producer` object by specifying only a topic name as the example above, the default configuration of producer is used.
 
 If you create a producer, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
 
