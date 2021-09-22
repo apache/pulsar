@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -125,6 +126,7 @@ public class TwoPhaseCompactor extends Compactor {
                 MessageId id = m.getMessageId();
                 boolean deletedMessage = false;
                 boolean replaceMessage = false;
+                mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
                         for (ImmutableTriple<MessageId, String, Integer> e : RawBatchConverter
@@ -234,6 +236,7 @@ public class TwoPhaseCompactor extends Compactor {
             try {
                 MessageId id = m.getMessageId();
                 Optional<RawMessage> messageToAdd = Optional.empty();
+                mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
                 if (RawBatchConverter.isReadableBatch(m)) {
                     try {
                         messageToAdd = RawBatchConverter.rebatchMessage(
@@ -262,7 +265,7 @@ public class TwoPhaseCompactor extends Compactor {
                     RawMessage message = messageToAdd.get();
                     try {
                         outstanding.acquire();
-                        CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message)
+                        CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message, reader.getTopic())
                                 .whenComplete((res, exception2) -> {
                                     outstanding.release();
                                     if (exception2 != null) {
@@ -363,12 +366,15 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> addToCompactedLedger(LedgerHandle lh, RawMessage m) {
+    private CompletableFuture<Void> addToCompactedLedger(LedgerHandle lh, RawMessage m, String topic) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         ByteBuf serialized = m.serialize();
         try {
+            mxBean.addCompactionWriteOp(topic, m.getHeadersAndPayload().readableBytes());
+            long start = System.nanoTime();
             lh.asyncAddEntry(serialized,
                     (rc, ledger, eid, ctx) -> {
+                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
                         if (rc != BKException.Code.OK) {
                             bkf.completeExceptionally(BKException.create(rc));
                         } else {

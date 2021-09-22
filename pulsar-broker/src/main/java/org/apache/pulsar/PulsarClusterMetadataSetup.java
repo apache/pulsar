@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -31,7 +30,9 @@ import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
-import org.apache.pulsar.broker.admin.ZkAdminPaths;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,9 +41,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -238,13 +237,7 @@ public class PulsarClusterMetadataSetup {
             createMetadataNode(localStore, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes());
         }
 
-        createMetadataNode(localStore, "/managed-ledgers", new byte[0]);
-
-        createMetadataNode(localStore, "/namespace", new byte[0]);
-
-        createMetadataNode(configStore, POLICIES_ROOT, new byte[0]);
-
-        createMetadataNode(configStore, "/admin/clusters", new byte[0]);
+        PulsarResources resources = new PulsarResources(localStore, configStore);
 
         ClusterData clusterData = ClusterData.builder()
                 .serviceUrl(arguments.clusterWebServiceUrl)
@@ -252,28 +245,28 @@ public class PulsarClusterMetadataSetup {
                 .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
                 .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
                 .build();
-        byte[] clusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData);
-
-        createMetadataNode(configStore, "/admin/clusters/" + arguments.cluster, clusterDataJson);
+        if (!resources.getClusterResources().clusterExists(arguments.cluster)) {
+            resources.getClusterResources().createCluster(arguments.cluster, clusterData);
+        }
 
         // Create marker for "global" cluster
         ClusterData globalClusterData = ClusterData.builder().build();
-        byte[] globalClusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(globalClusterData);
-
-        createMetadataNode(configStore, "/admin/clusters/global", globalClusterDataJson);
+        if (!resources.getClusterResources().clusterExists("global")) {
+            resources.getClusterResources().createCluster("global", globalClusterData);
+        }
 
         // Create public tenant, whitelisted to use the this same cluster, along with other clusters
-        createTenantIfAbsent(configStore, TopicName.PUBLIC_TENANT, arguments.cluster);
+        createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 
         // Create system tenant
-        createTenantIfAbsent(configStore, NamespaceName.SYSTEM_NAMESPACE.getTenant(), arguments.cluster);
+        createTenantIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(), arguments.cluster);
 
         // Create default namespace
-        createNamespaceIfAbsent(configStore, NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
+        createNamespaceIfAbsent(resources, NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
                 arguments.cluster);
 
         // Create system namespace
-        createNamespaceIfAbsent(configStore, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
+        createNamespaceIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
 
         // Create transaction coordinator assign partitioned topic
         createPartitionedTopic(configStore, TopicName.TRANSACTION_COORDINATOR_ASSIGN,
@@ -285,77 +278,58 @@ public class PulsarClusterMetadataSetup {
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
     }
 
-    static void createTenantIfAbsent(MetadataStore configStore, String tenant, String cluster) throws IOException,
+    static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster) throws IOException,
             InterruptedException, ExecutionException {
 
-        String tenantPath = POLICIES_ROOT + "/" + tenant;
+        TenantResources tenantResources = resources.getTenantResources();
 
-        Optional<GetResult> getResult = configStore.get(tenantPath).get();
-        if (!getResult.isPresent()) {
+        if (!tenantResources.tenantExists(tenant)) {
             TenantInfoImpl publicTenant = new TenantInfoImpl(Collections.emptySet(), Collections.singleton(cluster));
-
-            createMetadataNode(configStore, tenantPath,
-                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant));
+            tenantResources.createTenant(tenant, publicTenant);
         } else {
             // Update existing public tenant with new cluster
-            byte[] content = getResult.get().getValue();
-            TenantInfoImpl publicTenant = ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfoImpl.class);
-
-            // Only update z-node if the list of clusters should be modified
-            if (!publicTenant.getAllowedClusters().contains(cluster)) {
-                publicTenant.getAllowedClusters().add(cluster);
-
-                configStore.put(tenantPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
-                        Optional.of(getResult.get().getStat().getVersion()));
-            }
+            tenantResources.updateTenantAsync(tenant, ti -> {
+                ti.getAllowedClusters().add(cluster);
+                return ti;
+            }).get();
         }
     }
 
-    static void createNamespaceIfAbsent(MetadataStore configStore, NamespaceName namespaceName, String cluster)
-            throws InterruptedException, IOException, ExecutionException {
-        String namespacePath = POLICIES_ROOT + "/" + namespaceName.toString();
-        Policies policies;
-        Optional<GetResult> getResult = configStore.get(namespacePath).get();
-        if (!getResult.isPresent()) {
-            policies = new Policies();
+    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName, String cluster)
+            throws IOException {
+        NamespaceResources namespaceResources = resources.getNamespaceResources();
+
+        if (!namespaceResources.namespaceExists(namespaceName)) {
+            Policies policies = new Policies();
             policies.bundles = getBundles(16);
             policies.replication_clusters = Collections.singleton(cluster);
 
-            createMetadataNode(configStore, namespacePath,
-                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies));
+            namespaceResources.createPolicies(namespaceName, policies);
         } else {
-            byte[] content = getResult.get().getValue();
-            policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
-
-            // Only update z-node if the list of clusters should be modified
-            if (!policies.replication_clusters.contains(cluster)) {
+            namespaceResources.setPolicies(namespaceName, policies -> {
                 policies.replication_clusters.add(cluster);
-
-                configStore.put(namespacePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
-                        Optional.of(getResult.get().getStat().getVersion()));
-            }
+                return policies;
+            });
         }
     }
 
     static void createPartitionedTopic(MetadataStore configStore, TopicName topicName, int numPartitions)
             throws InterruptedException, IOException, ExecutionException {
-        String partitionedTopicPath = ZkAdminPaths.partitionedTopicPath(topicName);
-        Optional<GetResult> getResult = configStore.get(partitionedTopicPath).get();
-        PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions);
-        if (!getResult.isPresent()) {
-            createMetadataNode(configStore, partitionedTopicPath,
-                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(metadata));
-        } else {
-            byte[] content = getResult.get().getValue();
-            PartitionedTopicMetadata existsMeta =
-                    ObjectMapperFactory.getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
+        PulsarResources resources = new PulsarResources(null, configStore);
+        NamespaceResources.PartitionedTopicResources partitionedTopicResources =
+                resources.getNamespaceResources().getPartitionedTopicResources();
 
-            // Only update z-node if the partitions should be modified
+        Optional<PartitionedTopicMetadata> getResult =
+                partitionedTopicResources.getPartitionedTopicMetadataAsync(topicName).get();
+        if (!getResult.isPresent()) {
+            partitionedTopicResources.createPartitionedTopic(topicName, new PartitionedTopicMetadata(numPartitions));
+        } else {
+            PartitionedTopicMetadata existsMeta = getResult.get();
+
+            // Only update metadata if the partitions should be modified
             if (existsMeta.partitions < numPartitions) {
-                configStore.put(
-                        partitionedTopicPath,
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(metadata),
-                        Optional.of(getResult.get().getStat().getVersion()));
+                partitionedTopicResources.updatePartitionedTopicAsync(topicName,
+                        __ -> new PartitionedTopicMetadata(numPartitions)).get();
             }
         }
     }

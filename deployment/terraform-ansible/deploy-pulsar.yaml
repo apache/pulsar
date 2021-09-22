@@ -39,7 +39,7 @@
         zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '^(.*)$', '\\1:2181') | join(',') }}"
         service_url: "{{ pulsar_service_url }}"
         http_url: "{{ pulsar_web_url }}"
-        pulsar_version: "2.7.0"
+        pulsar_version: "2.8.1"
     - name: Download Pulsar binary package
       unarchive:
         src: https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz

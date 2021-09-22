@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -40,7 +39,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -143,10 +141,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     public CompletableFuture<Void> initialize() {
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenAccept(optPolicies -> {
                     if (!optPolicies.isPresent()) {
-                        log.warn("[{}] Policies not present {} and isEncryptionRequired will be set to false", topic);
+                        log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
                     } else {
                         Policies policies = optPolicies.get();
@@ -498,7 +496,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         }
 
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                .getAsync(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
                 .thenCompose(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         return FutureUtil.failedFuture(
@@ -903,8 +901,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     public void checkInactiveSubscriptions() {
         TopicName name = TopicName.get(topic);
         try {
-            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                    .getPolicies(name.getNamespaceObject())
                     .orElseThrow(MetadataStoreException.NotFoundException::new);
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
                     .getSubscriptionExpirationTimeMinutes();

@@ -75,11 +75,6 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testCloseLock() {
-
-    }
-
-    @Test
     public void testAddAndRemoveTransactionMetadataStore() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         Assert.assertNotNull(transactionMetadataStoreService);

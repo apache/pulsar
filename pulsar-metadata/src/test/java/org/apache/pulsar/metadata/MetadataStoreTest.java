@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,9 +31,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-
+import java.util.function.Supplier;
 import lombok.Cleanup;
-
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -50,9 +48,9 @@ import org.testng.annotations.Test;
 public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
-    public void emptyStoreTest(String provider, String url) throws Exception {
+    public void emptyStoreTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         assertFalse(store.exists("/non-existing-key").join());
         assertFalse(store.exists("/non-existing-key/child").join());
@@ -78,9 +76,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void insertionTestWithExpectedVersion(String provider, String url) throws Exception {
+    public void insertionTestWithExpectedVersion(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String key1 = newKey();
 
@@ -136,15 +134,15 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void getChildrenTest(String provider, String url) throws Exception {
+    public void getChildrenTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String key = newKey();
-        int N = 10;
+        int n = 10;
         List<String> expectedChildren = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < n; i++) {
             store.put(key + "/c-" + i, new byte[0], Optional.empty()).join();
 
             expectedChildren.add("c-" + i);
@@ -153,7 +151,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(store.getChildren(key).join(), expectedChildren);
 
         // Nested children
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < n; i++) {
             store.put(key + "/c-0/cc-" + i, new byte[0], Optional.empty()).join();
         }
 
@@ -161,15 +159,15 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void deletionTest(String provider, String url) throws Exception {
+    public void deletionTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String key = newKey();
-        int N = 10;
+        int n = 10;
         List<String> expectedChildren = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < n; i++) {
             store.put(key + "/c-" + i, new byte[0], Optional.empty()).join();
 
             expectedChildren.add("c-" + i);
@@ -182,7 +180,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             assertException(e, MetadataStoreException.class);
         }
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < n; i++) {
             try {
                 store.delete(key + "/c-" + i, Optional.of(1L)).join();
                 fail("The key has children");
@@ -195,9 +193,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void emptyKeyTest(String provider, String url) throws Exception {
+    public void emptyKeyTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         try {
             store.delete("", Optional.empty()).join();
@@ -236,9 +234,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void notificationListeners(String provider, String url) throws Exception {
+    public void notificationListeners(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(url, MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         BlockingQueue<Notification> notifications = new LinkedBlockingDeque<>();
         store.registerListener(n -> {
@@ -300,4 +298,59 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(n.getType(), NotificationType.ChildrenChanged);
         assertEquals(n.getPath(), key1);
     }
+
+    @Test(dataProvider = "impl")
+    public void testDeleteRecursive(String provider,  Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String prefix = newKey();
+
+        String key1 = newKey();
+        store.put(prefix + key1, "value-1".getBytes(), Optional.of(-1L)).join();
+
+        store.put(prefix + key1 + "/c1", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c1/x1", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c1/x2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c2/y2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + key1 + "/c3", "value".getBytes(), Optional.of(-1L)).join();
+
+        String key2 = newKey();
+        store.put(prefix + key2, "value-2".getBytes(), Optional.of(-1L)).join();
+
+        store.deleteRecursive(prefix + key1).join();
+
+        assertEquals(store.getChildren(prefix).join(), Collections.singletonList(key2.substring(1)));
+    }
+
+    @Test(dataProvider = "impl")
+    public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String prefix = newKey();
+
+        store.put(prefix + "/a1/b1/c1", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + "/a1/b1/c2", "value".getBytes(), Optional.of(-1L)).join();
+        store.put(prefix + "/a1/b2/c1", "value".getBytes(), Optional.of(-1L)).join();
+
+        store.delete(prefix + "/a1/b1/c1", Optional.empty()).join();
+        store.delete(prefix + "/a1/b1/c2", Optional.empty()).join();
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix + "/a1/b1").join());
+
+        store.delete(prefix + "/a1/b2/c1", Optional.empty()).join();
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix + "/a1/b2").join());
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix + "/a1").join());
+
+        zks.checkContainers();
+        assertFalse(store.exists(prefix).join());
+    }
+
 }

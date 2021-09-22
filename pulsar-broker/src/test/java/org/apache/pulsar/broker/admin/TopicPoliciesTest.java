@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +62,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -2517,6 +2519,83 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() ->
                 Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)))
                         .isNull());
+    }
+
+    @Test
+    public void testPoliciesCanBeDeletedWithTopic() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        final String topic2 = testTopic + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
+        pulsarClient.newProducer().topic(topic2).create().close();
+
+        Awaitility.await().untilAsserted(() -> {
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNull();
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic2))).isNull();
+        });
+        // Init Topic Policies. Send 4 messages in a row, there should be only 2 messages left after compression
+        admin.topics().setMaxConsumersPerSubscription(topic, 1);
+        admin.topics().setMaxConsumersPerSubscription(topic2, 2);
+        admin.topics().setMaxConsumersPerSubscription(topic, 3);
+        admin.topics().setMaxConsumersPerSubscription(topic2, 4);
+        Awaitility.await().untilAsserted(() -> {
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))).isNotNull();
+            Assertions.assertThat(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic2))).isNotNull();
+        });
+        String topicPoliciesTopic = "persistent://" + myNamespace + "/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicPoliciesTopic).get().get();
+        // Trigger compaction and make sure it is finished.
+        persistentTopic.triggerCompaction();
+        Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
+        field.setAccessible(true);
+        CompletableFuture<Long> future = (CompletableFuture<Long>)field.get(persistentTopic);
+        Awaitility.await().untilAsserted(() -> assertTrue(future.isDone()));
+
+        Consumer consumer = pulsarClient.newConsumer()
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .readCompacted(true)
+                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+        int count = 0;
+        while (true) {
+            Message message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                count++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+        consumer.close();
+        assertEquals(count, 2);
+
+        // Delete topic, there should be only 1 message left after compression
+        admin.topics().delete(topic, true);
+
+        Awaitility.await().untilAsserted(() ->
+                assertNull(pulsar.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic))));
+        persistentTopic.triggerCompaction();
+        field = PersistentTopic.class.getDeclaredField("currentCompaction");
+        field.setAccessible(true);
+        CompletableFuture<Long> future2 = (CompletableFuture<Long>)field.get(persistentTopic);
+        Awaitility.await().untilAsserted(() -> assertTrue(future2.isDone()));
+
+        consumer = pulsarClient.newConsumer()
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .readCompacted(true)
+                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+        count = 0;
+        while (true) {
+            Message message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                count++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+        consumer.close();
+        assertEquals(count, 1);
+
     }
 
     @Test

@@ -1,0 +1,86 @@
+{
+  "docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": ["standalone", "standalone-docker", "kubernetes-helm"]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        "concepts-overview",
+        "concepts-messaging",
+        "concepts-architecture-overview",
+        "concepts-clients",
+        "concepts-replication",
+        "concepts-multi-tenancy",
+        "concepts-authentication",
+        "concepts-topic-compaction",
+        "concepts-proxy-sni-routing",
+        "concepts-multiple-advertised-listeners"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        "schema-get-started",
+        "schema-understand",
+        "schema-evolution-compatibility",
+        "schema-manage"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        "functions-overview",
+        "functions-runtime",
+        "functions-worker",
+        "functions-develop",
+        "functions-package",
+        "functions-debug",
+        "functions-deploy",
+        "functions-cli",
+        "window-functions-context"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        "io-overview",
+        "io-quickstart",
+        "io-use",
+        "io-debug",
+        "io-connectors",
+        "io-cdc",
+        "io-develop",
+        "io-cli"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        "sql-overview",
+        "sql-getting-started",
+        "sql-deployment-configurations",
+        "sql-rest-api"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        "tiered-storage-overview",
+        "tiered-storage-aws",
+        "tiered-storage-gcs",
+        "tiered-storage-filesystem",
+        "tiered-storage-azure",
+        "tiered-storage-aliyun"
+      ]
+    }
+  ]
+}

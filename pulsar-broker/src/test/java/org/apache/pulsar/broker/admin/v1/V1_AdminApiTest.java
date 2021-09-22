@@ -502,7 +502,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         final int newValue = 10;
 
         // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(),
+        pulsar.getLocalMetadataStore().put("/admin/configuration", "$".getBytes(),
                 Optional.empty()).join();
         stopBroker();
 
@@ -512,7 +512,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         // update zk with config-value which should fire watch and broker should update the config value
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+        pulsar.getLocalMetadataStore().put("/admin/configuration",
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated

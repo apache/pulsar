@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletionException;
+import java.util.function.Supplier;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -30,24 +31,33 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     @BeforeClass(alwaysRun = true)
     @Override
-    protected void setup() throws Exception {
+    public final void setup() throws Exception {
         incrementSetupNumber();
         zks = new TestZKServer();
     }
 
     @AfterClass(alwaysRun = true)
     @Override
-    protected void cleanup() throws Exception {
+    public final void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         zks.close();
     }
 
     @DataProvider(name = "impl")
     public Object[][] implementations() {
+        // A Supplier<String> must be used for the Zookeeper connection string parameter. The retried test run will
+        // use the same arguments as the failed attempt.
+        // The Zookeeper test server gets restarted by TestRetrySupport before the retry.
+        // The new connection string won't be available to the test method unless a
+        // Supplier<String> lambda is used for providing the value.
         return new Object[][] {
-                { "ZooKeeper", zks.getConnectionString() },
-                { "Memory", "memory://local" },
+                { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
+                { "Memory", stringSupplier(() -> "memory://local") },
         };
+    }
+
+    public static Supplier<String> stringSupplier(Supplier<String> supplier) {
+        return supplier;
     }
 
     protected String newKey() {

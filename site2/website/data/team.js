@@ -6,6 +6,18 @@ module.exports = {
       roles: 'Committer'
     },
     {
+      name: 'Addison Higham',
+      apacheId: 'addisonj',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
+      name: 'Bo Cong',
+      apacheId: 'bogong',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
       name: 'Boyang Jerry Peng',
       apacheId: 'jerrypeng',
       org: 'Streamlio',
@@ -16,6 +28,12 @@ module.exports = {
       apacheId: 'bradtm',
       org: 'Yahoo',
       roles: 'Committer, PMC',
+    },
+    {
+      name: 'Chris Kellogg',
+      apacheId: 'cckellogg',
+      org: 'Splunk',
+      roles: 'Committer'
     },
     {
       name: 'Daniel Blankensteiner',
@@ -30,7 +48,7 @@ module.exports = {
     {
       name: 'Enrico Olivelli',
       apacheId: 'eolivelli',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Fangbin Sun',
@@ -51,7 +69,7 @@ module.exports = {
       name: 'Hang Chen',
       apacheId: 'chenhang',
       org: 'BIGO Technology',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Hiroyuki Sakai',
@@ -101,10 +119,16 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Lari Hotari',
+      apacheId: 'lhotari',
+      org: 'DataStax',
+      roles: 'Committer'
+    },
+    {
       name: 'Lin Lin',
       apacheId: 'linlin',
       org: 'Tencent',
-      roles: 'Committer'
+      roles: 'Committer, PMC'
     },
     {
       name: 'Ludwig Pummer',
@@ -151,6 +175,18 @@ module.exports = {
       apacheId: 'rdhabalia',
       org: 'Yahoo',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Ran Gao',
+      apacheId: 'rgao',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
+      name: 'Rui Fu',
+      apacheId: 'rfu',
+      org: 'StreamNative',
+      roles: 'Committer'
     },
     {
       name: 'Sahaya Andrews',
@@ -205,6 +241,12 @@ module.exports = {
       apacheId: 'yushiga',
       org: 'Yahoo Japan Corporation',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Yunze Xu',
+      apacheId: 'xyz',
+      org: 'StreamNative',
+      roles: 'Committer'
     },
     {
       name: 'Yuto Furuta',

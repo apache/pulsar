@@ -217,8 +217,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer2.close();
         consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        // sometime: mockZk fails to refresh ml-cache: so, invalidate the cache to get fresh data
-        pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         assertEquals(Sets.newHashSet(admin.topics().getSubscriptions(newPartitionTopicName)),
                 Sets.newHashSet(subName1, subName2));
 

@@ -27,6 +27,7 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -103,7 +104,8 @@ public class ProxyServiceStarter {
             removeHandlersForRootLogger();
             install();
 
-            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+            DateFormat dateFormat = new SimpleDateFormat(
+                FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
             Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
                 System.out.println(String.format("%s [%s] error Uncaught exception in thread %s: %s", dateFormat.format(new Date()), thread.getContextClassLoader(), thread.getName(), exception.getMessage()));
             });

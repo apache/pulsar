@@ -22,6 +22,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Properties;
 
@@ -190,7 +191,7 @@ public class PropertiesFileConfigurationProvider extends
                     DEFAULT_PROPERTIES_IMPLEMENTATION);
             Class<? extends Properties> propsclass = Class.forName(resolverClassName)
                     .asSubclass(Properties.class);
-            Properties properties = propsclass.newInstance();
+            Properties properties = propsclass.getDeclaredConstructor().newInstance();
             properties.load(reader);
             return new FlumeConfiguration(toMap(properties));
         } catch (IOException ex) {
@@ -202,6 +203,10 @@ public class PropertiesFileConfigurationProvider extends
             LOGGER.error("Instantiation exception", e);
         } catch (IllegalAccessException e) {
             LOGGER.error("Illegal access exception", e);
+        } catch (InvocationTargetException e) {
+            LOGGER.error("Invocation target exception", e);
+        } catch (NoSuchMethodException e) {
+            LOGGER.error("No such method exception", e);
         } finally {
             if (reader != null) {
                 try {

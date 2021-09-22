@@ -39,6 +39,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.common.util.FutureUtil;
@@ -198,8 +199,25 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
     }
 
+    @Override
+    public CompletableFuture<Void> deleteRecursive(String path) {
+        return getChildren(path)
+                .thenCompose(children -> FutureUtil.waitForAll(
+                        children.stream()
+                                .map(child -> deleteRecursive(path + "/" + child))
+                                .collect(Collectors.toList())))
+                .thenCompose(__ -> exists(path))
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
+    }
+
     protected abstract CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options);
+                                                        EnumSet<CreateOption> options);
 
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,

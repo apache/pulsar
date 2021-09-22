@@ -1,9 +1,3 @@
-module.exports = {
-  docsSidebar: [
-    {
-      type: "category",
-      label: "Get Started",
-      items: ["standalone", "standalone-docker", "kubernetes-helm"],
-    },
-  ],
-};
+const sidebarJson = require("./sidebars.json");
+
+module.exports = sidebarJson;

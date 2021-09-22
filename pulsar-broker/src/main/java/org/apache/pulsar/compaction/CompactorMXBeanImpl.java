@@ -18,75 +18,54 @@
  */
 package org.apache.pulsar.compaction;
 
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.TimeUnit;
 
 public class CompactorMXBeanImpl implements CompactorMXBean {
 
-    private final ConcurrentHashMap<String, CompactRecord> compactRecordOps = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CompactionRecord> compactionRecordOps = new ConcurrentHashMap<>();
 
     public void addCompactionRemovedEvent(String topic) {
-        compactRecordOps.computeIfAbsent(topic, k -> new CompactRecord()).addCompactionRemovedEvent();
+        compactionRecordOps.computeIfAbsent(topic, k -> new CompactionRecord()).addCompactionRemovedEvent();
     }
 
     public void addCompactionStartOp(String topic) {
-        compactRecordOps.computeIfAbsent(topic, k -> new CompactRecord()).reset();
+        compactionRecordOps.computeIfAbsent(topic, k -> new CompactionRecord()).addCompactionStartOp();
     }
 
     public void addCompactionEndOp(String topic, boolean succeed) {
-        CompactRecord compactRecord = compactRecordOps.computeIfAbsent(topic, k -> new CompactRecord());
-        compactRecord.lastCompactionDurationTimeInMills = System.currentTimeMillis()
-                - compactRecord.lastCompactionStartTimeOp;
-        compactRecord.lastCompactionRemovedEventCount = compactRecord.lastCompactionRemovedEventCountOp.longValue();
-        if (succeed) {
-            compactRecord.lastCompactionSucceedTimestamp = System.currentTimeMillis();
-        } else {
-            compactRecord.lastCompactionFailedTimestamp = System.currentTimeMillis();
-        }
-    }
-
-    @Override
-    public long getLastCompactionRemovedEventCount(String topic) {
-        return compactRecordOps.getOrDefault(topic, new CompactRecord()).lastCompactionRemovedEventCount;
-    }
-
-    @Override
-    public long getLastCompactionSucceedTimestamp(String topic) {
-        return compactRecordOps.getOrDefault(topic, new CompactRecord()).lastCompactionSucceedTimestamp;
-    }
-
-    @Override
-    public long getLastCompactionFailedTimestamp(String topic) {
-        return compactRecordOps.getOrDefault(topic, new CompactRecord()).lastCompactionFailedTimestamp;
-    }
-
-    @Override
-    public long getLastCompactionDurationTimeInMills(String topic) {
-        return compactRecordOps.getOrDefault(topic, new CompactRecord()).lastCompactionDurationTimeInMills;
+        compactionRecordOps.computeIfAbsent(topic, k -> new CompactionRecord()).addCompactionEndOp(succeed);
     }
 
     @Override
     public void removeTopic(String topic) {
-        compactRecordOps.remove(topic);
+        compactionRecordOps.remove(topic);
     }
 
-    static class CompactRecord {
+    @Override
+    public Optional<CompactionRecord> getCompactionRecordForTopic(String topic) {
+        return Optional.ofNullable(compactionRecordOps.get(topic));
+    }
 
-        private long lastCompactionRemovedEventCount = 0L;
-        private long lastCompactionSucceedTimestamp = 0L;
-        private long lastCompactionFailedTimestamp = 0L;
-        private long lastCompactionDurationTimeInMills = 0L;
+    public Set<String> getTopics() {
+        return compactionRecordOps.keySet();
+    }
 
-        private LongAdder lastCompactionRemovedEventCountOp = new LongAdder();
-        private long lastCompactionStartTimeOp;
+    public void reset() {
+        compactionRecordOps.values().forEach(CompactionRecord::reset);
+    }
 
-        public void addCompactionRemovedEvent() {
-            lastCompactionRemovedEventCountOp.increment();
-        }
+    public void addCompactionReadOp(String topic, long readableBytes) {
+        compactionRecordOps.computeIfAbsent(topic, k -> new CompactionRecord()).addCompactionReadOp(readableBytes);
+    }
 
-        public void reset() {
-            lastCompactionRemovedEventCountOp.reset();
-            lastCompactionStartTimeOp = System.currentTimeMillis();
-        }
+    public void addCompactionWriteOp(String topic, long writeableBytes) {
+        compactionRecordOps.computeIfAbsent(topic, k -> new CompactionRecord()).addCompactionWriteOp(writeableBytes);
+    }
+
+    public void addCompactionLatencyOp(String topic, long latency, TimeUnit unit) {
+        compactionRecordOps.computeIfAbsent(topic, k -> new CompactionRecord()).addCompactionLatencyOp(latency, unit);
     }
 }

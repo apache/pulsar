@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
@@ -46,6 +47,8 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClientException
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -95,6 +98,57 @@ public class TransactionMetadataStoreService {
         this.transactionOpRetryTimer = timer;
         this.tcLoadSemaphores = new ConcurrentLongHashMap<>();
         this.pendingConnectRequests = new ConcurrentLongHashMap<>();
+    }
+
+    @Deprecated
+    public void start() {
+        pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
+
+            @Override
+            public void onLoad(NamespaceBundle bundle) {
+                pulsarService.getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
+                        .whenComplete((topics, ex) -> {
+                            if (ex == null) {
+                                for (String topic : topics) {
+                                    TopicName name = TopicName.get(topic);
+                                    if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
+                                            .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
+                                            && name.isPartitioned()) {
+                                        handleTcClientConnect(TransactionCoordinatorID.get(name.getPartitionIndex()));
+                                    }
+                                }
+                            } else {
+                                LOG.error("Failed to get owned topic list when triggering on-loading bundle {}.",
+                                        bundle, ex);
+                            }
+                        });
+            }
+
+            @Override
+            public void unLoad(NamespaceBundle bundle) {
+                pulsarService.getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
+                        .whenComplete((topics, ex) -> {
+                            if (ex == null) {
+                                for (String topic : topics) {
+                                    TopicName name = TopicName.get(topic);
+                                    if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
+                                            .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
+                                            && name.isPartitioned()) {
+                                        removeTransactionMetadataStore(
+                                                TransactionCoordinatorID.get(name.getPartitionIndex()));
+                                    }
+                                }
+                            } else {
+                                LOG.error("Failed to get owned topic list error when triggering un-loading bundle {}.",
+                                        bundle, ex);
+                            }
+                        });
+            }
+            @Override
+            public boolean test(NamespaceBundle namespaceBundle) {
+                return namespaceBundle.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE);
+            }
+        });
     }
 
     public CompletableFuture<Void> handleTcClientConnect(TransactionCoordinatorID tcId) {

@@ -258,7 +258,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
                                     CommandSubscribe_InitialPosition subscriptionInitialPosition,
-                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy) {
+                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
+                                    int priorityLevel) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -272,6 +273,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_read_compacted(readCompacted);
     subscribe->set_initialposition(subscriptionInitialPosition);
     subscribe->set_replicate_subscription_state(replicateSubscriptionState);
+    subscribe->set_priority_level(priorityLevel);
 
     if (isBuiltInSchema(schemaInfo.getSchemaType())) {
         subscribe->set_allocated_schema(getSchema(schemaInfo));
