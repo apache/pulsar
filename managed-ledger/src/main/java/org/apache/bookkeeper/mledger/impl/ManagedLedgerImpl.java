@@ -451,6 +451,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // When recovering a terminated managed ledger, we don't need to create
             // a new ledger for writing, since no more writes are allowed.
             // We just move on to the next stage
+            // currentLedger is null after this
             initializeCursors(callback);
             return;
         }
@@ -793,13 +794,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             currentLedgerSize += addOperation.data.readableBytes();
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Write into current ledger lh={} entries={}", name, currentLedger.getId(),
+                log.debug("[{}] Write into current ledger lh={} entries={}", name,
+                        currentLedger == null ? null : currentLedger.getId(),
                         currentLedgerEntries);
             }
 
             if (currentLedgerIsFull()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Closing current ledger lh={}", name, currentLedger.getId());
+                    log.debug("[{}] Closing current ledger lh={}", name,
+                            currentLedger == null ? null : currentLedger.getId());
                 }
                 // This entry will be the last added to current ledger
                 addOperation.setCloseWhenDone(true);
@@ -1226,7 +1229,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .mapToLong(LedgerInfo::getSize).sum();
             long size = getTotalSize() - sizeBeforePosLedger;
 
-            if (pos.getLedgerId() == currentLedger.getId()) {
+            if (currentLedger != null && pos.getLedgerId() == currentLedger.getId()) {
                 return size - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
             } else {
                 return size - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
@@ -1589,7 +1592,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 op.setCloseWhenDone(true);
                 op.initiate();
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stop writing into ledger {} queue={}", name, currentLedger.getId(),
+                    log.debug("[{}] Stop writing into ledger {} queue={}", name,
+                            currentLedger == null ? null : currentLedger.getId(),
                             pendingAddEntries.size());
                 }
                 break;
@@ -1670,7 +1674,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void rollCurrentLedgerIfFull() {
         log.info("[{}] Start checking if current ledger is full", name);
-        if (currentLedgerEntries > 0 && currentLedgerIsFull()) {
+        if (currentLedger != null && currentLedgerEntries > 0 && currentLedgerIsFull()) {
             STATE_UPDATER.set(this, State.ClosingLedger);
             currentLedger.asyncClose(new AsyncCallback.CloseCallback() {
                 @Override
@@ -1889,7 +1893,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Reading entry ledger {}: {}", name, position.getLedgerId(), position.getEntryId());
         }
-        if (position.getLedgerId() == currentLedger.getId()) {
+        if (currentLedger != null && position.getLedgerId() == currentLedger.getId()) {
             asyncReadEntry(currentLedger, position, callback, ctx);
         } else if (ledgers.containsKey(position.getLedgerId())) {
             getLedgerHandle(position.getLedgerId()).thenAccept(ledger -> asyncReadEntry(ledger, position, callback,
@@ -2437,7 +2441,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
                 // include lastLedger in the trimming.
-                slowestReaderLedgerId = currentLedger.getId() + 1;
+                if (currentLedger != null) {
+                    slowestReaderLedgerId = currentLedger.getId() + 1;
+                }
             } else {
                 PositionImpl slowestReaderPosition = cursors.getSlowestReaderPosition();
                 if (slowestReaderPosition != null) {
@@ -2457,7 +2463,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 // currentLedger can not be deleted
-                if (ls.getLedgerId() == currentLedger.getId()) {
+                if (currentLedger != null && ls.getLedgerId() == currentLedger.getId()) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Ledger {} skipped for deletion as it is currently being written to", name,
                                 ls.getLedgerId());
@@ -2482,7 +2488,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             "[{}] Checking ledger {} -- time-old: {} sec -- "
                                     + "expired: {} -- over-quota: {} -- current-ledger: {}",
                             name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
-                            overRetentionQuota, currentLedger.getId());
+                            overRetentionQuota, currentLedger == null ? null : currentLedger.getId());
                 }
 
                 if (expired || overRetentionQuota) {
@@ -2854,7 +2860,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // empty. In this the passed position is not technically
                 // "valid", per the above check, given that it's not written
                 // yes, but it will be valid for the logic here
-                && !(requestOffloadTo.getLedgerId() == currentLedger.getId()
+                && !(currentLedger != null && requestOffloadTo.getLedgerId() == currentLedger.getId()
                         && requestOffloadTo.getEntryId() == 0)) {
             log.warn("[{}] Cannot start offload at position {} - LastConfirmedEntry: {}", name, pos,
                     lastConfirmedEntry);
