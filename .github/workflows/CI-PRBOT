@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - uses: apache/pulsar-test-infra/doc-label-check@master
-        with:
+        env:
           github-token: ${{ secrets.PULSARBOT_TOKEN }}
           label-pattern: '- \[(.*?)\] ?`(.+?)`' # matches '- [x] `label`'
           bot-name: 'pr-bot-test'
