@@ -154,6 +154,16 @@
       <artifactId>simpleclient_log4j2</artifactId>
     </dependency>
 
+    <!-- This dependency was previously brought in transitively through the pulsar-discovery-service module. When the
+    module was removed, there was nothing in the server specifying which version of bouncy castle to use, which led to
+    dependencies selecting the version. By adding the dependency here, we override any transitive deps -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
+    </dependency>
+
     <!-- function examples -->
     <dependency>
       <groupId>${project.groupId}</groupId>
