@@ -51,6 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -91,6 +92,9 @@ public class PerformanceProducer {
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder totalMessagesSendFailed = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
+
+    private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
+    private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
@@ -728,39 +732,49 @@ public class PerformanceProducer {
                         if (arguments.isEnableTransaction
                                 && numMessageSend.incrementAndGet() == arguments.numMessagesPerTransaction) {
                             try {
-                                if (transactionAtomicReference.compareAndSet(transaction,
-                                        pulsarClient.newTransaction()
-                                                .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
-                                                .build().get())) {
-                                    if (arguments.isCommitTransaction) {
-                                        transaction.commit()
-                                                .thenRun(() -> {
-                                                    totalEndTxnOpSuccessNum.increment();
-                                                })
-                                                .exceptionally(exception -> {
-                                            log.error("Commit transaction failed with exception : "
-                                                    + exception.getMessage());
-                                                    totalEndTxnOpFailNum.increment();
-                                            return null;
-                                        });
-                                    } else {
-                                        transaction.abort().thenRun(() -> {
-                                            log.info("Abort transaction {}", transaction.getTxnID().toString());
-                                            totalEndTxnOpSuccessNum.increment();
-                                        }).exceptionally(exception -> {
-                                            log.error("Commit transaction {} failed with exception {}",
-                                                    transaction.getTxnID().toString(),
-                                                    exception);
-                                            totalEndTxnOpFailNum.increment();
-                                            return null;
-                                        });
+                                AtomicBoolean updateTransaction = new AtomicBoolean(true);
+                                do {
+                                    if (transactionAtomicReference.compareAndSet(transaction,
+                                            pulsarClient.newTransaction()
+                                                    .withTransactionTimeout(arguments.transactionTimeout,
+                                                            TimeUnit.SECONDS)
+                                                    .build().exceptionally(exception ->{
+                                                        totalNumTxnOpenTxnFail.increment();
+                                                        log.error("Failed to new transaction with exception: "
+                                                                , exception);
+                                                        return null;
+                                            }).get())) {
+                                        totalNumTxnOpenTxnSuccess.increment();
+                                        if (arguments.isCommitTransaction) {
+                                            transaction.commit()
+                                                    .thenRun(() -> {
+                                                        totalEndTxnOpSuccessNum.increment();
+                                                    })
+                                                    .exceptionally(exception -> {
+                                                        log.error("Commit transaction failed with exception : "
+                                                                , exception);
+                                                        totalEndTxnOpFailNum.increment();
+                                                        return null;
+                                                    });
+                                        } else {
+                                            transaction.abort().thenRun(() -> {
+                                                log.info("Abort transaction {}", transaction.getTxnID().toString());
+                                                totalEndTxnOpSuccessNum.increment();
+                                            }).exceptionally(exception -> {
+                                                log.error("Commit transaction {} failed with exception",
+                                                        transaction.getTxnID().toString(),
+                                                        exception);
+                                                totalEndTxnOpFailNum.increment();
+                                                return null;
+                                            });
+                                        }
+                                        numTxnOp.increment();
+                                        numMessageSend.set(0);
+                                        numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
                                     }
-                                    numTxnOp.increment();
-                                    numMessageSend.set(0);
-                                    numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
-                                }
+                                }while (!updateTransaction.get());
                             } catch (Exception e) {
-                                log.error("Got error : " + e);
+                                log.error("Got error : ", e);
                             }
                         }
                     }).exceptionally(ex -> {
@@ -798,10 +812,14 @@ public class PerformanceProducer {
         long totalTxnSuccess = 0;
         long totalTxnFail = 0;
         double rateOpenTxn = 0;
+        long numTransactionOpenFailed = 0;
+        long numTransactionOpenSuccess = 0;
         if (arguments.isEnableTransaction) {
             totalTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = elapsed / (totalTxnFail + totalTxnSuccess);
+            numTransactionOpenFailed = totalNumTxnOpenTxnFail.sum();
+            numTransactionOpenSuccess = totalNumTxnOpenTxnSuccess.sum();
         }
 
         if(arguments.isEnableTransaction){
@@ -809,6 +827,7 @@ public class PerformanceProducer {
                     "Aggregated throughput stats --- {} records sent --- {} records send failed --- {} msg/s "
                             + "--- {} Mbit/s "
                             + "--- Transaction : {} transaction end successfully --- {} transaction end failed "
+                            + "--- {} transaction open successfully --- {} transaction open failed "
                             + "--- {} Txn/s",
                     totalMessagesSent.sum(),
                     totalMessagesSendFailed.sum(),
@@ -816,6 +835,8 @@ public class PerformanceProducer {
                     totalFormat.format(throughput),
                     totalTxnSuccess,
                     totalTxnFail,
+                    numTransactionOpenSuccess,
+                    numTransactionOpenFailed,
                     totalFormat.format(rateOpenTxn));
         }else{
         log.info(
@@ -849,7 +870,7 @@ public class PerformanceProducer {
                 return new AtomicReference(pulsarClient.newTransaction()
                         .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build());
             } catch (PulsarClientException e) {
-                log.error("Got transaction error: " + e.getMessage());
+                log.error("Got transaction error: ", e);
             }
         }
         return new AtomicReference<>(null);
