@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -54,6 +56,15 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private final DataInputStream dataStream;
     private final ExecutorService executor;
 
+    enum State {
+        Opened,
+        Closed
+    }
+
+    private AtomicReferenceFieldUpdater<BlobStoreBackedReadHandleImpl, State> STATE_UPDATER = AtomicReferenceFieldUpdater
+        .newUpdater(BlobStoreBackedReadHandleImpl.class, State.class, "state");
+    private volatile State state = null;
+
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream,
                                           ExecutorService executor) {
@@ -62,6 +73,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
+        STATE_UPDATER.set(this, State.Opened);
     }
 
     @Override
@@ -81,6 +93,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 try {
                     index.close();
                     inputStream.close();
+                    STATE_UPDATER.set(this, State.Closed);
                     promise.complete(null);
                 } catch (IOException t) {
                     promise.completeExceptionally(t);
@@ -105,6 +118,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 long nextExpectedId = firstEntry;
                 try {
                     while (entriesToRead > 0) {
+                        State state = STATE_UPDATER.get(this);
+                        if (state == State.Closed) {
+                            log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
+                            throw new BKException.BKUnexpectedConditionException();
+                        }
                         int length = dataStream.readInt();
                         if (length < 0) { // hit padding or new block
                             inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
@@ -121,7 +139,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             }
                             entriesToRead--;
                             nextExpectedId++;
-                        } else if (entryId > nextExpectedId) {
+                        } else if (entryId > nextExpectedId && entryId < lastEntry) {
                             inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                             continue;
                         } else if (entryId < nextExpectedId
@@ -203,6 +221,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 versionCheck,
                 index.getDataObjectLength(),
                 readBufferSize);
+
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
     }
 }
