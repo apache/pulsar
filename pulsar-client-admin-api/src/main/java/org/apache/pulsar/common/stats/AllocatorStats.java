@@ -29,7 +29,6 @@ public class AllocatorStats {
     public int numThreadLocalCaches;
     public int normalCacheSize;
     public int smallCacheSize;
-    public int tinyCacheSize;
 
     public List<PoolArenaStats> directArenas;
     public List<PoolArenaStats> heapArenas;
@@ -38,25 +37,20 @@ public class AllocatorStats {
      * Pool arena statistics.
      */
     public static class PoolArenaStats {
-        public int numTinySubpages;
         public int numSmallSubpages;
         public int numChunkLists;
 
-        public List<PoolSubpageStats> tinySubpages;
         public List<PoolSubpageStats> smallSubpages;
         public List<PoolChunkListStats> chunkLists;
         public long numAllocations;
-        public long numTinyAllocations;
         public long numSmallAllocations;
         public long numNormalAllocations;
         public long numHugeAllocations;
         public long numDeallocations;
-        public long numTinyDeallocations;
         public long numSmallDeallocations;
         public long numNormalDeallocations;
         public long numHugeDeallocations;
         public long numActiveAllocations;
-        public long numActiveTinyAllocations;
         public long numActiveSmallAllocations;
         public long numActiveNormalAllocations;
         public long numActiveHugeAllocations;

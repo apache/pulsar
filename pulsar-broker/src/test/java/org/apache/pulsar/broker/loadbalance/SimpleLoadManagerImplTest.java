@@ -48,7 +48,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.impl.GenericBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarLoadReportImpl;
@@ -75,7 +74,6 @@ import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -181,13 +179,12 @@ public class SimpleLoadManagerImplTest {
                 .build();
         policies.setPolicy("primaryBrokerPolicy", policyData);
 
-        String path = AdminResource.path("clusters", "use", "namespaceIsolationPolicies");
         try {
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().create(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().createIsolationData("use",
                     policies.getPolicies());
         } catch (BadVersionException e) {
             // isolation policy already exist
-            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().set(path,
+            pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies().setIsolationData("use",
                     data -> policies.getPolicies());
         }
     }
@@ -269,33 +266,6 @@ public class SimpleLoadManagerImplTest {
     @Test(enabled = false)
     public void testPrimarySecondary() throws Exception {
         createNamespacePolicies(pulsar1);
-        LocalZooKeeperCache mockCache = mock(LocalZooKeeperCache.class);
-        ZooKeeperChildrenCache zooKeeperChildrenCache = mock(ZooKeeperChildrenCache.class);
-
-        Set<String> activeBrokers = Sets.newHashSet("prod2-broker7.messaging.use.example.com:8080",
-                "prod2-broker8.messaging.use.example.com:8080", "prod2-broker9.messaging.use.example.com:8080");
-        when(mockCache.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
-        when(zooKeeperChildrenCache.get()).thenReturn(activeBrokers);
-        when(zooKeeperChildrenCache.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT)).thenReturn(activeBrokers);
-
-        Field zkCacheField = PulsarService.class.getDeclaredField("localZkCache");
-        zkCacheField.setAccessible(true);
-
-        LocalZooKeeperCache originalLZK1 = (LocalZooKeeperCache) zkCacheField.get(pulsar1);
-        LocalZooKeeperCache originalLZK2 = (LocalZooKeeperCache) zkCacheField.get(pulsar2);
-        log.info("lzk are {} 2: {}", originalLZK1.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT),
-                originalLZK2.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
-        zkCacheField.set(pulsar1, mockCache);
-
-        LocalZooKeeperCache newZk = (LocalZooKeeperCache) pulsar1.getLocalZkCache();
-        log.info("lzk mocked are {}", newZk.getChildren(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
-
-        ZooKeeperChildrenCache availableActiveBrokers = new ZooKeeperChildrenCache(pulsar1.getLocalZkCache(),
-                SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT);
-
-        log.info("lzk mocked active brokers are {}",
-                availableActiveBrokers.get(SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT));
-
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
 
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -318,8 +288,6 @@ public class SimpleLoadManagerImplTest {
         ResourceUnit found = loadManager
                 .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
         assertEquals(found.getResourceId(), ru1.getResourceId());
-
-        zkCacheField.set(pulsar1, originalLZK1);
     }
 
     @Test

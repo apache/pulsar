@@ -60,6 +60,7 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,6 +72,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     private final MetadataStore store;
     private final PulsarService pulsar;
+    private final ZooKeeper zooKeeper;
     private final MetadataCache<SchemaStorageFormat.SchemaLocator> locatorEntryCache;
 
     private final ServiceConfiguration config;
@@ -80,8 +82,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             new ConcurrentHashMap<>();
 
     @VisibleForTesting
-    BookkeeperSchemaStorage(PulsarService pulsar) {
+    BookkeeperSchemaStorage(PulsarService pulsar, ZooKeeper zooKeeper) {
         this.pulsar = pulsar;
+        this.zooKeeper = zooKeeper;
         this.store = pulsar.getLocalMetadataStore();
         this.config = pulsar.getConfiguration();
         this.locatorEntryCache = store.getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
@@ -101,7 +104,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     public void start() throws IOException {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
             pulsar.getConfiguration(),
-            pulsar.getZkClient(),
+            zooKeeper,
             pulsar.getIoEventLoopGroup(),
             Optional.empty(),
             null

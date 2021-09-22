@@ -118,6 +118,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
 
+        @Parameter(names = {"-m",
+                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, it will keep consuming")
+        public long numMessages = 0;
+
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
         public int maxConnections = 100;
@@ -172,11 +176,11 @@ public class PerformanceConsumer {
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
                 "used for handling connections to brokers, default is 1 thread")
         public int ioThreads = 1;
-    
+
         @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
-        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
         private boolean poolMessages = true;
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
@@ -288,10 +292,15 @@ public class PerformanceConsumer {
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
             if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
-                    log.info("------------------- DONE -----------------------");
+                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) --------------", arguments.testTime);
                     printAggregatedStats();
                     PerfClientUtils.exit(0);
                 }
+            }
+            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
+                printAggregatedStats();
+                PerfClientUtils.exit(0);
             }
             messagesReceived.increment();
             bytesReceived.add(msg.size());

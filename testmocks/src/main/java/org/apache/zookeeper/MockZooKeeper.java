@@ -931,12 +931,15 @@ public class MockZooKeeper extends ZooKeeper {
                 case ZooDefs.OpCode.create:
                     this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
                     res.add(new OpResult.CreateResult(op.getPath()));
+                    break;
                 case ZooDefs.OpCode.delete:
                     this.delete(op.getPath(), -1);
                     res.add(new OpResult.DeleteResult());
+                    break;
                 case ZooDefs.OpCode.setData:
                     this.create(op.getPath(), ((org.apache.zookeeper.Op.Create)op).data, null, null);
                     res.add(new OpResult.SetDataResult(null));
+                    break;
                 default:
             }
         }

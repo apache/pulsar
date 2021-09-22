@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -246,13 +244,11 @@ public abstract class AbstractReplicator {
      */
     private void validatePartitionedTopic(String topic, BrokerService brokerService) throws NamingException {
         TopicName topicName = TopicName.get(topic);
-        String partitionedTopicPath = path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE,
-                topicName.getNamespace(), topicName.getDomain().toString(),
-                topicName.getEncodedLocalName());
         boolean isPartitionedTopic = false;
         try {
-            isPartitionedTopic = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(partitionedTopicPath).isPresent();
+            isPartitionedTopic =
+                    brokerService.pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                            .partitionedTopicExists(topicName);
         } catch (Exception e) {
             log.warn("Failed to verify partitioned topic {}-{}", topicName, e.getMessage());
         }

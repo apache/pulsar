@@ -19,8 +19,8 @@
 package org.apache.pulsar.discovery.service;
 
 import static org.apache.bookkeeper.util.MathUtils.signSafeMod;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
+import com.google.common.base.Joiner;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -28,25 +28,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Joiner;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
@@ -105,10 +99,9 @@ public class BrokerDiscoveryProvider implements Closeable {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             checkAuthorization(service, topicName, role, authenticationData);
-            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
-                    topicName.getNamespaceObject().toString(), topicName.getDomain().value(), topicName.getEncodedLocalName());
             // gets the number of partitions from the zk cache
-            pulsarResources.getNamespaceResources().getPartitionedTopicResources().getAsync(path)
+            pulsarResources.getNamespaceResources().getPartitionedTopicResources()
+                    .getPartitionedTopicMetadataAsync(topicName)
                     .thenAccept(metadata -> {
                 // if the partitioned topic is not found in zk, then the topic
                 // is not partitioned
@@ -142,7 +135,7 @@ public class BrokerDiscoveryProvider implements Closeable {
             TenantInfo tenantInfo;
             try {
                 tenantInfo = service.getPulsarResources().getTenantResources()
-                        .get(path(POLICIES, topicName.getTenant()))
+                        .getTenant(topicName.getTenant())
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
             } catch (NotFoundException e) {
                 LOG.warn("Failed to get property admin data for non existing property {}", topicName.getTenant());

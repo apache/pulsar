@@ -181,7 +181,8 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     SharedBuffer cmd = Commands::newSubscribe(
         topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
         startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
-        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy());
+        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy(),
+        config_.getPriorityLevel());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));

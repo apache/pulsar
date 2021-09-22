@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.MoreObjects;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,6 @@ import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupPublishLimiter;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -150,8 +148,8 @@ public abstract class AbstractTopic implements Topic {
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+            policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(
+                            TopicName.get(topic).getNamespaceObject())
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
@@ -167,8 +165,8 @@ public abstract class AbstractTopic implements Topic {
         if (maxProducers == null) {
             Policies policies;
             try {
-                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                        .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(
+                                TopicName.get(topic).getNamespaceObject())
                         .orElseGet(() -> new Policies());
             } catch (Exception e) {
                 policies = new Policies();
@@ -213,8 +211,9 @@ public abstract class AbstractTopic implements Topic {
             Policies policies;
             try {
                 // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
-                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(
+                                TopicName.get(topic).getNamespaceObject())
+                        .orElseGet(() -> new Policies());
 
                 if (policies == null) {
                     policies = new Policies();

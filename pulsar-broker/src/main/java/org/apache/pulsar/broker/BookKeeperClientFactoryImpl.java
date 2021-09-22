@@ -109,6 +109,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setTLSTrustStore(conf.getBookkeeperTLSTrustCertsFilePath());
             bkConf.setTLSTrustStoreType(conf.getBookkeeperTLSTrustCertTypes());
             bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
+            bkConf.setTLSCertFilesRefreshDurationSeconds(conf.getBookkeeperTlsCertFilesRefreshDurationSeconds());
         }
 
         bkConf.setBusyWaitEnabled(conf.isEnableBusyWait());

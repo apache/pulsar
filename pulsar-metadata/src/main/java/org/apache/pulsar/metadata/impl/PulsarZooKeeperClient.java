@@ -1172,7 +1172,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public String toString() {
-                return String.format("setData (%s, mode = %d)", basePath, mode);
+                return String.format("setData (%s, mode = %s)", basePath, mode.name());
             }
         };
         // execute it immediately
