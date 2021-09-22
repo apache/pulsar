@@ -143,7 +143,7 @@ Producer<byte[]> producer = client.newProducer()
 producer.send("My message".getBytes());
 ```
 
-By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message schema.
+By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message [schema](#schema).
 
 ```java
 Producer<String> stringProducer = client.newProducer(Schema.STRING)
