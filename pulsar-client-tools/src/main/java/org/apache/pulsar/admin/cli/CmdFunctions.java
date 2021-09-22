@@ -271,7 +271,7 @@ public class CmdFunctions extends CmdBase {
         protected Boolean retainKeyOrdering;
         @Parameter(names = "--batch-builder", description = "BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
         protected String batchBuilder;
-        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
+        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing (use false to disable it)", arity = 1)
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
