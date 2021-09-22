@@ -128,7 +128,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
-> In addition to client-level configuration, you can also apply [producer](#Configure producer) and [consumer](#Configure consumer) specific configuration as described in sections below.
+> In addition to client-level configuration, you can also apply [producer](#configure-producer) and [consumer](#configure-consumer) specific configuration as described in sections below.
 
 ## Producer
 
