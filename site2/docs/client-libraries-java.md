@@ -104,7 +104,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 |---|---|---|---
 `serviceUrl` | String | Service URL provider for Pulsar service | None
 `authPluginClassName` | String | Name of the authentication plugin | None
- `authParams` | String | String represents parameters for the authentication plugin <br/><br/>**Example**<br/> key1:val1,key2:val2|None
+ `authParams` | String | Parameters for the authentication plugin <br/><br/>**Example**<br/> key1:val1,key2:val2|None
 `operationTimeoutMs`|long|`operationTimeoutMs`|Operation timeout |30000
 `statsIntervalSeconds`|long|Interval between each stats info<br/><br/>Stats is activated with positive `statsInterval`<br/><br/>Set `statsIntervalSeconds` to 1 second at least |60
 `numIoThreads`| int| The number of threads used for handling connections to brokers | 1 
