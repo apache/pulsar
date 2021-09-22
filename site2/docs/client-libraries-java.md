@@ -210,7 +210,7 @@ When using partitioned topics, you can specify the routing mode whenever you pub
 
 ### Async send
 
-You can publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer will be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
+You can publish messages [asynchronously](concepts-messaging.md#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.
 
 The following is an example.
 
