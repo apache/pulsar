@@ -795,14 +795,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Write into current ledger lh={} entries={}", name,
-                        currentLedger == null ? null : currentLedger.getId(),
-                        currentLedgerEntries);
+                        getCurrentLedgerIdOrNull(), currentLedgerEntries);
             }
 
             if (currentLedgerIsFull()) {
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}] Closing current ledger lh={}", name,
-                            currentLedger == null ? null : currentLedger.getId());
+                    log.debug("[{}] Closing current ledger lh={}", name, getCurrentLedgerIdOrNull());
                 }
                 // This entry will be the last added to current ledger
                 addOperation.setCloseWhenDone(true);
@@ -1593,8 +1591,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 op.initiate();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Stop writing into ledger {} queue={}", name,
-                            currentLedger == null ? null : currentLedger.getId(),
-                            pendingAddEntries.size());
+                            getCurrentLedgerIdOrNull(), pendingAddEntries.size());
                 }
                 break;
             } else {
@@ -2488,7 +2485,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             "[{}] Checking ledger {} -- time-old: {} sec -- "
                                     + "expired: {} -- over-quota: {} -- current-ledger: {}",
                             name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
-                            overRetentionQuota, currentLedger == null ? null : currentLedger.getId());
+                            overRetentionQuota, getCurrentLedgerIdOrNull());
                 }
 
                 if (expired || overRetentionQuota) {
@@ -4109,4 +4106,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    // for logging, avoid in other cases to prevent boxing of i.e. other side in case of comaprison
+    private Long getCurrentLedgerIdOrNull() {
+        return currentLedger == null ? null : currentLedger.getId();
+    }
 }

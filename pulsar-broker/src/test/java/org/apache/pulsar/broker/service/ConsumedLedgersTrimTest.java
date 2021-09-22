@@ -129,7 +129,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         managedLedgerConfig.setMaxEntriesPerLedger(1000);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         MessageId initialMessageId = persistentTopic.getLastMessageId().get();
-        log.info("lastmessageid " + initialMessageId);
+        log.info("lastmessageid {}", initialMessageId);
 
         int msgNum = 7;
         for (int i = 0; i < msgNum; i++) {
@@ -139,7 +139,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
         MessageId messageIdBeforeRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        log.info("messageIdBeforeRestart " + messageIdBeforeRestart);
+        log.info("messageIdBeforeRestart {}", messageIdBeforeRestart);
         assertNotEquals(messageIdBeforeRestart, initialMessageId);
 
         // restart the broker we have to start a new ledger
@@ -148,7 +148,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         // force load topic
         pulsar.getAdminClient().topics().getStats(topicName);
         MessageId messageIdAfterRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        log.info("lastmessageid " + messageIdAfterRestart);
+        log.info("lastmessageid {}", messageIdAfterRestart);
         assertEquals(messageIdAfterRestart, messageIdBeforeRestart);
 
         persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -202,7 +202,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         MessageId initialMessageId = persistentTopic.getLastMessageId().get();
-        log.info("lastmessageid " + initialMessageId);
+        log.info("lastmessageid {}", initialMessageId);
 
         int msgNum = 5;
         for (int i = 0; i < msgNum; i++) {
@@ -212,7 +212,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 3);
         MessageId messageIdBeforeRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        log.info("messageIdBeforeRestart " + messageIdBeforeRestart);
+        log.info("messageIdBeforeRestart {}", messageIdBeforeRestart);
         assertNotEquals(messageIdBeforeRestart, initialMessageId);
         assertNotEquals(MessageIdUtils.getOffset(messageIdBeforeRestart), -1);
 
