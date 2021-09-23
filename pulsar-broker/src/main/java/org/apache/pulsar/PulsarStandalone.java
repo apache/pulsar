@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
@@ -313,6 +314,8 @@ public class PulsarStandalone implements AutoCloseable {
                     .build();
             createSampleNameSpace(clusterData, cluster);
         } else {
+            checkArgument(config.getWebServicePortTls().isPresent(), "webServicePortTls must be present");
+            checkArgument(config.getBrokerServicePortTls().isPresent(), "brokerServicePortTls must be present");
             URL webServiceUrlTls = new URL(
                     String.format("https://%s:%d", config.getAdvertisedAddress(), config.getWebServicePortTls().get()));
             String brokerServiceUrlTls = String.format("pulsar+ssl://%s:%d", config.getAdvertisedAddress(),
