@@ -107,7 +107,7 @@ $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-4 \
 $PULSAR_DIR/bin/pulsar-admin namespaces set-encryption-required public/default-4 -e
 
 # Create "private" tenant
-$PULSAR_DIR/bin/pulsar-admin tenants create private -r "" -c "standalone"
+$PULSAR_DIR/bin/pulsar-admin tenants create private -r "token-principal" -c "standalone"
 
 # Create "private/auth" with required authentication
 $PULSAR_DIR/bin/pulsar-admin namespaces create private/auth --clusters standalone
