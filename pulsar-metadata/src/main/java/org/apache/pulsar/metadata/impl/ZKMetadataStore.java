@@ -410,6 +410,10 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         return zkc.getSessionId();
     }
 
+    public ZooKeeper getZkClient() {
+        return zkc;
+    }
+
     @Override
     public CompletableFuture<Void> initializeCluster() {
         if (this.metadataURL == null) {
