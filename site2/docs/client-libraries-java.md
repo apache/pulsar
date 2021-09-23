@@ -624,7 +624,7 @@ Consumer consumer2 = client.newConsumer()
 //Both consumer1 and consumer2 are active consumers.
 ```
 
-`Key_Shared` subscription is like `Shared` subscription, all consumers can attach to the same subscription. But it is different from `Shared` subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
+Just like in the `Shared` subscription, all consumers in the `Key_Shared` subscription mode can attach to the same subscription. But the `Key_Shared` subscription mode is different from the `Shared` subscription. In the `Key_Shared` subscription mode, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
 
 consumer1 receives the following information.
 
