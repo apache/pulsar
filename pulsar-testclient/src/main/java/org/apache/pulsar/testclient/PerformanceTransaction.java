@@ -164,7 +164,7 @@ public class PerformanceTransaction {
         @Parameter(names = {"-ntxn",
                 "--number-txn"}, description = "Set the number of transaction, if 0, it will keep opening."
                 + "If transaction disable, it means the number of task. The task or transaction will produce or "
-                + "and consume a specified number of messages.")
+                + "consume a specified number of messages.")
         public long numTransactions = 0;
 
         @Parameter(names = {"-nmp", "--numMessage-perTransaction-produce"},
@@ -280,7 +280,7 @@ public class PerformanceTransaction {
                         .build();
 
         ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
-                arguments.numTestThreads + 1,
+                arguments.numTestThreads,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>());
 
@@ -298,7 +298,7 @@ public class PerformanceTransaction {
 
         // start perf test
         AtomicBoolean executing = new AtomicBoolean(true);
-        executorService.submit(() -> {
+
             RateLimiter rateLimiter = arguments.openTxnRate > 0
                     ? RateLimiter.create(arguments.openTxnRate)
                     : null;
@@ -317,6 +317,7 @@ public class PerformanceTransaction {
                     } catch (Exception e) {
                         log.error("Failed to build Producer/Consumer with exception : ", e);
                         executorService.shutdownNow();
+                        PerfClientUtils.exit(-1);
                     }
                     AtomicReference<Transaction> atomicReference = buildTransaction(client, arguments);
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
@@ -463,16 +464,24 @@ public class PerformanceTransaction {
                                     });
                                 }
                                 AtomicBoolean updateTransaction = new AtomicBoolean(true);
-                                do{
-                                atomicReference.compareAndSet(transaction, client.newTransaction()
-                                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
-                                        .build().exceptionally(throwable -> {
-                                            log.error("Failed to new transaction with exception: ", throwable);
-                                            updateTransaction.set(false);
-                                            totalNumTxnOpenTxnFail.increment();
-                                            return null;
-                                        }).get());
-                                }while (!updateTransaction.get());
+
+                                while(true) {
+                                    atomicReference.compareAndSet(transaction, client.newTransaction()
+                                            .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                            .build().exceptionally(throwable -> {
+                                                if (throwable instanceof InterruptedException && !executing.get()) {
+                                                    return null;
+                                                }
+                                                log.error("Failed to new transaction with exception: ", throwable);
+                                                updateTransaction.set(false);
+                                                totalNumTxnOpenTxnFail.increment();
+                                                return null;
+                                            }).get());
+                                    if (updateTransaction.get()) {
+                                        break;
+                                    }
+                                }
+
                                 totalNumTxnOpenTxnSuccess.increment();
                             }
                             totalNumEndTxnOp.increment();
@@ -500,7 +509,7 @@ public class PerformanceTransaction {
                     }
                 });
             }
-        });
+
 
 
         // Print report stats
