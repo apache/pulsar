@@ -7,6 +7,11 @@ assignees: ''
 
 ---
 
+## Motivation
+
+Explain why this change is needed, what benefits it would bring to Apache Pulsar
+and what problem it's trying to solve.
+
 ## Goal
 
 Define the scope of this proposal. Given the motivation stated above, what are

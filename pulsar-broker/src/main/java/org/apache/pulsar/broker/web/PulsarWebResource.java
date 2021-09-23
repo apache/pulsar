@@ -70,6 +70,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -114,14 +115,6 @@ public abstract class PulsarWebResource {
 
     protected ServiceConfiguration config() {
         return pulsar().getConfiguration();
-    }
-
-    public static String path(String... parts) {
-        return PolicyPath.path(parts);
-    }
-
-    public static String joinPath(String... parts) {
-        return PolicyPath.joinPath(parts);
     }
 
     public static String splitPath(String source, int slice) {
@@ -344,7 +337,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateClusterOwnership(String cluster) throws WebApplicationException {
         try {
-            ClusterDataImpl differentClusterData =
+            ClusterData differentClusterData =
                     getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
             if (differentClusterData != null) {
                 URI redirect = getRedirectionUrl(differentClusterData);
@@ -366,7 +359,7 @@ public abstract class PulsarWebResource {
 
     }
 
-    private URI getRedirectionUrl(ClusterDataImpl differentClusterData) throws MalformedURLException {
+    private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
         try {
             PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
             if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
@@ -382,18 +375,18 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<ClusterDataImpl> getClusterDataIfDifferentCluster(PulsarService pulsar,
-                                                                                         String cluster,
-                                                                                         String clientAppId) {
+    protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
+                                                                                     String cluster,
+                                                                                     String clientAppId) {
 
-        CompletableFuture<ClusterDataImpl> clusterDataFuture = new CompletableFuture<>();
+        CompletableFuture<ClusterData> clusterDataFuture = new CompletableFuture<>();
 
         if (!isValidCluster(pulsar, cluster)) {
             try {
                 // this code should only happen with a v1 namespace format prop/cluster/namespaces
                 if (!pulsar.getConfiguration().getClusterName().equals(cluster)) {
                     // redirect to the cluster requested
-                    pulsar.getConfigurationCache().clustersCache().getAsync(path("clusters", cluster))
+                    pulsar.getPulsarResources().getClusterResources().getClusterAsync(cluster)
                             .thenAccept(clusterDataResult -> {
                                 if (clusterDataResult.isPresent()) {
                                     clusterDataFuture.complete(clusterDataResult.get());
@@ -768,14 +761,14 @@ public abstract class PulsarWebResource {
         }
 
         try {
-            Optional<ClusterDataImpl> cluster = pulsar.getConfigurationCache().clustersCache()
-                    .get(path("clusters", currentCluster));
+            Optional<ClusterData> cluster =
+                    pulsar.getPulsarResources().getClusterResources().getCluster(currentCluster);
             if (!cluster.isPresent() || cluster.get().getPeerClusterNames() == null) {
                 return null;
             }
             for (String peerCluster : cluster.get().getPeerClusterNames()) {
                 if (replicationClusters.contains(peerCluster)) {
-                    return pulsar.getConfigurationCache().clustersCache().get(path("clusters", peerCluster))
+                    return (ClusterDataImpl) pulsar.getPulsarResources().getClusterResources().getCluster(peerCluster)
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Peer cluster " + peerCluster + " data not found"));
                 }

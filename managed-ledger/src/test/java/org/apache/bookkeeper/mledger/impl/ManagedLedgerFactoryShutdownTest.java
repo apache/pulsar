@@ -43,8 +43,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -59,7 +59,7 @@ public class ManagedLedgerFactoryShutdownTest {
         final long version = 0;
         final long createTimeMillis = System.currentTimeMillis();
 
-        MetadataStore metadataStore = mock(MetadataStore.class);
+        MetadataStoreExtended metadataStore = mock(MetadataStoreExtended.class);
         CountDownLatch slowZk = new CountDownLatch(1);
         given(metadataStore.get(any())).willAnswer(inv -> {
             String path = inv.getArgument(0, String.class);

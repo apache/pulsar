@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api.url;
 
+import java.lang.reflect.InvocationTargetException;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
 import java.util.HashMap;
@@ -40,13 +41,12 @@ public class PulsarURLStreamHandlerFactory implements URLStreamHandlerFactory {
         try {
             Class<? extends URLStreamHandler> handler = handlers.get(protocol);
             if (handler != null) {
-                urlStreamHandler = handler.newInstance();
+                urlStreamHandler = handler.getDeclaredConstructor().newInstance();
             } else {
                 urlStreamHandler = null;
             }
-        } catch (InstantiationException e) {
-            urlStreamHandler = null;
-        } catch (IllegalAccessException e) {
+        } catch (InstantiationException | IllegalAccessException
+                | InvocationTargetException | NoSuchMethodException e) {
             urlStreamHandler = null;
         }
         return urlStreamHandler;

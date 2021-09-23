@@ -28,7 +28,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
-import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,11 +86,9 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
     @Override
     public void shutdown(int exitCode) {
         try {
-            // Try to close ZK session to ensure all ephemeral locks gets released immediately
+            // Try to close metadata service session to ensure all ephemeral locks get released immediately
             if (service != null) {
-                if (service.getZkClient().getState() != States.CLOSED) {
-                    service.getZkClient().close();
-                }
+                service.closeMetadataServiceSession();
             }
         } catch (Exception e) {
             LOG.warn(e.getMessage(), e);

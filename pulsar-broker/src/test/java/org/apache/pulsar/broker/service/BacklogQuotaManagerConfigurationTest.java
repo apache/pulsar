@@ -80,7 +80,6 @@ public class BacklogQuotaManagerConfigurationTest {
         PulsarService pulsarService = mock(PulsarService.class);
         ConfigurationCacheService configurationCacheService = mock(ConfigurationCacheService.class);
         when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
-        when(pulsarService.getConfigurationCache()).thenReturn(configurationCacheService);
         when(pulsarService.getPulsarResources()).thenReturn(mock(PulsarResources.class));
         return pulsarService;
     }

@@ -34,7 +34,7 @@ public class TopicResources {
 
     private final MetadataStore store;
 
-    TopicResources(MetadataStore store) {
+    public TopicResources(MetadataStore store) {
         this.store = store;
     }
 
