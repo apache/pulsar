@@ -146,17 +146,3 @@ The first-ever Pulsar Virtual Summit Europe 2021 will take place in October. [Re
 For more information about the Apache Pulsar project and the progress, visit
 the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
 [@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!
-
-
-
-
-
-
-
-
-
-
-
-
-
-
