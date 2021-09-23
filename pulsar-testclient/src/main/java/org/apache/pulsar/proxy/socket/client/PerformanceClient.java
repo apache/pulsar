@@ -65,7 +65,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceClient {
 
-    static AtomicInteger msgSent = new AtomicInteger(0);
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
     private static final LongAdder totalMessagesSent = new LongAdder();
