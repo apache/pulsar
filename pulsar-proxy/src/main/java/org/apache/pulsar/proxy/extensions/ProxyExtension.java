@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.protocol;
+package org.apache.pulsar.proxy.extensions;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -29,7 +29,7 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 
 /**
- * The extension interface for support additional protocols on Pulsar brokers.
+ * The extension interface for support additional extensions on Pulsar brokers.
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Evolving

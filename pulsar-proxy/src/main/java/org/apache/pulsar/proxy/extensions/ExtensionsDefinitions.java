@@ -16,31 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.protocol;
+package org.apache.pulsar.proxy.extensions;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
- * Metadata information about a Proxy Extension.
+ * The collection of Proxy Extensions.
  */
 @Data
-@NoArgsConstructor
-public class ProxyExtensionDefinition {
+@Accessors(fluent = true)
+class ExtensionsDefinitions {
 
-    /**
-     * The name of the protocol.
-     */
-    private String name;
-
-    /**
-     * The description of the extension to be used for user help.
-     */
-    private String description;
-
-    /**
-     * The class name for the extension.
-     */
-    private String extensionClass;
+    private final Map<String, ProxyExtensionMetadata> extensions = new TreeMap<>();
 
 }

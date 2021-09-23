@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.protocol;
+package org.apache.pulsar.proxy.extensions;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -51,30 +51,30 @@ public class ProxyExtensions implements AutoCloseable {
 
         ImmutableMap.Builder<String, ProxyExtensionWithClassLoader> extensionsBuilder = ImmutableMap.builder();
 
-        conf.getProxyExtensions().forEach(protocol -> {
+        conf.getProxyExtensions().forEach(extensionName -> {
 
-            ProxyExtensionMetadata definition = definitions.extensions().get(protocol);
+            ProxyExtensionMetadata definition = definitions.extensions().get(extensionName);
             if (null == definition) {
-                throw new RuntimeException("No extension is found for protocol `" + protocol
-                    + "`. Available protocols are : " + definitions.extensions());
+                throw new RuntimeException("No extension is found for extension name `" + extensionName
+                    + "`. Available extensions are : " + definitions.extensions());
             }
 
             ProxyExtensionWithClassLoader extension;
             try {
                 extension = ProxyExtensionsUtils.load(definition, conf.getNarExtractionDirectory());
             } catch (IOException e) {
-                log.error("Failed to load the extension for protocol `" + protocol + "`", e);
-                throw new RuntimeException("Failed to load the extension for protocol `" + protocol + "`");
+                log.error("Failed to load the extension for extension `" + extensionName + "`", e);
+                throw new RuntimeException("Failed to load the extension for extension name `" + extensionName + "`");
             }
 
-            if (!extension.accept(protocol)) {
+            if (!extension.accept(extensionName)) {
                 extension.close();
-                log.error("Malformed extension found for protocol `" + protocol + "`");
-                throw new RuntimeException("Malformed extension found for protocol `" + protocol + "`");
+                log.error("Malformed extension found for extensionName `" + extensionName + "`");
+                throw new RuntimeException("Malformed extension found for extension name `" + extensionName + "`");
             }
 
-            extensionsBuilder.put(protocol, extension);
-            log.info("Successfully loaded extension for protocol `{}`", protocol);
+            extensionsBuilder.put(extensionName, extension);
+            log.info("Successfully loaded extension for extension name `{}`", extensionName);
         });
 
         return new ProxyExtensions(extensionsBuilder.build());
@@ -117,11 +117,11 @@ public class ProxyExtensions implements AutoCloseable {
             initializers.forEach((address, initializer) -> {
                 if (!addresses.add(address)) {
                     log.error("extension for `{}` attempts to use {} for its listening port."
-                        + " But it is already occupied by other message protocols.",
+                        + " But it is already occupied by other extensions.",
                         extension.getKey(), address);
                     throw new RuntimeException("extension for `" + extension.getKey()
                         + "` attempts to use " + address + " for its listening port. But it is"
-                        + " already occupied by other messaging protocols");
+                        + " already occupied by other messaging extensions");
                 }
                 channelInitializers.put(extension.getKey(), initializers);
             });
