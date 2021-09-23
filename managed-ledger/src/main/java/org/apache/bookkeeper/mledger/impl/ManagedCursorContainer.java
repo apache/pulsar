@@ -19,16 +19,18 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.Lists;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.Pair;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Contains all the cursors for a ManagedLedger.
@@ -58,8 +60,23 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    // Used to keep track of slowest cursor. Contains all of all the cursors except for non-durable cursors
-    // Since we do need to keep track of non-durable cursors.
+    public enum CursorType {
+        DurableCursor,
+        NonDurableCursor,
+        ALL
+    }
+
+    public ManagedCursorContainer() {
+        cursorType = CursorType.DurableCursor;
+    }
+
+    public ManagedCursorContainer(CursorType cursorType) {
+        this.cursorType = cursorType;
+    }
+
+    private final CursorType cursorType;
+
+    // Used to keep track of slowest cursor. Contains all of all active cursors.
     private final ArrayList<Item> heap = Lists.newArrayList();
 
     // Maps a cursor to its position in the heap
@@ -67,22 +84,30 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
     private final StampedLock rwLock = new StampedLock();
 
-    // Used to keep track of the slowest non-durable cursor.
-    private final ArrayList<Item> heapForNonDurableCursors = Lists.newArrayList();
-
     public void add(ManagedCursor cursor) {
         long stamp = rwLock.writeLock();
         try {
-            ArrayList<Item> cursorHeap = cursor.isDurable() ? heap : heapForNonDurableCursors;
             // Append a new entry at the end of the list
-            Item item = new Item(cursor, cursorHeap.size());
+            Item item = new Item(cursor, heap.size());
             cursors.put(cursor.getName(), item);
 
-            cursorHeap.add(item);
-            siftUp(item, cursorHeap);
+            if (shouldTrackInHeap(cursor)) {
+                heap.add(item);
+                siftUp(item);
+            }
         } finally {
             rwLock.unlockWrite(stamp);
         }
+    }
+
+    private boolean shouldTrackInHeap(ManagedCursor cursor) {
+        return CursorType.ALL.equals(cursorType)
+                || (cursor.isDurable() && CursorType.DurableCursor.equals(cursorType))
+                || (!cursor.isDurable() && CursorType.NonDurableCursor.equals(cursorType));
+    }
+
+    public PositionImpl getSlowestReadPositionForActiveCursors() {
+        return heap.isEmpty() ? null : (PositionImpl) heap.get(0).cursor.getReadPosition();
     }
 
     public ManagedCursor get(String name) {
@@ -99,13 +124,15 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         long stamp = rwLock.writeLock();
         try {
             Item item = cursors.remove(name);
-            ArrayList<Item> cursorHeap = item.cursor.isDurable() ? heap : heapForNonDurableCursors;
-            // Move the item to the right end of the heap to be removed
-            Item lastItem = cursorHeap.get(cursorHeap.size() - 1);
-            swap(item, lastItem, cursorHeap);
-            cursorHeap.remove(item.idx);
-            // Update the heap
-            siftDown(lastItem, cursorHeap);
+
+            if (shouldTrackInHeap(item.cursor)) {
+                // Move the item to the right end of the heap to be removed
+                Item lastItem = heap.get(heap.size() - 1);
+                swap(item, lastItem);
+                heap.remove(item.idx);
+                // Update the heap
+                siftDown(lastItem);
+            }
         } finally {
             rwLock.unlockWrite(stamp);
         }
@@ -128,20 +155,24 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 return null;
             }
 
-            ArrayList<Item> cursorHeap = item.cursor.isDurable() ? heap : heapForNonDurableCursors;
-            PositionImpl previousSlowestConsumer = cursorHeap.get(0).position;
 
-            // When the cursor moves forward, we need to push it toward the
-            // bottom of the tree and push it up if a reset was done
-            item.position = (PositionImpl) newPosition;
-            if (item.idx == 0 || getParent(item, cursorHeap).position.compareTo(item.position) <= 0) {
-                siftDown(item, cursorHeap);
-            } else {
-                siftUp(item, cursorHeap);
+            if (shouldTrackInHeap(item.cursor)) {
+                PositionImpl previousSlowestConsumer = heap.get(0).position;
+
+                // When the cursor moves forward, we need to push it toward the
+                // bottom of the tree and push it up if a reset was done
+
+                item.position = (PositionImpl) newPosition;
+                if (item.idx == 0 || getParent(item).position.compareTo(item.position) <= 0) {
+                    siftDown(item);
+                } else {
+                    siftUp(item);
+                }
+
+                PositionImpl newSlowestConsumer = heap.get(0).position;
+                return Pair.of(previousSlowestConsumer, newSlowestConsumer);
             }
-
-            PositionImpl newSlowestConsumer = cursorHeap.get(0).position;
-            return item.cursor.isDurable() ? Pair.of(previousSlowestConsumer, newSlowestConsumer) : null;
+            return null;
         } finally {
             rwLock.unlockWrite(stamp);
         }
@@ -260,46 +291,47 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     /**
      * Push the item up towards the the root of the tree (lowest reading position).
      */
-    private void siftUp(Item item, ArrayList<Item> heap) {
-        Item parent = getParent(item, heap);
+    private void siftUp(Item item) {
+        Item parent = getParent(item);
         while (item.idx > 0 && parent.position.compareTo(item.position) > 0) {
-            swap(item, parent, heap);
-            parent = getParent(item, heap);
+            swap(item, parent);
+            parent = getParent(item);
         }
     }
 
     /**
      * Push the item down towards the bottom of the tree (highest reading position).
      */
-    private void siftDown(final Item item, ArrayList<Item> heap) {
+    private void siftDown(final Item item) {
         while (true) {
             Item j = null;
-            Item right = getRight(item, heap);
+            Item right = getRight(item);
             if (right != null && right.position.compareTo(item.position) < 0) {
-                Item left = getLeft(item, heap);
+                Item left = getLeft(item);
                 if (left != null && left.position.compareTo(right.position) < 0) {
                     j = left;
                 } else {
                     j = right;
                 }
             } else {
-                Item left = getLeft(item, heap);
+                Item left = getLeft(item);
                 if (left != null && left.position.compareTo(item.position) < 0) {
                     j = left;
                 }
             }
 
             if (j != null) {
-                swap(item, j, heap);
+                swap(item, j);
             } else {
                 break;
             }
         }
     }
+
     /**
      * Swap two items in the heap.
      */
-    private void swap(Item item1, Item item2, ArrayList<Item> heap) {
+    private void swap(Item item1, Item item2) {
         int idx1 = item1.idx;
         int idx2 = item2.idx;
 
@@ -311,34 +343,16 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         item2.idx = idx1;
     }
 
-    /**
-     * Get the slowest read position in all active cursors, including durable and non-durable cursors.
-     * @return
-     */
-    public PositionImpl getSlowestReadPositionForActiveCursors() {
-        PositionImpl nonDurablePosition = heapForNonDurableCursors.isEmpty()
-                ? null : (PositionImpl) heapForNonDurableCursors.get(0).cursor.getReadPosition();
-        PositionImpl durablePosition = heap.isEmpty()
-                ? null : (PositionImpl) heap.get(0).cursor.getReadPosition();
-        if (nonDurablePosition == null) {
-            return durablePosition;
-        }
-        if (durablePosition == null) {
-            return nonDurablePosition;
-        }
-        return durablePosition.compareTo(nonDurablePosition) > 0 ? nonDurablePosition : durablePosition;
-    }
-
-    private Item getParent(Item item, ArrayList<Item> heap) {
+    private Item getParent(Item item) {
         return heap.get((item.idx - 1) / 2);
     }
 
-    private Item getLeft(Item item, ArrayList<Item> heap) {
+    private Item getLeft(Item item) {
         int i = item.idx * 2 + 1;
         return i < heap.size() ? heap.get(i) : null;
     }
 
-    private Item getRight(Item item, ArrayList<Item> heap) {
+    private Item getRight(Item item) {
         int i = item.idx * 2 + 2;
         return i < heap.size() ? heap.get(i) : null;
     }

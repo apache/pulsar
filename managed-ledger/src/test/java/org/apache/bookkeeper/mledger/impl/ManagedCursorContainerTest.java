@@ -389,12 +389,14 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void testSlowestReadPositionForActiveCursors() throws Exception {
-        ManagedCursorContainer container = new ManagedCursorContainer();
+        ManagedCursorContainer container =
+                new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
         assertNull(container.getSlowestReadPositionForActiveCursors());
 
-        // Add durable cursor
+        // Add no durable cursor
         PositionImpl position = PositionImpl.get(5,5);
         ManagedCursor cursor1 = spy(new MockManagedCursor(container, "test1", position));
+        doReturn(false).when(cursor1).isDurable();
         doReturn(position).when(cursor1).getReadPosition();
         container.add(cursor1);
         assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
