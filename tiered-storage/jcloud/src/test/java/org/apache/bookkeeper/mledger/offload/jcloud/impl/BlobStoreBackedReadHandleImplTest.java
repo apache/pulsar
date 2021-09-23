@@ -32,7 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.*;
+import static org.mockito.Mockito.when;
 
 public class BlobStoreBackedReadHandleImplTest {
 
@@ -100,7 +100,6 @@ public class BlobStoreBackedReadHandleImplTest {
             bucket, secondLedgerKey, secondLedgerIndexKey, versionCheck, secondLedgerID, readBufferSize);
         firstRead.readAsync(0, 0).whenComplete((ledgerEntries, throwable) -> {
             if (throwable != null) {
-                throwable.printStackTrace();
                 latch.countDown();
             }
         });
