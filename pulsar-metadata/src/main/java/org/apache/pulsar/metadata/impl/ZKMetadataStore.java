@@ -74,7 +74,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(event -> {
-                        sessionWatcher.ifPresent(sw -> sw.process(event));
+                        if (sessionWatcher != null) {
+                            sessionWatcher.ifPresent(sw -> sw.process(event));
+                        }
                     }))
                     .build();
             zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
