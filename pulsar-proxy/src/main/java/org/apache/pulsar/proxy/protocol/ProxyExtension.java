@@ -33,7 +33,7 @@ import java.util.Map;
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Evolving
-public interface ProtocolHandler extends AutoCloseable {
+public interface ProxyExtension extends AutoCloseable {
 
     /**
      * Returns the unique protocol name. For example, `kafka-v2` for protocol handler for Kafka v2 protocol.

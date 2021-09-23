@@ -40,16 +40,16 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 
 /**
- * Unit test {@link ProtocolHandlerWithClassLoader}.
+ * Unit test {@link ProxyExtensionWithClassLoader}.
  */
 @Test(groups = "broker")
-public class ProtocolHandlerWithClassLoaderTest {
+public class ProxyExtensionWithClassLoaderTest {
 
     @Test
     public void testWrapper() throws Exception {
-        ProtocolHandler h = mock(ProtocolHandler.class);
+        ProxyExtension h = mock(ProxyExtension.class);
         NarClassLoader loader = mock(NarClassLoader.class);
-        ProtocolHandlerWithClassLoader wrapper = new ProtocolHandlerWithClassLoader(h, loader);
+        ProxyExtensionWithClassLoader wrapper = new ProxyExtensionWithClassLoader(h, loader);
 
         String protocol = "kafka";
 
@@ -75,7 +75,7 @@ public class ProtocolHandlerWithClassLoaderTest {
 
         String protocol = "test-protocol";
 
-        ProtocolHandler h = new ProtocolHandler() {
+        ProxyExtension h = new ProxyExtension() {
             @Override
             public String protocolName() {
                 assertEquals(Thread.currentThread().getContextClassLoader(), loader);
@@ -110,7 +110,7 @@ public class ProtocolHandlerWithClassLoaderTest {
                 assertEquals(Thread.currentThread().getContextClassLoader(), loader);
             }
         };
-        ProtocolHandlerWithClassLoader wrapper = new ProtocolHandlerWithClassLoader(h, loader);
+        ProxyExtensionWithClassLoader wrapper = new ProxyExtensionWithClassLoader(h, loader);
 
         ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
 

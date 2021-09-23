@@ -49,7 +49,7 @@ public class ProtocolHandlers implements AutoCloseable {
                 ProtocolHandlerUtils.searchForHandlers(
                         conf.getProxyProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
 
-        ImmutableMap.Builder<String, ProtocolHandlerWithClassLoader> handlersBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, ProxyExtensionWithClassLoader> handlersBuilder = ImmutableMap.builder();
 
         conf.getProxyMessagingProtocols().forEach(protocol -> {
 
@@ -59,7 +59,7 @@ public class ProtocolHandlers implements AutoCloseable {
                     + "`. Available protocols are : " + definitions.handlers());
             }
 
-            ProtocolHandlerWithClassLoader handler;
+            ProxyExtensionWithClassLoader handler;
             try {
                 handler = ProtocolHandlerUtils.load(definition, conf.getNarExtractionDirectory());
             } catch (IOException e) {
@@ -80,9 +80,9 @@ public class ProtocolHandlers implements AutoCloseable {
         return new ProtocolHandlers(handlersBuilder.build());
     }
 
-    private final Map<String, ProtocolHandlerWithClassLoader> handlers;
+    private final Map<String, ProxyExtensionWithClassLoader> handlers;
 
-    ProtocolHandlers(Map<String, ProtocolHandlerWithClassLoader> handlers) {
+    ProtocolHandlers(Map<String, ProxyExtensionWithClassLoader> handlers) {
         this.handlers = handlers;
     }
 
@@ -92,8 +92,8 @@ public class ProtocolHandlers implements AutoCloseable {
      * @param protocol the protocol to use
      * @return the protocol handler to handle the provided protocol
      */
-    public ProtocolHandler protocol(String protocol) {
-        ProtocolHandlerWithClassLoader h = handlers.get(protocol);
+    public ProxyExtension protocol(String protocol) {
+        ProxyExtensionWithClassLoader h = handlers.get(protocol);
         if (null == h) {
             return null;
         } else {
@@ -102,7 +102,7 @@ public class ProtocolHandlers implements AutoCloseable {
     }
 
     public void initialize(ProxyConfiguration conf) throws Exception {
-        for (ProtocolHandler handler : handlers.values()) {
+        for (ProxyExtension handler : handlers.values()) {
             handler.initialize(conf);
         }
     }
@@ -111,7 +111,7 @@ public class ProtocolHandlers implements AutoCloseable {
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> channelInitializers = Maps.newHashMap();
         Set<InetSocketAddress> addresses = Sets.newHashSet();
 
-        for (Map.Entry<String, ProtocolHandlerWithClassLoader> handler : handlers.entrySet()) {
+        for (Map.Entry<String, ProxyExtensionWithClassLoader> handler : handlers.entrySet()) {
             Map<InetSocketAddress, ChannelInitializer<SocketChannel>> initializers =
                 handler.getValue().newChannelInitializers();
             initializers.forEach((address, initializer) -> {
@@ -136,6 +136,6 @@ public class ProtocolHandlers implements AutoCloseable {
 
     @Override
     public void close() {
-        handlers.values().forEach(ProtocolHandler::close);
+        handlers.values().forEach(ProxyExtension::close);
     }
 }

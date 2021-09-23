@@ -46,7 +46,7 @@ import static org.testng.AssertJUnit.fail;
 })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
 @Test(groups = "broker")
-public class ProtocolHandlerUtilsTest {
+public class ProxyExtensionUtilsTest {
 
     // Necessary to make PowerMockito.mockStatic work with TestNG.
     @ObjectFactory
@@ -57,7 +57,7 @@ public class ProtocolHandlerUtilsTest {
     @Test
     public void testLoadProtocolHandler() throws Exception {
         ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
-        def.setHandlerClass(MockProtocolHandler.class.getName());
+        def.setHandlerClass(MockProxyExtension.class.getName());
         def.setDescription("test-protocol-handler");
 
         String archivePath = "/path/to/protocol/handler/nar";
@@ -69,8 +69,8 @@ public class ProtocolHandlerUtilsTest {
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
             .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class handlerClass = MockProtocolHandler.class;
-        when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
+        Class handlerClass = MockProxyExtension.class;
+        when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
             .thenReturn(handlerClass);
 
         PowerMockito.mockStatic(NarClassLoader.class);
@@ -81,11 +81,11 @@ public class ProtocolHandlerUtilsTest {
             any(String.class)
         )).thenReturn(mockLoader);
 
-        ProtocolHandlerWithClassLoader returnedPhWithCL = ProtocolHandlerUtils.load(metadata, "");
-        ProtocolHandler returnedPh = returnedPhWithCL.getHandler();
+        ProxyExtensionWithClassLoader returnedPhWithCL = ProtocolHandlerUtils.load(metadata, "");
+        ProxyExtension returnedPh = returnedPhWithCL.getHandler();
 
         assertSame(mockLoader, returnedPhWithCL.getClassLoader());
-        assertTrue(returnedPh instanceof MockProtocolHandler);
+        assertTrue(returnedPh instanceof MockProxyExtension);
     }
 
     @Test
@@ -102,8 +102,8 @@ public class ProtocolHandlerUtilsTest {
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
             .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class handlerClass = MockProtocolHandler.class;
-        when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
+        Class handlerClass = MockProxyExtension.class;
+        when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
             .thenReturn(handlerClass);
 
         PowerMockito.mockStatic(NarClassLoader.class);

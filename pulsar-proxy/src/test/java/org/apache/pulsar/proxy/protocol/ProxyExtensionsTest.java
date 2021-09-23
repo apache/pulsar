@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.protocol;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
@@ -45,33 +44,33 @@ import static org.testng.Assert.assertSame;
  * Unit test {@link ProtocolHandlers}.
  */
 @Test(groups = "proxy")
-public class ProtocolHandlersTest {
+public class ProxyExtensionsTest {
 
     private static final String protocol1 = "protocol1";
-    private ProtocolHandler handler1;
+    private ProxyExtension handler1;
     private NarClassLoader ncl1;
     private static final String protocol2 = "protocol2";
-    private ProtocolHandler handler2;
+    private ProxyExtension handler2;
     private NarClassLoader ncl2;
     private static final String protocol3 = "protocol3";
 
-    private Map<String, ProtocolHandlerWithClassLoader> handlerMap;
+    private Map<String, ProxyExtensionWithClassLoader> handlerMap;
     private ProtocolHandlers handlers;
 
     @BeforeMethod
     public void setup() {
-        this.handler1 = mock(ProtocolHandler.class);
+        this.handler1 = mock(ProxyExtension.class);
         this.ncl1 = mock(NarClassLoader.class);
-        this.handler2 = mock(ProtocolHandler.class);
+        this.handler2 = mock(ProxyExtension.class);
         this.ncl2 = mock(NarClassLoader.class);
 
         this.handlerMap = new HashMap<>();
         this.handlerMap.put(
             protocol1,
-            new ProtocolHandlerWithClassLoader(handler1, ncl1));
+            new ProxyExtensionWithClassLoader(handler1, ncl1));
         this.handlerMap.put(
             protocol2,
-            new ProtocolHandlerWithClassLoader(handler2, ncl2));
+            new ProxyExtensionWithClassLoader(handler2, ncl2));
         this.handlers = new ProtocolHandlers(this.handlerMap);
     }
 

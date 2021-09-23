@@ -35,7 +35,7 @@ import java.util.Collections;
 import static com.google.common.base.Preconditions.checkArgument;
 
 /**
- * Util class to search and load {@link ProtocolHandler}s.
+ * Util class to search and load {@link ProxyExtension}s.
  */
 @UtilityClass
 @Slf4j
@@ -117,12 +117,12 @@ class ProtocolHandlerUtils {
      * @param metadata the protocol handler definition.
      * @return
      */
-    static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata,
-                                               String narExtractionDirectory) throws IOException {
+    static ProxyExtensionWithClassLoader load(ProtocolHandlerMetadata metadata,
+                                              String narExtractionDirectory) throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
             metadata.getArchivePath().toAbsolutePath().toFile(),
             Collections.emptySet(),
-            ProtocolHandler.class.getClassLoader(), narExtractionDirectory);
+            ProxyExtension.class.getClassLoader(), narExtractionDirectory);
 
         ProtocolHandlerDefinition phDef = getProtocolHandlerDefinition(ncl);
         if (StringUtils.isBlank(phDef.getHandlerClass())) {
@@ -133,12 +133,12 @@ class ProtocolHandlerUtils {
         try {
             Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
             Object handler = handlerClass.newInstance();
-            if (!(handler instanceof ProtocolHandler)) {
+            if (!(handler instanceof ProxyExtension)) {
                 throw new IOException("Class " + phDef.getHandlerClass()
                     + " does not implement protocol handler interface");
             }
-            ProtocolHandler ph = (ProtocolHandler) handler;
-            return new ProtocolHandlerWithClassLoader(ph, ncl);
+            ProxyExtension ph = (ProxyExtension) handler;
+            return new ProxyExtensionWithClassLoader(ph, ncl);
         } catch (Throwable t) {
             rethrowIOException(t);
             return null;

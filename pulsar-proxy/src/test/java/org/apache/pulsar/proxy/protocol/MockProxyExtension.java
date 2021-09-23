@@ -27,7 +27,7 @@ import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.Map;
 
-class MockProtocolHandler implements ProtocolHandler {
+class MockProxyExtension implements ProxyExtension {
 
     public static final String NAME = "mock";
 

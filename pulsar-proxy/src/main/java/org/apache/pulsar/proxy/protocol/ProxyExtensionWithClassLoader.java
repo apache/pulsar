@@ -37,9 +37,9 @@ import java.util.Map;
 @Slf4j
 @Data
 @RequiredArgsConstructor
-class ProtocolHandlerWithClassLoader implements ProtocolHandler {
+class ProxyExtensionWithClassLoader implements ProxyExtension {
 
-    private final ProtocolHandler handler;
+    private final ProxyExtension handler;
     private final NarClassLoader classLoader;
 
     @Override
