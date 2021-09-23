@@ -481,7 +481,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerDeduplicationMaxNumberOfProducers | Maximum number of producer information that it's going to be persisted for deduplication purposes | 10000 |
 | brokerDeduplicationEntriesInterval | Number of entries after which a deduplication information snapshot is taken. A greater interval leads to less snapshots being taken though it would increase the topic recovery time, when the entries published after the snapshot need to be replayed. | 1000 |
 | brokerDeduplicationProducerInactivityTimeoutMinutes | The time of inactivity (in minutes) after which the broker discards deduplication information related to a disconnected producer. | 360 |
-| defaultNumberOfNamespaceBundles | When a namespace is created without specifying the number of bundles, this value is used as the default setting.| 4 |
+| defaultNumberOfNamespaceBundles | When a namespace is created without specifying the number of bundles, this value is used as the default setting.| 32 |
 |clientLibraryVersionCheckEnabled|  Enable checks for minimum allowed client library version. |false|
 |clientLibraryVersionCheckAllowUnversioned| Allow client libraries with no version information  |true|
 |statusFilePath|  The path for the file used to determine the rotation status for the broker when responding to service discovery health checks |/usr/local/apache/htdocs|

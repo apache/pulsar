@@ -47,7 +47,7 @@ When you create a new namespace, the new namespace sets to use the default numbe
 ```properties
 # When a namespace is created without specifying the number of bundle, this
 # value will be used as the default
-defaultNumberOfNamespaceBundles=4
+defaultNumberOfNamespaceBundles=32
 ```
 
 You can either change the system default, or override it when you create a new namespace:

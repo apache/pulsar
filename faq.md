@@ -46,7 +46,7 @@ On the broker side, the namespace is broken down into multiple bundles, and each
 
 A bundle is represented by a hash-range. The 32-bit hash space is initially divided equally into the requested bundles. Topics are matched to a bundle by hashing on the topic name.
 
-Default number of bundles is configured in `broker.conf`: `defaultNumberOfNamespaceBundles=4`
+Default number of bundles is configured in `broker.conf`: `defaultNumberOfNamespaceBundles=32`
 
 When the traffic increases on a given bundle, it will be split in 2 and reassigned to a different broker.
 
