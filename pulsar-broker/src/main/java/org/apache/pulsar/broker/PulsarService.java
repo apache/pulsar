@@ -826,7 +826,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         LOG.info("Received metadata service session event: {}", e);
         if (e == SessionEvent.SessionLost
                 && config.getZookeeperSessionExpiredPolicy() == MetadataSessionExpiredPolicy.shutdown) {
-            LOG.warn("The session with metdata service was lost. Shutting down.");
+            LOG.warn("The session with metadata service was lost. Shutting down.");
             shutdownNow();
         }
     }

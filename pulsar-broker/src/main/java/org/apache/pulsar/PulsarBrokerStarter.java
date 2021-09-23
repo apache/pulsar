@@ -334,7 +334,7 @@ public class PulsarBrokerStarter {
                 } catch (Throwable t) {
                     log.error("Error while shutting down Pulsar service", t);
                 }
-            })
+            }, "pulsar-service-shutdown")
         );
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
