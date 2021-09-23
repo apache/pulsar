@@ -114,6 +114,16 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 }
                 long entriesToRead = (lastEntry - firstEntry) + 1;
                 long nextExpectedId = firstEntry;
+
+                // seek the position to the first entry position, otherwise we will get the unexpected entry ID when doing
+                // the first read, that would cause read an unexpected entry id which is out of range between firstEntry
+                // and lastEntry
+                // for example, when we get 1-10 entries at first, then the next request is get 2-9, the following code
+                // will read the entry id from the stream and that is not the correct entry id, so it will seek to the
+                // correct position then read the stream as normal. But the entry id may exceed the last entry id, that
+                // will cause we are hardly to know the edge of the request range.
+                inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
+
                 while (entriesToRead > 0) {
                     if (state == State.Closed) {
                         log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
