@@ -152,6 +152,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
+    private final int maxPermits;
+
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
                         ProducerInterceptors interceptors) {
@@ -168,6 +170,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.semaphore = Optional.empty();
         }
+        this.maxPermits = conf.getMaxPendingMessages() * 2;
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
@@ -772,7 +775,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 if (!client.getMemoryLimitController().tryReserveMemory(payloadSize)) {
-                    semaphore.ifPresent(Semaphore::release);
+                    semaphore.ifPresent(s -> s.release(Math.min(maxPermits - s.availablePermits(), 1)));
                     callback.sendComplete(new PulsarClientException.MemoryBufferIsFullError("Client memory buffer is full", sequenceId));
                     return false;
                 }
@@ -1018,14 +1021,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void releaseSemaphoreForSendOp(OpSendMsg op) {
-        if (semaphore.isPresent()) {
-            semaphore.get().release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
-        }
+        semaphore.ifPresent(semaphore -> semaphore.release(
+                Math.min(
+                        maxPermits - semaphore.availablePermits(),
+                        isBatchMessagingEnabled() ? op.numMessagesInBatch : 1)
+                )
+        );
         client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
     }
 
     private void completeCallbackAndReleaseSemaphore(long payloadSize, SendCallback callback, Exception exception) {
-        semaphore.ifPresent(Semaphore::release);
+        semaphore.ifPresent(semaphore -> semaphore.release(Math.min(maxPermits - semaphore.availablePermits(), 1)));
         client.getMemoryLimitController().releaseMemory(payloadSize);
         callback.sendComplete(exception);
     }
@@ -1790,9 +1796,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             } catch (PulsarClientException e) {
                 Thread.currentThread().interrupt();
-                semaphore.ifPresent(s -> s.release(batchMessageContainer.getNumMessagesInBatch()));
+                semaphore.ifPresent(s -> s.release(Math.min(
+                        maxPermits - s.availablePermits(),
+                        batchMessageContainer.getNumMessagesInBatch()))
+                );
             } catch (Throwable t) {
-                semaphore.ifPresent(s -> s.release(batchMessageContainer.getNumMessagesInBatch()));
+                semaphore.ifPresent(s -> s.release(Math.min(
+                        maxPermits - s.availablePermits(),
+                        batchMessageContainer.getNumMessagesInBatch()))
+                );
                 log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
             }
         }
@@ -1959,6 +1971,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     Optional<Semaphore> getSemaphore() {
         return semaphore;
+    }
+
+    @VisibleForTesting
+    int getMaxPermits() {
+        return maxPermits;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);

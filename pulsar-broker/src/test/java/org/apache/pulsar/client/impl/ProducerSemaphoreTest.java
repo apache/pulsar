@@ -192,4 +192,59 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         FutureUtil.waitForAll(futures).get();
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
     }
+
+    @Test(timeOut = 30000)
+    public void testSemaphoreLimit() throws Exception {
+
+        final int pendingQueueSize = 10;
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerSemaphoreAcquire")
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(false)
+                .create();
+
+        Assert.assertEquals(
+                producer.getSemaphore().get().availablePermits(),
+                producer.getConfiguration().getMaxPendingMessages()
+        );
+
+        producer.getSemaphore().get().release(
+                Math.min(producer.getMaxPermits() - producer.getSemaphore().get().availablePermits(), 10)
+        );
+
+        Assert.assertEquals(
+                producer.getSemaphore().get().availablePermits(),
+                20
+        );
+
+        producer.getSemaphore().get().release(
+                Math.min(producer.getMaxPermits() - producer.getSemaphore().get().availablePermits(), 10)
+        );
+
+        Assert.assertEquals(
+                producer.getSemaphore().get().availablePermits(),
+                20
+        );
+    }
+
+    @Test(timeOut = 30000,
+          expectedExceptions = { java.lang.Error.class },
+          expectedExceptionsMessageRegExp = "Maximum permit count exceeded")
+    public void testSemaphoreLimitException() throws Exception {
+
+        final int pendingQueueSize = 10;
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerSemaphoreAcquire")
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(false)
+                .create();
+
+        // Cause integer overflow for semaphore int count.
+        producer.getSemaphore().get().release(2_000_000_000);
+        producer.getSemaphore().get().release(2_000_000_000);
+    }
 }
