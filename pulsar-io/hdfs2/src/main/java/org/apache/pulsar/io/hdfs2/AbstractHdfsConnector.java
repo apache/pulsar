@@ -137,7 +137,7 @@ public abstract class AbstractHdfsConnector {
         }
         InetSocketAddress namenode = NetUtils.createSocketAddr(address, port);
         SocketFactory socketFactory = NetUtils.getDefaultSocketFactory(config);
-        try(Socket socket = socketFactory.createSocket()) {
+        try (Socket socket = socketFactory.createSocket()) {
             NetUtils.connect(socket, namenode, 1000); // 1 second timeout
         }
     }
