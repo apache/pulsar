@@ -25,7 +25,7 @@ This blog walks through the most noteworthy changes grouped by component. For th
 
 **Issue**: Previously, when setting precise publish rate limits on topics, it did not work.
 
-**Resolution**: Implemented a new `RateLimiter` using the `LeakingBucke` and `FixedWindow` algorithms.
+**Resolution**: Implemented a new `RateLimiter` using the `LeakingBucket` and `FixedWindow` algorithms.
 
 ### Messages with the same keys are delivered to the correct consumers on Key-Shared subscriptions. [PR-10762](https://github.com/apache/pulsar/pull/10762)
 
