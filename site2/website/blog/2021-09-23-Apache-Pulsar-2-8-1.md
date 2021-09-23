@@ -77,7 +77,7 @@ This blog walks through the most noteworthy changes grouped by component. For th
 
 ### Consumers are not allowed to read data that does not belong to the connected topics. [PR-11912](https://github.com/apache/pulsar/pull/11912)
 
-**Issue**: Previously, the ledgerId check took effect on the `persistentTopic` level.
+**Issue**: Previously, the request ledger was not checked whether it belonged to a consumer’s connected topic, which allowed the consumer to read data that does not belong to the connected topic.
 
 **Resolution**: Added a check on the `ManagedLedger` level before executing read operations. 
 
