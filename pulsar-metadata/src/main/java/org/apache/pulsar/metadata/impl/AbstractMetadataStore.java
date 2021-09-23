@@ -67,6 +67,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
 
+    // We don't strictly need to use 'volatile' here because we don't need the precise consistent semantic. Instead,
+    // we want to avoid the overhead of 'volatile'.
     @Getter
     private boolean isConnected = true;
 
@@ -261,17 +263,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     protected void receivedSessionEvent(SessionEvent event) {
-        switch (event) {
-            case Reconnected:
-            case SessionReestablished:
-                isConnected = true;
-                break;
-
-            case ConnectionLost:
-            case SessionLost:
-                isConnected = false;
-                break;
-        }
+        isConnected = event.isConnected();
 
         sessionListeners.forEach(l -> {
             try {
