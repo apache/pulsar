@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.io.debezium;
 
-import io.debezium.relational.history.DatabaseHistory;
-import java.util.Map;
-
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
@@ -50,10 +48,7 @@ public abstract class DebeziumSource extends KafkaConnectSource {
     }
 
     public static void setConfigIfNull(Map<String, Object> config, String key, String value) {
-        Object orig = config.get(key);
-        if (orig == null) {
-            config.put(key, value);
-        }
+        config.putIfAbsent(key, value);
     }
 
     // namespace for output topics, default value is "tenant/namespace"
