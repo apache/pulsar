@@ -29,7 +29,7 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 
 /**
- * The extension interface for support additional extensions on Pulsar brokers.
+ * The extension interface for support additional extensions on Pulsar Proxy.
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Evolving
@@ -54,7 +54,7 @@ public interface ProxyExtension extends AutoCloseable {
      * <p>The initialize should initialize all the resources required for serving the extension
      * but don't start those resources until {@link #start(ProxyService)} is called.
      *
-     * @param conf broker service configuration
+     * @param conf proxy service configuration
      * @throws Exception when fail to initialize the extension.
      */
     void initialize(ProxyConfiguration conf) throws Exception;

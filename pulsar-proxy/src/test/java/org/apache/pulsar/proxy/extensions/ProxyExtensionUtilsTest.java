@@ -58,9 +58,9 @@ public class ProxyExtensionUtilsTest {
     public void testLoadProtocolHandler() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(MockProxyExtension.class.getName());
-        def.setDescription("test-protocol-handler");
+        def.setDescription("test-ext");
 
-        String archivePath = "/path/to/protocol/handler/nar";
+        String archivePath = "/path/to/ext/nar";
 
         ProxyExtensionMetadata metadata = new ProxyExtensionMetadata();
         metadata.setDefinition(def);
@@ -91,9 +91,9 @@ public class ProxyExtensionUtilsTest {
     @Test
     public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
-        def.setDescription("test-protocol-handler");
+        def.setDescription("test-ext");
 
-        String archivePath = "/path/to/protocol/handler/nar";
+        String archivePath = "/path/to/ext/nar";
 
         ProxyExtensionMetadata metadata = new ProxyExtensionMetadata();
         metadata.setDefinition(def);
@@ -126,9 +126,9 @@ public class ProxyExtensionUtilsTest {
     public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(Runnable.class.getName());
-        def.setDescription("test-protocol-handler");
+        def.setDescription("test-ext");
 
-        String archivePath = "/path/to/protocol/handler/nar";
+        String archivePath = "/path/to/ext/nar";
 
         ProxyExtensionMetadata metadata = new ProxyExtensionMetadata();
         metadata.setDefinition(def);

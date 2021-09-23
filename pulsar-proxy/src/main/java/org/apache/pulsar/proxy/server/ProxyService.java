@@ -257,9 +257,9 @@ public class ProxyService implements Closeable {
         try {
             bootstrap.bind(address).sync();
         } catch (Exception e) {
-            throw new IOException("Failed to bind extensionName `" + extensionName + "` on " + address, e);
+            throw new IOException("Failed to bind extension `" + extensionName + "` on " + address, e);
         }
-        LOG.info("Successfully bind extensionName `{}` on {}", extensionName, address);
+        LOG.info("Successfully bound extension `{}` on {}", extensionName, address);
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
