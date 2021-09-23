@@ -16,17 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.zookeeper;
+package org.apache.pulsar.broker;
 
-/**
- * Handler interface on Zookeeper session expired
- */
-public interface ZookeeperSessionExpiredHandler {
-
-    /**
-     * Signal when zookeeper session is expired.
-     */
-    void onSessionExpired();
-
-    void setWatcher(ZooKeeperSessionWatcher watcher);
+public interface ShutdownService {
+    void shutdownNow();
 }

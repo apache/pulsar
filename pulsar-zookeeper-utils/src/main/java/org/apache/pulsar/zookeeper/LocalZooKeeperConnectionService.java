@@ -49,7 +49,6 @@ public class LocalZooKeeperConnectionService implements Closeable {
     private final long zkSessionTimeoutMillis;
 
     private ZooKeeper localZooKeeper;
-    private ZooKeeperSessionWatcher localZooKeeperSessionWatcher;
 
     public LocalZooKeeperConnectionService(ZooKeeperClientFactory zkClientFactory, String zkConnect,
             long zkSessionTimeoutMillis) {
@@ -58,27 +57,19 @@ public class LocalZooKeeperConnectionService implements Closeable {
         this.zkSessionTimeoutMillis = zkSessionTimeoutMillis;
     }
 
-    public void start(ZookeeperSessionExpiredHandler sessionExpiredHandler) throws IOException {
+    public void start() throws IOException {
         // Connect to local ZK
         CompletableFuture<ZooKeeper> zkFuture = zkClientFactory.create(zkConnect, SessionType.ReadWrite,
                 (int) zkSessionTimeoutMillis);
 
         try {
             localZooKeeper = zkFuture.get(zkSessionTimeoutMillis, TimeUnit.MILLISECONDS);
-            localZooKeeperSessionWatcher = new ZooKeeperSessionWatcher(localZooKeeper, zkSessionTimeoutMillis,
-                sessionExpiredHandler);
-            localZooKeeperSessionWatcher.start();
-            localZooKeeper.register(localZooKeeperSessionWatcher);
         } catch (Exception e) {
             throw new IOException("Failed to establish session with local ZK", e);
         }
     }
 
     public void close() throws IOException {
-        if (localZooKeeperSessionWatcher != null) {
-            localZooKeeperSessionWatcher.close();
-        }
-
         if (localZooKeeper != null) {
             try {
                 localZooKeeper.close();
