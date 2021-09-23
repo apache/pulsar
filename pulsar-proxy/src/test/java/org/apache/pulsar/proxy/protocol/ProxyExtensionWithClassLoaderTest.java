@@ -53,9 +53,9 @@ public class ProxyExtensionWithClassLoaderTest {
 
         String protocol = "kafka";
 
-        when(h.protocolName()).thenReturn(protocol);
-        assertEquals(protocol, wrapper.protocolName());
-        verify(h, times(1)).protocolName();
+        when(h.extensionName()).thenReturn(protocol);
+        assertEquals(protocol, wrapper.extensionName());
+        verify(h, times(1)).extensionName();
 
         when(h.accept(eq(protocol))).thenReturn(true);
         assertTrue(wrapper.accept(protocol));
@@ -77,7 +77,7 @@ public class ProxyExtensionWithClassLoaderTest {
 
         ProxyExtension h = new ProxyExtension() {
             @Override
-            public String protocolName() {
+            public String extensionName() {
                 assertEquals(Thread.currentThread().getContextClassLoader(), loader);
                 return protocol;
             }
@@ -114,7 +114,7 @@ public class ProxyExtensionWithClassLoaderTest {
 
         ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
 
-        assertEquals(wrapper.protocolName(), protocol);
+        assertEquals(wrapper.extensionName(), protocol);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
 
         assertTrue(wrapper.accept(protocol));

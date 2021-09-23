@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Set;
 
-import static org.apache.pulsar.proxy.protocol.ProtocolHandlerUtils.PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE;
+import static org.apache.pulsar.proxy.protocol.ProxyExtensionsUtils.PROXY_EXTENSION_DEFINITION_FILE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -42,7 +42,7 @@ import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
 @PrepareForTest({
-    ProtocolHandlerUtils.class, NarClassLoader.class
+    ProxyExtensionsUtils.class, NarClassLoader.class
 })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
 @Test(groups = "broker")
@@ -56,18 +56,18 @@ public class ProxyExtensionUtilsTest {
 
     @Test
     public void testLoadProtocolHandler() throws Exception {
-        ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
-        def.setHandlerClass(MockProxyExtension.class.getName());
+        ProxyExtensionDefinition def = new ProxyExtensionDefinition();
+        def.setExtensionClass(MockProxyExtension.class.getName());
         def.setDescription("test-protocol-handler");
 
         String archivePath = "/path/to/protocol/handler/nar";
 
-        ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
+        ProxyExtensionMetadata metadata = new ProxyExtensionMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
             .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
         Class handlerClass = MockProxyExtension.class;
         when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
@@ -81,8 +81,8 @@ public class ProxyExtensionUtilsTest {
             any(String.class)
         )).thenReturn(mockLoader);
 
-        ProxyExtensionWithClassLoader returnedPhWithCL = ProtocolHandlerUtils.load(metadata, "");
-        ProxyExtension returnedPh = returnedPhWithCL.getHandler();
+        ProxyExtensionWithClassLoader returnedPhWithCL = ProxyExtensionsUtils.load(metadata, "");
+        ProxyExtension returnedPh = returnedPhWithCL.getExtension();
 
         assertSame(mockLoader, returnedPhWithCL.getClassLoader());
         assertTrue(returnedPh instanceof MockProxyExtension);
@@ -90,17 +90,17 @@ public class ProxyExtensionUtilsTest {
 
     @Test
     public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
-        ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
+        ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setDescription("test-protocol-handler");
 
         String archivePath = "/path/to/protocol/handler/nar";
 
-        ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
+        ProxyExtensionMetadata metadata = new ProxyExtensionMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
             .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
         Class handlerClass = MockProxyExtension.class;
         when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
@@ -115,7 +115,7 @@ public class ProxyExtensionUtilsTest {
         )).thenReturn(mockLoader);
 
         try {
-            ProtocolHandlerUtils.load(metadata, "");
+            ProxyExtensionsUtils.load(metadata, "");
             fail("Should not reach here");
         } catch (IOException ioe) {
             // expected
@@ -124,18 +124,18 @@ public class ProxyExtensionUtilsTest {
 
     @Test
     public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
-        ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
-        def.setHandlerClass(Runnable.class.getName());
+        ProxyExtensionDefinition def = new ProxyExtensionDefinition();
+        def.setExtensionClass(Runnable.class.getName());
         def.setDescription("test-protocol-handler");
 
         String archivePath = "/path/to/protocol/handler/nar";
 
-        ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
+        ProxyExtensionMetadata metadata = new ProxyExtensionMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
             .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
         Class handlerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
@@ -150,7 +150,7 @@ public class ProxyExtensionUtilsTest {
         )).thenReturn(mockLoader);
 
         try {
-            ProtocolHandlerUtils.load(metadata, "");
+            ProxyExtensionsUtils.load(metadata, "");
             fail("Should not reach here");
         } catch (IOException ioe) {
             // expected

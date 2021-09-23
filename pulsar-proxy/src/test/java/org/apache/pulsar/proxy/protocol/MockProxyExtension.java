@@ -32,7 +32,7 @@ class MockProxyExtension implements ProxyExtension {
     public static final String NAME = "mock";
 
     @Override
-    public String protocolName() {
+    public String extensionName() {
         return NAME;
     }
 

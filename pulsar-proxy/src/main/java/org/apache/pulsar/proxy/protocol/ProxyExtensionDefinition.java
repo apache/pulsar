@@ -21,23 +21,26 @@ package org.apache.pulsar.proxy.protocol;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.nio.file.Path;
-
 /**
- * The metadata of protocol handler.
+ * Metadata information about a Proxy Extension.
  */
 @Data
 @NoArgsConstructor
-class ProtocolHandlerMetadata {
+public class ProxyExtensionDefinition {
 
     /**
-     * The definition of the protocol handler.
+     * The name of the protocol.
      */
-    private ProtocolHandlerDefinition definition;
+    private String name;
 
     /**
-     * The path to the handler package.
+     * The description of the extension to be used for user help.
      */
-    private Path archivePath;
+    private String description;
+
+    /**
+     * The class name for the extension.
+     */
+    private String extensionClass;
 
 }

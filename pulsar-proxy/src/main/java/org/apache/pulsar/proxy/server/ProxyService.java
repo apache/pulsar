@@ -32,7 +32,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.Closeable;
@@ -59,8 +58,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
-import org.apache.pulsar.proxy.protocol.ProtocolHandlers;
+import org.apache.pulsar.proxy.protocol.ProxyExtensions;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +77,7 @@ public class ProxyService implements Closeable {
     private MetadataStoreExtended localMetadataStore;
     private MetadataStoreExtended configMetadataStore;
     private PulsarResources pulsarResources;
-    private ProtocolHandlers protocolHandlers = null;
+    private ProxyExtensions protocolHandlers = null;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
@@ -148,7 +146,7 @@ public class ProxyService implements Closeable {
         this.authenticationService = authenticationService;
 
         // Initialize the message protocol handlers
-        protocolHandlers = ProtocolHandlers.load(proxyConfig);
+        protocolHandlers = ProxyExtensions.load(proxyConfig);
         protocolHandlers.initialize(proxyConfig);
 
         statsExecutor = Executors

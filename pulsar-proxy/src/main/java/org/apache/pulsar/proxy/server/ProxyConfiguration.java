@@ -563,15 +563,15 @@ public class ProxyConfiguration implements PulsarConfiguration {
     /***** --- Protocol Handlers --- ****/
     @FieldContext(
             category = CATEGORY_PLUGIN,
-            doc = "The directory to locate messaging protocol handlers"
+            doc = "The directory to locate proxy extensions"
     )
-    private String proxyProtocolHandlerDirectory = "./proxyprotocols";
+    private String proxyExtensionsDirectory = "./proxyextensions";
 
     @FieldContext(
             category = CATEGORY_PLUGIN,
-            doc = "List of messaging protocols to load, which is a list of protocol names"
+            doc = "List of messaging protocols to load, which is a list of extension names"
     )
-    private Set<String> proxyMessagingProtocols = Sets.newTreeSet();
+    private Set<String> proxyExtensions = Sets.newTreeSet();
 
     /***** --- WebSocket --- ****/
     @FieldContext(

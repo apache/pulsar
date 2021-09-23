@@ -41,70 +41,70 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 
 /**
- * Unit test {@link ProtocolHandlers}.
+ * Unit test {@link ProxyExtensions}.
  */
 @Test(groups = "proxy")
 public class ProxyExtensionsTest {
 
     private static final String protocol1 = "protocol1";
-    private ProxyExtension handler1;
+    private ProxyExtension extension1;
     private NarClassLoader ncl1;
     private static final String protocol2 = "protocol2";
-    private ProxyExtension handler2;
+    private ProxyExtension extension2;
     private NarClassLoader ncl2;
     private static final String protocol3 = "protocol3";
 
-    private Map<String, ProxyExtensionWithClassLoader> handlerMap;
-    private ProtocolHandlers handlers;
+    private Map<String, ProxyExtensionWithClassLoader> extensionsMap;
+    private ProxyExtensions extensions;
 
     @BeforeMethod
     public void setup() {
-        this.handler1 = mock(ProxyExtension.class);
+        this.extension1 = mock(ProxyExtension.class);
         this.ncl1 = mock(NarClassLoader.class);
-        this.handler2 = mock(ProxyExtension.class);
+        this.extension2 = mock(ProxyExtension.class);
         this.ncl2 = mock(NarClassLoader.class);
 
-        this.handlerMap = new HashMap<>();
-        this.handlerMap.put(
+        this.extensionsMap = new HashMap<>();
+        this.extensionsMap.put(
             protocol1,
-            new ProxyExtensionWithClassLoader(handler1, ncl1));
-        this.handlerMap.put(
+            new ProxyExtensionWithClassLoader(extension1, ncl1));
+        this.extensionsMap.put(
             protocol2,
-            new ProxyExtensionWithClassLoader(handler2, ncl2));
-        this.handlers = new ProtocolHandlers(this.handlerMap);
+            new ProxyExtensionWithClassLoader(extension2, ncl2));
+        this.extensions = new ProxyExtensions(this.extensionsMap);
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        this.handlers.close();
+        this.extensions.close();
 
-        verify(handler1, times(1)).close();
-        verify(handler2, times(1)).close();
+        verify(extension1, times(1)).close();
+        verify(extension2, times(1)).close();
         verify(ncl1, times(1)).close();
         verify(ncl2, times(1)).close();
     }
 
     @Test
     public void testGetProtocol() {
-        assertSame(handler1, handlers.protocol(protocol1));
-        assertSame(handler2, handlers.protocol(protocol2));
-        assertNull(handlers.protocol(protocol3));
+        assertSame(extension1, extensions.protocol(protocol1));
+        assertSame(extension2, extensions.protocol(protocol2));
+        assertNull(extensions.protocol(protocol3));
     }
 
     @Test
     public void testInitialize() throws Exception {
         ProxyConfiguration conf = new ProxyConfiguration();
-        handlers.initialize(conf);
-        verify(handler1, times(1)).initialize(same(conf));
-        verify(handler2, times(1)).initialize(same(conf));
+        extensions.initialize(conf);
+        verify(extension1, times(1)).initialize(same(conf));
+        verify(extension2, times(1)).initialize(same(conf));
     }
 
     @Test
     public void testStart() {
         ProxyService service = mock(ProxyService.class);
-        handlers.start(service);
-        verify(handler1, times(1)).start(same(service));
-        verify(handler2, times(1)).start(same(service));
+        extensions.start(service);
+        verify(extension1, times(1)).start(same(service));
+        verify(extension2, times(1)).start(same(service));
     }
 
     @Test
@@ -121,11 +121,11 @@ public class ProxyExtensionsTest {
         p2Initializers.put(new InetSocketAddress("127.0.0.3", 6650), i3);
         p2Initializers.put(new InetSocketAddress("127.0.0.4", 6651), i4);
 
-        when(handler1.newChannelInitializers()).thenReturn(p1Initializers);
-        when(handler2.newChannelInitializers()).thenReturn(p2Initializers);
+        when(extension1.newChannelInitializers()).thenReturn(p1Initializers);
+        when(extension2.newChannelInitializers()).thenReturn(p2Initializers);
 
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> initializers =
-            handlers.newChannelInitializers();
+            extensions.newChannelInitializers();
 
         assertEquals(2, initializers.size());
         assertSame(p1Initializers, initializers.get(protocol1));
@@ -146,10 +146,10 @@ public class ProxyExtensionsTest {
         p2Initializers.put(new InetSocketAddress("127.0.0.1", 6650), i3);
         p2Initializers.put(new InetSocketAddress("127.0.0.4", 6651), i4);
 
-        when(handler1.newChannelInitializers()).thenReturn(p1Initializers);
-        when(handler2.newChannelInitializers()).thenReturn(p2Initializers);
+        when(extension1.newChannelInitializers()).thenReturn(p1Initializers);
+        when(extension2.newChannelInitializers()).thenReturn(p2Initializers);
 
-        handlers.newChannelInitializers();
+        extensions.newChannelInitializers();
     }
 
 }

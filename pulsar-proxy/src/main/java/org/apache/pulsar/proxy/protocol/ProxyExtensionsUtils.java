@@ -39,105 +39,105 @@ import static com.google.common.base.Preconditions.checkArgument;
  */
 @UtilityClass
 @Slf4j
-class ProtocolHandlerUtils {
+class ProxyExtensionsUtils {
 
-    static final String PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE = "pulsar-proxy-protocol-handler.yml";
+    static final String PROXY_EXTENSION_DEFINITION_FILE = "pulsar-proxy-extension.yml";
 
     /**
-     * Retrieve the protocol handler definition from the provided handler nar package.
+     * Retrieve the extension definition from the provided handler nar package.
      *
-     * @param narPath the path to the protocol handler NAR package
-     * @return the protocol handler definition
-     * @throws IOException when fail to load the protocol handler or get the definition
+     * @param narPath the path to the extension NAR package
+     * @return the extension definition
+     * @throws IOException when fail to load the extension or get the definition
      */
-    public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath, String narExtractionDirectory)
+    public static ProxyExtensionDefinition getProxyExtensionDefinition(String narPath, String narExtractionDirectory)
             throws IOException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
                 narExtractionDirectory)) {
-            return getProtocolHandlerDefinition(ncl);
+            return getProxyExtensionDefinition(ncl);
         }
     }
 
-    private static ProtocolHandlerDefinition getProtocolHandlerDefinition(NarClassLoader ncl) throws IOException {
-        String configStr = ncl.getServiceDefinition(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE);
+    private static ProxyExtensionDefinition getProxyExtensionDefinition(NarClassLoader ncl) throws IOException {
+        String configStr = ncl.getServiceDefinition(PROXY_EXTENSION_DEFINITION_FILE);
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
-            configStr, ProtocolHandlerDefinition.class
+            configStr, ProxyExtensionDefinition.class
         );
     }
 
     /**
-     * Search and load the available protocol handlers.
+     * Search and load the available extensions.
      *
-     * @param handlersDirectory the directory where all the protocol handlers are stored
-     * @return a collection of protocol handlers
-     * @throws IOException when fail to load the available protocol handlers from the provided directory.
+     * @param extensionsDirectory the directory where all the extensions are stored
+     * @return a collection of extensions
+     * @throws IOException when fail to load the available extensions from the provided directory.
      */
-    public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory,
-                                                               String narExtractionDirectory) throws IOException {
-        Path path = Paths.get(handlersDirectory).toAbsolutePath();
-        log.info("Searching for protocol handlers in {}", path);
+    public static ExtensionsDefinitions searchForExtensions(String extensionsDirectory,
+                                                            String narExtractionDirectory) throws IOException {
+        Path path = Paths.get(extensionsDirectory).toAbsolutePath();
+        log.info("Searching for extensions in {}", path);
 
-        ProtocolHandlerDefinitions handlers = new ProtocolHandlerDefinitions();
+        ExtensionsDefinitions extensions = new ExtensionsDefinitions();
         if (!path.toFile().exists()) {
-            log.warn("Protocol handler directory not found");
-            return handlers;
+            log.warn("extension directory not found");
+            return extensions;
         }
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    ProtocolHandlerDefinition phDef =
-                        ProtocolHandlerUtils.getProtocolHandlerDefinition(archive.toString(), narExtractionDirectory);
-                    log.info("Found protocol handler from {} : {}", archive, phDef);
+                    ProxyExtensionDefinition phDef =
+                        ProxyExtensionsUtils.getProxyExtensionDefinition(archive.toString(), narExtractionDirectory);
+                    log.info("Found extension from {} : {}", archive, phDef);
 
                     checkArgument(StringUtils.isNotBlank(phDef.getName()));
-                    checkArgument(StringUtils.isNotBlank(phDef.getHandlerClass()));
+                    checkArgument(StringUtils.isNotBlank(phDef.getExtensionClass()));
 
-                    ProtocolHandlerMetadata metadata = new ProtocolHandlerMetadata();
+                    ProxyExtensionMetadata metadata = new ProxyExtensionMetadata();
                     metadata.setDefinition(phDef);
                     metadata.setArchivePath(archive);
 
-                    handlers.handlers().put(phDef.getName(), metadata);
+                    extensions.extensions().put(phDef.getName(), metadata);
                 } catch (Throwable t) {
                     log.warn("Failed to load connector from {}."
-                        + " It is OK however if you want to use this protocol handler,"
-                        + " please make sure you put the correct protocol handler NAR"
-                        + " package in the handlers directory.", archive, t);
+                        + " It is OK however if you want to use this extension,"
+                        + " please make sure you put the correct extension NAR"
+                        + " package in the extensions directory.", archive, t);
                 }
             }
         }
 
-        return handlers;
+        return extensions;
     }
 
     /**
-     * Load the protocol handler according to the handler definition.
+     * Load the extension according to the handler definition.
      *
-     * @param metadata the protocol handler definition.
+     * @param metadata the extension definition.
      * @return
      */
-    static ProxyExtensionWithClassLoader load(ProtocolHandlerMetadata metadata,
+    static ProxyExtensionWithClassLoader load(ProxyExtensionMetadata metadata,
                                               String narExtractionDirectory) throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
             metadata.getArchivePath().toAbsolutePath().toFile(),
             Collections.emptySet(),
             ProxyExtension.class.getClassLoader(), narExtractionDirectory);
 
-        ProtocolHandlerDefinition phDef = getProtocolHandlerDefinition(ncl);
-        if (StringUtils.isBlank(phDef.getHandlerClass())) {
-            throw new IOException("Protocol handler `" + phDef.getName() + "` does NOT provide a protocol"
+        ProxyExtensionDefinition phDef = getProxyExtensionDefinition(ncl);
+        if (StringUtils.isBlank(phDef.getExtensionClass())) {
+            throw new IOException("extension `" + phDef.getName() + "` does NOT provide a protocol"
                 + " handler implementation");
         }
 
         try {
-            Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
-            Object handler = handlerClass.newInstance();
-            if (!(handler instanceof ProxyExtension)) {
-                throw new IOException("Class " + phDef.getHandlerClass()
-                    + " does not implement protocol handler interface");
+            Class extensionClass = ncl.loadClass(phDef.getExtensionClass());
+            Object extension = extensionClass.newInstance();
+            if (!(extension instanceof ProxyExtension)) {
+                throw new IOException("Class " + phDef.getExtensionClass()
+                    + " does not implement extension interface");
             }
-            ProxyExtension ph = (ProxyExtension) handler;
+            ProxyExtension ph = (ProxyExtension) extension;
             return new ProxyExtensionWithClassLoader(ph, ncl);
         } catch (Throwable t) {
             rethrowIOException(t);

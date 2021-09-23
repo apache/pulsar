@@ -33,77 +33,77 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A collection of loaded handlers.
+ * A collection of loaded extensions.
  */
 @Slf4j
-public class ProtocolHandlers implements AutoCloseable {
+public class ProxyExtensions implements AutoCloseable {
 
     /**
-     * Load the protocol handlers for the given <tt>protocol</tt> list.
+     * Load the extensions for the given <tt>extensions</tt> list.
      *
      * @param conf the pulsar broker service configuration
-     * @return the collection of protocol handlers
+     * @return the collection of extensions
      */
-    public static ProtocolHandlers load(ProxyConfiguration conf) throws IOException {
-        ProtocolHandlerDefinitions definitions =
-                ProtocolHandlerUtils.searchForHandlers(
-                        conf.getProxyProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
+    public static ProxyExtensions load(ProxyConfiguration conf) throws IOException {
+        ExtensionsDefinitions definitions =
+                ProxyExtensionsUtils.searchForExtensions(
+                        conf.getProxyExtensionsDirectory(), conf.getNarExtractionDirectory());
 
-        ImmutableMap.Builder<String, ProxyExtensionWithClassLoader> handlersBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, ProxyExtensionWithClassLoader> extensionsBuilder = ImmutableMap.builder();
 
-        conf.getProxyMessagingProtocols().forEach(protocol -> {
+        conf.getProxyExtensions().forEach(protocol -> {
 
-            ProtocolHandlerMetadata definition = definitions.handlers().get(protocol);
+            ProxyExtensionMetadata definition = definitions.extensions().get(protocol);
             if (null == definition) {
-                throw new RuntimeException("No protocol handler is found for protocol `" + protocol
-                    + "`. Available protocols are : " + definitions.handlers());
+                throw new RuntimeException("No extension is found for protocol `" + protocol
+                    + "`. Available protocols are : " + definitions.extensions());
             }
 
-            ProxyExtensionWithClassLoader handler;
+            ProxyExtensionWithClassLoader extension;
             try {
-                handler = ProtocolHandlerUtils.load(definition, conf.getNarExtractionDirectory());
+                extension = ProxyExtensionsUtils.load(definition, conf.getNarExtractionDirectory());
             } catch (IOException e) {
-                log.error("Failed to load the protocol handler for protocol `" + protocol + "`", e);
-                throw new RuntimeException("Failed to load the protocol handler for protocol `" + protocol + "`");
+                log.error("Failed to load the extension for protocol `" + protocol + "`", e);
+                throw new RuntimeException("Failed to load the extension for protocol `" + protocol + "`");
             }
 
-            if (!handler.accept(protocol)) {
-                handler.close();
-                log.error("Malformed protocol handler found for protocol `" + protocol + "`");
-                throw new RuntimeException("Malformed protocol handler found for protocol `" + protocol + "`");
+            if (!extension.accept(protocol)) {
+                extension.close();
+                log.error("Malformed extension found for protocol `" + protocol + "`");
+                throw new RuntimeException("Malformed extension found for protocol `" + protocol + "`");
             }
 
-            handlersBuilder.put(protocol, handler);
-            log.info("Successfully loaded protocol handler for protocol `{}`", protocol);
+            extensionsBuilder.put(protocol, extension);
+            log.info("Successfully loaded extension for protocol `{}`", protocol);
         });
 
-        return new ProtocolHandlers(handlersBuilder.build());
+        return new ProxyExtensions(extensionsBuilder.build());
     }
 
-    private final Map<String, ProxyExtensionWithClassLoader> handlers;
+    private final Map<String, ProxyExtensionWithClassLoader> extensions;
 
-    ProtocolHandlers(Map<String, ProxyExtensionWithClassLoader> handlers) {
-        this.handlers = handlers;
+    ProxyExtensions(Map<String, ProxyExtensionWithClassLoader> extensions) {
+        this.extensions = extensions;
     }
 
     /**
      * Return the handler for the provided <tt>protocol</tt>.
      *
      * @param protocol the protocol to use
-     * @return the protocol handler to handle the provided protocol
+     * @return the extension to handle the provided protocol
      */
     public ProxyExtension protocol(String protocol) {
-        ProxyExtensionWithClassLoader h = handlers.get(protocol);
+        ProxyExtensionWithClassLoader h = extensions.get(protocol);
         if (null == h) {
             return null;
         } else {
-            return h.getHandler();
+            return h.getExtension();
         }
     }
 
     public void initialize(ProxyConfiguration conf) throws Exception {
-        for (ProxyExtension handler : handlers.values()) {
-            handler.initialize(conf);
+        for (ProxyExtension extension : extensions.values()) {
+            extension.initialize(conf);
         }
     }
 
@@ -111,19 +111,19 @@ public class ProtocolHandlers implements AutoCloseable {
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> channelInitializers = Maps.newHashMap();
         Set<InetSocketAddress> addresses = Sets.newHashSet();
 
-        for (Map.Entry<String, ProxyExtensionWithClassLoader> handler : handlers.entrySet()) {
+        for (Map.Entry<String, ProxyExtensionWithClassLoader> extension : extensions.entrySet()) {
             Map<InetSocketAddress, ChannelInitializer<SocketChannel>> initializers =
-                handler.getValue().newChannelInitializers();
+                extension.getValue().newChannelInitializers();
             initializers.forEach((address, initializer) -> {
                 if (!addresses.add(address)) {
-                    log.error("Protocol handler for `{}` attempts to use {} for its listening port."
+                    log.error("extension for `{}` attempts to use {} for its listening port."
                         + " But it is already occupied by other message protocols.",
-                        handler.getKey(), address);
-                    throw new RuntimeException("Protocol handler for `" + handler.getKey()
+                        extension.getKey(), address);
+                    throw new RuntimeException("extension for `" + extension.getKey()
                         + "` attempts to use " + address + " for its listening port. But it is"
                         + " already occupied by other messaging protocols");
                 }
-                channelInitializers.put(handler.getKey(), initializers);
+                channelInitializers.put(extension.getKey(), initializers);
             });
         }
 
@@ -131,11 +131,11 @@ public class ProtocolHandlers implements AutoCloseable {
     }
 
     public void start(ProxyService service) {
-        handlers.values().forEach(handler -> handler.start(service));
+        extensions.values().forEach(extension -> extension.start(service));
     }
 
     @Override
     public void close() {
-        handlers.values().forEach(ProxyExtension::close);
+        extensions.values().forEach(ProxyExtension::close);
     }
 }

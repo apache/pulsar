@@ -19,28 +19,18 @@
 package org.apache.pulsar.proxy.protocol;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
- * Metadata information about a Pulsar protocol handler.
+ * The collection of Proxy Extensions.
  */
 @Data
-@NoArgsConstructor
-public class ProtocolHandlerDefinition {
+@Accessors(fluent = true)
+class ExtensionsDefinitions {
 
-    /**
-     * The name of the protocol.
-     */
-    private String name;
-
-    /**
-     * The description of the protocol handler to be used for user help.
-     */
-    private String description;
-
-    /**
-     * The class name for the protocol handler.
-     */
-    private String handlerClass;
+    private final Map<String, ProxyExtensionMetadata> extensions = new TreeMap<>();
 
 }
