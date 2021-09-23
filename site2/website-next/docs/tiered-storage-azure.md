@@ -58,24 +58,21 @@ This example uses Pulsar 2.6.2.
     tiered-storage-jcloud-2.6.2.nar
     ```
 
-    
 :::note
 
 * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
- 
 * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
 :::
-
 
 ## Configuration
 
 :::note
 
+
 Before offloading data from BookKeeper to Azure BlobStore, you need to configure some properties of the Azure BlobStore offload driver.
 
 :::
-
 
 Besides, you can also configure the Azure BlobStore offloader to run it automatically or trigger it manually.
 
@@ -116,7 +113,7 @@ managedLedgerOffloadBucket=pulsar-topic-offload
 
 To be able to access Azure BlobStore, you need to authenticate with Azure BlobStore.
 
-- Set the environment variables `AZURE_STORAGE_ACCOUNT` and `AZURE_STORAGE_ACCESS_KEY` in `conf/pulsar_env.sh`.
+* Set the environment variables `AZURE_STORAGE_ACCOUNT` and `AZURE_STORAGE_ACCESS_KEY` in `conf/pulsar_env.sh`.
 
     "export" is important so that the variables are made available in the environment of spawned processes.
 
@@ -160,10 +157,10 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
+
 For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-threshold-em-). 
 
 :::
-
 
 ### Configure Azure BlobStore offloader to run manually
 
@@ -189,13 +186,11 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
     Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
     ```
 
-    
 :::tip
 
 For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
 
 :::
-
 
 - This example checks the Azure BlobStore offloader status using pulsar-admin.
 
@@ -236,10 +231,8 @@ For more information about the `pulsar-admin topics offload options` command, in
     Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: 
     ````
 
-    
 :::tip
 
 For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
 
 :::
-
