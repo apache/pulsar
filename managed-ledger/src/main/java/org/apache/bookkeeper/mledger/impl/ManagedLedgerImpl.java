@@ -2112,8 +2112,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private PositionImpl getEarlierReadPositionForActiveCursors() {
-        PositionImpl nonDurablePosition = (PositionImpl) nonDurableActiveCursors.getSlowestReader().getReadPosition();
-        PositionImpl durablePosition = (PositionImpl) activeCursors.getSlowestReader().getReadPosition();
+        PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestReadPositionForActiveCursors();
+        PositionImpl durablePosition = activeCursors.getSlowestReadPositionForActiveCursors();
         if (nonDurablePosition == null) {
             return durablePosition;
         }
