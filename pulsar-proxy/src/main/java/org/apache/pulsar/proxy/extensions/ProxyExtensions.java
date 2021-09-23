@@ -87,13 +87,13 @@ public class ProxyExtensions implements AutoCloseable {
     }
 
     /**
-     * Return the handler for the provided <tt>protocol</tt>.
+     * Return the handler for the provided <tt>extension</tt>.
      *
-     * @param protocol the protocol to use
-     * @return the extension to handle the provided protocol
+     * @param extension the extension to use
+     * @return the extension to handle the provided extension
      */
-    public ProxyExtension protocol(String protocol) {
-        ProxyExtensionWithClassLoader h = extensions.get(protocol);
+    public ProxyExtension extension(String extension) {
+        ProxyExtensionWithClassLoader h = extensions.get(extension);
         if (null == h) {
             return null;
         } else {

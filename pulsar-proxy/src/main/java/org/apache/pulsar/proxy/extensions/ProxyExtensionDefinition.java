@@ -29,7 +29,7 @@ import lombok.NoArgsConstructor;
 public class ProxyExtensionDefinition {
 
     /**
-     * The name of the protocol.
+     * The name of the extension.
      */
     private String name;
 

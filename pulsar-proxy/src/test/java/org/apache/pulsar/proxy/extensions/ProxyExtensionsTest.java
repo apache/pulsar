@@ -86,9 +86,9 @@ public class ProxyExtensionsTest {
 
     @Test
     public void testGetProtocol() {
-        assertSame(extension1, extensions.protocol(protocol1));
-        assertSame(extension2, extensions.protocol(protocol2));
-        assertNull(extensions.protocol(protocol3));
+        assertSame(extension1, extensions.extension(protocol1));
+        assertSame(extension2, extensions.extension(protocol2));
+        assertNull(extensions.extension(protocol3));
     }
 
     @Test

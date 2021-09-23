@@ -77,7 +77,7 @@ public class ProxyService implements Closeable {
     private MetadataStoreExtended localMetadataStore;
     private MetadataStoreExtended configMetadataStore;
     private PulsarResources pulsarResources;
-    private ProxyExtensions protocolHandlers = null;
+    private ProxyExtensions proxyExtensions = null;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
@@ -146,8 +146,8 @@ public class ProxyService implements Closeable {
         this.authenticationService = authenticationService;
 
         // Initialize the message protocol handlers
-        protocolHandlers = ProxyExtensions.load(proxyConfig);
-        protocolHandlers.initialize(proxyConfig);
+        proxyExtensions = ProxyExtensions.load(proxyConfig);
+        proxyExtensions.initialize(proxyConfig);
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
@@ -226,20 +226,20 @@ public class ProxyService implements Closeable {
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
         // so that the protocol handlers can access broker service properly.
-        this.protocolHandlers.start(this);
+        this.proxyExtensions.start(this);
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
-                this.protocolHandlers.newChannelInitializers();
-        startProtocolHandlers(protocolHandlerChannelInitializers, bootstrap);
+                this.proxyExtensions.newChannelInitializers();
+        startProxyExtensions(protocolHandlerChannelInitializers, bootstrap);
     }
 
     // This call is used for starting additional protocol handlers
-    public void startProtocolHandlers(
+    public void startProxyExtensions(
             Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlers, ServerBootstrap serverBootstrap) {
 
-        protocolHandlers.forEach((protocol, initializers) -> {
+        protocolHandlers.forEach((extensionName, initializers) -> {
             initializers.forEach((address, initializer) -> {
                 try {
-                    startProtocolHandler(protocol, address, initializer, serverBootstrap);
+                    startProxyExtension(extensionName, address, initializer, serverBootstrap);
                 } catch (IOException e) {
                     LOG.error("{}", e.getMessage(), e.getCause());
                     throw new RuntimeException(e.getMessage(), e.getCause());
@@ -248,18 +248,18 @@ public class ProxyService implements Closeable {
         });
     }
 
-    private void startProtocolHandler(String protocol,
-                                      SocketAddress address,
-                                      ChannelInitializer<SocketChannel> initializer,
-                                      ServerBootstrap serverBootstrap) throws IOException {
+    private void startProxyExtension(String extensionName,
+                                     SocketAddress address,
+                                     ChannelInitializer<SocketChannel> initializer,
+                                     ServerBootstrap serverBootstrap) throws IOException {
         ServerBootstrap bootstrap = serverBootstrap.clone();
         bootstrap.childHandler(initializer);
         try {
             bootstrap.bind(address).sync();
         } catch (Exception e) {
-            throw new IOException("Failed to bind protocol `" + protocol + "` on " + address, e);
+            throw new IOException("Failed to bind extensionName `" + extensionName + "` on " + address, e);
         }
-        LOG.info("Successfully bind protocol `{}` on {}", protocol, address);
+        LOG.info("Successfully bind extensionName `{}` on {}", extensionName, address);
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {

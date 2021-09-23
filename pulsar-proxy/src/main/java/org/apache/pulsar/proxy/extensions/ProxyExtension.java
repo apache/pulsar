@@ -41,18 +41,18 @@ public interface ProxyExtension extends AutoCloseable {
     String extensionName();
 
     /**
-     * Verify if the protocol can speak the given <tt>protocol</tt>.
+     * Verify if the extension can handle the given <tt>extension name</tt>.
      *
-     * @param extension the protocol to verify
-     * @return true if the extension can handle the given protocol, otherwise false.
+     * @param extension the extension to verify
+     * @return true if the extension can handle the given extension name, otherwise false.
      */
     boolean accept(String extension);
 
     /**
      * Initialize the extension when the extension is constructed from reflection.
      *
-     * <p>The initialize should initialize all the resources required for serving the protocol
-     * handler but don't start those resources until {@link #start(ProxyService)} is called.
+     * <p>The initialize should initialize all the resources required for serving the extension
+     * but don't start those resources until {@link #start(ProxyService)} is called.
      *
      * @param conf broker service configuration
      * @throws Exception when fail to initialize the extension.

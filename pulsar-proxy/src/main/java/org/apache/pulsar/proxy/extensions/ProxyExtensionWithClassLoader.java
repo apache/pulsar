@@ -50,9 +50,9 @@ class ProxyExtensionWithClassLoader implements ProxyExtension {
     }
 
     @Override
-    public boolean accept(String protocol) {
+    public boolean accept(String extensionName) {
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            return extension.accept(protocol);
+            return extension.accept(extensionName);
         }
     }
 
