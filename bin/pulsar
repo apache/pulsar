@@ -25,7 +25,6 @@ DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
 DEFAULT_ZK_CONF=$PULSAR_HOME/conf/zookeeper.conf
 DEFAULT_CONFIGURATION_STORE_CONF=$PULSAR_HOME/conf/global_zookeeper.conf
-DEFAULT_DISCOVERY_CONF=$PULSAR_HOME/conf/discovery.conf
 DEFAULT_PROXY_CONF=$PULSAR_HOME/conf/proxy.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
@@ -135,7 +134,6 @@ where command is one of:
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
     configuration-store Run a configuration-store server
-    discovery           Run a discovery server
     proxy               Run a pulsar proxy
     websocket           Run a web socket proxy server
     functions-worker    Run a functions worker server
@@ -164,7 +162,6 @@ Environment variables:
    PULSAR_BOOKKEEPER_CONF        Configuration file for bookie (default: $DEFAULT_BOOKKEEPER_CONF)
    PULSAR_ZK_CONF                Configuration file for zookeeper (default: $DEFAULT_ZK_CONF)
    PULSAR_CONFIGURATION_STORE_CONF         Configuration file for global configuration store (default: $DEFAULT_CONFIGURATION_STORE_CONF)
-   PULSAR_DISCOVERY_CONF         Configuration file for discovery service (default: $DEFAULT_DISCOVERY_CONF)
    PULSAR_WEBSOCKET_CONF         Configuration file for websocket proxy (default: $DEFAULT_WEBSOCKET_CONF)
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
@@ -237,10 +234,6 @@ fi
 
 if [ -z "$PULSAR_CONFIGURATION_STORE_CONF" ]; then
     PULSAR_CONFIGURATION_STORE_CONF=$DEFAULT_CONFIGURATION_STORE_CONF
-fi
-
-if [ -z "$PULSAR_DISCOVERY_CONF" ]; then
-    PULSAR_DISCOVERY_CONF=$DEFAULT_DISCOVERY_CONF
 fi
 
 if [ -z "$PULSAR_PROXY_CONF" ]; then
@@ -338,9 +331,6 @@ elif [ $COMMAND == "configuration-store" ]; then
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.zookeeper.server.quorum.QuorumPeerMain $PULSAR_CONFIGURATION_STORE_CONF $@
-elif [ $COMMAND == "discovery" ]; then
-    PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@
 elif [ $COMMAND == "proxy" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-proxy.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.proxy.server.ProxyServiceStarter --config $PULSAR_PROXY_CONF $@
