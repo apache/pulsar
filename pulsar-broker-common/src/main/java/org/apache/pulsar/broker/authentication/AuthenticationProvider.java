@@ -56,8 +56,8 @@ public interface AuthenticationProvider extends Closeable {
 
     /**
      * Validate the authentication for the given credentials with the specified authentication data.
-     * This method is useful in one stage authn, if you're not doing one stage or if you're providing
-     * your own state implementation for one stage authn, it should return a failed future.
+     * This method is useful in one stage authentication, if you're not doing one stage or if you're providing
+     * your own state implementation for one stage authentication, it should return a failed future.
      *
      * <p>Warning: the calling thread is an IO thread. Any implementation that relies on blocking behavior
      * must ensure that the execution is completed using a separate thread pool to ensure IO threads
