@@ -227,6 +227,26 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Transactions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/transactions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/transactions-guarantee"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/transactions-api"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
     }
   ]
 }
