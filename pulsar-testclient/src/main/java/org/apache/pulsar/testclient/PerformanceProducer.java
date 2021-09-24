@@ -507,6 +507,7 @@ public class PerformanceProducer {
                             + "{} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
                     throughputFormat.format(rate), throughputFormat.format(throughput),
+                    throughputFormat.format(failureRate),
                     dec.format(reportHistogram.getMean() / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
@@ -514,6 +515,7 @@ public class PerformanceProducer {
                     dec.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
                     dec.format(reportHistogram.getMaxValue() / 1000.0));
+
             histogramLogWriter.outputIntervalHistogram(reportHistogram);
             reportHistogram.reset();
 

@@ -366,6 +366,7 @@ public class PerformanceConsumer {
                         log.info("------------------- DONE -----------------------");
                         printAggregatedStats();
                         PerfClientUtils.exit(0);
+                        thread.interrupt();
                     }
                 }
                 if(arguments.totalNumTxn > 0) {
