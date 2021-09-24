@@ -259,6 +259,42 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-monitoring"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
     }
   ]
 }
