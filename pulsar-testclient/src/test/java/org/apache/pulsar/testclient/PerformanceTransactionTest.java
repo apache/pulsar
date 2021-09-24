@@ -108,7 +108,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         CountDownLatch countDownLatch = new CountDownLatch(500);
-        for (int i = 0; i < 5000
+        for (int i = 0; i < 510
                 ; i++) {
             produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(() -> {
                 countDownLatch.countDown();
@@ -126,6 +126,13 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
+        Consumer consumeFromConsumeTopic = pulsarClient.newConsumer(Schema.BYTES)
+                .consumerName("perf-transaction-consumeVerify")
+                .topic(testConsumeTopic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(testSub)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         Consumer consumeFromProduceTopic = pulsarClient.newConsumer(Schema.BYTES)
                 .consumerName("perf-transaction-produceVerify")
                 .topic(testProduceTopic)
@@ -134,7 +141,16 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         for (int i = 0; i < 5; i++) {
             Message message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
         }
+        boolean noMessage = false;
+        for (int i = 0; i < 10; i++) {
+           Message message = consumeFromConsumeTopic.receive(2, TimeUnit.SECONDS);
+           if(message == null){
+               noMessage = true;
+           }
+        }
+        Assert.assertTrue(noMessage);
     }
 
 
