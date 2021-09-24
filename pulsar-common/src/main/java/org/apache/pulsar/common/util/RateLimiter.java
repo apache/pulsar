@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Builder;
 
 /**
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
@@ -48,47 +49,23 @@ import java.util.function.Supplier;
  * </ul>
  */
 public class RateLimiter implements AutoCloseable{
-
     private final ScheduledExecutorService executorService;
     private long rateTime;
     private TimeUnit timeUnit;
     private final boolean externalExecutor;
     private ScheduledFuture<?> renewTask;
-    private long permits;
-    private long acquiredPermits;
+    private volatile long permits;
+    private volatile long acquiredPermits;
     private boolean isClosed;
     // permitUpdate helps to update permit-rate at runtime
     private Supplier<Long> permitUpdater;
     private RateLimitFunction rateLimitFunction;
     private boolean isDispatchOrPrecisePublishRateLimiter;
 
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
-        this(null, permits, rateTime, timeUnit, null);
-    }
-
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit, boolean isDispatchOrPrecisePublishRateLimiter) {
-        this(null, permits, rateTime, timeUnit, null, isDispatchOrPrecisePublishRateLimiter);
-    }
-
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit,
-                       RateLimitFunction autoReadResetFunction) {
-        this(null, permits, rateTime, timeUnit, null, false);
-        this.rateLimitFunction = autoReadResetFunction;
-    }
-
-    public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit,
-                       RateLimitFunction autoReadResetFunction, boolean isDispatchOrPrecisePublishRateLimiter) {
-        this(null, permits, rateTime, timeUnit, null, isDispatchOrPrecisePublishRateLimiter);
-        this.rateLimitFunction = autoReadResetFunction;
-    }
-
-    public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-                       final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
-        this(service, permits, rateTime, timeUnit, permitUpdater, false);
-    }
-
-    public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchOrPrecisePublishRateLimiter) {
+    @Builder
+    RateLimiter(final ScheduledExecutorService scheduledExecutorService, final long permits, final long rateTime,
+            final TimeUnit timeUnit, Supplier<Long> permitUpdater, boolean isDispatchOrPrecisePublishRateLimiter,
+                       RateLimitFunction rateLimitFunction) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
@@ -98,8 +75,8 @@ public class RateLimiter implements AutoCloseable{
         this.permitUpdater = permitUpdater;
         this.isDispatchOrPrecisePublishRateLimiter = isDispatchOrPrecisePublishRateLimiter;
 
-        if (service != null) {
-            this.executorService = service;
+        if (scheduledExecutorService != null) {
+            this.executorService = scheduledExecutorService;
             this.externalExecutor = true;
         } else {
             final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
@@ -109,6 +86,14 @@ public class RateLimiter implements AutoCloseable{
             this.externalExecutor = false;
         }
 
+        this.rateLimitFunction = rateLimitFunction;
+
+    }
+
+    // default values for Lombok generated builder class
+    public static class RateLimiterBuilder {
+        private long rateTime = 1;
+        private TimeUnit timeUnit = TimeUnit.SECONDS;
     }
 
     @Override
@@ -121,6 +106,10 @@ public class RateLimiter implements AutoCloseable{
                 renewTask.cancel(false);
             }
             isClosed = true;
+            // If there is a ratelimit function registered, invoke it to unblock.
+            if (rateLimitFunction != null) {
+                rateLimitFunction.apply();
+            }
         }
     }
 
@@ -217,7 +206,7 @@ public class RateLimiter implements AutoCloseable{
      *
      * @return returns 0 if permits is not available
      */
-    public synchronized long getAvailablePermits() {
+    public long getAvailablePermits() {
         return Math.max(0, this.permits - this.acquiredPermits);
     }
 

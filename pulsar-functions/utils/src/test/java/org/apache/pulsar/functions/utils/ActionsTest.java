@@ -34,7 +34,7 @@ import static org.testng.Assert.assertEquals;
 public class ActionsTest {
 
     @Test
-    public void testActions() throws InterruptedException {
+    public void testActionsSuccess() throws InterruptedException {
 
         // Test for success
         Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
@@ -47,27 +47,27 @@ public class ActionsTest {
         java.util.function.Consumer<Actions.ActionResult> onSucess = mock(java.util.function.Consumer.class);
 
         Actions.Action action1 = spy(
-                Actions.Action.builder()
-                        .actionName("action1")
-                        .numRetries(10)
-                        .sleepBetweenInvocationsMs(100)
-                        .supplier(supplier1)
-                        .continueOn(true)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
+            Actions.Action.builder()
+                .actionName("action1")
+                .numRetries(10)
+                .sleepBetweenInvocationsMs(100)
+                .supplier(supplier1)
+                .continueOn(true)
+                .onFail(onFail)
+                .onSuccess(onSucess)
+                .build());
 
         Actions.Action action2 = spy(
-                Actions.Action.builder()
-                        .actionName("action2")
-                        .numRetries(20)
-                        .sleepBetweenInvocationsMs(200)
-                        .supplier(supplier2)
-                        .build());
+            Actions.Action.builder()
+                .actionName("action2")
+                .numRetries(20)
+                .sleepBetweenInvocationsMs(200)
+                .supplier(supplier2)
+                .build());
 
         Actions actions = Actions.newBuilder()
-                .addAction(action1)
-                .addAction(action2);
+            .addAction(action1)
+            .addAction(action2);
         actions.run();
 
         assertEquals(actions.numActions(), 2);
@@ -75,42 +75,44 @@ public class ActionsTest {
         verify(onFail, times(0)).accept(any());
         verify(onSucess, times(1)).accept(any());
         verify(supplier2, times(1)).get();
+    }
 
+
+    @Test
+    public void testActionsOneAction() throws InterruptedException {
         // test only run 1 action
-
-        supplier1 = mock(Supplier.class);
+        Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
         when(supplier1.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
 
-        supplier2 = mock(Supplier.class);
+        Supplier<Actions.ActionResult> supplier2 = mock(Supplier.class);
         when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
 
-        onFail = mock(java.util.function.Consumer.class);
-        onSucess = mock(java.util.function.Consumer.class);
+        java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
+        java.util.function.Consumer<Actions.ActionResult> onSucess = mock(java.util.function.Consumer.class);
 
-        action1 = spy(
-                Actions.Action.builder()
-                        .actionName("action1")
-                        .numRetries(10)
-                        .sleepBetweenInvocationsMs(100)
-                        .supplier(supplier1)
-                        .continueOn(false)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
+        Actions.Action action1 = spy(
+            Actions.Action.builder()
+                .actionName("action1")
+                .numRetries(10)
+                .sleepBetweenInvocationsMs(100)
+                .supplier(supplier1)
+                .continueOn(false)
+                .onFail(onFail)
+                .onSuccess(onSucess)
+                .build());
+        Actions.Action action2 = spy(
+            Actions.Action.builder()
+                .actionName("action2")
+                .numRetries(20)
+                .sleepBetweenInvocationsMs(200)
+                .supplier(supplier2)
+                .onFail(onFail)
+                .onSuccess(onSucess)
+                .build());
 
-        action2 = spy(
-                Actions.Action.builder()
-                        .actionName("action2")
-                        .numRetries(20)
-                        .sleepBetweenInvocationsMs(200)
-                        .supplier(supplier2)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
-
-        actions = Actions.newBuilder()
-                .addAction(action1)
-                .addAction(action2);
+        Actions actions = Actions.newBuilder()
+            .addAction(action1)
+            .addAction(action2);
         actions.run();
 
         assertEquals(actions.numActions(), 2);
@@ -118,40 +120,44 @@ public class ActionsTest {
         verify(onFail, times(0)).accept(any());
         verify(onSucess, times(1)).accept(any());
         verify(supplier2, times(0)).get();
+    }
 
-        // test retry
+    @Test
+    public void testActionsRetry() throws InterruptedException {
 
-        supplier1 = mock(Supplier.class);
+      // test retry
+
+        Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
         when(supplier1.get()).thenReturn(Actions.ActionResult.builder().success(false).build());
 
-        supplier2 = mock(Supplier.class);
+        Supplier<Actions.ActionResult> supplier2 = mock(Supplier.class);
         when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
 
-        onFail = mock(java.util.function.Consumer.class);
-        onSucess = mock(java.util.function.Consumer.class);
+        java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
+        java.util.function.Consumer<Actions.ActionResult> onSucess = mock(java.util.function.Consumer.class);
 
-        action1 = spy(
-                Actions.Action.builder()
-                        .actionName("action1")
-                        .numRetries(10)
-                        .sleepBetweenInvocationsMs(10)
-                        .supplier(supplier1)
-                        .continueOn(false)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
+        Actions.Action action1 = spy(
+            Actions.Action.builder()
+                .actionName("action1")
+                .numRetries(10)
+                .sleepBetweenInvocationsMs(10)
+                .supplier(supplier1)
+                .continueOn(false)
+                .onFail(onFail)
+                .onSuccess(onSucess)
+                .build());
 
-        action2 = spy(
-                Actions.Action.builder()
-                        .actionName("action2")
-                        .numRetries(20)
-                        .sleepBetweenInvocationsMs(200)
-                        .supplier(supplier2)
-                        .build());
+        Actions.Action action2 = spy(
+            Actions.Action.builder()
+                .actionName("action2")
+                .numRetries(20)
+                .sleepBetweenInvocationsMs(200)
+                .supplier(supplier2)
+                .build());
 
-        actions = Actions.newBuilder()
-                .addAction(action1)
-                .addAction(action2);
+        Actions actions = Actions.newBuilder()
+            .addAction(action1)
+            .addAction(action2);
         actions.run();
 
         assertEquals(actions.numActions(), 2);
@@ -159,6 +165,47 @@ public class ActionsTest {
         verify(onFail, times(1)).accept(any());
         verify(onSucess, times(0)).accept(any());
         verify(supplier2, times(1)).get();
+    }
 
+  @Test
+  public void testActionsNoContinueOn() throws InterruptedException {
+      // No continueOn
+      Supplier<Actions.ActionResult>supplier1 = mock(Supplier.class);
+      when(supplier1.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+
+      Supplier<Actions.ActionResult>    supplier2 = mock(Supplier.class);
+      when(supplier2.get()).thenReturn(Actions.ActionResult.builder().success(true).build());
+
+      java.util.function.Consumer<Actions.ActionResult> onFail = mock(java.util.function.Consumer.class);
+      java.util.function.Consumer<Actions.ActionResult> onSucess = mock(java.util.function.Consumer.class);
+
+      Actions.Action action1 = spy(
+          Actions.Action.builder()
+              .actionName("action1")
+              .numRetries(10)
+              .sleepBetweenInvocationsMs(100)
+              .supplier(supplier1)
+              .onFail(onFail)
+              .onSuccess(onSucess)
+              .build());
+
+      Actions.Action action2 = spy(
+          Actions.Action.builder()
+              .actionName("action2")
+              .numRetries(20)
+              .sleepBetweenInvocationsMs(200)
+              .supplier(supplier2)
+              .build());
+
+      Actions actions = Actions.newBuilder()
+          .addAction(action1)
+          .addAction(action2);
+      actions.run();
+
+      assertEquals(actions.numActions(), 2);
+      verify(supplier1, times(1)).get();
+      verify(onFail, times(0)).accept(any());
+      verify(onSucess, times(1)).accept(any());
+      verify(supplier2, times(1)).get();
     }
 }

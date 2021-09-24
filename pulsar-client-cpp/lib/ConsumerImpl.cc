@@ -53,20 +53,14 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       startMessageId_(startMessageId),
       // This is the initial capacity of the queue
       incomingMessages_(std::max(config_.getReceiverQueueSize(), 1)),
-      pendingReceives_(),
       availablePermits_(0),
       receiverQueueRefillThreshold_(config_.getReceiverQueueSize() / 2),
       consumerId_(client->newConsumerId()),
       consumerName_(config_.getConsumerName()),
-      partitionIndex_(-1),
-      consumerCreatedPromise_(),
       messageListenerRunning_(true),
       batchAcknowledgementTracker_(topic_, subscriptionName, (long)consumerId_),
-      brokerConsumerStats_(),
-      consumerStatsBasePtr_(),
       negativeAcksTracker_(client, *this, conf),
       ackGroupingTrackerPtr_(std::make_shared<AckGroupingTracker>()),
-      msgCrypto_(),
       readCompacted_(conf.isReadCompacted()),
       lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
     std::stringstream consumerStrStream;
@@ -187,7 +181,8 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     SharedBuffer cmd = Commands::newSubscribe(
         topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
         startMessageId_, readCompacted_, config_.getProperties(), config_.getSchema(), getInitialPosition(),
-        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy());
+        config_.isReplicateSubscriptionStateEnabled(), config_.getKeySharedPolicy(),
+        config_.getPriorityLevel());
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(
             std::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, std::placeholders::_1));
@@ -774,6 +769,7 @@ inline proto::CommandSubscribe_SubType ConsumerImpl::getSubType() {
         case ConsumerKeyShared:
             return proto::CommandSubscribe_SubType_Key_Shared;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid ConsumerType enumeration value"));
 }
 
 inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition() {
@@ -785,6 +781,7 @@ inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition(
         case InitialPositionEarliest:
             return proto::CommandSubscribe_InitialPosition::CommandSubscribe_InitialPosition_Earliest;
     }
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid InitialPosition enumeration value"));
 }
 
 void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::CommandAck_AckType ackType) {
@@ -1156,7 +1153,7 @@ void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback
         return;
     }
 
-    getLastMessageIdAsync([this, lastDequed, callback](Result result, MessageId messageId) {
+    getLastMessageIdAsync([lastDequed, callback](Result result, MessageId messageId) {
         if (result == ResultOk) {
             if (messageId > lastDequed && messageId.entryId() != -1) {
                 callback(ResultOk, true);
@@ -1232,5 +1229,7 @@ bool ConsumerImpl::isConnected() const {
     Lock lock(mutex_);
     return !getCnx().expired() && state_ == Ready;
 }
+
+uint64_t ConsumerImpl::getNumberOfConnectedConsumer() { return isConnected() ? 1 : 0; }
 
 } /* namespace pulsar */

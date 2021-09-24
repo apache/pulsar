@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 
 /**
@@ -80,6 +79,15 @@ public class TopicStatsImpl implements TopicStats {
     /** Space used to store the offloaded messages for the topic/. */
     public long offloadedStorageSize;
 
+    /** record last successful offloaded ledgerId. If no offload ledger, the value should be 0 */
+    public long lastOffloadLedgerId;
+
+    /** record last successful offloaded timestamp. If no successful offload, the value should be 0 */
+    public long lastOffloadSuccessTimeStamp;
+
+    /** record last failed offloaded timestamp. If no failed offload, the value should be 0 */
+    public long lastOffloadFailureTimeStamp;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     public List<PublisherStatsImpl> publishers;
@@ -105,6 +113,9 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The compaction stats */
+    public CompactionStatsImpl compaction;
+
     public List<? extends PublisherStats> getPublishers() {
         return publishers;
     }
@@ -121,6 +132,7 @@ public class TopicStatsImpl implements TopicStats {
         this.publishers = new ArrayList<>();
         this.subscriptions = new HashMap<>();
         this.replication = new TreeMap<>();
+        this.compaction = new CompactionStatsImpl();
     }
 
     public void reset() {
@@ -145,6 +157,10 @@ public class TopicStatsImpl implements TopicStats {
         this.nonContiguousDeletedMessagesRanges = 0;
         this.nonContiguousDeletedMessagesRangesSerializedSize = 0;
         this.offloadedStorageSize = 0;
+        this.lastOffloadLedgerId = 0;
+        this.lastOffloadFailureTimeStamp = 0;
+        this.lastOffloadSuccessTimeStamp = 0;
+        this.compaction.reset();
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current

@@ -96,17 +96,17 @@ public class PerformanceConsumer {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive")
+        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive", validateWith = PositiveNumberParameterValidator.class)
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
+        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)", validateWith = PositiveNumberParameterValidator.class)
         public int numSubscriptions = 1;
 
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
-        public String subscriberName = "sub";
+        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+        public String subscriberName;
 
         @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
@@ -131,6 +131,10 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
         public int acknowledgmentsGroupingDelayMillis = 100;
+
+        @Parameter(names = {"-m",
+                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, it will keep consuming")
+        public long numMessages = 0;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -180,7 +184,7 @@ public class PerformanceConsumer {
         public String encKeyFile = null;
 
         @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
+                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
@@ -190,7 +194,7 @@ public class PerformanceConsumer {
         @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
-        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
         private boolean poolMessages = true;
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
@@ -259,18 +263,19 @@ public class PerformanceConsumer {
             PerfClientUtils.exit(-1);
         }
 
-        if (arguments.subscriptionType != SubscriptionType.Exclusive &&
-                arguments.subscriptions != null &&
-                arguments.subscriptions.size() != arguments.numConsumers) {
+        if (arguments.subscriptions != null && arguments.subscriptions.size() != arguments.numSubscriptions) {
             // keep compatibility with the previous version
             if (arguments.subscriptions.size() == 1) {
+                if (arguments.subscriberName == null) {
+                    arguments.subscriberName = arguments.subscriptions.get(0);
+                }
                 List<String> defaultSubscriptions = Lists.newArrayList();
                 for (int i = 0; i < arguments.numSubscriptions; i++) {
                     defaultSubscriptions.add(String.format("%s-%d", arguments.subscriberName, i));
                 }
                 arguments.subscriptions = defaultSubscriptions;
             } else {
-                System.out.println("The size of subscriptions list should be equal to --num-consumers when subscriptionType isn't Exclusive");
+                System.out.println("The size of subscriptions list should be equal to --num-subscriptions");
                 jc.usage();
                 PerfClientUtils.exit(-1);
             }

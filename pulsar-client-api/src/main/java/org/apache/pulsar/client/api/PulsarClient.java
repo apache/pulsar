@@ -52,7 +52,7 @@ public interface PulsarClient extends Closeable {
      * @since 2.0.0
      */
     static ClientBuilder builder() {
-        return DefaultImplementation.newClientBuilder();
+        return DefaultImplementation.getDefaultImplementation().newClientBuilder();
     }
 
     /**

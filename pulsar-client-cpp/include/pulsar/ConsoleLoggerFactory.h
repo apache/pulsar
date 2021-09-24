@@ -29,10 +29,10 @@ class ConsoleLoggerFactoryImpl;
  * The default LoggerFactory of Client if `USE_LOG4CXX` macro was not defined during compilation.
  *
  *
- * The log format is "yyyy-mm-dd hh:MM:ss.xxx <level> <thread-id> <file>:<line> | <msg>", like
+ * The log format is "yyyy-MM-dd HH:mm:ss,SSS Z <level> <thread-id> <file>:<line> | <msg>", like
  *
  * ```
- * 2021-03-24 17:35:46.571 INFO  [0x10a951e00] ConnectionPool:85 | Created connection for ...
+ * 2021-03-24 17:35:46,571 +0800 INFO  [0x10a951e00] ConnectionPool:85 | Created connection for ...
  * ```
  *
  * It uses `std::cout` to prints logs to standard output. You can use this factory class to change your log

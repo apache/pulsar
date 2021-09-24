@@ -19,9 +19,8 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertNotEquals;
-
+import java.util.function.Supplier;
 import lombok.Cleanup;
-
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -31,9 +30,10 @@ import org.testng.annotations.Test;
 public class CounterTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
-    public void basicTest(String provider, String url) throws Exception {
+    public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         @Cleanup
         CoordinationService cs1 = new CoordinationServiceImpl(store);

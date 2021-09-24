@@ -37,6 +37,7 @@ struct ProducerConfigurationImpl {
     ProducerConfiguration::PartitionsRoutingMode routingMode{ProducerConfiguration::UseSinglePartition};
     MessageRoutingPolicyPtr messageRouter;
     ProducerConfiguration::HashingScheme hashingScheme{ProducerConfiguration::BoostHash};
+    bool useLazyStartPartitionedProducers{false};
     bool blockIfQueueFull{false};
     bool batchingEnabled{true};
     unsigned int batchingMaxMessages{1000};

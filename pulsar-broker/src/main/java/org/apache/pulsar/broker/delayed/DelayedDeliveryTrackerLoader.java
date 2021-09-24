@@ -30,7 +30,7 @@ public class DelayedDeliveryTrackerLoader {
         Class<?> factoryClass;
         try {
             factoryClass = Class.forName(conf.getDelayedDeliveryTrackerFactoryClassName());
-            Object obj = factoryClass.newInstance();
+            Object obj = factoryClass.getDeclaredConstructor().newInstance();
             checkArgument(obj instanceof DelayedDeliveryTrackerFactory,
                     "The factory has to be an instance of " + DelayedDeliveryTrackerFactory.class.getName());
 

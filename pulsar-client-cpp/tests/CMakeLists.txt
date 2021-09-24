@@ -30,6 +30,15 @@ set(PROTO_SOURCES ${LIB_AUTOGEN_DIR}/Test.pb.cc ${LIB_AUTOGEN_DIR}/ExternalTest.
 add_custom_command(
     OUTPUT ${PROTO_SOURCES}
     COMMAND ${PROTOC_PATH} -I ${PROTO_DIR} ${PROTO_DIR}/Test.proto ${PROTO_DIR}/ExternalTest.proto --cpp_out=${LIB_AUTOGEN_DIR})
+
+set(PROTO_SOURCE_PADDING ${LIB_AUTOGEN_DIR}/PaddingDemo.pb.cc)
+add_custom_command(
+    OUTPUT ${PROTO_SOURCE_PADDING}
+    COMMAND ${PROTOC_PATH} -I . ./PaddingDemo.proto --cpp_out=${LIB_AUTOGEN_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(PROTO_SOURCES ${PROTO_SOURCES} ${PROTO_SOURCE_PADDING})
+
 include_directories(${LIB_AUTOGEN_DIR})
 
 find_library(GMOCK_LIBRARY_PATH gmock)

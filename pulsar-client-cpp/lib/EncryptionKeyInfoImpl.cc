@@ -21,12 +21,8 @@
 
 namespace pulsar {
 
-EncryptionKeyInfoImpl::EncryptionKeyInfoImpl() : key_(), metadata_() {}
-
-EncryptionKeyInfoImpl::EncryptionKeyInfoImpl(std::string key, StringMap& metadata) {
-    key_ = key;
-    metadata_ = metadata;
-}
+EncryptionKeyInfoImpl::EncryptionKeyInfoImpl(std::string key, StringMap& metadata)
+    : metadata_(metadata), key_(key) {}
 
 std::string& EncryptionKeyInfoImpl::getKey() { return key_; }
 

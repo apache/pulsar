@@ -42,7 +42,7 @@ void Producer_sendAsyncCallback(PyObject* callback, Result res, const MessageId&
 
     try {
         py::call<void>(callback, res, py::object(&msgId));
-    } catch (py::error_already_set e) {
+    } catch (const py::error_already_set& e) {
         PyErr_Print();
     }
 

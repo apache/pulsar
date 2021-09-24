@@ -96,6 +96,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private long operationTimeoutMs = 30000;
 
     @ApiModelProperty(
+            name = "lookupTimeoutMs",
+            value = "Client lookup timeout (in millisecond)."
+    )
+    private long lookupTimeoutMs = -1;
+
+    @ApiModelProperty(
             name = "statsIntervalSeconds",
             value = " Interval to print client stats (in second)."
     )
@@ -116,6 +122,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "connectionsPerBroker",
             value = "Number of connections established between the client and each Broker."
+                    + "A value of 0 means to disable connection pooling."
     )
     private int connectionsPerBroker = 1;
 
@@ -325,6 +332,14 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             return true;
         }
         return false;
+    }
+
+    public long getLookupTimeoutMs() {
+        if (lookupTimeoutMs >= 0) {
+            return lookupTimeoutMs;
+        } else {
+            return operationTimeoutMs;
+        }
     }
 
     public ClientConfigurationData clone() {

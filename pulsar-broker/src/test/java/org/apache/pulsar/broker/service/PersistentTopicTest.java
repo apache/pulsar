@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
@@ -56,7 +55,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -64,6 +62,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import lombok.Cleanup;
@@ -89,12 +90,9 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
@@ -116,6 +114,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -128,6 +127,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -155,7 +155,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private MetadataStore store;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
-    private ConfigurationCacheService configCacheService;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     final String successPartitionTopicName = "persistent://prop/use/ns-abc/successTopic-partition-0";
@@ -181,32 +180,24 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        doReturn(mock(PulsarClientImpl.class)).when(pulsar).getClient();
+
+        doAnswer(invocation -> {
+            DeleteLedgerCallback deleteLedgerCallback = invocation.getArgument(1);
+            deleteLedgerCallback.deleteLedgerComplete(null);
+            return null;
+        }).when(mlFactoryMock).asyncDelete(any(), any(), any());
 
         ZooKeeper mockZk = createMockZooKeeper();
-        doReturn(mockZk).when(pulsar).getZkClient();
         doReturn(createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
-        ZooKeeperCache cache = mock(ZooKeeperCache.class);
-        doReturn(30).when(cache).getZkOperationTimeoutSeconds();
-        doReturn(cache).when(pulsar).getLocalZkCache();
-
-        configCacheService = mock(ConfigurationCacheService.class);
-        @SuppressWarnings("unchecked")
-        ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
-        doReturn(zkDataCache).when(configCacheService).policiesCache();
-        doReturn(configCacheService).when(pulsar).getConfigurationCache();
-        doReturn(Optional.empty()).when(zkDataCache).get(any());
-
-        LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
-        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
-        doReturn(zkDataCache).when(zkCache).policiesCache();
-        doReturn(configCacheService).when(pulsar).getConfigurationCache();
-        doReturn(zkCache).when(pulsar).getLocalZkCacheService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
 
         store = new ZKMetadataStore(mockZk);
         PulsarResources pulsarResources = spy(new PulsarResources(store, store));
+        NamespaceResources nsr = spy(new NamespaceResources(store, store, 30));
+        doReturn(nsr).when(pulsarResources).getNamespaceResources();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         doReturn(store).when(pulsar).getLocalMetadataStore();
@@ -221,6 +212,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        doReturn(spy(DefaultEventLoop.class)).when(channel).eventLoop();
+        doReturn(channel).when(ctx).channel();
+        doReturn(ctx).when(serverCnx).ctx();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         NamespaceBundle bundle = mock(NamespaceBundle.class);
@@ -563,9 +559,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // set max clients
         Policies policies = new Policies();
         policies.max_producers_per_topic = 2;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
                 .thenReturn(Optional.of(policies));
+
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                        .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                        .thenReturn(Optional.of(policies));
         testMaxProducers();
     }
 
@@ -898,9 +898,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Policies policies = new Policies();
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(policies);
+
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
 
         testMaxConsumersShared();
     }
@@ -994,9 +998,12 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         policies.max_consumers_per_subscription = 2;
         policies.max_consumers_per_topic = 3;
 
-        when(pulsar.getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(policies);
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
+        when(pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesIfCached(TopicName.get(successTopicName).getNamespaceObject()))
+                .thenReturn(Optional.of(policies));
         testMaxConsumersFailover();
     }
 
@@ -1860,9 +1867,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Policies policies = new Policies();
         policies.compaction_threshold = 1L;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -1893,9 +1901,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Policies policies = new Policies();
         policies.compaction_threshold = 1L;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
@@ -1921,9 +1930,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         Policies policies = new Policies();
         policies.compaction_threshold = 0L;
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(policies));
+
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(policies)).when(nsr).getPolicies(ns);
 
         doReturn(1000L).when(ledgerMock).getEstimatedBacklogSize();
 
@@ -2072,9 +2082,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 50000, serverCnx, "app1", Collections.emptyMap(), false, InitialPosition.Latest, null, MessageId.latest);
         addConsumerToSubscription.invoke(topic, nonDeletableSubscription1, consumer);
 
-        when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
-                .thenReturn(Optional.of(new Policies()));
+        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
+        NamespaceName ns = TopicName.get(successTopicName).getNamespaceObject();
+        doReturn(Optional.of(new Policies())).when(nsr).getPolicies(ns);
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         doReturn(5).when(svcConfig).getSubscriptionExpirationTimeMinutes();
@@ -2169,6 +2179,20 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Future<Void> f2 = topic.unsubscribe(successSubName);
         f2.get();
     }
+
+    @Test
+    public void testDisconnectProducer() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        String role = "appid1";
+        Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
+                role, false, null, SchemaVersion.Latest, 0, false,
+                ProducerAccessMode.Shared, Optional.empty());
+        assertFalse(producer.isDisconnecting());
+        // Disconnect the producer multiple times.
+        producer.disconnect();
+        producer.disconnect();
+        verify(serverCnx).execute(any());
+    };
 
     private ByteBuf getMessageWithMetadata(byte[] data) {
         MessageMetadata messageData = new MessageMetadata()

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.intercept;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
@@ -41,8 +42,9 @@ public class BrokerEntryMetadataUtils {
                     Class<BrokerEntryMetadataInterceptor> clz = (Class<BrokerEntryMetadataInterceptor>) ClassLoaderUtils
                             .loadClass(interceptorName, classLoader);
                     try {
-                        interceptors.add(clz.newInstance());
-                    } catch (InstantiationException | IllegalAccessException e) {
+                        interceptors.add(clz.getDeclaredConstructor().newInstance());
+                    } catch (InstantiationException | IllegalAccessException
+                            | InvocationTargetException | NoSuchMethodException e) {
                         log.error("Create new BrokerEntryMetadataInterceptor instance for {} failed.",
                                 interceptorName, e);
                         throw new RuntimeException(e);

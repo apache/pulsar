@@ -20,13 +20,20 @@ package org.apache.pulsar.tests.integration.io.sources.debezium;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testng.Assert;
 
 import java.io.Closeable;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A tester for testing Debezium Postgresql source.
@@ -49,9 +56,19 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
 
     private final PulsarCluster pulsarCluster;
 
+    private final AtomicReference<String> confirmedFlushLsn = new AtomicReference<>("not read yet");
+
     public DebeziumPostgreSqlSourceTester(PulsarCluster cluster) {
         super(NAME);
         this.pulsarCluster = cluster;
+        /*
+        todo (possibly solvable by debezium upgrade?): figure out why last message is lost with larger numEntriesToInsert.
+        I.e. numEntriesToInsert = 100 results in 99 events from debezium 1.0.0, 300 results in 299 events.
+        10 is handled ok.
+        Likely this is related to https://issues.redhat.com/browse/DBZ-2288
+        */
+        this.numEntriesToInsert = 10;
+
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
 
         sourceConfig.put("database.hostname", DebeziumPostgreSqlContainer.NAME);
@@ -82,30 +99,55 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
     @Override
     public void prepareInsertEvent() throws Exception {
         this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres -c \"select * from inventory.products;\"");
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
                 "psql -h 127.0.0.1 -U postgres -d postgres " +
                         "-c \"insert into inventory.products(name, description, weight) " +
                         "values('test-debezium', 'description', 10);\"");
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres "+
+                        "-c \"select count(1), max(id) from inventory.products where name='test-debezium' and weight=10;\"");
     }
 
     @Override
     public void prepareDeleteEvent() throws Exception {
         this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres -c \"select * from inventory.products;\"");
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
                 "psql -h 127.0.0.1 -U postgres -d postgres " +
                         "-c \"delete from inventory.products where name='test-debezium';\"");
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres -c \"select count(1) from inventory.products where name='test-debezium';\"");
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
         this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
-                "psql -h 127.0.0.1 -U postgres -d postgres -c \"select * from inventory.products;\"");
-        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
                 "psql -h 127.0.0.1 -U postgres -d postgres " +
                         "-c \"update inventory.products " +
                         "set description='test-update-description', weight='20' where name='test-debezium';\"");
+        this.debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                "psql -h 127.0.0.1 -U postgres -d postgres -c " +
+                        "\"select count(1) from inventory.products where name='test-debezium' and weight=20;\"");
+    }
+
+    @Override
+    public void doPostValidationCheck(String eventType) {
+        super.doPostValidationCheck(eventType);
+        /*
+        confirmed_flush_lsn in pg_replication_slots table has to change,
+        otherwise postgres won't truncate WAL and the disk space will grow.
+        I.e. upgrade from debezium 1.0.0 to 1.0.3 resulted in confirmed_flush_lsn
+        not updating in insert-heavy load.
+        */
+        try {
+            ContainerExecResult res = debeziumPostgresqlContainer.execCmd("/bin/bash", "-c",
+                    "psql -h 127.0.0.1 -U postgres -d postgres -c \"select confirmed_flush_lsn from pg_replication_slots;\"");
+            res.assertNoStderr();
+            String lastConfirmedFlushLsn = res.getStdout();
+            log.info("Current confirmedFlushLsn: \n{} \nLast confirmedFlushLsn: \n{}",
+                    confirmedFlushLsn.get(), lastConfirmedFlushLsn);
+            org.junit.Assert.assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
+            confirmedFlushLsn.set(lastConfirmedFlushLsn);
+        } catch (Exception e) {
+            Assert.fail("failed to get flush lsn", e);
+        }
     }
 
     @Override
@@ -117,7 +159,7 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            pulsarCluster.stopService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
+            PulsarCluster.stopService(DebeziumPostgreSqlContainer.NAME, debeziumPostgresqlContainer);
         }
     }
 

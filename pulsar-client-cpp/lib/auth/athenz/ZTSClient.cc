@@ -38,7 +38,17 @@
 #include <boost/property_tree/ptree.hpp>
 namespace ptree = boost::property_tree;
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#endif
+
 #include <boost/xpressive/xpressive.hpp>
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/transform_width.hpp>
 

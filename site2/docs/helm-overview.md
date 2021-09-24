@@ -4,13 +4,13 @@ title: Apache Pulsar Helm Chart
 sidebar_label: Overview
 ---
 
-This is the official supported Helm chart to install Apache Pulsar on a cloud-native environment. It was enhanced based on StreamNative's [Helm Chart](https://github.com/streamnative/charts).
+[Helm chart](https://github.com/apache/pulsar-helm-chart) supports you to install Apache Pulsar in a cloud-native environment.
 
 ## Introduction
 
-The Apache Pulsar Helm chart is one of the most convenient ways to operate Pulsar on Kubernetes. This Pulsar Helm chart contains all the required components to get started and can scale to large deployments.
+The Apache Pulsar Helm chart provides one of the most convenient ways to operate Pulsar on Kubernetes. With all the required components, Helm chart is scalable and thus being suitable for large-scale deployments.
 
-This chart includes all the components for a complete experience, but each part can be configured to be installed separately.
+The Apache Pulsar Helm chart contains all components to support the features and functions that Pulsar delivers. You can install and configure these components separately.
 
 - Pulsar core components:
     - ZooKeeper
@@ -18,12 +18,12 @@ This chart includes all the components for a complete experience, but each part 
     - Brokers
     - Function workers
     - Proxies
-- Control Center:
+- Control center:
     - Pulsar Manager
     - Prometheus
     - Grafana
 
-It includes support for:
+Moreover, Helm chart supports:
 
 - Security
     - Automatically provisioned TLS certificates, using [Jetstack](https://www.jetstack.io/)'s [cert-manager](https://cert-manager.io/docs/)
@@ -40,7 +40,7 @@ It includes support for:
     - Authorization
 - Storage
     - Non-persistence storage
-    - Persistence volume
+    - Persistent volume
     - Local persistent volumes
 - Functions
     - Kubernetes Runtime
@@ -49,28 +49,28 @@ It includes support for:
 - Operations
     - Independent image versions for all components, enabling controlled upgrades
 
-## Pulsar Helm chart quick start
+## Quick start
 
-To get up and run with these charts as fast as possible, in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
+To run with Apache Pulsar Helm chart as fast as possible in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
 
-This guide walks the user through deploying these charts with default values and features, but *does not* meet production ready requirements. To deploy these charts into production under sustained load, follow the complete [Installation Guide](helm-install.md).
+This guide walks you through deploying Apache Pulsar Helm chart with default values and features, but it is *not* suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete [Installation Guide](helm-install.md).
 
 ## Troubleshooting
 
-We have done our best to make these charts as seamless as possible. Occasionally, troubles do go outside of our control. We have collected tips and tricks for troubleshooting common issues. Please check them first before raising an [issue](https://github.com/apache/pulsar/issues/new/choose), and feel free to add to them by raising a [Pull Request](https://github.com/apache/pulsar/compare).
+Although we have done our best to make these charts as seamless as possible, troubles do go out of our control occasionally. We have been collecting tips and tricks for troubleshooting common issues. Please check it first before raising an [issue](https://github.com/apache/pulsar/issues/new/choose), and feel free to add your solutions by creating a [Pull Request](https://github.com/apache/pulsar/compare).
 
 ## Installation
 
 The Apache Pulsar Helm chart contains all required dependencies.
 
-If you deploy a PoC for testing, we strongly suggest you follow our [Quick Start Guide](getting-started-helm.md) for your first iteration.
+If you deploy a PoC for testing, we strongly suggest you follow this [Quick Start Guide](getting-started-helm.md) for your first iteration.
 
 1. [Preparation](helm-prepare.md)
 2. [Deployment](helm-deploy.md)
 
 ## Upgrading
 
-Once the Pulsar Helm chart is installed, use the `helm upgrade` to complete configuration changes and chart updates.
+Once the Apache Pulsar Helm chart is installed, you can use `helm upgrade` command to configure and update it.
 
 ```bash
 helm repo add apache https://pulsar.apache.org/charts
@@ -83,16 +83,15 @@ For more detailed information, see [Upgrading](helm-upgrade.md).
 
 ## Uninstallation
 
-To uninstall the Pulsar Helm chart, run the following command:
+To uninstall the Apache Pulsar Helm chart, run the following command:
 
 ```bash
 helm delete <pulsar-release-name>
 ```
 
-For the purposes of continuity, these charts have some Kubernetes objects that cannot be removed when performing `helm delete`.
-It is recommended to *conciously* remove these items, as they affect re-deployment.
+For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by `helm delete` command. It is recommended to *consciously* remove these items, as they affect re-deployment.
 
-* PVCs for stateful data: *consciously* remove these items.
+* PVCs for stateful data: remove these items.
     - ZooKeeper: This is your metadata.
     - BookKeeper: This is your data.
     - Prometheus: This is your metrics data, which can be safely removed.

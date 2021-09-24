@@ -121,6 +121,10 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
         checkState(event.getState());
     }
 
+    synchronized void setSessionInvalid() {
+        currentStatus = SessionEvent.SessionLost;
+    }
+
     private void checkState(Watcher.Event.KeeperState zkClientState) {
         switch (zkClientState) {
         case Expired:

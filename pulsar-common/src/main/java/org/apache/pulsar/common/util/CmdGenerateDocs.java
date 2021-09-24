@@ -117,7 +117,7 @@ public class CmdGenerateDocs {
         }
         sb.append(module);
         if (cmd.getObjects().size() > 0
-                && cmd.getObjects().get(0).getClass().getName() == "com.beust.jcommander.JCommander") {
+                && cmd.getObjects().get(0).getClass().getName().equals("com.beust.jcommander.JCommander")) {
             JCommander cmdObj = (JCommander) cmd.getObjects().get(0);
             sb.append(" subcommand").append("\n```").append("\n\n");
             for (String s : cmdObj.getCommands().keySet()) {

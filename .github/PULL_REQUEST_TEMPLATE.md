@@ -68,25 +68,20 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
-#### For contributor
+Check the box below and label this PR (if you have committer privilege).
 
-For this PR, do we need to update docs?
+Need to update docs? 
 
-- If yes, please update docs or create a follow-up issue if you need help.
+- [ ] doc-required 
   
-- If no, please explain why.
-
-#### For committer
-
-For this PR, do we need to update docs?
-
-- If yes,
+  (If you need help on updating docs, create a doc issue)
   
-  - if you update docs in this PR, label this PR with the `doc` label.
+- [ ] no-need-doc 
   
-  - if you plan to update docs later, label this PR with the `doc-required` label.
+  (Please explain why)
+  
+- [ ] doc 
+  
+  (If this PR contains doc changes)
 
-  - if you need help on updating docs, create a follow-up issue with the `doc-required` label.
-  
-- If no, label this PR with the `no-need-doc` label and explain why.
 

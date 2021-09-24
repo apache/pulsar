@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
@@ -297,7 +298,14 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     private Topic getTopicReference(TopicName topicName) {
-        return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
-                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
+        try {
+            return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RestException(e);
+        }
     }
 }

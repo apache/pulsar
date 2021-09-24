@@ -48,12 +48,14 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
     public MultiTopicsReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
                                  ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> consumerFuture, Schema<T> schema) {
-        String subscription = "multiTopicsReader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
-        if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
-            subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
-        }
+        String subscription;
         if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionName())) {
             subscription = readerConfiguration.getSubscriptionName();
+        } else {
+            subscription = "multiTopicsReader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
+            if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
+                subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
+            }
         }
         ConsumerConfigurationData<T> consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().addAll(readerConfiguration.getTopicNames());
@@ -62,6 +64,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionMode(SubscriptionMode.NonDurable);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
+        consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
 
         if (readerConfiguration.getReaderListener() != null) {
             ReaderListener<T> readerListener = readerConfiguration.getReaderListener();
