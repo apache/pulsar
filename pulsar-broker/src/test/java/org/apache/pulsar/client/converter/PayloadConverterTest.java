@@ -20,24 +20,27 @@ package org.apache.pulsar.client.converter;
 
 import com.google.common.collect.Sets;
 
+import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.DefaultPayloadConverter;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -135,5 +138,62 @@ public class PayloadConverterTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessages; i++) {
             Assert.assertEquals(values.get(i), messagePrefix + i);
         }
+    }
+
+    @Test
+    public void testCustomConverter() throws Exception {
+        final String topic = "persistent://public/default/testCustomConverter";
+        final int numMessages = 10;
+        final int batchingMaxMessages = 4;
+        final String messagePrefix = "msg-";
+
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .payloadConverter(new CustomBatchConverter())
+                .subscribe();
+
+        final PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().orElse(null);
+        Assert.assertNotNull(persistentTopic);
+
+        final List<String> values = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            final String value = messagePrefix + i;
+            values.add(value);
+            if (values.size() >= batchingMaxMessages || i == numMessages - 1) {
+                final ByteBuf valueBuf = CustomBatchFormat.serialize(values);
+                values.clear();
+                final ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.None,
+                        createCustomMetadata(), valueBuf);
+                valueBuf.release();
+                persistentTopic.publishMessage(headerAndPayload, (e, ledgerId, entryId) -> {
+                    if (e == null) {
+                        log.info("Send {} to {} ({}, {})", value, topic, ledgerId, entryId);
+                    } else {
+                        log.error("Failed to send {}: {}", value, e.getMessage());
+                    }
+                });
+            }
+        }
+
+        for (int i = 0; i < numMessages; i++) {
+            final Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertEquals(message.getValue(), messagePrefix + i);
+        }
+    }
+
+    private static MessageMetadata createCustomMetadata() {
+        final MessageMetadata messageMetadata = new MessageMetadata();
+        // Here are required fields
+        messageMetadata.setProducerName("producer");
+        messageMetadata.setSequenceId(0L);
+        messageMetadata.setPublishTime(0L);
+        // Add the property to identify the message format
+        messageMetadata.addProperty().setKey(CustomBatchFormat.KEY).setValue(CustomBatchFormat.VALUE);
+        return messageMetadata;
     }
 }
