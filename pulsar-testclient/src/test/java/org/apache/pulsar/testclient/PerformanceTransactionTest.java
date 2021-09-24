@@ -196,7 +196,6 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .enableBatchIndexAcknowledgment(false)
                .subscribe();
-//        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
         boolean noMessageAgain = false;
         for (int i = 0; i < 6; i++) {
             Message message = consumer.receive(2, TimeUnit.SECONDS);
