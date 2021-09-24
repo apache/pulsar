@@ -165,6 +165,10 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
         return;
     }
 
+    // Register consumer so that we can handle other incomming commands (e.g. ACTIVE_CONSUMER_CHANGE) after
+    // sending the subscribe request.
+    cnx->registerConsumer(consumerId_, shared_from_this());
+
     Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
     unAckedMessageTrackerPtr_->clear();
     batchAcknowledgementTracker_.clear();
@@ -217,7 +221,6 @@ void ConsumerImpl::handleCreateConsumer(const ClientConnectionPtr& cnx, Result r
             Lock lock(mutex_);
             connection_ = cnx;
             incomingMessages_.clear();
-            cnx->registerConsumer(consumerId_, shared_from_this());
             state_ = Ready;
             backoff_.reset();
             // Complicated logic since we don't have a isLocked() function for mutex
