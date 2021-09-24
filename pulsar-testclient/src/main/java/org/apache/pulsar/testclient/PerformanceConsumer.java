@@ -20,6 +20,7 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -34,7 +35,6 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -69,8 +69,8 @@ public class PerformanceConsumer {
     private static final LongAdder totalMessagesReceived = new LongAdder();
     private static final LongAdder totalBytesReceived = new LongAdder();
 
-    private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
-    private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
+    private static final LongAdder totalNumTxnOpenFail = new LongAdder();
+    private static final LongAdder totalNumTxnOpenSuccess = new LongAdder();
 
     private static final LongAdder totalMessageAck = new LongAdder();
     private static final LongAdder totalMessageAckFailed = new LongAdder();
@@ -78,8 +78,7 @@ public class PerformanceConsumer {
 
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
-    private static final LongAdder numTxnOp = new LongAdder();
-    private static final LongAdder totalNumTxnOp = new LongAdder();
+    private static final LongAdder numTxnOpSuccess = new LongAdder();
 
     private static final Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
@@ -347,13 +346,13 @@ public class PerformanceConsumer {
         }
         PulsarClient pulsarClient = clientBuilder.build();
 
-        AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments);
+        AtomicReference<Transaction> atomicReference = buildTransaction(pulsarClient, arguments.isEnableTransaction,
+                arguments.transactionTimeout);
 
         AtomicLong messageAckedCount = new AtomicLong();
         Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
         Thread thread = Thread.currentThread();
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
-            try {
                 if(arguments.isEnableTransaction){
                     try {
                         messageReceiveLimiter.acquire();
@@ -370,7 +369,7 @@ public class PerformanceConsumer {
                     }
                 }
                 if(arguments.totalNumTxn > 0) {
-                    if (totalNumTxnOp.sum() >= arguments.totalNumTxn) {
+                    if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
                         log.info("------------------- DONE -----------------------");
                         printAggregatedStats();
                         PerfClientUtils.exit(0);
@@ -423,21 +422,18 @@ public class PerformanceConsumer {
                         transaction.commit()
                                 .thenRun(() -> {
                                     totalEndTxnOpSuccessNum.increment();
-                                    numTxnOp.increment();
-                                    totalNumTxnOp.increment();
+                                    numTxnOpSuccess.increment();
                                 })
                                 .exceptionally(exception -> {
                                     log.error("Commit transaction failed with exception : ", exception);
                                     totalEndTxnOpFailNum.increment();
-                                    totalNumTxnOp.increment();
                                     return null;
                                 });
                     } else {
                         transaction.abort().thenRun(() -> {
                             log.info("Abort transaction {}", transaction.getTxnID().toString());
                             totalEndTxnOpSuccessNum.increment();
-                            numTxnOp.increment();
-                            totalNumTxnOp.increment();
+                            numTxnOpSuccess.increment();
                         }).exceptionally(exception -> {
                             log.error("Commit transaction {} failed with exception",
                                     transaction.getTxnID().toString(),
@@ -446,33 +442,23 @@ public class PerformanceConsumer {
                             return null;
                         });
                     }
-                    AtomicBoolean updateTransaction = new AtomicBoolean(true);
-                    Semaphore waitTransactionUpdate = new Semaphore(1);
-                    waitTransactionUpdate.acquire();
                     while (true) {
-                        pulsarClient.newTransaction().withTransactionTimeout(arguments.transactionTimeout,
-                                TimeUnit.SECONDS).build().thenAccept(newTransaction -> {
+                        try {
+                            Transaction newTransaction = pulsarClient.newTransaction()
+                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
+                                    .build().get();
                             atomicReference.compareAndSet(transaction, newTransaction);
-                            waitTransactionUpdate.release();
-                            totalNumTxnOpenTxnSuccess.increment();
+                            totalNumTxnOpenSuccess.increment();
                             messageAckedCount.set(0);
                             messageReceiveLimiter.release(arguments.numMessagesPerTransaction);
-                        }).exceptionally(exception -> {
-                            updateTransaction.set(false);
-                            waitTransactionUpdate.release();
-                            log.error("Failed to new transaction with exception:", exception);
-                            totalEndTxnOpFailNum.increment();
-                            return null;
-                        });
-                        waitTransactionUpdate.acquire();
-                        if(updateTransaction.get()){
                             break;
+                        } catch (Exception e) {
+                            log.error("Failed to new transaction with exception:", e);
+                            totalNumTxnOpenFail.increment();
                         }
                     }
                 }
-            } catch (Exception e) {
-                log.error("Consume  fail : ", e);
-            }
+
         };
 
         List<Future<Consumer<ByteBuffer>>> futures = Lists.newArrayList();
@@ -547,14 +533,12 @@ public class PerformanceConsumer {
             long totalTxnOpSuccessNum = 0;
             long totalTxnOpFailNum = 0;
             double rateOpenTxn = 0;
-            if (arguments.isEnableTransaction) {
-                totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
-                totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
-                rateOpenTxn = numTxnOp.sumThenReset() / elapsed;
-            }
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             if(arguments.isEnableTransaction) {
+                totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
+                totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
+                rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
                 log.info("--- Transaction: {} transaction end successfully --- {} transaction end failed "
                                 + "--- {}  Txn/s --- AckRate: {} msg/s",
                         totalTxnOpSuccessNum,
@@ -589,15 +573,13 @@ public class PerformanceConsumer {
         long totalnumMessageAckFailed = 0;
         double rateAck = totalMessageAck.sum() / elapsed;
         double rateOpenTxn = 0;
-        if (arguments.isEnableTransaction) {
+        if(arguments.isEnableTransaction){
             totalEndTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalEndTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = (totalEndTxnSuccess + totalEndTxnFail) / elapsed;
             totalnumMessageAckFailed = totalMessageAckFailed.sum();
-            numTransactionOpenFailed = totalNumTxnOpenTxnFail.sum();
-            numTransactionOpenSuccess = totalNumTxnOpenTxnSuccess.sum();
-        }
-        if(arguments.isEnableTransaction){
+            numTransactionOpenFailed = totalNumTxnOpenSuccess.sum();
+            numTransactionOpenSuccess = totalNumTxnOpenFail.sum();
             log.info("-- Transaction: {}  transaction end successfully --- {} transaction end failed "
                             + "--- {} transaction open successfully --- {} transaction open failed "
                             + "--- {} Txn/s ",
@@ -628,23 +610,6 @@ public class PerformanceConsumer {
                 reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
-    private static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments) {
-        if (arguments.isEnableTransaction) {
-            while(true) {
-                AtomicReference atomicReference = null;
-                try {
-                  atomicReference = new AtomicReference(pulsarClient.newTransaction()
-                            .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
-                } catch (Exception e) {
-                    continue;
-                }
-                if(atomicReference != null && atomicReference.get() != null){
-                    return atomicReference;
-                }
-            }
-        }
-        return new AtomicReference<>(null);
-    }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
 }

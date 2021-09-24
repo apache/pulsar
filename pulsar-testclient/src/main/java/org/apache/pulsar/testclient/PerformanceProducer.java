@@ -74,6 +74,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
+import static org.apache.pulsar.testclient.utils.PerformanceUtils.buildTransaction;
 
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -104,7 +105,7 @@ public class PerformanceProducer {
 
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
-    private static final LongAdder numTxnOp = new LongAdder();
+    private static final LongAdder numTxnOpSuccess = new LongAdder();
 
     private static IMessageFormatter messageFormatter = null;
 
@@ -485,11 +486,6 @@ public class PerformanceProducer {
             long totalTxnOpSuccess = 0;
             long totalTxnOpFail = 0;
             double rateOpenTxn = 0;
-            if (arguments.isEnableTransaction) {
-                totalTxnOpSuccess = totalEndTxnOpSuccessNum.sum();
-                totalTxnOpFail = totalEndTxnOpFailNum.sum();
-                rateOpenTxn = numTxnOp.sumThenReset() / elapsed;
-            }
             double rate = messagesSent.sumThenReset() / elapsed;
             double failureRate = messagesFailed.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
@@ -497,6 +493,9 @@ public class PerformanceProducer {
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             if (arguments.isEnableTransaction) {
+                totalTxnOpSuccess = totalEndTxnOpSuccessNum.sum();
+                totalTxnOpFail = totalEndTxnOpFailNum.sum();
+                rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
                 log.info("--- Transaction : {} transaction end successfully ---{} transaction end failed "
                                 + "--- {} Txn/s",
                         totalTxnOpSuccess, totalTxnOpFail, totalFormat.format(rateOpenTxn));
@@ -644,7 +643,8 @@ public class PerformanceProducer {
             }
             // Send messages on all topics/producers
             long totalSent = 0;
-            AtomicReference<Transaction> transactionAtomicReference = buildTransaction(client, arguments);
+            AtomicReference<Transaction> transactionAtomicReference = buildTransaction(client,
+                    arguments.isEnableTransaction, arguments.transactionTimeout);
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
@@ -743,7 +743,7 @@ public class PerformanceProducer {
                                         log.info("Committed transaction {}",
                                                 transaction.getTxnID().toString());
                                         totalEndTxnOpSuccessNum.increment();
-                                        numTxnOp.increment();
+                                        numTxnOpSuccess.increment();
                                     })
                                     .exceptionally(exception -> {
                                         log.error("Commit transaction failed with exception : ",
@@ -755,7 +755,7 @@ public class PerformanceProducer {
                             transaction.abort().thenRun(() -> {
                                 log.info("Abort transaction {}", transaction.getTxnID().toString());
                                 totalEndTxnOpSuccessNum.increment();
-                                numTxnOp.increment();
+                                numTxnOpSuccess.increment();
                             }).exceptionally(exception -> {
                                 log.error("Commit transaction {} failed with exception",
                                         transaction.getTxnID().toString(),
@@ -764,33 +764,20 @@ public class PerformanceProducer {
                                 return null;
                             });
                         }
-                        try {
-                            AtomicBoolean updateTransaction = new AtomicBoolean(true);
-                            Semaphore waitTransactionUpdate = new Semaphore(1);
-                            waitTransactionUpdate.acquire();
-                            while(true) {
-                                pulsarClient.newTransaction().withTransactionTimeout(arguments.transactionTimeout,
-                                        TimeUnit.SECONDS).build().thenAccept(newTransaction -> {
-                                    transactionAtomicReference.compareAndSet(transaction, newTransaction);
-                                    waitTransactionUpdate.release();
-                                    numMessageSend.set(0);
-                                    numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
-                                    totalNumTxnOpenTxnSuccess.increment();
-                                }).exceptionally(exception -> {
-                                    updateTransaction.set(false);
-                                    waitTransactionUpdate.release();
-                                    totalNumTxnOpenTxnFail.increment();
-                                    log.error("Failed to new transaction with exception: "
-                                            , exception);
-                                    return null;
-                                });
-                                waitTransactionUpdate.acquire();
-                                if(updateTransaction.get()){
-                                    break;
-                                }
+                        while(true) {
+                            try {
+                                Transaction newTransaction = pulsarClient.newTransaction()
+                                        .withTransactionTimeout(arguments.transactionTimeout,
+                                                TimeUnit.SECONDS).build().get();
+                                transactionAtomicReference.compareAndSet(transaction, newTransaction);
+                                numMessageSend.set(0);
+                                numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
+                                totalNumTxnOpenTxnSuccess.increment();
+                                break;
+                            }catch (Exception e){
+                                totalNumTxnOpenTxnFail.increment();
+                                log.error("Failed to new transaction with exception: ", e);
                             }
-                        } catch (Exception e) {
-                            log.error("Got error : ", e);
                         }
                     }
                 }
@@ -858,18 +845,6 @@ public class PerformanceProducer {
                 dec.format(reportHistogram.getMaxValue() / 1000.0));
     }
 
-    private static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, Arguments arguments) {
-
-        if (arguments.isEnableTransaction) {
-            try {
-                return new AtomicReference(pulsarClient.newTransaction()
-                        .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
-            } catch (Exception e) {
-                log.error("Got transaction error: ", e);
-            }
-        }
-        return new AtomicReference<>(null);
-    }
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);

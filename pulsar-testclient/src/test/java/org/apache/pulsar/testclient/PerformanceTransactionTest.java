@@ -101,7 +101,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .connectionsPerBroker(100)
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
-        Producer produceToConsumeTopic = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> produceToConsumeTopic = pulsarClient.newProducer(Schema.BYTES)
                 .producerName("perf-transaction-producer")
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(testConsumeTopic)
@@ -126,14 +126,14 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
-        Consumer consumeFromConsumeTopic = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumeFromConsumeTopic = pulsarClient.newConsumer(Schema.BYTES)
                 .consumerName("perf-transaction-consumeVerify")
                 .topic(testConsumeTopic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(testSub)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        Consumer consumeFromProduceTopic = pulsarClient.newConsumer(Schema.BYTES)
+        Consumer<byte[]> consumeFromProduceTopic = pulsarClient.newConsumer(Schema.BYTES)
                 .consumerName("perf-transaction-produceVerify")
                 .topic(testProduceTopic)
                 .subscriptionName(testSub)
@@ -171,7 +171,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
-        Consumer consumer = pulsarClient.newConsumer().subscriptionName("subName").topic(topic)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName("subName").topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .enableBatchIndexAcknowledgment(false)
@@ -191,7 +191,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         String topic = testTopic + UUID.randomUUID();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), subName,
                 SubscriptionType.Exclusive, SubscriptionInitialPosition.Earliest, 10);
-        Producer producer = pulsarClient.newProducer().topic(topic).sendTimeout(0, TimeUnit.SECONDS)
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
         for (int i = 0; i < 505; i++) {
@@ -207,7 +207,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
-        Consumer consumer = pulsarClient.newConsumer().subscriptionName(subName).topic(topic)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subName).topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .enableBatchIndexAcknowledgment(false)
