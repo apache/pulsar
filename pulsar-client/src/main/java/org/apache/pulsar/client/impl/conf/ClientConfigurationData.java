@@ -122,6 +122,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "connectionsPerBroker",
             value = "Number of connections established between the client and each Broker."
+                    + "A value of 0 means to disable connection pooling."
     )
     private int connectionsPerBroker = 1;
 

@@ -450,9 +450,9 @@ public class BrokerService implements Closeable {
         this.startDeduplicationSnapshotMonitor();
     }
 
-    protected void startStatsUpdater(int statsUpdateInitailDelayInSecs, int statsUpdateFrequencyInSecs) {
+    protected void startStatsUpdater(int statsUpdateInitialDelayInSecs, int statsUpdateFrequencyInSecs) {
         statsUpdater.scheduleAtFixedRate(safeRun(this::updateRates),
-                statsUpdateInitailDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
+            statsUpdateInitialDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
 
         // Ensure the broker starts up with initial stats
         updateRates();

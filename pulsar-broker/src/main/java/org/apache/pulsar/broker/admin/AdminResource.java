@@ -66,6 +66,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 
 @Slf4j
 public abstract class AdminResource extends PulsarWebResource {
+
+    protected NamespaceName namespaceName;
+    protected TopicName topicName;
+
     protected BookKeeper bookKeeper() {
         return pulsar().getBookKeeperClient();
     }
@@ -174,8 +178,6 @@ public abstract class AdminResource extends PulsarWebResource {
         return result;
     }
 
-    protected NamespaceName namespaceName;
-
     protected void validateNamespaceName(String property, String namespace) {
         try {
             this.namespaceName = NamespaceName.get(property, namespace);
@@ -185,9 +187,8 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected void validateGlobalNamespaceOwnership(String property, String namespace) {
+    protected void validateGlobalNamespaceOwnership() {
         try {
-            this.namespaceName = NamespaceName.get(property, namespace);
             validateGlobalNamespaceOwnership(this.namespaceName);
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
@@ -197,7 +198,7 @@ public abstract class AdminResource extends PulsarWebResource {
             }
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
         } catch (Exception e) {
-            log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespace, e.getMessage());
+            log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespaceName, e.getMessage());
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
         }
     }
@@ -210,8 +211,6 @@ public abstract class AdminResource extends PulsarWebResource {
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
         }
     }
-
-    protected TopicName topicName;
 
     protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);

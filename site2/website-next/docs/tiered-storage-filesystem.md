@@ -44,15 +44,12 @@ This example uses Pulsar 2.5.1.
     tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
     ```
 
-    
 :::note
 
 * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
- 
 * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
 :::
-
 
 3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
 
@@ -69,23 +66,21 @@ This example uses Pulsar 2.5.1.
     tiered-storage-jcloud-2.5.1.nar
     ```
 
-    :::note
+   :::note
 
-    * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-    
-    * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+   * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
-    :::
-
+   :::
 
 ## Configuration
 
 :::note
 
+
 Before offloading data from BookKeeper to filesystem, you need to configure some properties of the filesystem offloader driver. 
 
 :::
-
 
 Besides, you can also configure the filesystem offloader to run it automatically or trigger it manually.
 
@@ -178,10 +173,10 @@ You can set the following configurations in the _filesystem_offload_core_site.xm
 
 :::tip
 
+
 For more information about the Hadoop HDFS, see [here](https://hadoop.apache.org/docs/current/).
 
 :::
-
 
 ### Configure filesystem offloader to run automatically
 
@@ -207,10 +202,10 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 :::tip
 
+
 For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#set-offload-threshold). 
 
 :::
-
 
 ### Configure filesystem offloader to run manually
 
@@ -236,13 +231,11 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
     Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
     ```
 
-    
 :::tip
 
 For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
 :::
-
 
 - This example checks filesystem offloader status using pulsar-admin.
 
@@ -283,13 +276,11 @@ For more information about the `pulsar-admin topics offload options` command, in
     Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
     ````
 
-    
 :::tip
 
 For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
 
 :::
-
 
 ## Tutorial
 

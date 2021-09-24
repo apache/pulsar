@@ -179,6 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
+    <jline.version>2.14.6</jline.version>
     <hppc.version>0.7.3</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.18.1</assertj-core.version>
@@ -1964,7 +1965,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
@@ -2028,7 +2028,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-sasl</module>
