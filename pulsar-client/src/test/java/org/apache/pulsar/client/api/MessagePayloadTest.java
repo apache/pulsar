@@ -41,8 +41,8 @@ public class MessagePayloadTest {
         final ByteBuf convertedBuf = MessagePayloadUtils.convertToByteBuf(payload);
         Assert.assertSame(convertedBuf, buf);
 
-        Assert.assertNull(payload.getByteBuf());
-        Assert.assertEquals(buf.refCnt(), 1);
+        Assert.assertEquals(buf.refCnt(), 2);
+        buf.release();
         buf.release();
     }
 

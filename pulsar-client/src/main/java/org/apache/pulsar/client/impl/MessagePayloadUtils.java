@@ -25,14 +25,10 @@ import org.apache.pulsar.client.api.MessagePayload;
 public class MessagePayloadUtils {
 
     public static ByteBuf convertToByteBuf(final MessagePayload payload) {
-        try {
-            if (payload instanceof MessagePayloadImpl) {
-                return ((MessagePayloadImpl) payload).getByteBuf();
-            } else {
-                return Unpooled.wrappedBuffer(payload.copiedBuffer());
-            }
-        } finally {
-            payload.recycle();
+        if (payload instanceof MessagePayloadImpl) {
+            return ((MessagePayloadImpl) payload).getByteBuf().retain();
+        } else {
+            return Unpooled.wrappedBuffer(payload.copiedBuffer());
         }
     }
 }
