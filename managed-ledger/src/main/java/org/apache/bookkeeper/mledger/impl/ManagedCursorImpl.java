@@ -2235,18 +2235,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         public void operationComplete() {
                             log.info("[{}][{}] Updated md-position={} into cursor-ledger {}", ledger.getName(), name,
                                     markDeletePosition, cursorLedger.getId());
-                            cursorLedger.asyncClose((rc, lh, ctx1) -> {
-                                callback.closeComplete(ctx);
-
-                                if (rc == BKException.Code.OK) {
-                                    log.info("[{}][{}] Closed cursor-ledger {}", ledger.getName(), name,
-                                            cursorLedger.getId());
-                                } else {
-                                    log.warn("[{}][{}] Failed to close cursor-ledger {}: {}", ledger.getName(), name,
-                                            cursorLedger.getId(), BKException.getMessage(rc));
-                                }
-                            }, ctx);
-
+                            asyncCloseCursorLedger(callback, ctx);
                         }
 
                         @Override
