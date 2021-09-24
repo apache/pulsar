@@ -2235,18 +2235,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         public void operationComplete() {
                             log.info("[{}][{}] Updated md-position={} into cursor-ledger {}", ledger.getName(), name,
                                     markDeletePosition, cursorLedger.getId());
-                            cursorLedger.asyncClose((rc, lh, ctx1) -> {
-                                callback.closeComplete(ctx);
-
-                                if (rc == BKException.Code.OK) {
-                                    log.info("[{}][{}] Closed cursor-ledger {}", ledger.getName(), name,
-                                            cursorLedger.getId());
-                                } else {
-                                    log.warn("[{}][{}] Failed to close cursor-ledger {}: {}", ledger.getName(), name,
-                                            cursorLedger.getId(), BKException.getMessage(rc));
-                                }
-                            }, ctx);
-
+                            asyncCloseCursorLedger(callback, ctx);
                         }
 
                         @Override
@@ -2722,6 +2711,23 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] [{}] Received notification but had no pending read operation", ledger.getName(), name);
             }
         }
+    }
+
+    void asyncCloseCursorLedger(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
+        LedgerHandle lh = cursorLedger;
+        ledger.mbean.startCursorLedgerCloseOp();
+        log.info("[{}] [{}] Closing metadata ledger {}", ledger.getName(), name, lh.getId());
+        lh.asyncClose(new CloseCallback() {
+            @Override
+            public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
+                ledger.mbean.endCursorLedgerCloseOp();
+                if (rc == BKException.Code.OK) {
+                    callback.closeComplete(ctx);
+                } else {
+                    callback.closeFailed(createManagedLedgerException(rc), ctx);
+                }
+            }
+        }, ctx);
     }
 
     void decrementPendingMarkDeleteCount() {
