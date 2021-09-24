@@ -30,9 +30,16 @@ import io.debezium.relational.history.DatabaseHistory;
 import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.text.ParsingException;
 import io.debezium.util.Collect;
+
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
+import java.util.Base64;
 import java.util.Map;
+
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -67,15 +74,27 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    private void testHistoryTopicContent(boolean skipUnparseableDDL) {
+    private void testHistoryTopicContent(boolean skipUnparseableDDL, boolean testWithClientBuilder) throws Exception {
+        Configuration.Builder configBuidler = Configuration.create()
+                .with(PulsarDatabaseHistory.TOPIC, topicName)
+                .with(DatabaseHistory.NAME, "my-db-history")
+                .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, skipUnparseableDDL);
+
+        if (testWithClientBuilder) {
+            ClientBuilder builder = PulsarClient.builder().serviceUrl(brokerUrl.toString());
+            ByteArrayOutputStream bao = new ByteArrayOutputStream();
+            try (ObjectOutputStream oos = new ObjectOutputStream(bao)) {
+                oos.writeObject(builder);
+                oos.flush();
+                byte[] data = bao.toByteArray();
+                configBuidler.with(PulsarDatabaseHistory.CLIENT_BUILDER, Base64.getEncoder().encodeToString(data));
+            }
+        } else {
+            configBuidler.with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString());
+        }
+
         // Start up the history ...
-        Configuration config = Configuration.create()
-            .with(PulsarDatabaseHistory.SERVICE_URL, brokerUrl.toString())
-            .with(PulsarDatabaseHistory.TOPIC, topicName)
-            .with(DatabaseHistory.NAME, "my-db-history")
-            .with(DatabaseHistory.SKIP_UNPARSEABLE_DDL_STATEMENTS, skipUnparseableDDL)
-            .build();
-        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
+        history.configure(configBuidler.build(), null, DatabaseHistoryListener.NOOP, true);
         history.start();
 
         // Should be able to call start more than once ...
@@ -134,7 +153,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         // Stop the history (which should stop the producer) ...
         history.stop();
         history = new PulsarDatabaseHistory();
-        history.configure(config, null, DatabaseHistoryListener.NOOP, true);
+        history.configure(configBuidler.build(), null, DatabaseHistoryListener.NOOP, true);
         // no need to start
 
         // Recover from the very beginning to just past the first change ...
@@ -170,7 +189,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
     @Test
     public void shouldStartWithEmptyTopicAndStoreDataAndRecoverAllState() throws Exception {
         // Create the empty topic ...
-        testHistoryTopicContent(false);
+        testHistoryTopicContent(false, true);
     }
 
     @Test
@@ -187,7 +206,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             producer.send("{\"source\":{\"server\":\"my-server\"},\"position\":{\"filename\":\"my-txn-file.log\",\"position\":39},\"databaseName\":\"db1\",\"ddl\":\"xxxDROP TABLE foo;\"}");
         }
 
-        testHistoryTopicContent(true);
+        testHistoryTopicContent(true, true);
     }
 
     @Test(expectedExceptions = ParsingException.class)
@@ -196,14 +215,14 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             producer.send("{\"source\":{\"server\":\"my-server\"},\"position\":{\"filename\":\"my-txn-file.log\",\"position\":39},\"databaseName\":\"db1\",\"ddl\":\"xxxDROP TABLE foo;\"}");
         }
 
-        testHistoryTopicContent(false);
+        testHistoryTopicContent(false, false);
     }
 
 
     @Test
-    public void testExists() {
+    public void testExists() throws Exception {
         // happy path
-        testHistoryTopicContent(true);
+        testHistoryTopicContent(true, false);
         assertTrue(history.exists());
 
         // Set history to use dummy topic
