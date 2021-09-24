@@ -24,6 +24,7 @@ var searchData=
   ['setcompressiontype',['setCompressionType',['../classpulsar_1_1_producer_configuration.html#a2ad315297c101770a62209de5e5d5ad4',1,'pulsar::ProducerConfiguration']]],
   ['setconcurrentlookuprequest',['setConcurrentLookupRequest',['../classpulsar_1_1_client_configuration.html#a0b9226918b57122b0ceb446657746e1c',1,'pulsar::ClientConfiguration']]],
   ['setconnectiontimeout',['setConnectionTimeout',['../classpulsar_1_1_client_configuration.html#aae613c6cb5f3890d3d9bc9cbf9a93a11',1,'pulsar::ClientConfiguration']]],
+  ['setconsumereventlistener',['setConsumerEventListener',['../classpulsar_1_1_consumer_configuration.html#a7d4372914cecd70e77025eae08d0660e',1,'pulsar::ConsumerConfiguration']]],
   ['setconsumername',['setConsumerName',['../classpulsar_1_1_consumer_configuration.html#a9a9c38d660aabc9162295de38bc26b77',1,'pulsar::ConsumerConfiguration']]],
   ['setconsumertype',['setConsumerType',['../classpulsar_1_1_consumer_configuration.html#ace6b2f1da486fcffacc4e877e5533268',1,'pulsar::ConsumerConfiguration']]],
   ['setcontent',['setContent',['../classpulsar_1_1_message_builder.html#ab88fc9caf6c2406ba7b34a1770484df8',1,'pulsar::MessageBuilder::setContent(const void *data, size_t size)'],['../classpulsar_1_1_message_builder.html#a6661ff74ca3c036aff23fcec49871991',1,'pulsar::MessageBuilder::setContent(const std::string &amp;data)']]],

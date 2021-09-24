@@ -127,6 +127,12 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:abfdc3893ba00931c3ec38a4acc841e7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7c3396868f966268b12a5ac83baeaf4f"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a7c3396868f966268b12a5ac83baeaf4f">hasMessageListener</a> () const </td></tr>
 <tr class="separator:a7c3396868f966268b12a5ac83baeaf4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7d4372914cecd70e77025eae08d0660e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a7d4372914cecd70e77025eae08d0660e">setConsumerEventListener</a> (ConsumerEventListenerPtr eventListener)</td></tr>
+<tr class="separator:a7d4372914cecd70e77025eae08d0660e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f44de048776f4f3a05989b751514ade"><td class="memItemLeft" align="right" valign="top">ConsumerEventListenerPtr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a0f44de048776f4f3a05989b751514ade">getConsumerEventListener</a> () const </td></tr>
+<tr class="separator:a0f44de048776f4f3a05989b751514ade"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa61731b6254a740785687bea16676381"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#aa61731b6254a740785687bea16676381">hasConsumerEventListener</a> () const </td></tr>
+<tr class="separator:aa61731b6254a740785687bea16676381"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a265d2cd1e9d1d329eff9b98346f245c2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a265d2cd1e9d1d329eff9b98346f245c2">setReceiverQueueSize</a> (int size)</td></tr>
 <tr class="separator:a265d2cd1e9d1d329eff9b98346f245c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4a87e62a6fc25abf3a952545046edba2"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a4a87e62a6fc25abf3a952545046edba2">getReceiverQueueSize</a> () const </td></tr>
@@ -276,6 +282,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>the configured timeout in milliseconds caching <a class="el" href="classpulsar_1_1_broker_consumer_stats.html">BrokerConsumerStats</a>. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a0f44de048776f4f3a05989b751514ade"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">ConsumerEventListenerPtr pulsar::ConsumerConfiguration::getConsumerEventListener </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the consumer event listener </dd></dl>
 
 </div>
 </div>
@@ -560,6 +582,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 
 </div>
 </div>
+<a class="anchor" id="aa61731b6254a740785687bea16676381"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool pulsar::ConsumerConfiguration::hasConsumerEventListener </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>true if the consumer event listener has been set </dd></dl>
+
+</div>
+</div>
 <a class="anchor" id="a7c3396868f966268b12a5ac83baeaf4f"></a>
 <div class="memitem">
 <div class="memproto">
@@ -717,6 +755,23 @@ false if the property is not defined </dd></dl>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a class="anchor" id="a7d4372914cecd70e77025eae08d0660e"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a>&amp; pulsar::ConsumerConfiguration::setConsumerEventListener </td>
+          <td>(</td>
+          <td class="paramtype">ConsumerEventListenerPtr&#160;</td>
+          <td class="paramname"><em>eventListener</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>A event listener enables your application to react the consumer state change event (active or inactive). </p>
 
 </div>
 </div>
