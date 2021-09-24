@@ -895,11 +895,6 @@ class SchemaTest(TestCase):
             na4 = String()
             nb4 = Integer()
 
-        class NestedObj5(Record):
-            _namespace = 'xxx5'
-            na5 = String()
-            nb5 = Integer()
-
         class Color(Enum):
             red = 1
             green = 2
@@ -917,8 +912,6 @@ class SchemaTest(TestCase):
             mapNested2 = Map(NestedObj3())
             arrayNested = Array(NestedObj4())
             arrayNested2 = Array(NestedObj4())
-            nested5 = NestedObj5()
-            nested5_2 = NestedObj5()
 
         print('complex schema: ', ComplexRecord.schema())
         self.assertEqual(ComplexRecord.schema(), {
@@ -952,12 +945,7 @@ class SchemaTest(TestCase):
                         {'name': 'nb1', 'type': ['null', 'double']}
                     ]}]}
                 ]}]},
-                {"name": "nested2", "type": ['null', 'NestedObj2']},
-                {'name': 'nested5', 'type': ['null', {'name': 'NestedObj5', 'namespace': 'xxx5', 'type': 'record', 'fields': [
-                    {'name': 'na5', 'type': ['null', 'string']},
-                    {'name': 'nb5', 'type': ['null', 'int']}
-                ]}]},
-                {'name': 'nested5_2', 'type': ['null', 'xxx5.NestedObj5']}
+                {"name": "nested2", "type": ['null', 'NestedObj2']}
             ]
         })
 
@@ -984,7 +972,7 @@ class SchemaTest(TestCase):
             ], arrayNested2=[
                 NestedObj4(na4='value na4 3', nb4=300),
                 NestedObj4(na4='value na4 4', nb4=400)
-            ], nested5=NestedObj5(na5='na5 value', nb5=10), nested5_2=NestedObj5(na5='na5_2 value', nb5=20))
+            ])
             data_encode = data_schema.encode(r)
 
             data_decode = data_schema.decode(data_encode)
@@ -1016,10 +1004,6 @@ class SchemaTest(TestCase):
             self.assertEqual(data_decode.arrayNested2[0].nb4, 300)
             self.assertEqual(data_decode.arrayNested2[1].na4, 'value na4 4')
             self.assertEqual(data_decode.arrayNested2[1].nb4, 400)
-            self.assertEqual(data_decode.nested5.na5, 'na5 value')
-            self.assertEqual(data_decode.nested5.nb5, 10)
-            self.assertEqual(data_decode.nested5_2.na5, 'na5_2 value')
-            self.assertEqual(data_decode.nested5_2.nb5, 20)
             print('Encode and decode complex schema finish. schema_type: ', schema_type)
 
         encode_and_decode('avro')
