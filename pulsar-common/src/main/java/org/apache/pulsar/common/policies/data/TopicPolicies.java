@@ -19,16 +19,15 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
-
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -41,15 +40,14 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
 public class TopicPolicies {
 
     @Builder.Default
     private Map<String, BacklogQuotaImpl> backLogQuotaMap = Maps.newHashMap();
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
-
+    @Builder.Default
+    private Set<String> replicationClusters = new HashSet<>();
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;
     private Boolean deduplicationEnabled;

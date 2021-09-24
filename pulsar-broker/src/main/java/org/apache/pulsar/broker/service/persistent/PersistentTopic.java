@@ -72,6 +72,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1334,32 +1335,35 @@ public class PersistentTopic extends AbstractTopic
             log.debug("[{}] Checking replication status", name);
         }
 
-        CompletableFuture<Policies> policiesFuture = brokerService.pulsar().getPulsarResources()
-                .getNamespaceResources()
-                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenCompose(optPolicies -> {
-                            if (!optPolicies.isPresent()) {
-                                return FutureUtil.failedFuture(
-                                        new ServerMetadataException(
-                                                new MetadataStoreException.NotFoundException()));
-                            }
+        CompletableFuture<Set<String>> replicationClustersFuture = brokerService.pulsar()
+                .getTopicPoliciesService()
+                .getTopicPoliciesAsyncWithRetry(name, null, brokerService.pulsar().getExecutor())
+                .thenCompose(topicPolicies -> {
+                    if (!topicPolicies.isPresent()
+                            || CollectionUtils.isEmpty(topicPolicies.get().getReplicationClusters())) {
+                        return brokerService.pulsar().getPulsarResources()
+                                .getNamespaceResources()
+                                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                                .thenCompose(optPolicies -> {
+                                    if (!optPolicies.isPresent()) {
+                                        return FutureUtil.failedFuture(
+                                                new ServerMetadataException(
+                                                        new MetadataStoreException.NotFoundException()));
+                                    }
 
-                            return CompletableFuture.completedFuture(optPolicies.get());
-                        });
+                                    return CompletableFuture.completedFuture(optPolicies.get().replication_clusters);
+                                });
+                    } else {
+                        return CompletableFuture.completedFuture(topicPolicies.get().getReplicationClusters());
+                    }
+                });
 
         CompletableFuture<Integer> ttlFuture = getMessageTTL();
 
-        return CompletableFuture.allOf(policiesFuture, ttlFuture)
+        return CompletableFuture.allOf(replicationClustersFuture, ttlFuture)
                 .thenCompose(__ -> {
-                    Policies policies = policiesFuture.join();
+                    Set<String> configuredClusters = replicationClustersFuture.join();
                     int newMessageTTLinSeconds = ttlFuture.join();
-
-                    Set<String> configuredClusters;
-                    if (policies.replication_clusters != null) {
-                        configuredClusters = Sets.newTreeSet(policies.replication_clusters);
-                    } else {
-                        configuredClusters = Collections.emptySet();
-                    }
 
                     String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
