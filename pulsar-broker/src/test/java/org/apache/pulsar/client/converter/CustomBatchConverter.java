@@ -21,18 +21,16 @@ package org.apache.pulsar.client.converter;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCounted;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import org.apache.pulsar.client.api.EntryContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.PayloadConverter;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.DefaultPayloadConverter;
 import org.apache.pulsar.client.impl.MessagePayloadImpl;
 import org.apache.pulsar.client.impl.MessagePayloadUtils;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 
 public class CustomBatchConverter implements PayloadConverter {
 

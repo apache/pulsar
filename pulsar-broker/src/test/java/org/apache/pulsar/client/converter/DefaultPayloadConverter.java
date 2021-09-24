@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.client.converter;
 
 import java.util.Iterator;
 import org.apache.pulsar.client.api.EntryContext;
@@ -33,44 +33,27 @@ public class DefaultPayloadConverter implements PayloadConverter {
     @Override
     public <T> Iterable<Message<T>> convert(EntryContext context, MessagePayload payload, Schema<T> schema) {
         final int numMessages = context.getNumMessages();
+        final boolean isBatch = context.isBatch();
 
-        if (context.isBatch()) {
-            return () -> new Iterator<Message<T>>() {
-                int index = 0;
+        return () -> new Iterator<Message<T>>() {
+            int index = 0;
 
-                @Override
-                public boolean hasNext() {
-                    final boolean result = (index < numMessages);
-                    if (!result) {
-                        payload.recycle();
-                    }
-                    return result;
+            @Override
+            public boolean hasNext() {
+                final boolean result = (index < numMessages);
+                if (!result) {
+                    payload.recycle();
                 }
+                return result;
+            }
 
-                @Override
-                public Message<T> next() {
-                    index++;
-                    return context.newSingleMessage(index, numMessages, payload, true, schema);
-                }
-            };
-        } else {
-            return () -> new Iterator<Message<T>>() {
-                boolean first = true;
-
-                @Override
-                public boolean hasNext() {
-                    if (!first) {
-                        payload.recycle();
-                    }
-                    return first;
-                }
-
-                @Override
-                public Message<T> next() {
-                    first = false;
-                    return context.newMessage(payload, schema);
-                }
-            };
-        }
+            @Override
+            public Message<T> next() {
+                index++;
+                return isBatch
+                        ? context.newSingleMessage(index, numMessages, payload, true, schema)
+                        : context.newMessage(payload, schema);
+            }
+        };
     }
 }
