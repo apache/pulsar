@@ -13,7 +13,7 @@ Highlights of this release are as below:
 
 - System topic no longer has potential data loss when not configured for compaction. [PR-11003](https://github.com/apache/pulsar/pull/11003)
 
-- Consumers are not allowed to read data that does not belong to the connected topics. [PR-11912](https://github.com/apache/pulsar/pull/11912)
+- Consumers are not allowed to read data on topics to which they are not subscribed. [PR-11912](https://github.com/apache/pulsar/pull/11912)
 
 This blog walks through the most noteworthy changes grouped by component. For the complete list including all features, enhancements, and bug fixes, check out the [Pulsar 2.8.1 Release Notes](https://pulsar.apache.org/release-notes/#281-mdash-2021-09-10-a-id281a).
 
@@ -75,7 +75,7 @@ This blog walks through the most noteworthy changes grouped by component. For th
 
 **Resolution**: Moved the mark-delete position and removed the consumer from the selector before calling `removeConsumer()`.
 
-### Consumers are not allowed to read data that does not belong to the connected topics. [PR-11912](https://github.com/apache/pulsar/pull/11912)
+### Consumers are not allowed to read data on topics to which they are not subscribed. [PR-11912](https://github.com/apache/pulsar/pull/11912)
 
 **Issue**: Previously, the request ledger was not checked whether it belonged to a consumer’s connected topic, which allowed the consumer to read data that does not belong to the connected topic.
 
