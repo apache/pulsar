@@ -30,9 +30,9 @@ using namespace pulsar;
 
 class DummyEventListener : public ConsumerEventListener {
    public:
-    virtual void becomeActive(Consumer consumer, int partitionId) override {}
+    virtual void becameActive(Consumer consumer, int partitionId) override {}
 
-    virtual void becomeInactive(Consumer consumer, int partitionId) override {}
+    virtual void becameInactive(Consumer consumer, int partitionId) override {}
 };
 
 TEST(ConsumerConfigurationTest, testDefaultConfig) {

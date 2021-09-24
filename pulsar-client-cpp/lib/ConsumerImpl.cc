@@ -399,9 +399,9 @@ void ConsumerImpl::activeConsumerChanged(bool isActive) {
 void ConsumerImpl::internalConsumerChangeListener(bool isActive) {
     try {
         if (isActive) {
-            eventListener_->becomeActive(Consumer(shared_from_this()), partitionIndex_);
+            eventListener_->becameActive(Consumer(shared_from_this()), partitionIndex_);
         } else {
-            eventListener_->becomeInactive(Consumer(shared_from_this()), partitionIndex_);
+            eventListener_->becameInactive(Consumer(shared_from_this()), partitionIndex_);
         }
     } catch (const std::exception& e) {
         LOG_ERROR(getName() << "Exception thrown from event listener " << e.what());

@@ -34,7 +34,7 @@ class PULSAR_PUBLIC ConsumerEventListener {
      * @param consumer the consumer that originated the event
      * @param partitionId the id of the partition that beconmes active.
      */
-    virtual void becomeActive(Consumer consumer, int partitionId) = 0;
+    virtual void becameActive(Consumer consumer, int partitionId) = 0;
 
     /**
      * @brief Notified when the consumer group is changed, and the consumer is still inactive or becomes
@@ -43,7 +43,7 @@ class PULSAR_PUBLIC ConsumerEventListener {
      * @param consumer the consumer that originated the event
      * @param partitionId the id of the partition that is still inactive or becomes inactive.
      */
-    virtual void becomeInactive(Consumer consumer, int partitionId) = 0;
+    virtual void becameInactive(Consumer consumer, int partitionId) = 0;
 };
 }  // namespace pulsar
 #endif /* PULSAR_CONSUMEREVENTLISTENER_H_ */
