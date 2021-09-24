@@ -1014,7 +1014,7 @@ public class FunctionRuntimeManagerTest {
         threadContainerFactory.setThreadGroupName("threadGroupName");
         workerConfig = new WorkerConfig();
         workerConfig.setThreadContainerFactory(threadContainerFactory);
-
+        workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
                 mock(PulsarWorkerService.class),
