@@ -330,28 +330,6 @@ You can also use your own service discovery system . If you use your own system,
 > **Service discovery already provided by many scheduling systems**
 > Many large-scale deployment systems, such as [Kubernetes](deploy-kubernetes), have service discovery systems built in. If you run Pulsar on such a system, you may not need to provide your own service discovery mechanism.
 
-
-### Service discovery setup
-
-The service discovery mechanism included with Pulsar maintains a list of active brokers, which is stored in ZooKeeper, and supports lookup using HTTP and also the [binary protocol](developing-binary-protocol.md) of Pulsar.
-
-To get started setting up the built-in service of discovery of Pulsar, you need to change a few parameters in the [`conf/discovery.conf`](reference-configuration.md#service-discovery) configuration file. Set the [`zookeeperServers`](reference-configuration.md#service-discovery-zookeeperServers) parameter to the ZooKeeper quorum connection string of the cluster and the [`configurationStoreServers`](reference-configuration.md#service-discovery-configurationStoreServers) setting to the [configuration
-store](reference-terminology.md#configuration-store) quorum connection string.
-
-```properties
-# Zookeeper quorum connection string
-zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-
-# Global configuration store connection string
-configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
-```
-
-To start the discovery service:
-
-```shell
-$ bin/pulsar-daemon start discovery
-```
-
 ## Admin client and verification
 
 At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview.md) for each cluster. You can use the [`conf/client.conf`](reference-configuration.md#client) configuration file to configure admin clients.

@@ -30,6 +30,7 @@
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/InitialPosition.h>
 #include <pulsar/KeySharedPolicy.h>
+#include <pulsar/ConsumerEventListener.h>
 
 namespace pulsar {
 
@@ -42,6 +43,8 @@ typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 
 /// Callback definition for MessageListener
 typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;
+
+typedef std::shared_ptr<ConsumerEventListener> ConsumerEventListenerPtr;
 
 struct ConsumerConfigurationImpl;
 
@@ -126,6 +129,22 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @return true if the message listener has been set
      */
     bool hasMessageListener() const;
+
+    /**
+     * A event listener enables your application to react the consumer state
+     * change event (active or inactive).
+     */
+    ConsumerConfiguration& setConsumerEventListener(ConsumerEventListenerPtr eventListener);
+
+    /**
+     * @return the consumer event listener
+     */
+    ConsumerEventListenerPtr getConsumerEventListener() const;
+
+    /**
+     * @return true if the consumer event listener has been set
+     */
+    bool hasConsumerEventListener() const;
 
     /**
      * Sets the size of the consumer receive queue.
