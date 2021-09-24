@@ -118,10 +118,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             } else if (localData.getBundles().size() == 1) {
                 log.warn(
                         "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                                + "No Load Shadding will be done on this broker",
+                                + "No Load Shedding will be done on this broker",
                         localData.getBundles().iterator().next(), broker);
             } else {
-                log.warn("Broker {} is overloaded despit having no bundles", broker);
+                log.warn("Broker {} is overloaded despite having no bundles", broker);
             }
         });
 
