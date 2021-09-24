@@ -1669,7 +1669,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         preValidation(authoritative)
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
                 .thenAccept(op -> {
-                    asyncResponse.resume(op.map(TopicPolicies::getReplicationClusters).orElseGet(() -> {
+                    asyncResponse.resume(op.map(TopicPolicies::getReplicationClustersSet).orElseGet(() -> {
                         if (applied) {
                             return getNamespacePolicies(namespaceName).replication_clusters;
                         }

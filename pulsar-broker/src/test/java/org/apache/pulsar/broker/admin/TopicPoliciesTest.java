@@ -2658,7 +2658,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().removeReplicationClusters(topic);
         Awaitility.await().untilAsserted(()
-                -> assertNull(admin.topics().getReplicationClusters(topic, false)));
+                -> assertTrue(admin.topics().getReplicationClusters(topic, false).isEmpty()));
     }
 
 }

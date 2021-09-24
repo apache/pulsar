@@ -1335,7 +1335,7 @@ public class PersistentTopic extends AbstractTopic
             log.debug("[{}] Checking replication status", name);
         }
 
-        CompletableFuture<Set<String>> replicationClustersFuture = brokerService.pulsar()
+        CompletableFuture<List<String>> replicationClustersFuture = brokerService.pulsar()
                 .getTopicPoliciesService()
                 .getTopicPoliciesAsyncWithRetry(name, null, brokerService.pulsar().getExecutor())
                 .thenCompose(topicPolicies -> {
@@ -1351,7 +1351,8 @@ public class PersistentTopic extends AbstractTopic
                                                         new MetadataStoreException.NotFoundException()));
                                     }
 
-                                    return CompletableFuture.completedFuture(optPolicies.get().replication_clusters);
+                                    return CompletableFuture.completedFuture(
+                                            Lists.newArrayList(optPolicies.get().replication_clusters));
                                 });
                     } else {
                         return CompletableFuture.completedFuture(topicPolicies.get().getReplicationClusters());
@@ -1362,7 +1363,7 @@ public class PersistentTopic extends AbstractTopic
 
         return CompletableFuture.allOf(replicationClustersFuture, ttlFuture)
                 .thenCompose(__ -> {
-                    Set<String> configuredClusters = replicationClustersFuture.join();
+                    List<String> configuredClusters = replicationClustersFuture.join();
                     int newMessageTTLinSeconds = ttlFuture.join();
 
                     String localCluster = brokerService.pulsar().getConfiguration().getClusterName();

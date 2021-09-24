@@ -19,8 +19,8 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +47,7 @@ public class TopicPolicies {
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
     @Builder.Default
-    private Set<String> replicationClusters = new HashSet<>();
+    private List<String> replicationClusters = new ArrayList<>();
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;
     private Boolean deduplicationEnabled;
@@ -161,5 +161,9 @@ public class TopicPolicies {
 
     public boolean isSubscribeRateSet() {
         return subscribeRate != null;
+    }
+
+    public Set<String> getReplicationClustersSet() {
+        return Sets.newTreeSet(this.replicationClusters);
     }
 }

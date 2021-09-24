@@ -2729,7 +2729,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.setReplicationClusters(replicationClusters);
+                    topicPolicies.setReplicationClusters(Lists.newArrayList(replicationClusters));
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                             .thenRun(() -> {
                                 log.info("[{}] Successfully set replication clusters for namespace={}, "
@@ -2749,7 +2749,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.setReplicationClusters(Collections.emptySet());
+                    topicPolicies.setReplicationClusters(Collections.emptyList());
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                             .thenRun(() -> {
                                 log.info("[{}] Successfully set replication clusters for namespace={}, "
