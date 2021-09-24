@@ -92,12 +92,12 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
-        if (!inputStream.haveDataToRead()) {
-            inputStream.resetReaderIndex();
-        }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.submit(() -> {
-                if (firstEntry > lastEntry
+            if (!inputStream.haveDataToRead()) {
+                inputStream.resetReaderIndex();
+            }
+            if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
                     promise.completeExceptionally(new BKException.BKIncorrectParameterException());
