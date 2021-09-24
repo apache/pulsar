@@ -36,7 +36,7 @@ public class MetadataStoreFactoryImpl {
         MetadataStore store = MetadataStoreFactoryImpl.newInstance(metadataURL, metadataStoreConfig, true);
         if (!(store instanceof MetadataStoreExtended)) {
             throw new MetadataStoreException.InvalidImplementationException(
-                    "Implemetation does not comply with " + MetadataStoreExtended.class.getName());
+                    "Implementation does not comply with " + MetadataStoreExtended.class.getName());
         }
 
         return (MetadataStoreExtended) store;
