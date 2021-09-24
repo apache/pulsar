@@ -30,7 +30,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -371,7 +374,13 @@ public class OwnershipCache {
     public OwnedBundle getOwnedBundle(NamespaceBundle bundle) {
         CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(ServiceUnitUtils.path(bundle));
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
-            return future.join();
+            try {
+                return future.get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            } catch (InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e.getCause());
+            }
         } else {
             return null;
         }
