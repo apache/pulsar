@@ -18,17 +18,22 @@
  */
 package org.apache.pulsar.client.converter;
 
+import lombok.Getter;
 import java.util.Iterator;
 import org.apache.pulsar.client.api.EntryContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.PayloadConverter;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessagePayloadImpl;
 
 /**
  * The default converter provided for users that want to define their own {@link PayloadConverter}.
  */
 public class DefaultPayloadConverter implements PayloadConverter {
+
+    @Getter
+    private int totalRefCnt = 0;
 
     @Override
     public <T> Iterable<Message<T>> convert(EntryContext context, MessagePayload payload, Schema<T> schema) {
@@ -42,6 +47,7 @@ public class DefaultPayloadConverter implements PayloadConverter {
             public boolean hasNext() {
                 final boolean result = (index < numMessages);
                 if (!result) {
+                    totalRefCnt += ((MessagePayloadImpl) payload).getByteBuf().refCnt();
                     payload.recycle();
                 }
                 return result;

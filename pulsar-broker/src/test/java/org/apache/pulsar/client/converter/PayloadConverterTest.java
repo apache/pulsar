@@ -71,18 +71,19 @@ public class PayloadConverterTest extends ProducerConsumerBase {
     @DataProvider
     public static Object[][] config() {
         return new Object[][] {
-                // enableBatching / numPartitions
-                { true, 1 },
-                { false, 1 },
-                { false, 3 },
+                // numPartitions / enableBatching / batchingMaxMessages
+                { 1, true, 1 },
+                { 1, true, 4 },
+                { 1, false, 1 },
+                { 3, false, 1 }
         };
     }
 
     @Test(dataProvider = "config")
-    public void testDefaultConverter(boolean enableBatching, int numPartitions) throws Exception {
-        final String topic = "testDefaultConverter-" + enableBatching + "-" + numPartitions;
+    public void testDefaultConverter(int numPartitions, boolean enableBatching, int batchingMaxMessages)
+            throws Exception {
+        final String topic = "testDefaultConverter-" + numPartitions + "-" + enableBatching + "-" + batchingMaxMessages;
         final int numMessages = 10;
-        final int batchingMaxMessages = 4;
         final String messagePrefix = "msg-";
 
         if (numPartitions > 1) {
@@ -115,12 +116,14 @@ public class PayloadConverterTest extends ProducerConsumerBase {
             });
         }
 
+        final DefaultPayloadConverter converter = new DefaultPayloadConverter();
+
         @Cleanup
         final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .payloadConverter(new DefaultPayloadConverter())
+                .payloadConverter(converter)
                 .subscribe();
         final List<String> values = new ArrayList<>();
         for (int i = 0; i < numMessages; i++) {
@@ -135,6 +138,17 @@ public class PayloadConverterTest extends ProducerConsumerBase {
         }
         for (int i = 0; i < numMessages; i++) {
             Assert.assertEquals(values.get(i), messagePrefix + i);
+        }
+
+        // Each buffer's refCnt is 2 when the iteration is stopped, because it will be released in finally blocks of
+        // 1. ConsumerImpl#consumeMessagesFromConverter
+        // 2. PulsarDecoder#channelRead
+        if (enableBatching) {
+            int numBatches = numMessages / batchingMaxMessages;
+            numBatches += (numMessages % batchingMaxMessages == 0) ? 0 : 1;
+            Assert.assertEquals(converter.getTotalRefCnt(), 2 * numBatches);
+        } else {
+            Assert.assertEquals(converter.getTotalRefCnt(), 2 * numMessages);
         }
     }
 
