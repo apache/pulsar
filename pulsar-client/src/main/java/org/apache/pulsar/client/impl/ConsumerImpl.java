@@ -48,7 +48,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -996,6 +995,96 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
+    protected boolean isBatch(MessageMetadata messageMetadata) {
+        // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
+        // and return undecrypted payload
+        return !isMessageUndecryptable(messageMetadata) &&
+                (messageMetadata.hasNumMessagesInBatch() || messageMetadata.getNumMessagesInBatch() != 1);
+    }
+
+    protected <U> MessageImpl<U> newSingleMessage(final int index,
+                                                  final int numMessages,
+                                                  final BrokerEntryMetadata brokerEntryMetadata,
+                                                  final MessageMetadata msgMetadata,
+                                                  final SingleMessageMetadata singleMessageMetadata,
+                                                  final ByteBuf payload,
+                                                  final MessageIdImpl messageId,
+                                                  final Schema<U> schema,
+                                                  final boolean containMetadata,
+                                                  final BitSetRecyclable ackBitSet,
+                                                  final BatchMessageAcker acker,
+                                                  final int redeliveryCount) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, index);
+        }
+
+        ByteBuf singleMessagePayload = null;
+        try {
+            if (containMetadata) {
+                singleMessagePayload =
+                        Commands.deSerializeSingleMessageInBatch(payload, singleMessageMetadata, index, numMessages);
+            }
+
+            if (isSameEntry(messageId) && isPriorBatchIndex(index)) {
+                // If we are receiving a batch message, we need to discard messages that were prior
+                // to the startMessageId
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Ignoring message from before the startMessageId: {}", subscription,
+                            consumerName, startMessageId);
+                }
+                return null;
+            }
+
+            if (singleMessageMetadata != null && singleMessageMetadata.isCompactedOut()) {
+                // message has been compacted out, so don't send to the user
+                return null;
+            }
+
+            if (ackBitSet != null && !ackBitSet.get(index)) {
+                return null;
+            }
+
+            BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
+                    messageId.getEntryId(), getPartitionIndex(), index, numMessages, acker);
+
+            final ByteBuf payloadBuffer = (singleMessagePayload != null) ? singleMessagePayload : payload;
+            return MessageImpl.create(topicName.toString(), batchMessageIdImpl,
+                    msgMetadata, singleMessageMetadata, payloadBuffer,
+                    createEncryptionContext(msgMetadata), cnx(), schema, redeliveryCount, poolMessages
+            ).setBrokerEntryMetadata(brokerEntryMetadata);
+        } catch (IOException | IllegalStateException e) {
+            throw new IllegalStateException(e);
+        } finally {
+            if (singleMessagePayload != null) {
+                singleMessagePayload.release();
+            }
+        }
+    }
+
+    protected <U> MessageImpl<U> newMessage(final MessageIdImpl messageId,
+                                            final BrokerEntryMetadata brokerEntryMetadata,
+                                            final MessageMetadata messageMetadata,
+                                            final ByteBuf payload,
+                                            final Schema<U> schema,
+                                            final int redeliveryCount) {
+        return MessageImpl.create(topicName.toString(), messageId, messageMetadata, payload,
+                createEncryptionContext(messageMetadata), cnx(), schema, redeliveryCount, poolMessages
+        ).setBrokerEntryMetadata(brokerEntryMetadata);
+    }
+
+    private void executeNotifyCallback(final MessageImpl<T> message) {
+        // Enqueue the message so that it can be retrieved when application calls receive()
+        // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
+        // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
+        internalPinnedExecutor.execute(() -> {
+            if (hasNextPendingReceive()) {
+                notifyPendingReceivedCallback(message, null);
+            } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
+                notifyPendingBatchReceivedCallBack();
+            }
+        });
+    }
+
     void messageReceived(MessageIdData messageId, int redeliveryCount, List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
@@ -1053,17 +1142,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
         // and return undecrypted payload
+        final EntryContextImpl entryContext = EntryContextImpl.get(
+                brokerEntryMetadata, msgMetadata, msgId, this, redeliveryCount, ackSet);
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
             // right now, chunked messages are only supported by non-shared subscription
             if (isChunkedMessage) {
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
+                    entryContext.recycle();
                     return;
                 }
             }
 
-            if (isSameEntry(messageId) && isPriorEntryIndex(messageId.getEntryId())) {
+            if (isSameEntry(msgId) && isPriorEntryIndex(messageId.getEntryId())) {
                 // We need to discard entries that were prior to startMessageId
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Ignoring message from before the startMessageId: {}", subscription,
@@ -1071,30 +1163,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 uncompressedPayload.release();
+                entryContext.recycle();
                 return;
             }
 
-            final MessageImpl<T> message = MessageImpl.create(topicName.toString(), msgId, msgMetadata,
-                    uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount,
-                    poolMessages);
+            final MessageImpl<T> message =
+                    newMessage(msgId, brokerEntryMetadata, msgMetadata, uncompressedPayload, schema, redeliveryCount);
             uncompressedPayload.release();
-            message.setBrokerEntryMetadata(brokerEntryMetadata);
 
-            // Enqueue the message so that it can be retrieved when application calls receive()
-            // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
-            // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
-            internalPinnedExecutor.execute(() -> {
-                if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null &&
-                        redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
-                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
-                            Collections.singletonList(message));
-                }
-                if (hasNextPendingReceive()) {
-                    notifyPendingReceivedCallback(message, null);
-                } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
-                    notifyPendingBatchReceivedCallBack();
-                }
-            });
+            if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null &&
+                    redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
+                        Collections.singletonList(message));
+            }
+            executeNotifyCallback(message);
         } else {
             // handle batch message enqueuing; uncompressed payload has all messages in batch
             receiveIndividualMessagesFromBatch(brokerEntryMetadata, msgMetadata, redeliveryCount, ackSet, uncompressedPayload, messageId, cnx);
@@ -1268,63 +1350,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int skippedMessages = 0;
         try {
             for (int i = 0; i < batchSize; ++i) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, i);
-                }
-
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                        singleMessageMetadata, i, batchSize);
-
-                if (isSameEntry(messageId) && isPriorBatchIndex(i)) {
-                    // If we are receiving a batch message, we need to discard messages that were prior
-                    // to the startMessageId
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] Ignoring message from before the startMessageId: {}", subscription,
-                                consumerName, startMessageId);
-                    }
-                    singleMessagePayload.release();
-
-                    ++skippedMessages;
+                final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
+                        singleMessageMetadata, uncompressedPayload, batchMessage, schema, true, ackBitSet, acker,
+                        redeliveryCount);
+                if (message == null) {
+                    skippedMessages++;
                     continue;
                 }
-
-                if (singleMessageMetadata.isCompactedOut()) {
-                    // message has been compacted out, so don't send to the user
-                    singleMessagePayload.release();
-
-                    ++skippedMessages;
-                    continue;
-                }
-
-                if (ackBitSet != null && !ackBitSet.get(i)) {
-                    singleMessagePayload.release();
-                    ++skippedMessages;
-                    continue;
-                }
-
-                BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
-                        messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker);
-                final MessageImpl<T> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
-                        msgMetadata, singleMessageMetadata, singleMessagePayload,
-                        createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount, poolMessages);
-                message.setBrokerEntryMetadata(brokerEntryMetadata);
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
                 }
-                internalPinnedExecutor.execute(() -> {
-                    if (hasNextPendingReceive()) {
-                        notifyPendingReceivedCallback(message, null);
-                    } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {
-                        notifyPendingBatchReceivedCallBack();
-                    }
-                    singleMessagePayload.release();
-                });
+                executeNotifyCallback(message);
             }
             if (ackBitSet != null) {
                 ackBitSet.recycle();
             }
-        } catch (IOException e) {
-            log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName);
+        } catch (IllegalStateException e) {
+            log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, e);
             discardCorruptedMessage(messageId, cnx, ValidationError.BatchDeSerializeError);
         }
 
@@ -1350,7 +1392,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return resetIncludeHead ? idx < startMessageId.getBatchIndex() : idx <= startMessageId.getBatchIndex();
     }
 
-    private boolean isSameEntry(MessageIdData messageId) {
+    private boolean isSameEntry(MessageIdImpl messageId) {
         return startMessageId != null
                 && messageId.getLedgerId() == startMessageId.getLedgerId()
                 && messageId.getEntryId() == startMessageId.getEntryId();
