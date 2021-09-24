@@ -1870,7 +1870,8 @@ public class TopicsImpl extends BaseResource implements Topics {
 
         final CompletableFuture<Long> future = new CompletableFuture<>();
         try {
-            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON), new InvocationCallback<Long>() {
+            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<Long>() {
 
                 @Override
                 public void completed(Long backlogSize) {

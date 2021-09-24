@@ -2668,7 +2668,8 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalGetBacklogSizeByMessageId(AsyncResponse asyncResponse, MessageIdImpl messageId, boolean authoritative) {
+    protected void internalGetBacklogSizeByMessageId(AsyncResponse asyncResponse,
+                                                     MessageIdImpl messageId, boolean authoritative) {
         if (topicName.isGlobal()) {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
@@ -2678,8 +2679,11 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
         }
-        if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
-            log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}", clientAppId(), topicName);
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName,
+                authoritative, false);
+        if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+            log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
+                    clientAppId(), topicName);
             asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                     "calculate backlog size is not allowed for partitioned-topic"));
         } else {
@@ -2693,7 +2697,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
-                if(messageId.getLedgerId() == -1) {
+                if (messageId.getLedgerId() == -1) {
                     asyncResponse.resume(managedLedger.getTotalSize());
                 } else {
                     asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos));
