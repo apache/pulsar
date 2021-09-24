@@ -90,7 +90,7 @@ public class PerformanceProducer {
             .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
 
     private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder totalMessagesSendFailed = new LongAdder();
+    private static final LongAdder messagesFailed = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
 
     private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
@@ -491,6 +491,7 @@ public class PerformanceProducer {
                 rateOpenTxn = numTxnOp.sumThenReset() / elapsed;
             }
             double rate = messagesSent.sumThenReset() / elapsed;
+            double failureRate = messagesFailed.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
@@ -645,8 +646,6 @@ public class PerformanceProducer {
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             while (true) {
-                //if transaction is disable, transaction will be null.
-                Transaction transaction = transactionAtomicReference.get();
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
@@ -669,8 +668,14 @@ public class PerformanceProducer {
                     }
                     rateLimiter.acquire();
                     if(arguments.isEnableTransaction && arguments.numMessagesPerTransaction > 0){
+                        try{
                         numMsgPerTxnLimit.acquire();
+                        }catch (InterruptedException exception){
+                            log.error("Get exception: ", exception);
+                        }
                     }
+                    //if transaction is disable, transaction will be null.
+                    Transaction transaction = transactionAtomicReference.get();
                     final long sendTime = System.nanoTime();
 
                     byte[] payloadData;
@@ -722,7 +727,7 @@ public class PerformanceProducer {
                             return null;
                         }
                         log.warn("Write message error with exception", ex);
-                        totalMessagesSendFailed.increment();
+                        messagesFailed.increment();
                         if (arguments.exitOnFailure) {
                             PerfClientUtils.exit(-1);
                         }
@@ -730,51 +735,54 @@ public class PerformanceProducer {
                     });
                     if (arguments.isEnableTransaction
                             && numMessageSend.incrementAndGet() == arguments.numMessagesPerTransaction) {
+                        if (arguments.isCommitTransaction) {
+                            transaction.commit()
+                                    .thenRun(() -> {
+                                        log.info("Committed transaction {}",
+                                                transaction.getTxnID().toString());
+                                        totalEndTxnOpSuccessNum.increment();
+                                        numTxnOp.increment();
+                                    })
+                                    .exceptionally(exception -> {
+                                        log.error("Commit transaction failed with exception : ",
+                                                exception);
+                                        totalEndTxnOpFailNum.increment();
+                                        return null;
+                                    });
+                        } else {
+                            transaction.abort().thenRun(() -> {
+                                log.info("Abort transaction {}", transaction.getTxnID().toString());
+                                totalEndTxnOpSuccessNum.increment();
+                                numTxnOp.increment();
+                            }).exceptionally(exception -> {
+                                log.error("Commit transaction {} failed with exception",
+                                        transaction.getTxnID().toString(),
+                                        exception);
+                                totalEndTxnOpFailNum.increment();
+                                return null;
+                            });
+                        }
                         try {
                             AtomicBoolean updateTransaction = new AtomicBoolean(true);
-
+                            Semaphore waitTransactionUpdate = new Semaphore(1);
+                            waitTransactionUpdate.acquire();
                             while(true) {
                                 pulsarClient.newTransaction().withTransactionTimeout(arguments.transactionTimeout,
                                         TimeUnit.SECONDS).build().thenAccept(newTransaction -> {
                                     transactionAtomicReference.compareAndSet(transaction, newTransaction);
+                                    waitTransactionUpdate.release();
                                     numMessageSend.set(0);
                                     numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
                                     totalNumTxnOpenTxnSuccess.increment();
-
-                                    if (arguments.isCommitTransaction) {
-                                        transaction.commit()
-                                                .thenRun(() -> {
-                                                    log.info("Committed transaction {}",
-                                                            transaction.getTxnID().toString());
-                                                    totalEndTxnOpSuccessNum.increment();
-                                                    numTxnOp.increment();
-                                                })
-                                                .exceptionally(exception -> {
-                                                    log.error("Commit transaction failed with exception : ",
-                                                            exception);
-                                                    totalEndTxnOpFailNum.increment();
-                                                    return null;
-                                                });
-                                    } else {
-                                        transaction.abort().thenRun(() -> {
-                                            log.info("Abort transaction {}", transaction.getTxnID().toString());
-                                            totalEndTxnOpSuccessNum.increment();
-                                            numTxnOp.increment();
-                                        }).exceptionally(exception -> {
-                                            log.error("Commit transaction {} failed with exception",
-                                                    transaction.getTxnID().toString(),
-                                                    exception);
-                                            totalEndTxnOpFailNum.increment();
-                                            return null;
-                                        });
-                                    }
                                 }).exceptionally(exception -> {
+                                    updateTransaction.set(false);
+                                    waitTransactionUpdate.release();
                                     totalNumTxnOpenTxnFail.increment();
                                     log.error("Failed to new transaction with exception: "
                                             , exception);
-                                    updateTransaction.set(false);
                                     return null;
-                                }).get();
+                                });
+                                waitTransactionUpdate.acquire();
                                 if(updateTransaction.get()){
                                     break;
                                 }
@@ -827,9 +835,8 @@ public class PerformanceProducer {
                     totalFormat.format(rateOpenTxn));
         }
         log.info(
-            "Aggregated throughput stats --- {} records sent --- {} records send failed --- {} msg/s --- {} Mbit/s ",
+            "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s ",
             totalMessagesSent.sum(),
-            totalMessagesSendFailed.sum(),
             totalFormat.format(rate),
             totalFormat.format(throughput));
     }

@@ -39,12 +39,13 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
@@ -72,7 +73,6 @@ import org.slf4j.LoggerFactory;
 public class PerformanceTransaction {
 
 
-    private static final LongAdder totalNumEndTxnOp = new LongAdder();
     private static final LongAdder totalNumEndTxnOpFailed = new LongAdder();
     private static final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
     private static final LongAdder numTxnOp = new LongAdder();
@@ -303,8 +303,8 @@ public class PerformanceTransaction {
                     ? RateLimiter.create(arguments.openTxnRate)
                     : null;
             for(int i = 0; i < arguments.numTestThreads; i++) {
-                LongAdder messageSend = new LongAdder();
-                LongAdder messageReceived = new LongAdder();
+                AtomicLong messageSend = new AtomicLong();
+                AtomicLong messageReceived = new AtomicLong();
                 executorService.submit(() -> {
                     //The producer and consumer clients are built in advance, and then this thread is
                     //responsible for the production and consumption tasks of the transaction through the loop.
@@ -326,71 +326,55 @@ public class PerformanceTransaction {
                         try {
                             Transaction transaction = atomicReference.get();
                             for (List<Consumer<byte[]>> subscriptions : consumers) {
-                                while(true) {
-                                    if(messageReceived.sum() == arguments.numMessagesReceivedPerTransaction){
-                                        break;
-                                    }
                                     for (Consumer<byte[]> consumer : subscriptions) {
-                                        if (messageReceived.sum() == arguments.numMessagesReceivedPerTransaction) {
-                                            break;
-                                        }
-                                        Message message = null;
-                                        try {
-                                            message = consumer.receive();
-                                            log.info("Receive message {} ", message);
-                                        } catch (Exception e) {
-                                            log.error("{} can`t receive message in 2 sec with exception",
-                                                    consumer, e);
-                                        }
-
-                                        messageReceived.increment();
-                                        long receiveTime = System.nanoTime();
-                                        if (arguments.isEnableTransaction) {
-                                            consumer.acknowledgeAsync(message.getMessageId(), transaction)
-                                                    .thenRun(() -> {
-                                                        long latencyMicros = NANOSECONDS.toMicros(
-                                                                System.nanoTime() - receiveTime);
-                                                        messageAckRecorder.recordValue(latencyMicros);
-                                                        messageAckCumulativeRecorder.recordValue(latencyMicros);
-                                                    }).exceptionally(exception -> {
-                                                if (exception instanceof InterruptedException && !executing.get()) {
+                                        while(true) {
+                                            Message message = consumer.receive();
+                                            if (messageReceived.incrementAndGet() == arguments.numMessagesReceivedPerTransaction) {
+                                                break;
+                                            }
+                                            long receiveTime = System.nanoTime();
+                                            if (arguments.isEnableTransaction) {
+                                                consumer.acknowledgeAsync(message.getMessageId(), transaction)
+                                                        .thenRun(() -> {
+                                                            long latencyMicros = NANOSECONDS.toMicros(
+                                                                    System.nanoTime() - receiveTime);
+                                                            messageAckRecorder.recordValue(latencyMicros);
+                                                            messageAckCumulativeRecorder.recordValue(latencyMicros);
+                                                        }).exceptionally(exception -> {
+                                                    if (exception instanceof InterruptedException && !executing.get()) {
+                                                        return null;
+                                                    }
+                                                    log.error(
+                                                            "Ack message failed with transaction {} throw exception",
+                                                            transaction, exception);
+                                                    numMessagesAckFailed.increment();
                                                     return null;
-                                                }
-                                                log.error(
-                                                        "Ack message failed with transaction {} throw exception",
-                                                        transaction, exception);
-                                                numMessagesAckFailed.increment();
-                                                return null;
-                                            });
-                                        } else {
-                                            consumer.acknowledgeAsync(message).thenRun(() -> {
-                                                long latencyMicros = NANOSECONDS.toMicros(
-                                                        System.nanoTime() - receiveTime);
-                                                messageAckRecorder.recordValue(latencyMicros);
-                                                messageAckCumulativeRecorder.recordValue(latencyMicros);
-                                            }).exceptionally(exception -> {
-                                                if (exception instanceof InterruptedException && !executing.get()) {
+                                                });
+                                            } else {
+                                                consumer.acknowledgeAsync(message).thenRun(() -> {
+                                                    long latencyMicros = NANOSECONDS.toMicros(
+                                                            System.nanoTime() - receiveTime);
+                                                    messageAckRecorder.recordValue(latencyMicros);
+                                                    messageAckCumulativeRecorder.recordValue(latencyMicros);
+                                                }).exceptionally(exception -> {
+                                                    if (exception instanceof InterruptedException && !executing.get()) {
+                                                        return null;
+                                                    }
+                                                    log.error(
+                                                            "Ack message failed with transaction {} throw exception",
+                                                            transaction, exception);
+                                                    numMessagesAckFailed.increment();
                                                     return null;
-                                                }
-                                                log.error(
-                                                        "Ack message failed with transaction {} throw exception",
-                                                        transaction, exception);
-                                                numMessagesAckFailed.increment();
-                                                return null;
-                                            });
-                                        }
+                                                });
+                                            }
                                     }
+                                        messageReceived.set(0);
                                 }
-                                messageReceived.reset();
                             }
 
                             for(Producer<byte[]> producer : producers){
                                 while (true){
-                                    if(messageSend.sum() >= arguments.numMessagesProducedPerTransaction){
-                                        break;
-                                    }
                                     long sendTime = System.nanoTime();
-                                    messageSend.increment();
                                     if (arguments.isEnableTransaction) {
                                         producer.newMessage(transaction).value(payloadBytes)
                                                 .sendAsync().thenRun(() -> {
@@ -422,8 +406,11 @@ public class PerformanceTransaction {
                                             return null;
                                         });
                                     }
+                                    if(messageSend.incrementAndGet() >= arguments.numMessagesProducedPerTransaction){
+                                        break;
+                                    }
                                 }
-                                messageSend.reset();
+                                messageSend.set(0);
                             }
 
                             if(rateLimiter != null){
@@ -464,34 +451,42 @@ public class PerformanceTransaction {
                                     });
                                 }
                                 AtomicBoolean updateTransaction = new AtomicBoolean(true);
-
-                                while(true) {
-                                    atomicReference.compareAndSet(transaction, client.newTransaction()
+                                Semaphore waitTransactionUpdate = new Semaphore(1);
+                                waitTransactionUpdate.acquire();
+                                while (true) {
+                                    client.newTransaction()
                                             .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
-                                            .build().exceptionally(throwable -> {
+                                            .build()
+                                            .thenAccept(newTransaction -> {
+                                                atomicReference.compareAndSet(transaction, newTransaction);
+                                                waitTransactionUpdate.release();
+                                                numTxnOp.increment();
+                                                totalNumTxnOpenTxnSuccess.increment();
+                                            })
+                                            .exceptionally(throwable -> {
                                                 if (throwable instanceof InterruptedException && !executing.get()) {
+                                                    waitTransactionUpdate.release();
                                                     return null;
                                                 }
                                                 log.error("Failed to new transaction with exception: ", throwable);
                                                 updateTransaction.set(false);
+                                                waitTransactionUpdate.release();
                                                 totalNumTxnOpenTxnFail.increment();
                                                 return null;
-                                            }).get());
+                                            });
+                                    waitTransactionUpdate.acquire();
                                     if (updateTransaction.get()) {
                                         break;
                                     }
                                 }
 
-                                totalNumTxnOpenTxnSuccess.increment();
                             }
-                            totalNumEndTxnOp.increment();
-                            numTxnOp.increment();
-
                         } catch (Exception e) {
                             log.error("A exception happened in a transaction work flow :", e);
                         }
                         if (arguments.numTransactions > 0) {
-                            if (totalNumEndTxnOp.sum() >= arguments.numTransactions) {
+                            if (totalNumEndTxnOpFailed.sum()
+                                    + totalNumTxnOpenTxnSuccess.sum() >= arguments.numTransactions) {
                                 log.info("------------------- DONE -----------------------");
                                 executing.compareAndSet(true, false);
                                 executorService.shutdownNow();
@@ -536,7 +531,7 @@ public class PerformanceTransaction {
             }
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
-            long total = totalNumEndTxnOp.sum();
+            long total = totalNumEndTxnOpFailed.sum() + totalNumTxnOpenTxnSuccess.sum();
             double rate = numTxnOp.sumThenReset() / elapsed;
             reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
             reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
@@ -578,9 +573,10 @@ public class PerformanceTransaction {
 
     private static void printTxnAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
-        double rate = totalNumEndTxnOp.sum() / elapsed;
         long numTransactionEndFailed = totalNumEndTxnOpFailed.sum();
         long numTransactionEndSuccess = totalNumEndTxnOpSuccess.sum();
+        long total = numTransactionEndFailed + numTransactionEndSuccess;
+        double rate = total / elapsed;
         long numMessageAckFailed = numMessagesAckFailed.sum();
         long numMessageSendFailed = numMessagesSendFailed.sum();
         long numTransactionOpenFailed = totalNumTxnOpenTxnFail.sum();
@@ -591,7 +587,7 @@ public class PerformanceTransaction {
                         + " --- {} transaction open successfully --- {} transaction open failed"
                         + " --- {} transaction end successfully --- {} transaction end failed"
                         + "--- {} message ack failed --- {} message send failed",
-                totalNumEndTxnOp.sum(),
+                total,
                 dec.format(rate),
                 numTransactionOpenSuccess,
                 numTransactionOpenFailed,
@@ -604,13 +600,14 @@ public class PerformanceTransaction {
 
     private static void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
-        double rate = totalNumEndTxnOp.sum() / elapsed;
+        long total = totalNumEndTxnOpFailed.sum() + totalNumEndTxnOpSuccess.sum();
+        double rate = total / elapsed;
         long numMessageAckFailed = numMessagesAckFailed.sum();
         long numMessageSendFailed = numMessagesSendFailed.sum();
         log.info(
                 "Aggregated throughput stats --- {} task executed --- {} task/s --- {} message ack failed "
                         + "--- {} message send failed",
-                totalNumEndTxnOp.sum(),
+                total,
                 totalFormat.format(rate),
                 numMessageAckFailed,
                 numMessageSendFailed);
