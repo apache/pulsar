@@ -66,6 +66,7 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -1085,6 +1086,41 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
+    private void consumeMessagesFromConverter(final BrokerEntryMetadata brokerEntryMetadata,
+                                              final MessageMetadata messageMetadata,
+                                              final ByteBuf byteBuf,
+                                              final MessageIdImpl messageId,
+                                              final Schema<T> schema,
+                                              final int redeliveryCount,
+                                              final List<Long> ackSet) {
+        final EntryContextImpl entryContext = EntryContextImpl.get(
+                brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet);
+        final MessagePayload payload = MessagePayloadImpl.create(byteBuf);
+        int skippedMessages = 0;
+        try {
+            for (Message<T> message : conf.getPayloadConverter().convert(entryContext, payload, schema)) {
+                if (message == null) {
+                    skippedMessages++;
+                    continue;
+                }
+                executeNotifyCallback((MessageImpl<T>) message);
+            }
+        } catch (IllegalStateException e) {
+            log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, e);
+            discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
+        } finally {
+            byteBuf.release();
+            entryContext.recycle();
+        }
+
+        if (skippedMessages > 0) {
+            increaseAvailablePermits(cnx(), skippedMessages);
+        }
+
+        internalPinnedExecutor.execute(()
+                -> tryTriggerListener());
+    }
+
     void messageReceived(MessageIdData messageId, int redeliveryCount, List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
@@ -1140,17 +1176,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
+        if (conf.getPayloadConverter() != null) {
+            // uncompressedPayload is released in this method so we don't need to call release() again
+            consumeMessagesFromConverter(
+                    brokerEntryMetadata, msgMetadata, uncompressedPayload, msgId, schema, redeliveryCount, ackSet);
+            return;
+        }
+
         // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
         // and return undecrypted payload
-        final EntryContextImpl entryContext = EntryContextImpl.get(
-                brokerEntryMetadata, msgMetadata, msgId, this, redeliveryCount, ackSet);
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
             // right now, chunked messages are only supported by non-shared subscription
             if (isChunkedMessage) {
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
-                    entryContext.recycle();
                     return;
                 }
             }
@@ -1163,7 +1203,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 uncompressedPayload.release();
-                entryContext.recycle();
                 return;
             }
 
@@ -1584,6 +1623,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         return true;
+    }
+
+    private void discardCorruptedMessage(MessageIdImpl messageId, ClientCnx currentCnx,
+                                         ValidationError validationError) {
+        log.error("[{}][{}] Discarding corrupted message at {}:{}", topic, subscription, messageId.getLedgerId(),
+                messageId.getEntryId());
+        ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null, AckType.Individual,
+                validationError, Collections.emptyMap(), -1);
+        currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
+        increaseAvailablePermits(currentCnx);
+        stats.incrementNumReceiveFailed();
     }
 
     private void discardCorruptedMessage(MessageIdData messageId, ClientCnx currentCnx,
