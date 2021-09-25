@@ -57,7 +57,8 @@ class RecordMeta(type):
 
 class Record(with_metaclass(RecordMeta, object)):
 
-    _namespace = None
+    # This field is used to set namespace for Avro Record schema.
+    _avro_namespace = None
 
     def __init__(self, default=None, required_default=False, required=False, *args, **kwargs):
         self._required_default = required_default
@@ -104,8 +105,8 @@ class Record(with_metaclass(RecordMeta, object)):
     @classmethod
     def schema_info(cls, defined_names):
         namespace_prefix = ''
-        if cls._namespace is not None:
-            namespace_prefix = cls._namespace + '.'
+        if cls._avro_namespace is not None:
+            namespace_prefix = cls._avro_namespace + '.'
         namespace_name = namespace_prefix + cls.__name__
 
         if namespace_name in defined_names:
@@ -114,7 +115,7 @@ class Record(with_metaclass(RecordMeta, object)):
         defined_names.add(namespace_name)
         schema = {
             'name': str(cls.__name__),
-            'namespace': cls._namespace,
+            'namespace': cls._avro_namespace,
             'type': 'record',
             'fields': []
         }

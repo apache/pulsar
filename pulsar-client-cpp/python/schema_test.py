@@ -891,7 +891,7 @@ class SchemaTest(TestCase):
             na3 = Integer()
 
         class NestedObj4(Record):
-            _namespace = 'xxx4'
+            _avro_namespace = 'xxx4'
             na4 = String()
             nb4 = Integer()
 
@@ -901,7 +901,7 @@ class SchemaTest(TestCase):
             blue = 3
 
         class ComplexRecord(Record):
-            _namespace = 'xxx.xxx'
+            _avro_namespace = 'xxx.xxx'
             a = Integer()
             b = Integer()
             color = Color
@@ -1107,5 +1107,15 @@ class SchemaTest(TestCase):
 
         client.close()
 
-if __name__ == '__main__':
-    main()
+    def test(self):
+        class NamespaceDemo(Record):
+            _namespace = 'xxx.xxx.xxx'
+            x = String()
+            y = Integer()
+        print('schema: ', NamespaceDemo.schema())
+
+# if __name__ == '__main__':
+#     main()
+
+test = SchemaTest()
+test.test()
