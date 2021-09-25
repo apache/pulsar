@@ -113,14 +113,13 @@ class Record(with_metaclass(RecordMeta, object)):
             return namespace_name
 
         defined_names.add(namespace_name)
-        schema = {
-            'name': str(cls.__name__),
-            'namespace': cls._avro_namespace,
-            'type': 'record',
-            'fields': []
-        }
-        if schema['namespace'] is None:
-            del schema['namespace']
+
+        schema = {'name': str(cls.__name__)}
+        if cls._avro_namespace is not None:
+            schema['namespace'] = cls._avro_namespace
+        schema['type'] = 'record'
+        schema['fields'] = []
+
         for name in sorted(cls._fields.keys()):
             field = cls._fields[name]
             field_type = field.schema_info(defined_names) \
