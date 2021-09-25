@@ -274,7 +274,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         return cache.getIfCached(path);
     }
 
-    private synchronized void handleSessionNotification(SessionEvent event) {
+    private void handleSessionNotification(SessionEvent event) {
         // Ensure we're only processing one session event at a time.
         executor.execute(SafeRunnable.safeRun(() -> {
             if (event == SessionEvent.SessionReestablished) {
