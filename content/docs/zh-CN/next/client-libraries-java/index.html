@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="可以使用 Pulsar 的 Java 客户端来创建消息的 [生产者](#producer)，[消费者](#consumer)和[读者](#reader-interface)，以及完成[ Pulsar 管理的任务](/docs/zh-CN/next/admin-api-overview)。 Java 客户端的当前版本为 **2.8.1**。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Java 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="可以使用 Pulsar 的 Java 客户端来创建消息的 [生产者](#producer)，[消费者](#consumer)和[读者](#reader-interface)，以及完成[ Pulsar 管理的任务](/docs/zh-CN/next/admin-api-overview)。 Java 客户端的当前版本为 **2.8.1**。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar Java 客户端 · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), and [readers](#reader) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). The current Java client version is **2.8.1**."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar Java 客户端 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="You can use a Pulsar Java client to create the Java [producer](#producer), [consumer](#consumer), and [readers](#reader) of messages and to perform [administrative tasks](/docs/zh-CN/next/admin-api-overview). The current Java client version is **2.8.1**."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -75,7 +75,7 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java 客户端</h1></header><article><div><span><p>可以使用 Pulsar 的 Java 客户端来创建消息的 <a href="#producer">生产者</a>，<a href="#consumer">消费者</a>和<a href="#reader-interface">读者</a>，以及完成<a href="/docs/zh-CN/next/admin-api-overview"> Pulsar 管理的任务</a>。 Java 客户端的当前版本为 <strong>2.8.1</strong>。</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar Java 客户端</h1></header><article><div><span><p>You can use a Pulsar Java client to create the Java <a href="#producer">producer</a>, <a href="#consumer">consumer</a>, and <a href="#reader">readers</a> of messages and to perform <a href="/docs/zh-CN/next/admin-api-overview">administrative tasks</a>. The current Java client version is <strong>2.8.1</strong>.</p>
 <p>在利用 Java 客户端所创建的<a href="#producer">生产者</a>，<a href="#consumer">消费者</a>和<a href="#reader">读者</a>中所提供的方法都是线程安全的。</p>
 <p>Pulsar 客户端的Javadoc 分为如下两个包：</p>
 <table>
@@ -85,11 +85,11 @@
 <tbody>
 <tr><td style="text-align:left"><a href="/api/client/2.8.0-SNAPSHOT"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">生产者和消费者 API</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.8.1%7Cjar">org.apache.pulsar:pulsar-client:2.8.1</a></td></tr>
 <tr><td style="text-align:left"><a href="/api/admin/2.8.0-SNAPSHOT"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">Java <a href="/docs/zh-CN/next/admin-api-overview">管理API</a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.8.1%7Cjar">org.apache.pulsar:pulsar-client-admin:2.8.1</a></td></tr>
-<tr><td style="text-align:left"><code>org.apache.pulsar.client.all</code></td><td style="text-align:left">Includes both <code>pulsar-client</code> and <code>pulsar-client-admin</code></td></tr>
+<tr><td style="text-align:left"><code>org.apache.pulsar.client.all</code></td><td style="text-align:left">Include both <code>pulsar-client</code> and <code>pulsar-client-admin</code></td></tr>
 </tbody>
 </table>
-<p></br> Both <code>pulsar-client</code> and <code>pulsar-client-admin</code> are shaded packages and they shade dependencies independently. Consequently, the applications using both <code>pulsar-client</code> and <code>pulsar-client-admin</code> have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules.<br>
-</br> In this case, you can use <code>pulsar-client-all</code>, which shades dependencies only one time and reduces the size of dependencies. | <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C2.8.1%7Cjar">org.apache.pulsar:pulsar-client-all:2.8.1</a>     |</p>
+<p>Both <code>pulsar-client</code> and <code>pulsar-client-admin</code> are shaded packages and they shade dependencies independently. Consequently, the applications using both <code>pulsar-client</code> and <code>pulsar-client-admin</code> have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules.<br>
+In this case, you can use <code>pulsar-client-all</code>, which shades dependencies only one time and reduces the size of dependencies. | <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C2.8.1%7Cjar">org.apache.pulsar:pulsar-client-all:2.8.1</a>     |</p>
 <p>本文档仅关注 Pulsar 主题消息的生产和消费的客户端 API。 如果想使用Java版本的管理客户端，可以查看 <a href="/docs/zh-CN/next/admin-api-overview">Pulsar 管理接口</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
 <p>最新版本的Pulsar Java 客户端库可从 <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.8.1%7Cjar">Maven中央仓库</a> 安装。 要使用最新版本, 请将 <code>pulsar-client</code> 库添加到构建配置中。</p>
@@ -144,19 +144,20 @@ dependencies {
 <p>如果运行的是 <a href="/docs/zh-CN/next/standalone">standalone </a> 模式的集群，则默认通过 <code>pulsar://localhost:6650</code> URL 来访问 broker 。</p>
 </blockquote>
 <p>在创建客户端时，可以采用 <code>loadConf</code> 方式进行配置。<code>loadConf</code> 可用的参数如下。</p>
-<p>|类型|名称|</p>
+<p>| Name | Type |</p>
 <div style="width:260px">
   说明
 </div>
-<p>| 默认 |---|---|---|----- String| <code>serviceUrl</code> |Pulsar 服务 URL | None String| <code>authPluginClassname</code> | 认证插件名称 | None String | <code>authParams</code> | 字符串类型的认证插件参数</p>
-<p><strong>示例</strong>  <br>
-key:val1 ey2:val2|None long|<code>operationTimeoutMs</code>|操作超时|30000 long|<code>statsIntervalSeconds</code>|每次信息统计的间隔</p>
-<p>当 <code>statsInterval</code></p>
-<p>设置为正数，则进行统计。 <code>statsIntervalSeconds</code> 至少设置为 1 秒 |60 int|<code>numIoThrads</code>| 用于处理与 broker 连接的线程数 | 1 int|<code>numListenerThrees</code>|用于处理消息监听的线程数量。 所有的消费者和读者共享监听器线程池，并使用 “监听器”模式获取消息。 对于某个消费者来说，为了保证有序性，总在同一线程中调用监听器。 如果想用多线程处理单个 topic，需要采用 <a href="https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared"><code>shared</code></a> 订阅模式，并为这个订阅创建多个消费者。 这种方式不保证消息的顺序性| 1 boolean|<code>useTcpNoDelay</code>|是否设置 TCP no-delay 标识，使用 Nagle 算法来进行连接 | true boolean |<code>useTls</code> |是否使用 TLS 加密进行连接| false string | <code>tlsTrustCertsFilePath</code> | TLS 可信证书文件路径 | None boolean|<code>tlsAllowInsecureConnection</code>| Pulsar 客户端是否接受来自 broker 的不可信证书 | false boolean | <code>tlsHostnameVerificationEnable</code> | 是否开启 TLS 主机验证 | false int|<code>concurrentLookupRequest</code>| 为避免过载，对每个 broker 连接，设置其发送 lookup 请求的并发数 | 5000 int|<code>maxLookupRequest</code>|为避免过载，对每个 broker 连接，设置其发送 lookup 请求的最大数量 | 50000 int|<code>maxNumberOfRejectedRequestPerConnection</code>|当前连接关闭后，broker 在一定时间内(30秒)拒绝的最大请求数，客户端会与其他 broker 建立新的连接 | 50 int|<code>keepAliveIntervalSeconds</code>| 每个客户端与 broker 连接保持活跃的间隔秒数 | 30 int|<code>connectionTimeoutMs</code>|客户端等待与 broker 建立连接的时间</p>
-<p>如果超过这个时间，也没有得到 broker 的响应，将丢弃本次连接尝试 | 10000 int|<code>requestTimeoutMs</code>|完成请求的最长持续时间 | 60000 int|<code>defaultBackoffIntervalNanos</code>| 回退的默认持续时间间隔 | TimeUnit.MILLISECONDS.toNanos(100); long|<code>maxBackoffIntervalNanos</code>|回退的最大持续时间间隔 | TimeUnit.SECONDS.toNanos(30) SocketAddress|<code>socks5ProxyAddress</code>|SOCKS5 proxy 的地址 | None String|<code>socks5ProxyUsername</code>|SOCKS5 proxy 的地址 | None String|<code>socks5ProxyPassword</code>|SOCKS5 proxy 的密码 | None 检查 Javadoc <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
- 类获取可配置参数的完整列表。</p>
+<p>| Default |---|---|---|--- <code>serviceUrl</code> | String | Service URL provider for Pulsar service | None <code>authPluginClassName</code> | String | Name of the authentication plugin | None <code>authParams</code> | String | Parameters for the authentication plugin</p>
+<p><strong>Example</strong>  <br>
+key1:val1,key2:val2|None <code>operationTimeoutMs</code>|long|<code>operationTimeoutMs</code>|Operation timeout |30000 <code>statsIntervalSeconds</code>|long|Interval between each stats information</p>
+<p>Stats is activated with positive <code>statsInterval</code></p>
+<p>Set <code>statsIntervalSeconds</code> to 1 second at least. |60 <code>numIoThreads</code>| int| The number of threads used for handling connections to brokers | 1 <code>numListenerThreads</code>|int|The number of threads used for handling message listeners. 所有的消费者和读者共享监听器线程池，并使用 “监听器”模式获取消息。 对于某个消费者来说，为了保证有序性，总在同一线程中调用监听器。 如果想用多线程处理单个 topic，需要采用 <a href="https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared"><code>shared</code></a> 订阅模式，并为这个订阅创建多个消费者。 This does not ensure ordering.| 1 <code>useTcpNoDelay</code>| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true <code>useTls</code> |boolean |Whether to use TLS encryption on the connection| false <code>tlsTrustCertsFilePath</code> |string |Path to the trusted TLS certificate file|None <code>tlsAllowInsecureConnection</code>|boolean|Whether the Pulsar client accepts untrusted TLS certificate from broker | false <code>tlsHostnameVerificationEnable</code> |boolean | Whether to enable TLS hostname verification|false <code>concurrentLookupRequest</code>|int|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000 <code>maxLookupRequest</code>|int|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000 <code>maxNumberOfRejectedRequestPerConnection</code>|int|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50 <code>keepAliveIntervalSeconds</code>|int|Seconds of keeping alive interval for each client broker connection|30 <code>connectionTimeoutMs</code>|int|Duration of waiting for a connection to a broker to be established</p>
+<p>If the duration passes without a response from a broker, the connection attempt is dropped|10000 <code>requestTimeoutMs</code>|int|Maximum duration for completing a request |60000 <code>defaultBackoffIntervalNanos</code>|int| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100); <code>maxBackoffIntervalNanos</code>|long|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30) <code>socks5ProxyAddress</code>|SocketAddress|SOCKS5 proxy address | None <code>socks5ProxyUsername</code>|string|SOCKS5 proxy username | None <code>socks5ProxyPassword</code>|string|SOCKS5 proxy password | None</p>
+<p>Check out the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ class for a full list of configurable parameters.</p>
 <blockquote>
-<p>除了客户端级别的配置，还有应用于 <a href="#configuring-producers">生产者</a>和<a href="#configuring-consumers">消费者</a>的特定配置，具体如下面章节所述。</p>
+<p>In addition to client-level configuration, you can also apply <a href="#configure-producer">producer</a> and <a href="#configure-consumer">consumer</a> specific configuration as described in sections below.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="生产者producer"></a><a href="#生产者producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者（Producer）</h2>
 <p>在Pulsar中，生产者写消息到主题中。 一旦你实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
@@ -169,7 +170,7 @@ key:val1 ey2:val2|None long|<code>operationTimeoutMs</code>|操作超时|30000 l
 <span class="hljs-comment">// 然后你就可以发送消息到指定的broker 和topic上：</span>
 producer.send(<span class="hljs-string">"My message"</span>.getBytes());
 </code></pre>
-<p>默认情况下，生产者生产字节数组类型的消息。但可以通过指定消息的 <a href="#schemas">schema</a> 来生成不同类型的消息。</p>
+<p>By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message <a href="#schema">schema</a>.</p>
 <pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
         .topic(<span class="hljs-string">"my-topic"</span>)
         .create();
@@ -191,883 +192,810 @@ client.close();
 </code></pre>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="配置producer生产者"></a><a href="#配置producer生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置Producer（生产者）</h3>
-<p>If you instantiate a <code>Producer</code> object by specifying only a topic name as the example above, use the default configuration for producer.</p>
-<p>如果要创建客户端，可以采用 <code>loadConf</code> 方式进行配置。<code>loadConf</code> 方式可配置的参数如下所示。</p>
-<p>Type | Name|</p>
+<p>If you instantiate a <code>Producer</code> object by specifying only a topic name as the example above, the default configuration of producer is used.</p>
+<p>If you create a producer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
+<p>Name| Type |</p>
 <div style="width:300px">
   说明
-</div>| 默认值 |\---|\---|\---|\--- String| 
-<p><code>topicName</code>| 主题名字| null| String|<code>producerName</code>| 生产者名字 | null long|<code>sendTimeoutMs</code>|消息发送超时毫秒时间。</p>
-<p>如果在 <code>sendTimeout</code> 到期之前消息没有被服务器确认，则会出现错误。|30000 boolean|<code>blockIfQueueFull</code>如果被设置为 <code>true</code>, 当消息发送队列已满时，生产者的 <code>Send</code> and <code>SendAsync</code> 方法会阻塞，而不会执行失败和抛出错误。</p>
-<p>If it is set to <code>false</code>, 当消息发送队列已满时，生产者的 <code>Send</code> and <code>SendAsync</code> 生产者方法会失败， <code>ProducerQueueIsFullError</code> 例外。</p>
-<p>这个 <code>MaxPendingMessages</code> 参数决定消息发送队列的大小。|false int|<code>maxPendingMessages</code>|待处理消息队列的最大大小。</p>
-<p>例如，正等待 broker 确认的消息。 <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
-<p>默认情况下，当队列已满时，所有调用 <code>Send</code> and <code>SendAsync</code> 方法会失败， <strong>除非</strong> 设置 <code>BlockIfQueueFull</code> 为 <code>true</code>。|1000 int|<code>maxPendingMessagesAcrossPartitions</code>|跨分区的最大待处理消息数。</p>
-<p>如果总的数量超过了所配置的值，则使用该设置降低每个分区的最大等待消息数 ({@link #setMaxPendingMessages(int)}) |50000 MessageRoutingMode|<code>messageRoutingMode</code>|生产者在分区主题上的消息路由逻辑。 <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.</p>
-<p>仅在消息没有设置键值时应用这个逻辑。</p>
-<p>可用选项如下所示：</p>
+</div>| Default |\---|\---|\---|\--- 
+<p><code>topicName</code>| string| Topic name| null| <code>producerName</code>| string|Producer name| null <code>sendTimeoutMs</code>| long|Message send timeout in ms.<br>
+If a message is not acknowledged by a server before the <code>sendTimeout</code> expires, an error occurs.|30000 <code>blockIfQueueFull</code>|boolean|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.<br>
+If it is set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and <code>ProducerQueueIsFullError</code> exceptions occur.</p>
+<p>The <code>MaxPendingMessages</code> parameter determines the size of the outgoing message queue.|false <code>maxPendingMessages</code>| int|The maximum size of a queue holding pending messages.</p>
+<p>For example, a message waiting to receive an acknowledgment from a <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
+<p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> you set <code>BlockIfQueueFull</code> to <code>true</code>.|1000 <code>maxPendingMessagesAcrossPartitions</code>|int|The maximum number of pending messages across partitions.</p>
+<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 <code>messageRoutingMode</code>| MessageRoutingMode|Message routing logic for producers on <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.<br>
+Apply the logic only when setting no key on messages.<br>
+Available options are as follows:</p>
 <ul>
-<li><p><code>pulsar.RoundRobinDistribution</code>: round robin</p>
-<ul>
-<li><p><code>pulsar.UseSinglePartition</code>: publish all messages to a single partition</p>
-<ul>
-<li><p><code>pulsar.CustomPartition</code>: 自定义分区模式|<code>pulsar.RoundRobinDistribution</code> HashingScheme|<code>hashingScheme</code>|用哈希函数来决定特定消息发布的分区 (<strong>仅用于分区主题</strong>).</p>
-<p>可用的选项如下：</p>
-<ul>
-<li><p><code>pulsar.JavaStringHash</code>: the equivalent of <code>String.hashCode()</code> in Java</p>
-<ul>
-<li><p><code>pulsar.Murmur3_32Hash</code>: applies the <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> hashing function</p>
-<ul>
-<li><p><code>pulsar.BoostHash</code>: applies the hashing function from C++'s <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> library |<code>HashingScheme.JavaStringHash</code> ProducerCryptoFailureAction|<code>cryptoFailureAction</code>|Producer should take action when encryption fails.</p>
-<ul>
-<li><p><strong>FAIL</strong>: 如果加密失败，这些未加密的消息会发送失败。</p></li>
-<li><p><strong>SEND</strong>: 如果加密失败，依然会发送这些未加密的消息。 |<code>ProducerCryptoFailureAction.FAIL</code> long|<code>batchingMaxPublishDelayMicros</code>|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1) int|batchingMaxMessages|The maximum number of messages permitted in a batch.|1000 boolean|<code>batchingEnabled</code>|Enable batching of messages. |true CompressionType|<code>compressionType</code>|Message data compression type used by a producer.</p>
-<p>Available options:</p>
-<ul>
-<li><a href="https://github.com/lz4/lz4"><code>LZ4</code></a>
-<ul>
-<li><a href="https://zlib.net/"><code>ZLIB</code></a>
-<ul>
-<li><p><a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a>  <br>
-* <a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| No compression</p>
-You can configure parameters if you do not want to use the default configuration.</p>
-<pre><code class="hljs">  有关完整列表，参考 {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} 类的 javadoc 文档。 例子如下所示。
-  
-  ```java
-  Producer&lt;byte[]&gt; producer = client.newProducer()
-      .topic(&quot;my-topic&quot;)
-      .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-      .sendTimeout(10, TimeUnit.SECONDS)
-      .blockIfQueueFull(true)
-      .create();
-  ```
-  
-  ### 消息路由
-  
-  当使用分区主题时，当你使用生产者发布消息时你可以指定路由模式。 For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](/docs/zh-CN/next/cookbooks-partitioned) cookbook.
-  
-  ### 异步发送
-  
-  You can publish messages [asynchronously](/docs/zh-CN/next/concepts-messaging#send-modes) using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.
-  
-  The following is an example.
-  
-  ```java
-  producer.sendAsync(&quot;my-async-message&quot;.getBytes()).thenAccept(msgId -&gt; {
-      System.out.println(&quot;Message with ID &quot; + msgId + &quot; successfully sent&quot;);
-  });
-  ```
-  
-  As you can see from the example above, async send operations return a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
-  
-  ### 配置消息
-  
-  In addition to a value, you can set additional items on a given message:
-  
-  ```java
-  producer.newMessage()
-      .key(&quot;my-message-key&quot;)
-      .value(&quot;my-async-message&quot;.getBytes())
-      .property(&quot;my-key&quot;, &quot;my-value&quot;)
-      .property(&quot;my-other-key&quot;, &quot;my-other-value&quot;)
-      .send();
-  ```
-  
-  You can terminate the builder chain with `sendAsync()` and get a future return.
-  
-  ## 消费者（Consumer）
-  
-  在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个{@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient}对象并传递给他一个borker([如上所示](#client-configuration)) URL来实例化一个[消费者](/docs/zh-CN/next/reference-terminology#consumer)。
-  
-  一旦实例化一个{@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} 对象，你可以指定一个[主题](/docs/zh-CN/next/reference-terminology#topic)和一个[订阅](/docs/zh-CN/next/concepts-messaging#subscription-modes)来创建一个 {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer}消费者。
-  
-  ```java
-  Consumer consumer = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscribe();
-  ```
-  
-  The `subscribe` method will auto subscribe the consumer to the specified topic and subscription. 一种让消费者监听主题的方法是使用`while`循环。 In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](/docs/zh-CN/next/reference-terminology#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](/docs/zh-CN/next/reference-terminology#acknowledgment-ack) to redeliver the message later.
-  
-  ```java
-  while (true) {
-    // Wait for a message
-    Message msg = consumer.receive();
-  
-    try {
-        // Do something with the message
-        System.out.println(&quot;Message received: &quot; + new String(msg.getData()));
-  
-        // Acknowledge the message so that it can be deleted by the message broker
-        consumer.acknowledge(msg);
-    } catch (Exception e) {
-        // Message failed to process, redeliver later
-        consumer.negativeAcknowledge(msg);
-    }
-  }
-  ```
-  
-  If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
-  
-  ```java
-  MessageListener myMessageListener = (consumer, msg) -&gt; {
-    try {
-        System.out.println(&quot;Message received: &quot; + new String(msg.getData()));
-        consumer.acknowledge(msg);
-    } catch (Exception e) {
-        consumer.negativeAcknowledge(msg);
-    }
-  }
-  
-  Consumer consumer = client.newConsumer()
-       .topic(&quot;my-topic&quot;)
-       .subscriptionName(&quot;my-subscription&quot;)
-       .messageListener(myMessageListener)
-       .subscribe();
-  ```
-  
-  ### 配置消费者
-  
-  If you instantiate a `Consumer` object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration.
-  
-  创建消费者时，可以采用 `loadConf` 方式进行配置。 `loadConf` 方式可配置的参数如下所示。
-  
-  Type | Name|
-  
-  &lt;div style=&quot;width:300px&quot;&gt;
-    说明
-  &lt;/div&gt;
-  | 默认值 |\---|\---|\---|\--- Set&lt;String&gt;| `topicNames`| 主题名称 | Sets.newTreeSet() Pattern| `topicsPattern`| 主题模式 |None String| `subscriptionName`| 订阅名称| None SubscriptionType| `subscriptionType`订阅类型   
-    
-  有四种可选的订阅类型：
-  
-  * Exclusive
-  * Failover（灾备）
-  * Shared（共享）
-  * Key_Shared|SubscriptionType.Exclusive int | 
-  `receiverQueueSize` | 消费者接收队列的大小。   
-    
-  例如，在应用程序调用 Receive 函数之前消费者累积的消息数。 `Receive`.   
-    
-  设置高于默认值的值会提高消费者的吞吐量，但会增加内存使用开销。| 1000 long|`acknowledgementsGroupTimeMicros`|在特定时间内对消费者的确认信息进行分组。  
-    
-  默认情况下，消费者会用 100 毫秒分组时间将确认信息发送给 broker。  
-    
-  设置分组时间为 0，将会立即发送确认信息。   
-    
-  设置更长的确认信息分组时间更有效，但会略微带来失败后消息重传次数的增加。|TimeUnit.MILLISDS.toMicrosofts(100) long|`negativeAckRedeliveryDelayMicros`|在重传那些处理失败消息之前，延迟等待时间。  
-    
-  当应用程序使用 {@link Consumer#negativeRecogge(Message)}时，失败的消息会在固定的超时后重新发送|TimeUnit.MINUTES.toMicros(1) int |`maxTotalReceiverQueueSizeAcrossPartitions`|跨分区最大接收队列大小.  
-    
-  如果接收队列总大小超过此值，则此设置会降低单个分区的接收队列大小。|50000 String|`consumerName`|消费者名称|null long|`ackTimeoutMillis`|未确认消息的超时时间 |0 long|`tickDurationMillis`|ack-timeout 重传粒度。  
-    
-  使用更高的 `tickDurationMillis` 当设置更大的 ack-timeout (例如，1 个小时)，会减少追踪消息的内存开销。|1000 int|`priorityLevel`|在共享订阅模式下分发消息时，broker 给予消费者的优先级级别。   
-    
-  Broker 按照优先级降序排序。例如，0 等于最大优先级，1，2，...  
-    
-  在共享订阅模式下，broker **优先分发消息给优先级最高的消费者，前提是这些消费者有消费权限。**否则，broker 会将消息分发给次优先级的消费者。  
-    
-  **示例 1**  
-    
-  如果订阅的消费者 A 的 `priorityLevel` 是 0，消费者 B 的 `priorityLevel` 是1，那么 broker **仅向消费者 A 分发消息，直到其失去消费权限。** 然后开始向消费者 B 分发消息。  
-    
-  **示例 2**  
-    
-  消费者，级别，权限  
-  C1, 0, 2  
-  C2, 0, 1  
-  C3, 0, 1  
-  C4, 1, 2  
-  C5, 1, 1  
-    
-  Broker 发送消息给消费者的顺序是：C1, C2, C3, C1, C4, C5, C4.|0 ConsumerCryptoFailureAction|`cryptoFailureAction`|消费者在收到无法解密的消息时应采取的操作。  
-    
-  
-  
-  * **FAIL**: 这是在加密成功之前，对于失败消息采取的默认选项。
-    
-  
-  
-  * **DISCARD**：确认消息，但不将消息分发给应用程序。
-    
-  
-  
-  * **CONSUME**: 分发加密后的消息给应用程序。 It is the application's responsibility to decrypt the message.  
-        
-      The decompression of message fails.   
-        
-      If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
-        
-      Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL SortedMap&lt;String, String&gt;|
-  `properties`|消费者的名称或值属性。  
-    
-  `properties` 是由应用程序所定义，附加到消费者的元数据。   
-    
-  获取主题统计信息时，将此元数据与消费者统计信息相关联，以便于识别。|new TreeMap&lt;&gt;() boolean|`readCompacted`|如果开启 `readCompacted`, 消费者从压缩的主题中读取消息，而不是读取主题的完整消息积压。  
-    
-  消费者只能看到压缩主题中每个键值的最新值，直到压缩时主题消息中对应的那个位点。 超过这一点，照常发送消息。  
-    
-  仅仅开启 `readCompacted` 订阅持久化主题，这些主题仅有单个活跃用户(类似故障或独占订阅模式)。   
-    
-  尝试在订阅非持久化主题或共享订阅时开启该功能，将抛出异常 `PulsarClientException`.|false SubscriptionInitialPosition|`subscriptionInitialPosition`|首次订阅主题时设置光标的初始位置。|SubscriptionInitialPosition.Latest int|`patternAutoDiscoveryPeriod`|在消费者使用模式规则来匹配主题时，其自动发现主题的时间周期。  
-    
-  默认值和最小值为 1 分钟。|1 RegexSubscriptionMode|`regexSubscriptionMode`|当使用正则表达式来订阅主题时，可以匹配到某一类的主题。  
-    
-  
-  
-  * **PersistentOnly**: 只订阅持久化主题。
-    
-  
-  
-  * **NonPersistentOnly**: 只订阅非持久化主题。
-    
-  
-  
-  * **AllTopics**: 同时订阅持久化和非持久化主题。|RegexSubscriptionMode.PersistentOnly DeadLetterPolicy|
-  `deadLetterPolicy`|针对消费者的死信策略。  
-    
-  默认情况下，一些消息可能会多次重新发送，甚至从未停止发送。  
-    
-  利用死信机制，限制了消息的最大重发次数。 **当超过最大重发次数，消息会自动发送到死信主题并完成确认。**.  
-    
-  可以通过配置来启用死信机制。 `deadLetterPolicy`.  
-    
-  **示例**  
-    
-  `client.newConsumer()&lt;br/&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())&lt;br/&gt;.subscribe();`  
-    
-  默认的死信主题名称是 `{TopicName}-{Subscription}-DLQ`.  
-    
-  设置自定义的死信主题名称：  
-  `client.newConsumer()&lt;br/&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)&lt;br/&gt;.deadLetterTopic(&quot;your-topic-name&quot;).build())&lt;br/&gt;.subscribe();`  
-    
-  当指定了死信策略，但是没有指定 `ackTimeoutMillis`，可以设置 ack 超时时长为 30000 毫秒。`autoUpdatePartitions`|如果 `autoUpdatePartitions` 开启，消费者会自动订阅新增分区。  
-    
-  **Note**: 这仅适用于分区消费者。|true boolean|`replicateSubscriptionState`|如果 `replicateSubscriptionState`  开启，订阅状态会被复制到跨地域复制的集群。|false
-  
-  You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
-  
-  The following is an example.
-  
-  ```java
-  Consumer consumer = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .ackTimeout(10, TimeUnit.SECONDS)
-          .subscriptionType(SubscriptionType.Exclusive)
-          .subscribe();
-  ```
-  
-  ### 异步接收
-  
-  The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](/docs/zh-CN/next/concepts-messaging#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
-  
-  The following is an example.
-  
-  ```java
-  CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
-  ```
-  
-  Async receive operations return a {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
-  
-  ### 批量接收
-  
-  Use `batchReceive` to receive multiple messages for each call.
-  
-  The following is an example.
-  
-  ```java
-  Messages messages = consumer.batchReceive();
-  for (Object message : messages) {
-    // do something
-  }
-  consumer.acknowledge(messages)
-  ```
-  
-  &gt; 注意：
-  &gt; 
-  &gt; 批量接收策略限制消息的数量和字节大小。可以指定一个超时时长来等待获取到足够的消息。
-  &gt; 
-  &gt; 如果满足以下任一条件，则批量接收操作完成：足够数量的消息、消息字节数、等待超时。
-  &gt; 
-  &gt; ```java
-  &gt; Consumer consumer = client.newConsumer()
-  &gt;         .topic(&quot;my-topic&quot;)
-  &gt;         .subscriptionName(&quot;my-subscription&quot;)
-  &gt;         .batchReceivePolicy(BatchReceivePolicy.builder()
-  &gt;              .maxNumMessages(100)
-  &gt;              .maxNumBytes(1024 * 1024)
-  &gt;              .timeout(200, TimeUnit.MILLISECONDS)
-  &gt;              .build())
-  &gt;         .subscribe();
-  &gt; ```
-  &gt; 
-  &gt; 默认批量接收策略是：
-  &gt; 
-  &gt; ```java
-  &gt; BatchReceivePolicy.builder()
-  &gt;     .maxNumMessage(-1)
-  &gt;     .maxNumBytes(10 * 1024 * 1024)
-  &gt;     .timeout(100, TimeUnit.MILLISECONDS)
-  &gt;     .build();
-  &gt; ```
-  
-  ### 多主题订阅
-  
-  消费者除了订阅单个Pulsar主题外，你还可以使用[多主题订阅](/docs/zh-CN/next/concepts-messaging#multi-topic-subscriptions)订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题`List` 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。
-  
-  The followings are some examples.
-  
-  ```java
-  import org.apache.pulsar.client.api.Consumer;
-  import org.apache.pulsar.client.api.PulsarClient;
-  
-  import java.util.Arrays;
-  import java.util.List;
-  import java.util.regex.Pattern;
-  
-  ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
-          .subscriptionName(subscription);
-  
-  // Subscribe to all topics in a namespace
-  Pattern allTopicsInNamespace = Pattern.compile(&quot;public/default/.*&quot;);
-  Consumer allTopicsConsumer = consumerBuilder
-          .topicsPattern(allTopicsInNamespace)
-          .subscribe();
-  
-  // Subscribe to a subsets of topics in a namespace, based on regex
-  Pattern someTopicsInNamespace = Pattern.compile(&quot;public/default/foo.*&quot;);
-  Consumer allTopicsConsumer = consumerBuilder
-          .topicsPattern(someTopicsInNamespace)
-          .subscribe();
-  ```
-  
-  In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern. If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic name pattern, set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
-  
-  ```java
-  Pattern pattern = Pattern.compile(&quot;public/default/.*&quot;);
-  pulsarClient.newConsumer()
-          .subscriptionName(&quot;my-sub&quot;)
-          .topicsPattern(pattern)
-          .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
-          .subscribe();
-  ```
-  
-  &gt; #### Note
-  &gt; 
-  &gt; 默认情况下，消费者的 `subscriptionTopicsMode` 是 `PersistentOnly`。 `subscriptionTopicsMode` 的可用选项为： `PersistentOnly`，`NonPersistentOnly`，以及 `AllTopics`。
-  
-  你还可以订阅明确的主题列表 (如果愿意, 可跨命名空间):
-  
-  ```java
-  List&lt;String&gt; topics = Arrays.asList(
-          &quot;topic-1&quot;,
-          &quot;topic-2&quot;,
-          &quot;topic-3&quot;
-  );
-  
-  Consumer multiTopicConsumer = consumerBuilder
-          .topics(topics)
-          .subscribe();
-  
-  // Alternatively:
-  Consumer multiTopicConsumer = consumerBuilder
-          .topic(
-              &quot;topic-1&quot;,
-              &quot;topic-2&quot;,
-              &quot;topic-3&quot;
-          )
-          .subscribe();
-  ```
-  
-  还可以使用 `subscribeAsync` 方法而不是同步的 `subscribe` 方法，来异步地订阅多个主题。具体例子如下。
-  
-  ```java
-  Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default.*&quot;);
-  consumerBuilder
-          .topics(topics)
-          .subscribeAsync()
-          .thenAccept(this::receiveMessageFromConsumer);
-  
-  private void receiveMessageFromConsumer(Object consumer) {
-      ((Consumer)consumer).receiveAsync().thenAccept(message -&gt; {
-                  // Do something with the received message
-                  receiveMessageFromConsumer(consumer);
-              });
-  }
-  ```
-  
-  ### 订阅模型
-  
-  Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
-  
-  A subscription is identical with the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
-  
-  不同的订阅方式对应不同的消息分发模式。本节介绍订阅模式的区别和使用方法。
-  
-  In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.
-  
-  ```java
-  Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
-          .topic(&quot;my-topic&quot;)
-          .enableBatching(false)
-          .create();
-  // 3 messages with &quot;key-1&quot;, 3 messages with &quot;key-2&quot;, 2 messages with &quot;key-3&quot; and 2 messages with &quot;key-4&quot;
-  producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-1&quot;).send();
-  producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-2&quot;).send();
-  producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-3&quot;).send();
-  producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-1&quot;).send();
-  producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-2&quot;).send();
-  producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-3&quot;).send();
-  producer.newMessage().key(&quot;key-3&quot;).value(&quot;message-3-1&quot;).send();
-  producer.newMessage().key(&quot;key-3&quot;).value(&quot;message-3-2&quot;).send();
-  producer.newMessage().key(&quot;key-4&quot;).value(&quot;message-4-1&quot;).send();
-  producer.newMessage().key(&quot;key-4&quot;).value(&quot;message-4-2&quot;).send();
-  ```
-  
-  #### Exclusive
-  
-  Create a new consumer and subscribe with the `Exclusive` subscription mode.
-  
-  ```java
-  Consumer consumer = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Exclusive)
-          .subscribe()
-  ```
-  
-  只有第一个消费者被允许订阅，其他消费者会收到错误信息。第一个消费者收到所有的 10 条消息，并且其消费消息的顺序与消息生产的顺序一致。
-  
-  &gt; 注意：
-  &gt; 
-  &gt; If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error.
-  
-  #### Failover（灾备）
-  
-  Create new consumers and subscribe with the`Failover` subscription mode.
-  
-  ```java
-  Consumer consumer1 = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Failover)
-          .subscribe()
-  Consumer consumer2 = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Failover)
-          .subscribe()
-  //conumser1 is the active consumer, consumer2 is the standby consumer.
-  //consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
-  
-  
-  ```
-  
-  Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer.
-  
-  如果第一个活跃消费者在收到 5 个消息后断开连接，则等待的消费者将成为活跃消费者。
-  
-      (&quot;key-1&quot;, &quot;message-1-1&quot;)
-      (&quot;key-1&quot;, &quot;message-1-2&quot;)
-      (&quot;key-1&quot;, &quot;message-1-3&quot;)
-      (&quot;key-2&quot;, &quot;message-2-1&quot;)
-      (&quot;key-2&quot;, &quot;message-2-2&quot;)
-      
-  
-  consumer2 will receive:
-  
-      (&quot;key-2&quot;, &quot;message-2-3&quot;)
-      (&quot;key-3&quot;, &quot;message-3-1&quot;)
-      (&quot;key-3&quot;, &quot;message-3-2&quot;)
-      (&quot;key-4&quot;, &quot;message-4-1&quot;)
-      (&quot;key-4&quot;, &quot;message-4-2&quot;)
-      
-  
-  &gt; 注意：
-  &gt; 
-  &gt; If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers.
-  
-  #### Shared（共享）
-  
-  Create new consumers and subscribe with `Shared` subscription mode:
-  
-  ```java
-  Consumer consumer1 = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Shared)
-          .subscribe()
-  
-  Consumer consumer2 = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Shared)
-          .subscribe()
-  //Both consumer1 and consumer 2 is active consumers.
-  ```
-  
-  In shared subscription mode, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
-  
-  If a broker dispatches only one message at a time, consumer1 receives the following information.
-  
-      (&quot;key-1&quot;, &quot;message-1-1&quot;)
-      (&quot;key-1&quot;, &quot;message-1-3&quot;)
-      (&quot;key-2&quot;, &quot;message-2-2&quot;)
-      (&quot;key-3&quot;, &quot;message-3-1&quot;)
-      (&quot;key-4&quot;, &quot;message-4-1&quot;)
-      
-  
-  consumer2 receives the following information.
-  
-      (&quot;key-1&quot;, &quot;message-1-2&quot;)
-      (&quot;key-2&quot;, &quot;message-2-1&quot;)
-      (&quot;key-2&quot;, &quot;message-2-3&quot;)
-      (&quot;key-3&quot;, &quot;message-3-2&quot;)
-      (&quot;key-4&quot;, &quot;message-4-2&quot;)
-      
-  
-  `Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
-  
-  #### Key_shared
-  
-  This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode.
-  
-  ```java
-  Consumer consumer1 = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Key_Shared)
-          .subscribe()
-  
-  Consumer consumer2 = client.newConsumer()
-          .topic(&quot;my-topic&quot;)
-          .subscriptionName(&quot;my-subscription&quot;)
-          .subscriptionType(SubscriptionType.Key_Shared)
-          .subscribe()
-  //Both consumer1 and consumer2 are active consumers.
-  ```
-  
-  `Key_Shared` subscription is like `Shared` subscription, all consumers can attach to the same subscription. But it is different from `Key_Shared` subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
-  
-  consumer1 receives the following information.
-  
-      (&quot;key-1&quot;, &quot;message-1-1&quot;)
-      (&quot;key-1&quot;, &quot;message-1-2&quot;)
-      (&quot;key-1&quot;, &quot;message-1-3&quot;)
-      (&quot;key-3&quot;, &quot;message-3-1&quot;)
-      (&quot;key-3&quot;, &quot;message-3-2&quot;)
-      
-  
-  consumer2 receives the following information.
-  
-      (&quot;key-2&quot;, &quot;message-2-1&quot;)
-      (&quot;key-2&quot;, &quot;message-2-2&quot;)
-      (&quot;key-2&quot;, &quot;message-2-3&quot;)
-      (&quot;key-4&quot;, &quot;message-4-1&quot;)
-      (&quot;key-4&quot;, &quot;message-4-2&quot;)
-      
-  
-  If batching is enabled at the producer side, messages with different keys are added to a batch by default. The broker will dispatch the batch to the consumer, so the default batch mechanism may break the Key_Shared subscription guaranteed message distribution semantics. The producer needs to use the `KeyBasedBatcher`.
-  
-  ```java
-  Producer producer = client.newProducer()
-          .topic(&quot;my-topic&quot;)
-          .batcherBuilder(BatcherBuilder.KEY_BASED)
-          .create();
-  ```
-  
-  Or the producer can disable batching.
-  
-  ```java
-  Producer producer = client.newProducer()
-          .topic(&quot;my-topic&quot;)
-          .enableBatching(false)
-          .create();
-  ```
-  
-  &gt; 注意：
-  &gt; 
-  &gt; If the message key is not specified, messages without key are dispatched to one consumer in order by default.
-  
-  ## Reader
-  
-  With the [reader interface](/docs/zh-CN/next/concepts-clients#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
-  
-  The following is an example.
-  
-  ```java
-  byte[] msgIdBytes = // Some message ID byte array
-  MessageId id = MessageId.fromByteArray(msgIdBytes);
-  Reader reader = pulsarClient.newReader()
-          .topic(topic)
-          .startMessageId(id)
-          .create();
-  
-  while (true) {
-      Message message = reader.readNext();
-      // Process message
-  }
-  ```
-  
-  In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader iterates over each message in the topic after the message is identified by `msgIdBytes` (how that value is obtained depends on the application).
-  
-  上面的示例代码展示了`Reader`对象指向特定的消息(ID)，但你也可以使用`MessageId.earliest`来指向topic上最早可用的消息，使用`MessageId.latest`指向最新的消息。
-  
-  ### 配置读者
-  
-  当创建读者时，可以使用 `loadConf` 的方式进行配置。`loadConf` 方式可配置的参数如下所示。
-  
-  |类型|名称|
-  
-  &lt;div style=&quot;width:300px&quot;&gt;
-    说明
-  &lt;/div&gt;
-  | 默认值 |\---|\---|\---|\--- String|`topicName`|主题名称。|None int|`receiverQueueSize`|消费者接收队列的大小。  
-    
-  例如，在应用程序调用 Receive 函数之前，消费者累积的消息数量。 `Receive`.  
-    
-  设置高于默认值的值会提高消费者的吞吐量，但会增加内存使用开销。| 1000 ReaderListener&lt;T&gt;|`readerListener`|用于消息接收的侦听器。|None String|`readerName`|读者名称。|null String| `subscriptionName`|订阅名称|当存在单个主题时，默认订阅名称是 `&quot;reader-&quot; + 10 位数字的 UUID`。 当有多个主题时，默认订阅名称是 `&quot;multiTopicsReader-&quot; + 10位数字 UUID`。 String|`subscriptionRolePrefix`|订阅角色的前缀。 |null CryptoKeyReader|`cryptoKeyReader`|访问存储秘钥的接口|null ConsumerCryptoFailureAction|`cryptoFailureAction`|消费者在收到无法解密的消息时应采取的操作。  
-    
-  
-  
-  * **FAIL**: 这是在加密成功之前，对于失败消息采取的默认选项。
-    
-  
-  
-  * **DISCARD**：确认消息，但不分发消息给应用程序。
-    
-  
-  
-  * **CONSUME**: 分发加密后的消息给应用程序。 It is the application's responsibility to decrypt the message.  
-        
-      The message decompression fails.   
-        
-      If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
-        
-      Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL boolean|
-  `readCompacted`|如果开启 `readCompacted`, 消费者从压缩主题中读取消息，而不是读取主题的完整消息积压。  
-    
-  消费者只能看到压缩主题中每个键值的最新值，直到压缩时主题消息中对应的那个位点。 超过这一点，照常发送消息。  
-    
-  `readCompacted` 在订阅持久化主题时开启，这些主题仅有单个活跃消费者(类似故障或独占订阅模式)。   
-    
-  尝试在订阅非持久化主题或共享订阅时开启该功能，将抛出异常 `PulsarClientException`。|false boolean|`resetIncludeHead`|如果设置为 true，则返回的第一条消息是由 messageId 指定的。 `messageId`.  
-    
-  如果设置为 false，则返回的第一个消息是由 messageId 指定消息的下一条。 `messageId`。|false
-  
-  ### Sticky key range reader
-  
-  对于采用黏性键值区间策略的读者，broker 将只分发键值的哈希值在指定范围内的消息。 可以在读者上指定多个键值的哈希值范围。
-  
-  The following is an example to create a sticky key range reader.
-  
-  ```java
-  pulsarClient.newReader()
-          .topic(topic)
-          .startMessageId(MessageId.earliest)
-          .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
-          .create();
-  ```
-  
-  Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
-  
-  ## Schema
-  
-  In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/zh-CN/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). 如果在不指定schema的情况下构造 [生产者](#producers)，则生产者只能生成类型为 `byte[] `的消息。 The following is an example.
-  
-  ```java
-  Producer&lt;byte[]&gt; producer = client.newProducer()
-          .topic(topic)
-          .create();
-  ```
-  
-  上面的生产者相当于 `Producer&lt;byte[]&gt;` (实际上, 你应该 *总是* 显式指定类型)。 如果你想让产生者使用不同类型的数据，你需要指定一个**schema**来通知Pulsar 在[topic](/docs/zh-CN/next/reference-terminology#topic)上传输哪种类型的数据。
-  
-  ### AvroBaseStructSchema example
-  
-  假设您有一个 `SensorReading` 类, 你想通过Pulsar主题进行传输:
-  
-  ```java
-  public class SensorReading {
-      public float temperature;
-  
-      public SensorReading(float temperature) {
-          this.temperature = temperature;
-      }
-  
-      // A no-arg constructor is required
-      public SensorReading() {
-      }
-  
-      public float getTemperature() {
-          return temperature;
-      }
-  
-      public void setTemperature(float temperature) {
-          this.temperature = temperature;
-      }
-  }
-  ```
-  
-  You could then create a `Producer&lt;SensorReading&gt;` (or `Consumer&lt;SensorReading&gt;`) like this:
-  
-  ```java
-  Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
-          .topic(&quot;sensor-readings&quot;)
-          .create();
-  ```
-  
-  以下schema格式目前可用于 Java:
-  
-  * 无schema 或者字节数组schema(可以使用`Schema.BYTES`)：
-      
-      ```java
-      Producer&lt;byte[]&gt; bytesProducer = client.newProducer(Schema.BYTES)
-          .topic(&quot;some-raw-bytes-topic&quot;)
-          .create();
-      ```
-      
-      或者:
-      
-      ```java
-      Producer&lt;byte[]&gt; bytesProducer = client.newProducer()
-          .topic(&quot;some-raw-bytes-topic&quot;)
-          .create();
-      ```
-  
-  * `String` UTF-8 编码的字符串数据。可以使用 `Schema.STRING`：
-      
-      ```java
-      Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
-          .topic(&quot;some-string-topic&quot;)
-          .create();
-      ```
-  
-  * 使用 `Schema.JSON`为 POJO 创建 JSON 格式消息。例子如下所示。
-      
-      ```java
-      Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
-          .topic(&quot;some-pojo-topic&quot;)
-          .create();
-      ```
-  
-  * 使用 `Schema.PROTOBUF` 生成 Protobuf 格式。 下面的示例演示如何创建 Protobuf 格式并使用其来实例化新的生产者：
-      
-      ```java
-      Producer&lt;MyProtobuf&gt; protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
-          .topic(&quot;some-protobuf-topic&quot;)
-          .create();
-      ```
-  
-  * 使用 `Schema.AVRO` 定义 Avro 格式 。下面的代码片段演示了如何创建和使用 Avro 格式.
-      
-      ```java
-      Producer&lt;MyAvro&gt; avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
-          .topic(&quot;some-avro-topic&quot;)
-          .create();
-      ```
-  
-  ### ProtobufNativeSchema example
-  
-  For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](/docs/zh-CN/next/schema-understand#complex-type).
-  
-  ## 身份验证
-  
-  Pulsar currently supports three authentication schemes: [TLS](/docs/zh-CN/next/security-tls-authentication), [Athenz](/docs/zh-CN/next/security-athenz), and [Oauth2](/docs/zh-CN/next/security-oauth2). You can use the Pulsar Java client with all of them.
-  
-  ### TLS 认证
-  
-  要使用[TLS](/docs/zh-CN/next/security-tls-authentication)，你需要使用`setUseTls`方法设置TLS为`true`，将您的Pulsar客户端指向TLS证书路径，并提供证书和密钥文件的路径。
-  
-  The following is an example.
-  
-  ```java
-  Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
-  authParams.put(&quot;tlsCertFile&quot;, &quot;/path/to/client-cert.pem&quot;);
-  authParams.put(&quot;tlsKeyFile&quot;, &quot;/path/to/client-key.pem&quot;);
-  
-  Authentication tlsAuth = AuthenticationFactory
-          .create(AuthenticationTls.class.getName(), authParams);
-  
-  PulsarClient client = PulsarClient.builder()
-          .serviceUrl(&quot;pulsar+ssl://my-broker.com:6651&quot;)
-          .enableTls(true)
-          .tlsTrustCertsFilePath(&quot;/path/to/cacert.pem&quot;)
-          .authentication(tlsAuth)
-          .build();
-  ```
-  
-  ### Athenz
-  
-  要使用[Athenz](/docs/zh-CN/next/security-athenz)做为身份认证提供者，你需要[use TLS](#tls-authentication)并且在hash提供如下四个参数的值：
-  
-  * `tenantDomain`
-  * `tenantService`
-  * `providerDomain`
-  * `privateKey`
-  
-  You can also set an optional `keyId`. The following is an example.
-  
-  ```java
-  Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
-  authParams.put(&quot;tenantDomain&quot;, &quot;shopping&quot;); // Tenant domain name
-  authParams.put(&quot;tenantService&quot;, &quot;some_app&quot;); // Tenant service name
-  authParams.put(&quot;providerDomain&quot;, &quot;pulsar&quot;); // Provider domain name
-  authParams.put(&quot;privateKey&quot;, &quot;file:///path/to/private.pem&quot;); // Tenant private key path
-  authParams.put(&quot;keyId&quot;, &quot;v1&quot;); // Key id for the tenant private key (optional, default: &quot;0&quot;)
-  
-  Authentication athenzAuth = AuthenticationFactory
-          .create(AuthenticationAthenz.class.getName(), authParams);
-  
-  PulsarClient client = PulsarClient.builder()
-          .serviceUrl(&quot;pulsar+ssl://my-broker.com:6651&quot;)
-          .enableTls(true)
-          .tlsTrustCertsFilePath(&quot;/path/to/cacert.pem&quot;)
-          .authentication(athenzAuth)
-          .build();
-  ```
-  
-  &gt; #### 支持的格式：
-  &gt; 
-  &gt; `privateKey`参数支持如下三种格式： * `file:///path/to/file` * `file:/path/to/file` * `data:application/x-pem-file;base64,&lt;base64-encoded value&gt;`
-  
-  ### Oauth2
-  
-  The following example shows how to use [Oauth2](/docs/zh-CN/next/security-oauth2) as an authentication provider for the Pulsar Java client.
-  
-  你可以在 Pulsar Java 客户端中使用工厂方法配置身份认证操作。
-  
-  ```java
-  PulsarClient client = PulsarClient.builder()
-      .serviceUrl(&quot;pulsar://broker.example.com:6650/&quot;)
-      .authentication(
-          AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
-      .build();
-  ```
-  
-  此外，你也可以在 Pulsar 客户端中使用编码参数来配置身份认证。
-  
-  ```java
-  Authentication auth = AuthenticationFactory
-      .create(AuthenticationOAuth2.class.getName(), &quot;{&quot;type&quot;:&quot;client_credentials&quot;,&quot;privateKey&quot;:&quot;...&quot;,&quot;issuerUrl&quot;:&quot;...&quot;,&quot;audience&quot;:&quot;...&quot;}&quot;);
-  PulsarClient client = PulsarClient.builder()
-      .serviceUrl(&quot;pulsar://broker.example.com:6650/&quot;)
-      .authentication(auth)
-      .build();
-  ```</code></pre></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
-</ul></li>
+<li><code>pulsar.RoundRobinDistribution</code>: round robin</li>
+<li><code>pulsar.UseSinglePartition</code>: publish all messages to a single partition</li>
+<li><code>pulsar.CustomPartition</code>: a custom partitioning scheme|<code>pulsar.RoundRobinDistribution</code>
+<code>hashingScheme</code>| HashingScheme|Hashing function determining the partition where you publish a particular message (<strong>partitioned topics only</strong>).<br>
+Available options are as follows:</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<ul>
+<li><code>pulsar.JavastringHash</code>: the equivalent of <code>string.hashCode()</code> in Java</li>
+<li><code>pulsar.Murmur3_32Hash</code>: applies the <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> hashing function</li>
+<li><code>pulsar.BoostHash</code>: applies the hashing function from C++'s <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> library |
+<code>HashingScheme.JavastringHash</code> <code>cryptoFailureAction</code>| ProducerCryptoFailureAction|Producer should take action when encryption fails.</li>
+</ul>
+<ul>
+<li><p><strong>FAIL</strong>: if encryption fails, unencrypted messages fail to send.</p></li>
+<li><p><strong>SEND</strong>: if encryption fails, unencrypted messages are sent. |
+<code>ProducerCryptoFailureAction.FAIL</code> <code>batchingMaxPublishDelayMicros</code>| long|Batching time period of sending messages.|TimeUnit.MILLISECONDS.toMicros(1) <code>batchingMaxMessages</code> |int|The maximum number of messages permitted in a batch.|1000 <code>batchingEnabled</code>| boolean|Enable batching of messages. |true <code>compressionType</code>|CompressionType|Message data compression type used by a producer.<br>
+Available options:</p></li>
+<li><p><a href="https://github.com/lz4/lz4"><code>LZ4</code></a></p></li>
+<li><p><a href="https://zlib.net/"><code>ZLIB</code></a></p>
+<ul>
+<li><a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a></li>
+<li><a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>| No compression</p>
+You can configure parameters if you do not want to use the default configuration.</li>
+</ul>
+<p>For a full list, see the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
+ class. The following is an example.</p>
+<pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
+    .topic(<span class="hljs-string">"my-topic"</span>)
+    .batchingMaxPublishDelay(<span class="hljs-number">10</span>, TimeUnit.MILLISECONDS)
+    .sendTimeout(<span class="hljs-number">10</span>, TimeUnit.SECONDS)
+    .blockIfQueueFull(<span class="hljs-keyword">true</span>)
+    .create();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="消息路由"></a><a href="#消息路由" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息路由</h3>
+<p>当使用分区主题时，当你使用生产者发布消息时你可以指定路由模式。 For more information on specifying a routing mode using the Java client, see the <a href="/docs/zh-CN/next/cookbooks-partitioned">Partitioned Topics cookbook</a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="异步发送"></a><a href="#异步发送" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>异步发送</h3>
+<p>You can publish messages <a href="/docs/zh-CN/next/concepts-messaging#send-modes">asynchronously</a> using the Java client. With async send, the producer puts the message in a blocking queue and returns it immediately. Then the client library sends the message to the broker in the background. If the queue is full (max size configurable), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer.</p>
+<p>The following is an example.</p>
+<pre><code class="hljs css language-java">producer.sendAsync(<span class="hljs-string">"my-async-message"</span>.getBytes()).thenAccept(msgId -&gt; {
+    System.out.println(<span class="hljs-string">"Message with ID "</span> + msgId + <span class="hljs-string">" successfully sent"</span>);
+});
+</code></pre>
+<p>As you can see from the example above, async send operations return a <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
+ wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code>CompletableFuture</code></a>.</p>
+<h3><a class="anchor" aria-hidden="true" id="配置消息"></a><a href="#配置消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置消息</h3>
+<p>In addition to a value, you can set additional items on a given message:</p>
+<pre><code class="hljs css language-java">producer.newMessage()
+    .key(<span class="hljs-string">"my-message-key"</span>)
+    .value(<span class="hljs-string">"my-async-message"</span>.getBytes())
+    .property(<span class="hljs-string">"my-key"</span>, <span class="hljs-string">"my-value"</span>)
+    .property(<span class="hljs-string">"my-other-key"</span>, <span class="hljs-string">"my-other-value"</span>)
+    .send();
+</code></pre>
+<p>You can terminate the builder chain with <code>sendAsync()</code> and get a future return.</p>
+<h2><a class="anchor" aria-hidden="true" id="消费者consumer"></a><a href="#消费者consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者（Consumer）</h2>
+<p>在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+对象并传递给他一个borker(<a href="#client-configuration">如上所示</a>) URL来实例化一个<a href="/docs/zh-CN/next/reference-terminology#consumer">消费者</a>。</p>
+<p>一旦实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ 对象，你可以指定一个<a href="/docs/zh-CN/next/reference-terminology#topic">主题</a>和一个<a href="/docs/zh-CN/next/concepts-messaging#subscription-modes">订阅</a>来创建一个 <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
+消费者。</p>
+<pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+        .subscribe();
+</code></pre>
+<p>The <code>subscribe</code> method will auto subscribe the consumer to the specified topic and subscription. 一种让消费者监听主题的方法是使用<code>while</code>循环。 In this example loop, the consumer listens for messages, prints the contents of any received message, and then <a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">acknowledges</a> that the message has been processed. If the processing logic fails, you can use <a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">negative acknowledgement</a> to redeliver the message later.</p>
+<pre><code class="hljs css language-java"><span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>) {
+  <span class="hljs-comment">// Wait for a message</span>
+  Message msg = consumer.receive();
+
+  <span class="hljs-keyword">try</span> {
+      <span class="hljs-comment">// Do something with the message</span>
+      System.out.println(<span class="hljs-string">"Message received: "</span> + <span class="hljs-keyword">new</span> String(msg.getData()));
+
+      <span class="hljs-comment">// Acknowledge the message so that it can be deleted by the message broker</span>
+      consumer.acknowledge(msg);
+  } <span class="hljs-keyword">catch</span> (Exception e) {
+      <span class="hljs-comment">// Message failed to process, redeliver later</span>
+      consumer.negativeAcknowledge(msg);
+  }
+}
+</code></pre>
+<p>If you don't want to block your main thread and rather listen constantly for new messages, consider using a <code>MessageListener</code>.</p>
+<pre><code class="hljs css language-java">MessageListener myMessageListener = (consumer, msg) -&gt; {
+  <span class="hljs-keyword">try</span> {
+      System.out.println(<span class="hljs-string">"Message received: "</span> + <span class="hljs-keyword">new</span> String(msg.getData()));
+      consumer.acknowledge(msg);
+  } <span class="hljs-keyword">catch</span> (Exception e) {
+      consumer.negativeAcknowledge(msg);
+  }
+}
+
+Consumer consumer = client.newConsumer()
+     .topic(<span class="hljs-string">"my-topic"</span>)
+     .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
+     .messageListener(myMessageListener)
+     .subscribe();
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="配置消费者"></a><a href="#配置消费者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置消费者</h3>
+<p>If you instantiate a <code>Consumer</code> object by specifying only a topic and subscription name as in the example above, the consumer uses the default configuration.</p>
+<p>When you create a consumer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
+<p>Name|Type |</p>
+<p><div style="width:300px">
+说明
+</div>
+| Default |---|---|---|--- <code>topicNames</code>| Set<String>| Topic name| Sets.newTreeSet() <code>topicsPattern</code>|Pattern| Topic pattern |None <code>subscriptionName</code>|String| Subscription name| None <code>subscriptionType</code>|SubscriptionType| Subscription type<br>
+Four subscription types are available:</p>
+<ul>
+<li>Exclusive</li>
+<li>Failover（灾备）</li>
+<li>Shared（共享）</li>
+<li>Key_Shared|SubscriptionType.Exclusive
+<code>receiverQueueSize</code> |int | Size of a consumer's receiver queue.</li>
+</ul>
+<p>For example, the number of messages accumulated by a consumer before an application calls <code>Receive</code>.</p>
+<p>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.| 1000 <code>acknowledgementsGroupTimeMicros</code>|long|Group a consumer acknowledgment for a specified time.</p>
+<p>By default, a consumer uses 100ms grouping time to send out acknowledgments to a broker.</p>
+<p>Setting a group time of 0 sends out acknowledgments immediately.</p>
+<p>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100) <code>negativeAckRedeliveryDelayMicros</code>|long|Delay to wait before redelivering messages that failed to be processed.</p>
+<p>When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1) <code>maxTotalReceiverQueueSizeAcrossPartitions</code>|int |The max total receiver queue size across partitions.</p>
+<p>This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.|50000 <code>consumerName</code>|String|Consumer name|null <code>ackTimeoutMillis</code>|long|Timeout of unacked messages|0 <code>tickDurationMillis</code>|long|Granularity of the ack-timeout redelivery.</p>
+<p>Using an higher <code>tickDurationMillis</code> reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000 <code>priorityLevel</code>|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode.</p>
+<p>The broker follows descending priorities. For example, 0=max-priority, 1, 2,...</p>
+<p>In shared subscription mode, the broker <strong>first dispatches messages to the max priority level consumers if they have permits</strong>. Otherwise, the broker considers next priority level consumers.</p>
+<p><strong>示例 1</strong>  <br>
+If a subscription has consumerA with <code>priorityLevel</code> 0 and consumerB with <code>priorityLevel</code> 1, then the broker <strong>only dispatches messages to consumerA until it runs out permits</strong> and then starts dispatching messages to consumerB.</p>
+<p><strong>示例 2</strong>  <br>
+Consumer Priority, Level, Permits<br>
+C1, 0, 2<br>
+C2, 0, 1<br>
+C3, 0, 1<br>
+C4, 1, 2<br>
+C5, 1, 1</p>
+<p>Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0 <code>cryptoFailureAction</code>|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.</p></li>
+</ul>
+<pre><code class="hljs">* **FAIL**: this is the default option to fail messages until crypto succeeds.
+* **DISCARD**:silently acknowledge and not deliver message to an application.
+* **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.
+  
+The decompression of message fails.   
+  
+If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
+  
+Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `properties`|SortedMap&lt;String, String&gt;|A name or value property of this consumer.  
+  
+`properties` is application defined metadata attached to a consumer.   
+  
+When getting a topic stats, associate this metadata with the consumer stats for easier identification.|new TreeMap&lt;&gt;() `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.  
+  
+A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
+  
+Only enabling `readCompacted` on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).   
+  
+Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false `subscriptionInitialPosition`|SubscriptionInitialPosition|Initial position at which to set cursor when subscribing to a topic at first time.|SubscriptionInitialPosition.Latest `patternAutoDiscoveryPeriod`|int|Topic auto discovery period when using a pattern for topic's consumer.  
+  
+The default and minimum value is 1 minute.|1 `regexSubscriptionMode`|RegexSubscriptionMode|When subscribing to a topic using a regular expression, you can pick a certain type of topics.  
+  
+
+
+* **PersistentOnly**: only subscribe to persistent topics.
+* **NonPersistentOnly**: only subscribe to non-persistent topics.
+* **AllTopics**: subscribe to both persistent and non-persistent topics.|RegexSubscriptionMode.PersistentOnly 
+`deadLetterPolicy`|DeadLetterPolicy|Dead letter policy for consumers.  
+  
+By default, some messages are probably redelivered many times, even to the extent that it never stops.  
+  
+By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.  
+  
+You can enable the dead letter mechanism by setting `deadLetterPolicy`.  
+  
+**示例**  
+  
+`client.newConsumer()&lt;br /&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())&lt;br /&gt;.subscribe();`  
+  
+Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.  
+  
+To set a custom dead letter topic name:  
+`client.newConsumer()&lt;br /&gt;.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)&lt;br /&gt;.deadLetterTopic(&quot;your-topic-name&quot;).build())&lt;br /&gt;.subscribe();`  
+  
+When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.  
+  
+**Note**: this is only for partitioned consumers.|true `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
+
+You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
+
+The following is an example.
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .ackTimeout(10, TimeUnit.SECONDS)
+        .subscriptionType(SubscriptionType.Exclusive)
+        .subscribe();
+```
+
+### 异步接收
+
+The `receive` method receives messages synchronously (the consumer process is blocked until a message is available). You can also use [async receive](/docs/zh-CN/next/concepts-messaging#receive-modes), which returns a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) object immediately once a new message is available.
+
+The following is an example.
+
+```java
+CompletableFuture&lt;Message&gt; asyncMessage = consumer.receiveAsync();
+```
+
+Async receive operations return a {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+
+### 批量接收
+
+Use `batchReceive` to receive multiple messages for each call.
+
+The following is an example.
+
+```java
+Messages messages = consumer.batchReceive();
+for (Object message : messages) {
+  // do something
+}
+consumer.acknowledge(messages)
+```
+
+&gt; 注意：
+&gt; 
+&gt; 批量接收策略限制消息的数量和字节大小。可以指定一个超时时长来等待获取到足够的消息。
+&gt; 
+&gt; 如果满足以下任一条件，则批量接收操作完成：足够数量的消息、消息字节数、等待超时。
+&gt; 
+&gt; ```java
+&gt; Consumer consumer = client.newConsumer()
+&gt;         .topic(&quot;my-topic&quot;)
+&gt;         .subscriptionName(&quot;my-subscription&quot;)
+&gt;         .batchReceivePolicy(BatchReceivePolicy.builder()
+&gt;              .maxNumMessages(100)
+&gt;              .maxNumBytes(1024 * 1024)
+&gt;              .timeout(200, TimeUnit.MILLISECONDS)
+&gt;              .build())
+&gt;         .subscribe();
+&gt; ```
+&gt; 
+&gt; 默认批量接收策略是：
+&gt; 
+&gt; ```java
+&gt; BatchReceivePolicy.builder()
+&gt;     .maxNumMessage(-1)
+&gt;     .maxNumBytes(10 * 1024 * 1024)
+&gt;     .timeout(100, TimeUnit.MILLISECONDS)
+&gt;     .build();
+&gt; ```
+
+### 多主题订阅
+
+消费者除了订阅单个Pulsar主题外，你还可以使用[多主题订阅](/docs/zh-CN/next/concepts-messaging#multi-topic-subscriptions)订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题`List` 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。
+
+The followings are some examples.
+
+```java
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClient;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
+
+ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
+        .subscriptionName(subscription);
+
+// Subscribe to all topics in a namespace
+Pattern allTopicsInNamespace = Pattern.compile(&quot;public/default/.*&quot;);
+Consumer allTopicsConsumer = consumerBuilder
+        .topicsPattern(allTopicsInNamespace)
+        .subscribe();
+
+// Subscribe to a subsets of topics in a namespace, based on regex
+Pattern someTopicsInNamespace = Pattern.compile(&quot;public/default/foo.*&quot;);
+Consumer allTopicsConsumer = consumerBuilder
+        .topicsPattern(someTopicsInNamespace)
+        .subscribe();
+```
+
+In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern. If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic name pattern, set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
+
+```java
+Pattern pattern = Pattern.compile(&quot;public/default/.*&quot;);
+pulsarClient.newConsumer()
+        .subscriptionName(&quot;my-sub&quot;)
+        .topicsPattern(pattern)
+        .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
+        .subscribe();
+```
+
+&gt; #### Note
+&gt; 
+&gt; 默认情况下，消费者的 `subscriptionTopicsMode` 是 `PersistentOnly`。 `subscriptionTopicsMode` 的可用选项为： `PersistentOnly`，`NonPersistentOnly`，以及 `AllTopics`。
+
+你还可以订阅明确的主题列表 (如果愿意, 可跨命名空间):
+
+```java
+List&lt;String&gt; topics = Arrays.asList(
+        &quot;topic-1&quot;,
+        &quot;topic-2&quot;,
+        &quot;topic-3&quot;
+);
+
+Consumer multiTopicConsumer = consumerBuilder
+        .topics(topics)
+        .subscribe();
+
+// Alternatively:
+Consumer multiTopicConsumer = consumerBuilder
+        .topic(
+            &quot;topic-1&quot;,
+            &quot;topic-2&quot;,
+            &quot;topic-3&quot;
+        )
+        .subscribe();
+```
+
+You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. The following is an example.
+
+```java
+Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default.*&quot;);
+consumerBuilder
+        .topics(topics)
+        .subscribeAsync()
+        .thenAccept(this::receiveMessageFromConsumer);
+
+private void receiveMessageFromConsumer(Object consumer) {
+    ((Consumer)consumer).receiveAsync().thenAccept(message -&gt; {
+                // Do something with the received message
+                receiveMessageFromConsumer(consumer);
+            });
+}
+```
+
+### 订阅模型
+
+Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
+
+A subscription is identical with the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
+
+Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.
+
+In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.
+
+```java
+Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
+        .topic(&quot;my-topic&quot;)
+        .enableBatching(false)
+        .create();
+// 3 messages with &quot;key-1&quot;, 3 messages with &quot;key-2&quot;, 2 messages with &quot;key-3&quot; and 2 messages with &quot;key-4&quot;
+producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-1&quot;).send();
+producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-2&quot;).send();
+producer.newMessage().key(&quot;key-1&quot;).value(&quot;message-1-3&quot;).send();
+producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-1&quot;).send();
+producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-2&quot;).send();
+producer.newMessage().key(&quot;key-2&quot;).value(&quot;message-2-3&quot;).send();
+producer.newMessage().key(&quot;key-3&quot;).value(&quot;message-3-1&quot;).send();
+producer.newMessage().key(&quot;key-3&quot;).value(&quot;message-3-2&quot;).send();
+producer.newMessage().key(&quot;key-4&quot;).value(&quot;message-4-1&quot;).send();
+producer.newMessage().key(&quot;key-4&quot;).value(&quot;message-4-2&quot;).send();
+```
+
+#### Exclusive
+
+Create a new consumer and subscribe with the `Exclusive` subscription mode.
+
+```java
+Consumer consumer = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Exclusive)
+        .subscribe()
+```
+
+Only the first consumer is allowed to the subscription, other consumers receive an error. The first consumer receives all 10 messages, and the consuming order is the same as the producing order.
+
+&gt; 注意：
+&gt; 
+&gt; If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error.
+
+#### Failover（灾备）
+
+Create new consumers and subscribe with the`Failover` subscription mode.
+
+```java
+Consumer consumer1 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Failover)
+        .subscribe()
+Consumer consumer2 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Failover)
+        .subscribe()
+//conumser1 is the active consumer, consumer2 is the standby consumer.
+//consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
+
+
+```
+
+Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer.
+
+If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
+
+    (&quot;key-1&quot;, &quot;message-1-1&quot;)
+    (&quot;key-1&quot;, &quot;message-1-2&quot;)
+    (&quot;key-1&quot;, &quot;message-1-3&quot;)
+    (&quot;key-2&quot;, &quot;message-2-1&quot;)
+    (&quot;key-2&quot;, &quot;message-2-2&quot;)
+    
+
+consumer2 will receive:
+
+    (&quot;key-2&quot;, &quot;message-2-3&quot;)
+    (&quot;key-3&quot;, &quot;message-3-1&quot;)
+    (&quot;key-3&quot;, &quot;message-3-2&quot;)
+    (&quot;key-4&quot;, &quot;message-4-1&quot;)
+    (&quot;key-4&quot;, &quot;message-4-2&quot;)
+    
+
+&gt; 注意：
+&gt; 
+&gt; If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers.
+
+#### Shared（共享）
+
+Create new consumers and subscribe with `Shared` subscription mode:
+
+```java
+Consumer consumer1 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Shared)
+        .subscribe()
+
+Consumer consumer2 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Shared)
+        .subscribe()
+//Both consumer1 and consumer 2 is active consumers.
+```
+
+In shared subscription mode, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
+
+If a broker dispatches only one message at a time, consumer1 receives the following information.
+
+    (&quot;key-1&quot;, &quot;message-1-1&quot;)
+    (&quot;key-1&quot;, &quot;message-1-3&quot;)
+    (&quot;key-2&quot;, &quot;message-2-2&quot;)
+    (&quot;key-3&quot;, &quot;message-3-1&quot;)
+    (&quot;key-4&quot;, &quot;message-4-1&quot;)
+    
+
+consumer2 receives the following information.
+
+    (&quot;key-1&quot;, &quot;message-1-2&quot;)
+    (&quot;key-2&quot;, &quot;message-2-1&quot;)
+    (&quot;key-2&quot;, &quot;message-2-3&quot;)
+    (&quot;key-3&quot;, &quot;message-3-2&quot;)
+    (&quot;key-4&quot;, &quot;message-4-2&quot;)
+    
+
+`Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
+
+#### Key_shared
+
+This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode.
+
+```java
+Consumer consumer1 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Key_Shared)
+        .subscribe()
+
+Consumer consumer2 = client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .subscriptionType(SubscriptionType.Key_Shared)
+        .subscribe()
+//Both consumer1 and consumer2 are active consumers.
+```
+
+Just like in the `Shared` subscription, all consumers in the `Key_Shared` subscription mode can attach to the same subscription. But the `Key_Shared` subscription mode is different from the `Shared` subscription. In the `Key_Shared` subscription mode, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
+
+consumer1 receives the following information.
+
+    (&quot;key-1&quot;, &quot;message-1-1&quot;)
+    (&quot;key-1&quot;, &quot;message-1-2&quot;)
+    (&quot;key-1&quot;, &quot;message-1-3&quot;)
+    (&quot;key-3&quot;, &quot;message-3-1&quot;)
+    (&quot;key-3&quot;, &quot;message-3-2&quot;)
+    
+
+consumer2 receives the following information.
+
+    (&quot;key-2&quot;, &quot;message-2-1&quot;)
+    (&quot;key-2&quot;, &quot;message-2-2&quot;)
+    (&quot;key-2&quot;, &quot;message-2-3&quot;)
+    (&quot;key-4&quot;, &quot;message-4-1&quot;)
+    (&quot;key-4&quot;, &quot;message-4-2&quot;)
+    
+
+If batching is enabled at the producer side, messages with different keys are added to a batch by default. The broker will dispatch the batch to the consumer, so the default batch mechanism may break the Key_Shared subscription guaranteed message distribution semantics. The producer needs to use the `KeyBasedBatcher`.
+
+```java
+Producer producer = client.newProducer()
+        .topic(&quot;my-topic&quot;)
+        .batcherBuilder(BatcherBuilder.KEY_BASED)
+        .create();
+```
+
+Or the producer can disable batching.
+
+```java
+Producer producer = client.newProducer()
+        .topic(&quot;my-topic&quot;)
+        .enableBatching(false)
+        .create();
+```
+
+&gt; 注意：
+&gt; 
+&gt; If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+
+## Reader
+
+With the [reader interface](/docs/zh-CN/next/concepts-clients#reader-interface), Pulsar clients can &quot;manually position&quot; themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
+
+The following is an example.
+
+```java
+byte[] msgIdBytes = // Some message ID byte array
+MessageId id = MessageId.fromByteArray(msgIdBytes);
+Reader reader = pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(id)
+        .create();
+
+while (true) {
+    Message message = reader.readNext();
+    // Process message
+}
+```
+
+In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader iterates over each message in the topic after the message is identified by `msgIdBytes` (how that value is obtained depends on the application).
+
+上面的示例代码展示了`Reader`对象指向特定的消息(ID)，但你也可以使用`MessageId.earliest`来指向topic上最早可用的消息，使用`MessageId.latest`指向最新的消息。
+
+### 配置读者
+
+When you create a reader, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
+
+| Name | Type|
+
+&lt;div style=&quot;width:300px&quot;&gt;
+  说明
+&lt;/div&gt;
+| Default |\---|\---|\---|\--- `topicName`|String|Topic name. |None `receiverQueueSize`|int|Size of a consumer's receiver queue.  
+  
+For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.  
+  
+A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000 `readerListener`|ReaderListener&lt;T&gt;|A listener that is called for message received.|None `readerName`|String|Reader name.|null `subscriptionName`|String| Subscription name|When there is a single topic, the default subscription name is `&quot;reader-&quot; + 10-digit UUID`.  
+When there are multiple topics, the default subscription name is `&quot;multiTopicsReader-&quot; + 10-digit UUID`. `subscriptionRolePrefix`|String|Prefix of subscription role. |null `cryptoKeyReader`|CryptoKeyReader|Interface that abstracts the access to a key store.|null `cryptoFailureAction`|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.  
+
+
+* **FAIL**: this is the default option to fail messages until crypto succeeds.
+* **DISCARD**: silently acknowledge and not deliver message to an application.
+* **CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.
+  
+The message decompression fails.   
+  
+If messages contain batch messages, a client is not be able to retrieve individual messages in batch.  
+  
+Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL&lt;/li&gt; `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full message backlog of a topic.  
+  
+A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.  
+  
+`readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (for example, failure or exclusive subscriptions).   
+  
+Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false `resetIncludeHead`|boolean|If set to true, the first message to be returned is the one specified by `messageId`.  
+  
+If set to false, the first message to be returned is the one next to the message specified by `messageId`.|false
+
+### Sticky key range reader
+
+In sticky key range reader, broker will only dispatch messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
+
+The following is an example to create a sticky key range reader.
+
+```java
+pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(MessageId.earliest)
+        .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
+        .create();
+```
+
+Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+
+## Schema
+
+In Pulsar, all message data consists of byte arrays &quot;under the hood.&quot; [Message schemas](/docs/zh-CN/next/schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
+
+```java
+Producer&lt;byte[]&gt; producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+上面的生产者相当于 `Producer&lt;byte[]&gt;` (实际上, 你应该 *总是* 显式指定类型)。 如果你想让产生者使用不同类型的数据，你需要指定一个**schema**来通知Pulsar 在[topic](/docs/zh-CN/next/reference-terminology#topic)上传输哪种类型的数据。
+
+### AvroBaseStructSchema example
+
+假设您有一个 `SensorReading` 类, 你想通过Pulsar主题进行传输:
+
+```java
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
+}
+```
+
+You could then create a `Producer&lt;SensorReading&gt;` (or `Consumer&lt;SensorReading&gt;`) like this:
+
+```java
+Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic(&quot;sensor-readings&quot;)
+        .create();
+```
+
+以下schema格式目前可用于 Java:
+
+* 无schema 或者字节数组schema(可以使用`Schema.BYTES`)：
+    
+    ```java
+    Producer&lt;byte[]&gt; bytesProducer = client.newProducer(Schema.BYTES)
+        .topic(&quot;some-raw-bytes-topic&quot;)
+        .create();
+    ```
+    
+    或者:
+    
+    ```java
+    Producer&lt;byte[]&gt; bytesProducer = client.newProducer()
+        .topic(&quot;some-raw-bytes-topic&quot;)
+        .create();
+    ```
+
+* `String` UTF-8 编码的字符串数据。可以使用 `Schema.STRING`：
+    
+    ```java
+    Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
+        .topic(&quot;some-string-topic&quot;)
+        .create();
+    ```
+
+* 使用 `Schema.JSON`为 POJO 创建 JSON 格式消息。例子如下所示。
+    
+    ```java
+    Producer&lt;MyPojo&gt; pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
+        .topic(&quot;some-pojo-topic&quot;)
+        .create();
+    ```
+
+* 使用 `Schema.PROTOBUF` 生成 Protobuf 格式。 下面的示例演示如何创建 Protobuf 格式并使用其来实例化新的生产者：
+    
+    ```java
+    Producer&lt;MyProtobuf&gt; protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
+        .topic(&quot;some-protobuf-topic&quot;)
+        .create();
+    ```
+
+* 使用 `Schema.AVRO` 定义 Avro 格式 。下面的代码片段演示了如何创建和使用 Avro 格式.
+    
+    ```java
+    Producer&lt;MyAvro&gt; avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
+        .topic(&quot;some-avro-topic&quot;)
+        .create();
+    ```
+
+### ProtobufNativeSchema example
+
+For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](/docs/zh-CN/next/schema-understand#complex-type).
+
+## 身份验证
+
+Pulsar currently supports three authentication schemes: [TLS](/docs/zh-CN/next/security-tls-authentication), [Athenz](/docs/zh-CN/next/security-athenz), and [Oauth2](/docs/zh-CN/next/security-oauth2). You can use the Pulsar Java client with all of them.
+
+### TLS 认证
+
+要使用[TLS](/docs/zh-CN/next/security-tls-authentication)，你需要使用`setUseTls`方法设置TLS为`true`，将您的Pulsar客户端指向TLS证书路径，并提供证书和密钥文件的路径。
+
+The following is an example.
+
+```java
+Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
+authParams.put(&quot;tlsCertFile&quot;, &quot;/path/to/client-cert.pem&quot;);
+authParams.put(&quot;tlsKeyFile&quot;, &quot;/path/to/client-key.pem&quot;);
+
+Authentication tlsAuth = AuthenticationFactory
+        .create(AuthenticationTls.class.getName(), authParams);
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(&quot;pulsar+ssl://my-broker.com:6651&quot;)
+        .enableTls(true)
+        .tlsTrustCertsFilePath(&quot;/path/to/cacert.pem&quot;)
+        .authentication(tlsAuth)
+        .build();
+```
+
+### Athenz
+
+要使用[Athenz](/docs/zh-CN/next/security-athenz)做为身份认证提供者，你需要[use TLS](#tls-authentication)并且在hash提供如下四个参数的值：
+
+* `tenantDomain`
+* `tenantService`
+* `providerDomain`
+* `privateKey`
+
+You can also set an optional `keyId`. The following is an example.
+
+```java
+Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
+authParams.put(&quot;tenantDomain&quot;, &quot;shopping&quot;); // Tenant domain name
+authParams.put(&quot;tenantService&quot;, &quot;some_app&quot;); // Tenant service name
+authParams.put(&quot;providerDomain&quot;, &quot;pulsar&quot;); // Provider domain name
+authParams.put(&quot;privateKey&quot;, &quot;file:///path/to/private.pem&quot;); // Tenant private key path
+authParams.put(&quot;keyId&quot;, &quot;v1&quot;); // Key id for the tenant private key (optional, default: &quot;0&quot;)
+
+Authentication athenzAuth = AuthenticationFactory
+        .create(AuthenticationAthenz.class.getName(), authParams);
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(&quot;pulsar+ssl://my-broker.com:6651&quot;)
+        .enableTls(true)
+        .tlsTrustCertsFilePath(&quot;/path/to/cacert.pem&quot;)
+        .authentication(athenzAuth)
+        .build();
+```
+
+&gt; #### 支持的格式：
+&gt; 
+&gt; `privateKey`参数支持如下三种格式： * `file:///path/to/file` * `file:/path/to/file` * `data:application/x-pem-file;base64,&lt;base64-encoded value&gt;`
+
+### Oauth2
+
+The following example shows how to use [Oauth2](/docs/zh-CN/next/security-oauth2) as an authentication provider for the Pulsar Java client.
+
+你可以在 Pulsar Java 客户端中使用工厂方法配置身份认证操作。
+
+```java
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl(&quot;pulsar://broker.example.com:6650/&quot;)
+    .authentication(
+        AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
+    .build();
+```
+
+此外，你也可以在 Pulsar 客户端中使用编码参数来配置身份认证。
+
+```java
+Authentication auth = AuthenticationFactory
+    .create(AuthenticationOAuth2.class.getName(), &quot;{&quot;type&quot;:&quot;client_credentials&quot;,&quot;privateKey&quot;:&quot;...&quot;,&quot;issuerUrl&quot;:&quot;...&quot;,&quot;audience&quot;:&quot;...&quot;}&quot;);
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl(&quot;pulsar://broker.example.com:6650/&quot;)
+    .authentication(auth)
+    .build();
+```</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#配置消息">配置消息</a></li></ul></li><li><a href="#消费者consumer">消费者（Consumer）</a><ul class="toc-headings"><li><a href="#配置消费者">配置消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
