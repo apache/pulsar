@@ -82,6 +82,19 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     @Override
     public CompletableFuture<Long> getNextCounterValue(String path) {
+        return store.exists(path)
+                .thenCompose(exists -> {
+                    if (exists) {
+                        // The base path already exists
+                        return incrementCounter(path);
+                    } else {
+                        return store.put(path, new byte[0], Optional.empty())
+                                .thenCompose(__ -> incrementCounter(path));
+                    }
+                });
+    }
+
+    private CompletableFuture<Long> incrementCounter(String path) {
         String counterBasePath = path + "/-";
         return store
                 .put(counterBasePath, new byte[0], Optional.of(-1L),
