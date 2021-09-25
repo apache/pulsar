@@ -31,7 +31,7 @@ import java.net.URL;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
-import java.nio.charset.StandardCharset;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 import static org.mockito.Mockito.mock;
@@ -67,7 +67,7 @@ public class TokenClientTest {
         when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharset.UTF_8)))).thenReturn(boundRequestBuilder);
+        when(boundRequestBuilder.setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharsets.UTF_8)))).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
         when(listenableFuture.get()).thenReturn(response);
@@ -103,7 +103,7 @@ public class TokenClientTest {
         when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
-        when(boundRequestBuilder.setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharset.UTF_8)))).thenReturn(boundRequestBuilder);
+        when(boundRequestBuilder.setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharsets.UTF_8)))).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
         when(listenableFuture.get()).thenReturn(response);

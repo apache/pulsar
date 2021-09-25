@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharset;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
@@ -112,7 +112,7 @@ public class TokenClient implements ClientCredentialsExchanger {
             Response res = httpClient.preparePost(tokenUrl.toString())
                     .setHeader("Accept", "application/json")
                     .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                    .setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharset.UTF_8)))
+                    .setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharsets.UTF_8)))
                     .setBody(body)
                     .execute()
                     .get();
