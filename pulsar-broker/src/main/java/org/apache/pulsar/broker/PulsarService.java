@@ -251,6 +251,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private TransactionBufferSnapshotService transactionBufferSnapshotService;
 
     private MetadataStore configurationMetadataStore;
+    private boolean shouldShutdownConfigurationMetadataStore;
+
     private PulsarResources pulsarResources;
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
@@ -481,7 +483,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (localMetadataStore != null) {
                 localMetadataStore.close();
             }
-            if (configurationMetadataStore != null) {
+            if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
                 configurationMetadataStore.close();
             }
 
@@ -604,7 +606,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
-            configurationMetadataStore = createConfigurationMetadataStore();
+            if (!StringUtils.equals(config.getConfigurationStoreServers(), config.getZookeeperServers())) {
+                configurationMetadataStore = createConfigurationMetadataStore();
+                shouldShutdownConfigurationMetadataStore = true;
+            } else {
+                configurationMetadataStore = localMetadataStore;
+                shouldShutdownConfigurationMetadataStore = false;
+            }
             pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
                     config.getZooKeeperOperationTimeoutSeconds());
 
