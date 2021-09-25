@@ -891,6 +891,7 @@ class SchemaTest(TestCase):
             na3 = Integer()
 
         class NestedObj4(Record):
+            _avro_namespace = 'xxx4'
             na4 = String()
             nb4 = Integer()
 
@@ -900,6 +901,7 @@ class SchemaTest(TestCase):
             blue = 3
 
         class ComplexRecord(Record):
+            _avro_namespace = 'xxx.xxx'
             a = Integer()
             b = Integer()
             color = Color
@@ -914,16 +916,17 @@ class SchemaTest(TestCase):
         print('complex schema: ', ComplexRecord.schema())
         self.assertEqual(ComplexRecord.schema(), {
             "name": "ComplexRecord",
+            "namespace": "xxx.xxx",
             "type": "record",
             "fields": [
                 {"name": "a", "type": ["null", "int"]},
                 {'name': 'arrayNested', 'type': ['null', {'type': 'array', 'items':
-                    {'name': 'NestedObj4', 'type': 'record', 'fields': [
+                    {'name': 'NestedObj4', 'namespace': 'xxx4', 'type': 'record', 'fields': [
                         {'name': 'na4', 'type': ['null', 'string']},
                         {'name': 'nb4', 'type': ['null', 'int']}
                     ]}}
                 ]},
-                {'name': 'arrayNested2', 'type': ['null', {'type': 'array', 'items': 'NestedObj4'}]},
+                {'name': 'arrayNested2', 'type': ['null', {'type': 'array', 'items': 'xxx4.NestedObj4'}]},
                 {"name": "b", "type": ["null", "int"]},
                 {'name': 'color', 'type': ['null', {'type': 'enum', 'name': 'Color', 'symbols': [
                     'red', 'green', 'blue']}]},
@@ -1103,6 +1106,13 @@ class SchemaTest(TestCase):
         produce_consume_test('json')
 
         client.close()
+
+    def test(self):
+        class NamespaceDemo(Record):
+            _namespace = 'xxx.xxx.xxx'
+            x = String()
+            y = Integer()
+        print('schema: ', NamespaceDemo.schema())
 
 if __name__ == '__main__':
     main()

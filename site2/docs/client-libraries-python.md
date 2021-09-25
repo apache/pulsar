@@ -307,6 +307,26 @@ class Example(Record):
     sub = MySubRecord()
 ```
 
+##### Set namespace for Avro schema
+
+Set the namespace for Avro Record schema using the special field `_avro_namespace`.
+```python
+class NamespaceDemo(Record):
+   _avro_namespace = 'xxx.xxx.xxx'
+   x = String()
+   y = Integer()
+```
+
+The schema definition is like this.
+```
+{
+  'name': 'NamespaceDemo', 'namespace': 'xxx.xxx.xxx', 'type': 'record', 'fields': [
+    {'name': 'x', 'type': ['null', 'string']}, 
+    {'name': 'y', 'type': ['null', 'int']}
+  ]
+}
+```
+
 ## End-to-end encryption
 
 [End-to-end encryption](https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav) allows applications to encrypt messages at producers and decrypt messages at consumers.
