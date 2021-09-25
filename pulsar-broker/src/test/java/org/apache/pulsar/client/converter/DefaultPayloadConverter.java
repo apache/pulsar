@@ -48,7 +48,6 @@ public class DefaultPayloadConverter implements PayloadConverter {
                 final boolean result = (index < numMessages);
                 if (!result) {
                     totalRefCnt += ((MessagePayloadImpl) payload).getByteBuf().refCnt();
-                    payload.recycle();
                 }
                 return result;
             }

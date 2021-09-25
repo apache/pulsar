@@ -24,11 +24,6 @@ package org.apache.pulsar.client.api;
 public interface MessagePayload {
 
     /**
-     * Recycle this object if it's allocated from a memory pool.
-     */
-    void recycle();
-
-    /**
      * Copy the bytes of the payload into the byte array.
      *
      * @return the byte array that is filled with the readable bytes of the payload, it should not be null

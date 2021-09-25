@@ -51,7 +51,6 @@ public class MessagePayloadImpl implements MessagePayload {
         this.recyclerHandle = handle;
     }
 
-    @Override
     public void recycle() {
         byteBuf = null;
         recyclerHandle.recycle(this);

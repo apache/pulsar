@@ -67,8 +67,12 @@ public class CustomBatchConverter implements PayloadConverter {
                 final String value = stringIterator.next();
                 final ByteBuf valueBuf = Unpooled.wrappedBuffer(Schema.STRING.encode(value));
                 bufList.add(valueBuf);
-                return context.newSingleMessage(
-                        index++, numMessages, MessagePayloadImpl.create(valueBuf), false, schema);
+                final MessagePayloadImpl singlePayload = MessagePayloadImpl.create(valueBuf);
+                try {
+                    return context.newSingleMessage(index++, numMessages, singlePayload, false, schema);
+                } finally {
+                    singlePayload.recycle();
+                }
             }
         };
     }

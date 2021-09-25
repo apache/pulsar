@@ -1095,7 +1095,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                               final List<Long> ackSet) {
         final EntryContextImpl entryContext = EntryContextImpl.get(
                 brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet);
-        final MessagePayload payload = MessagePayloadImpl.create(byteBuf);
+        final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf);
         int skippedMessages = 0;
         try {
             for (Message<T> message : conf.getPayloadConverter().convert(entryContext, payload, schema)) {
@@ -1111,6 +1111,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } finally {
             byteBuf.release();
             entryContext.recycle();
+            payload.recycle();
         }
 
         if (skippedMessages > 0) {

@@ -80,11 +80,6 @@ public class MessagePayloadTest {
         }
 
         @Override
-        public void recycle() {
-            // No ops
-        }
-
-        @Override
         public byte[] copiedBuffer() {
             final byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
