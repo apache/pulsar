@@ -1112,6 +1112,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             byteBuf.release();
             entryContext.recycle();
             payload.recycle();
+            conf.getPayloadConverter().cleanup();
         }
 
         if (skippedMessages > 0) {

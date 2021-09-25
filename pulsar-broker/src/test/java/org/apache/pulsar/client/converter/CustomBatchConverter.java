@@ -35,6 +35,7 @@ import org.apache.pulsar.client.impl.MessagePayloadUtils;
 public class CustomBatchConverter implements PayloadConverter {
 
     private static final PayloadConverter DEFAULT = new DefaultPayloadConverter();
+    private final List<ByteBuf> bufList = new ArrayList<>();
 
     @Override
     public <T> Iterable<Message<T>> convert(EntryContext context, MessagePayload payload, Schema<T> schema) {
@@ -44,22 +45,17 @@ public class CustomBatchConverter implements PayloadConverter {
         }
 
         final ByteBuf buf = MessagePayloadUtils.convertToByteBuf(payload);
+        bufList.add(buf);
         final CustomBatchFormat.StringIterable strings = CustomBatchFormat.deserialize(buf);
         final Iterator<String> stringIterator = strings.iterator();
         final int numMessages = context.getNumMessages();
-        final List<ByteBuf> bufList = new ArrayList<>();
 
         return () -> new Iterator<Message<T>>() {
             int index = 0;
 
             @Override
             public boolean hasNext() {
-                final boolean result = stringIterator.hasNext();
-                if (!result) {
-                    bufList.forEach(ReferenceCounted::release);
-                    buf.release();
-                }
-                return result;
+                return stringIterator.hasNext();
             }
 
             @Override
@@ -75,5 +71,11 @@ public class CustomBatchConverter implements PayloadConverter {
                 }
             }
         };
+    }
+
+    @Override
+    public void cleanup() {
+        bufList.forEach(ReferenceCounted::release);
+        bufList.clear();
     }
 }

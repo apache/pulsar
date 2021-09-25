@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.converter;
 
+import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 import java.util.Iterator;
 import org.apache.pulsar.client.api.EntryContext;
@@ -34,22 +35,20 @@ public class DefaultPayloadConverter implements PayloadConverter {
 
     @Getter
     private int totalRefCnt = 0;
+    private ByteBuf payloadBuffer;
 
     @Override
     public <T> Iterable<Message<T>> convert(EntryContext context, MessagePayload payload, Schema<T> schema) {
         final int numMessages = context.getNumMessages();
         final boolean isBatch = context.isBatch();
+        this.payloadBuffer = ((MessagePayloadImpl) payload).getByteBuf();
 
         return () -> new Iterator<Message<T>>() {
             int index = 0;
 
             @Override
             public boolean hasNext() {
-                final boolean result = (index < numMessages);
-                if (!result) {
-                    totalRefCnt += ((MessagePayloadImpl) payload).getByteBuf().refCnt();
-                }
-                return result;
+                return index < numMessages;
             }
 
             @Override
@@ -60,5 +59,10 @@ public class DefaultPayloadConverter implements PayloadConverter {
                         : context.newMessage(payload, schema);
             }
         };
+    }
+
+    @Override
+    public void cleanup() {
+        totalRefCnt += payloadBuffer.refCnt();
     }
 }

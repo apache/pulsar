@@ -140,15 +140,14 @@ public class PayloadConverterTest extends ProducerConsumerBase {
             Assert.assertEquals(values.get(i), messagePrefix + i);
         }
 
-        // Each buffer's refCnt is 2 when the iteration is stopped, because it will be released in finally blocks of
-        // 1. ConsumerImpl#consumeMessagesFromConverter
-        // 2. PulsarDecoder#channelRead
+        // Each buffer's refCnt is 1 when the iteration is stopped, because it will be released in
+        // PulsarDecoder#channelRead() finally.
         if (enableBatching) {
             int numBatches = numMessages / batchingMaxMessages;
             numBatches += (numMessages % batchingMaxMessages == 0) ? 0 : 1;
-            Assert.assertEquals(converter.getTotalRefCnt(), 2 * numBatches);
+            Assert.assertEquals(converter.getTotalRefCnt(), numBatches);
         } else {
-            Assert.assertEquals(converter.getTotalRefCnt(), 2 * numMessages);
+            Assert.assertEquals(converter.getTotalRefCnt(), numMessages);
         }
     }
 

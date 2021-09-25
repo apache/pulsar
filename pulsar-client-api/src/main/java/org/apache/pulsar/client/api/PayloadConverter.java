@@ -32,4 +32,12 @@ public interface PayloadConverter {
      *   The iteration could also be interrupted by CorruptedMessageException.
      */
     <T> Iterable<Message<T>> convert(EntryContext context, MessagePayload payload, Schema<T> schema);
+
+    /**
+     * Do some cleanup work, like deallocating the resources.
+     *
+     * The returned value of {@link PayloadConverter#convert} will be iterated in the internal implementation, after
+     * the iteration is stopped, this method will be called.
+     */
+    default void cleanup() {}
 }
