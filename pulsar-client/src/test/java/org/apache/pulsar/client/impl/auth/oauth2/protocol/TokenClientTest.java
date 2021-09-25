@@ -31,6 +31,8 @@ import java.net.URL;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
+import java.nio.charset.StandardCharset;
+import java.util.Base64;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -54,9 +56,8 @@ public class TokenClientTest {
                 .clientSecret("test-client-secret")
                 .scope("test-scope")
                 .build();
+        String credPayload = request.getClientId() + ":" + request.getClientSecret();
         bodyMap.put("grant_type", "client_credentials");
-        bodyMap.put("client_id", request.getClientId());
-        bodyMap.put("client_secret", request.getClientSecret());
         bodyMap.put("audience", request.getAudience());
         bodyMap.put("scope", request.getScope());
         String body = tokenClient.buildClientCredentialsBody(bodyMap);
@@ -66,6 +67,7 @@ public class TokenClientTest {
         when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
+        when(boundRequestBuilder.setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharset.UTF_8)))).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
         when(listenableFuture.get()).thenReturn(response);
@@ -91,9 +93,8 @@ public class TokenClientTest {
                 .clientId("test-client-id")
                 .clientSecret("test-client-secret")
                 .build();
+        String credPayload = request.getClientId() + ":" + request.getClientSecret();
         bodyMap.put("grant_type", "client_credentials");
-        bodyMap.put("client_id", request.getClientId());
-        bodyMap.put("client_secret", request.getClientSecret());
         bodyMap.put("audience", request.getAudience());
         String body = tokenClient.buildClientCredentialsBody(bodyMap);
         BoundRequestBuilder boundRequestBuilder = mock(BoundRequestBuilder.class);
@@ -102,6 +103,7 @@ public class TokenClientTest {
         when(defaultAsyncHttpClient.preparePost(url.toString())).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Accept", "application/json")).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setHeader("Content-Type", "application/x-www-form-urlencoded")).thenReturn(boundRequestBuilder);
+        when(boundRequestBuilder.setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharset.UTF_8)))).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.setBody(body)).thenReturn(boundRequestBuilder);
         when(boundRequestBuilder.execute()).thenReturn(listenableFuture);
         when(listenableFuture.get()).thenReturn(response);

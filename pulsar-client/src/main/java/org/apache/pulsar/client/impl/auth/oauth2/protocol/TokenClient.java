@@ -22,10 +22,12 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharset;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.Base64;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
@@ -96,10 +98,9 @@ public class TokenClient implements ClientCredentialsExchanger {
      */
     public TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException {
+        String credPayload = req.getClientId() + ":" + req.getClientSecret();
         Map<String, String> bodyMap = new TreeMap<>();
         bodyMap.put("grant_type", "client_credentials");
-        bodyMap.put("client_id", req.getClientId());
-        bodyMap.put("client_secret", req.getClientSecret());
         bodyMap.put("audience", req.getAudience());
         if (!StringUtils.isBlank(req.getScope())) {
             bodyMap.put("scope", req.getScope());
@@ -111,6 +112,7 @@ public class TokenClient implements ClientCredentialsExchanger {
             Response res = httpClient.preparePost(tokenUrl.toString())
                     .setHeader("Accept", "application/json")
                     .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                    .setHeader("Authorization", "Basic " + Base64.getEncoder().encodeToString(credPayload.getBytes(StandardCharset.UTF_8)))
                     .setBody(body)
                     .execute()
                     .get();
