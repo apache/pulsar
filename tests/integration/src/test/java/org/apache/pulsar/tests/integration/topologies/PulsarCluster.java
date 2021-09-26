@@ -647,4 +647,23 @@ public class PulsarCluster {
             enabled ? "--enable" : "--disable");
     }
 
+<<<<<<< HEAD
+=======
+    public void dumpFunctionLogs(String name) {
+        for (WorkerContainer container : getAlWorkers()) {
+            log.info("Trying to get function {} logs from container {}", name, container.getContainerName());
+            try {
+                String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+                String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                    return IOUtils.toString(inputStream, "utf-8");
+                });
+                log.info("Function {} logs {}", name, logs);
+            } catch (com.github.dockerjava.api.exception.NotFoundException notFound) {
+                log.info("Cannot download {} logs from {} not found exception {}", name, container.getContainerName(), notFound.toString());
+            } catch (Throwable err) {
+                log.info("Cannot download {} logs from {}", name, container.getContainerName(), err);
+            }
+        }
+    }
+>>>>>>> a69611c287d (fix logger number not correct in tests (#12168))
 }
