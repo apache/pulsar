@@ -843,6 +843,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> closeAsync() {
+        try {
+            flush();
+        } catch (PulsarClientException e) {
+            FutureUtil.failedFuture(e);
+        }
+
         final State currentState = getAndUpdateState(state -> {
             if (state == State.Closed) {
                 return state;
