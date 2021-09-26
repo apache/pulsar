@@ -112,7 +112,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName(testSub + "pre")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        CountDownLatch countDownLatch = new CountDownLatch(500);
+        CountDownLatch countDownLatch = new CountDownLatch(50);
         for (int i = 0; i < 50
                 ; i++) {
             produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(() -> {
@@ -183,11 +183,11 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatchIndexAcknowledgment(false)
                 .subscribe();
         for (int i = 0; i < totalMessage; i++) {
-           Message message = consumer.receive();
+           Message message = consumer.receive(2, TimeUnit.SECONDS);
            Assert.assertNotNull(message);
            consumer.acknowledge(message);
         }
-        Message message = consumer.receive();
+        Message message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);
     }
 

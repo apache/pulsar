@@ -501,7 +501,7 @@ public class PerformanceProducer {
                         totalTxnOpSuccess, totalTxnOpFail, totalFormat.format(rateOpenTxn));
             }
             log.info(
-                    "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s  "
+                    "Throughput produced: {} msg --- {} msg/s --- {} Mbit/s  --- failure {} msg/s "
                             + "--- Latency: mean: "
                             + "{} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     intFormat.format(total),
