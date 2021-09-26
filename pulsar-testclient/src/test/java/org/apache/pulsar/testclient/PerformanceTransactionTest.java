@@ -86,14 +86,13 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTxnPerf() throws Exception {
-        String argString = "--topics-c %s --topics-p %s -threads 5 -ntxn 500 -u %s -ss %s -np 1 -au %s";
+        String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -np 1 -au %s";
         String testConsumeTopic = testTopic + UUID.randomUUID().toString();
         String testProduceTopic = testTopic + UUID.randomUUID().toString();
         String testSub = "testSub";
         admin.topics().createPartitionedTopic(testConsumeTopic, 1);
         String args = String.format(argString, testConsumeTopic, testProduceTopic,
                 pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()));
-
 
         PulsarClient pulsarClient = PulsarClient.builder()
                 .enableTransaction(true)
@@ -106,9 +105,15 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(testConsumeTopic)
                 .create();
-
+        pulsarClient.newConsumer(Schema.BYTES)
+                .consumerName("perf-transaction-consumeVerify")
+                .topic(testConsumeTopic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(testSub + "pre")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         CountDownLatch countDownLatch = new CountDownLatch(500);
-        for (int i = 0; i < 510
+        for (int i = 0; i < 50
                 ; i++) {
             produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(() -> {
                 countDownLatch.countDown();
@@ -139,18 +144,15 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName(testSub)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 50; i++) {
             Message message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
+            consumeFromProduceTopic.acknowledge(message);
         }
-        boolean noMessage = false;
-        for (int i = 0; i < 10; i++) {
-           Message message = consumeFromConsumeTopic.receive(2, TimeUnit.SECONDS);
-           if(message == null){
-               noMessage = true;
-           }
-        }
-        Assert.assertTrue(noMessage);
+        Message message = consumeFromConsumeTopic.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+        message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
     }
 
 
@@ -158,9 +160,13 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     public void testProduceTxnMessage() throws InterruptedException, PulsarClientException {
         String argString = "%s -r 10 -u %s -m %d -txn";
         String topic = testTopic + UUID.randomUUID();
-        int totalMessage = 500;
+        int totalMessage = 100;
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), totalMessage);
-
+        pulsarClient.newConsumer().subscriptionName("subName" + "pre").topic(topic)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableBatchIndexAcknowledgment(false)
+                .subscribe();
         Thread thread = new Thread(() -> {
             try {
                 log.info("");
@@ -179,9 +185,10 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < totalMessage; i++) {
            Message message = consumer.receive();
            Assert.assertNotNull(message);
+           consumer.acknowledge(message);
         }
-
-
+        Message message = consumer.receive();
+        Assert.assertNull(message);
     }
 
     @Test
@@ -193,7 +200,13 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 SubscriptionType.Exclusive, SubscriptionInitialPosition.Earliest, 10);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).sendTimeout(0, TimeUnit.SECONDS)
                 .create();
-
+        pulsarClient.newConsumer(Schema.BYTES)
+                .consumerName("perf-transaction-consumeVerify")
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName + "pre")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         for (int i = 0; i < 505; i++) {
             producer.newMessage().send();
         }
@@ -212,14 +225,12 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .enableBatchIndexAcknowledgment(false)
                .subscribe();
-        boolean noMessageAgain = false;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 5; i++) {
             Message message = consumer.receive(2, TimeUnit.SECONDS);
-            if(message == null){
-                noMessageAgain =true;
-            }
+            Assert.assertNotNull(message);
         }
-        Assert.assertTrue(noMessageAgain);
+        Message message = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
     }
 
 }

@@ -669,13 +669,6 @@ public class PerformanceProducer {
                         }
                     }
                     rateLimiter.acquire();
-                    if(arguments.isEnableTransaction && arguments.numMessagesPerTransaction > 0){
-                        try{
-                        numMsgPerTxnLimit.acquire();
-                        }catch (InterruptedException exception){
-                            log.error("Get exception: ", exception);
-                        }
-                    }
                     //if transaction is disable, transaction will be null.
                     Transaction transaction = transactionAtomicReference.get();
                     final long sendTime = System.nanoTime();
@@ -694,6 +687,13 @@ public class PerformanceProducer {
                     }
                     TypedMessageBuilder<byte[]> messageBuilder;
                     if (arguments.isEnableTransaction) {
+                        if(arguments.numMessagesPerTransaction> 0){
+                            try{
+                                numMsgPerTxnLimit.acquire();
+                            }catch (InterruptedException exception){
+                                log.error("Get exception: ", exception);
+                            }
+                        }
                         messageBuilder = producer.newMessage(transaction)
                                 .value(payloadData);
                     } else {
@@ -805,15 +805,13 @@ public class PerformanceProducer {
         double rateOpenTxn = 0;
         long numTransactionOpenFailed = 0;
         long numTransactionOpenSuccess = 0;
-        if (arguments.isEnableTransaction) {
+
+        if(arguments.isEnableTransaction){
             totalTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = elapsed / (totalTxnFail + totalTxnSuccess);
             numTransactionOpenFailed = totalNumTxnOpenTxnFail.sum();
             numTransactionOpenSuccess = totalNumTxnOpenTxnSuccess.sum();
-        }
-
-        if(arguments.isEnableTransaction){
             log.info("--- Transaction : {} transaction end successfully --- {} transaction end failed "
                             + "--- {} transaction open successfully --- {} transaction open failed "
                             + "--- {} Txn/s",

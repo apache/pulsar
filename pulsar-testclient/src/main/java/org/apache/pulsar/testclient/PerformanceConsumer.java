@@ -218,8 +218,6 @@ public class PerformanceConsumer {
         @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
                 + "true can it take effect)")
         public boolean isCommitTransaction = true;
-
-
     }
 
     public static void main(String[] args) throws Exception {
@@ -353,13 +351,6 @@ public class PerformanceConsumer {
         Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
         Thread thread = Thread.currentThread();
         MessageListener<ByteBuffer> listener = (consumer, msg) -> {
-                if(arguments.isEnableTransaction){
-                    try {
-                        messageReceiveLimiter.acquire();
-                    }catch (InterruptedException e){
-                        log.error("Got error: ", e);
-                    }
-                    }
                 if (arguments.testTime > 0) {
                     if (System.nanoTime() > testEndTime) {
                         log.info("------------------- DONE -----------------------");
@@ -392,6 +383,11 @@ public class PerformanceConsumer {
                     cumulativeRecorder.recordValue(latencyMillis);
                 }
                 if (arguments.isEnableTransaction) {
+                    try {
+                        messageReceiveLimiter.acquire();
+                    }catch (InterruptedException e){
+                        log.error("Got error: ", e);
+                    }
                     consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
                         totalMessageAck.increment();
                         messageAck.increment();
