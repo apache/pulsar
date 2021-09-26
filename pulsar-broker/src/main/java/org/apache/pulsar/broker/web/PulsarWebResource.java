@@ -924,7 +924,7 @@ public abstract class PulsarWebResource {
                 throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
             }
         } catch (Exception e) {
-            log.warn("Unable to fetch read-only policy config {}", e);
+            log.warn("Unable to fetch read-only policy config ", e);
             throw new RestException(e);
         }
     }
