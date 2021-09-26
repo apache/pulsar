@@ -235,7 +235,7 @@ public class PerformanceClient {
             }
         } else {
             for (int i = 0; i < payloadBytes.length; ++i) {
-                payloadBytes[i] = (byte) (random.nextInt(26) + 65);
+                payloadBytes[i] = (byte) (random.nextInt(26) + 65); // The value of the payloadBytes is from A to Z and the ASCII of A-Z is 65-90, so it needs to add 65
             }
         }
 
