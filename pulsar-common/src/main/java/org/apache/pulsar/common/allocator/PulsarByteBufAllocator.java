@@ -27,6 +27,7 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.ByteBufAllocatorBuilder;
 import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
+import org.apache.bookkeeper.common.allocator.OutOfMemoryPolicy;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 
 /**
@@ -39,6 +40,7 @@ public class PulsarByteBufAllocator {
     public static final String PULSAR_ALLOCATOR_POOLED = "pulsar.allocator.pooled";
     public static final String PULSAR_ALLOCATOR_EXIT_ON_OOM = "pulsar.allocator.exit_on_oom";
     public static final String PULSAR_ALLOCATOR_LEAK_DETECTION = "pulsar.allocator.leak_detection";
+    public static final String PULSAR_ALLOCATOR_FALL_BACK_TO_HEAP = "pulsar.allocator.fall_back_to_heap";
 
     public static final ByteBufAllocator DEFAULT;
 
@@ -53,6 +55,7 @@ public class PulsarByteBufAllocator {
     static {
         boolean isPooled = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_POOLED, "true"));
         EXIT_ON_OOM = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_EXIT_ON_OOM, "false"));
+        boolean fallBackToHeap = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_FALL_BACK_TO_HEAP, "true"));
 
         LeakDetectionPolicy leakDetectionPolicy = LeakDetectionPolicy
                 .valueOf(System.getProperty(PULSAR_ALLOCATOR_LEAK_DETECTION, "Disabled"));
@@ -84,6 +87,11 @@ public class PulsarByteBufAllocator {
             builder.poolingPolicy(PoolingPolicy.PooledDirect);
         } else {
             builder.poolingPolicy(PoolingPolicy.UnpooledHeap);
+        }
+        if (fallBackToHeap) {
+            builder.outOfMemoryPolicy(OutOfMemoryPolicy.FallbackToHeap);
+        } else {
+            builder.outOfMemoryPolicy(OutOfMemoryPolicy.ThrowException);
         }
 
         DEFAULT = builder.build();
