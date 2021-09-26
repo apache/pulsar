@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
@@ -48,6 +49,7 @@ import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
@@ -404,7 +406,9 @@ public abstract class AbstractTopic implements Topic {
                 .thenCompose(__ ->
                         incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
                 .thenCompose(producerEpoch -> {
-                    lock.writeLock().lock();
+                    Lock producerLock = producer.getAccessMode() == ProducerAccessMode.Shared
+                            ? lock.readLock() : lock.writeLock();
+                    producerLock.lock();
                     try {
                         checkTopicFenced();
                         if (isTerminated()) {
@@ -423,26 +427,27 @@ public abstract class AbstractTopic implements Topic {
                     } catch (BrokerServiceException e) {
                         return FutureUtil.failedFuture(e);
                     } finally {
-                        lock.writeLock().unlock();
+                        producerLock.unlock();
                     }
                 });
     }
 
     protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,
             CompletableFuture<Void> producerQueuedFuture) {
+        if (producer.getAccessMode() == ProducerAccessMode.Shared) {
+            if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
+                return FutureUtil.failedFuture(
+                        new ProducerBusyException(
+                                "Topic has an existing exclusive producer: " + exclusiveProducerName));
+            } else {
+                // Normal producer getting added, we don't need a new epoch
+                return CompletableFuture.completedFuture(topicEpoch);
+            }
+        }
+
         lock.writeLock().lock();
         try {
             switch (producer.getAccessMode()) {
-            case Shared:
-                if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
-                    return FutureUtil.failedFuture(
-                            new ProducerBusyException(
-                                    "Topic has an existing exclusive producer: " + exclusiveProducerName));
-                } else {
-                    // Normal producer getting added, we don't need a new epoch
-                    return CompletableFuture.completedFuture(topicEpoch);
-                }
-
             case Exclusive:
                 if (hasExclusiveProducer || !waitingExclusiveProducers.isEmpty()) {
                     return FutureUtil.failedFuture(
