@@ -35,7 +35,6 @@ Commands:
 * `bookie`
 * `broker`
 * `compact-topic`
-* `discovery`
 * `configuration-store`
 * `initialize-cluster-metadata`
 * `proxy`
@@ -58,7 +57,6 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_BOOKKEEPER_CONF`|description: Configuration file for bookie|`conf/bookkeeper.conf`|
 |`PULSAR_ZK_CONF`|Configuration file for zookeeper|`conf/zookeeper.conf`|
 |`PULSAR_CONFIGURATION_STORE_CONF`|Configuration file for the configuration store|`conf/global_zookeeper.conf`|
-|`PULSAR_DISCOVERY_CONF`|Configuration file for discovery service|`conf/discovery.conf`|
 |`PULSAR_WEBSOCKET_CONF`|Configuration file for websocket proxy|`conf/websocket.conf`|
 |`PULSAR_STANDALONE_CONF`|Configuration file for standalone|`conf/standalone.conf`|
 |`PULSAR_EXTRA_OPTS`|Extra options to be passed to the jvm||
@@ -129,20 +127,6 @@ Options
 Example
 ```bash
 $ pulsar compact-topic --topic topic-to-compact
-```
-
-### `discovery`
-
-Run a discovery server
-
-Usage
-```bash
-$ pulsar discovery
-```
-
-Example
-```bash
-$ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
 ```
 
 ### `configuration-store`

@@ -970,11 +970,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean disableBrokerInterceptors = true;
 
     @FieldContext(
-        doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
-        + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
-        + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
+        doc = "There are two policies to apply when broker metadata session expires: session expired happens, \"shutdown\" or \"reconnect\". \n\n"
+        + " With \"shutdown\", the broker will be restarted.\n\n"
+        + " With \"reconnect\", the broker will keep serving the topics, while attempting to recreate a new session."
     )
-    private String zookeeperSessionExpiredPolicy = "shutdown";
+    private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.shutdown;
 
     @FieldContext(
         category = CATEGORY_SERVER,

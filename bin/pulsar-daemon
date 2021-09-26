@@ -26,7 +26,6 @@ where command is one of:
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
     configuration-store Run a configuration-store server
-    discovery           Run a discovery server
     websocket           Run a websocket proxy server
     functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
@@ -89,9 +88,6 @@ case $command in
         echo "doing $startStop $command ..."
         ;;
     (configuration-store)
-        echo "doing $startStop $command ..."
-        ;;
-    (discovery)
         echo "doing $startStop $command ..."
         ;;
     (websocket)

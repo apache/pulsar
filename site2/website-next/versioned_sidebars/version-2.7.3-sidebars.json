@@ -250,6 +250,38 @@
     },
     {
       "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/helm-tools"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
       "label": "Deployment",
       "items": [
         {
@@ -280,9 +312,7 @@
           "type": "doc",
           "id": "version-2.7.3/deploy-monitoring"
         }
-      ],
-      "collapsible": true,
-      "collapsed": true
+      ]
     }
   ]
 }

@@ -23,6 +23,7 @@ import java.io.IOException;
 import lombok.experimental.UtilityClass;
 
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
@@ -41,11 +42,8 @@ public class MetadataStoreFactory {
      * @throws IOException
      *             if the metadata store initialization fails
      */
-    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
-        if (metadataURL.startsWith("memory://")) {
-            return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
-        } else {
-            return new ZKMetadataStore(metadataURL, metadataStoreConfig);
-        }
+    public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig)
+            throws MetadataStoreException {
+        return MetadataStoreFactoryImpl.create(metadataURL, metadataStoreConfig);
     }
 }
