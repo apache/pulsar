@@ -910,7 +910,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                 return null;
             });
-
         }).exceptionally(exception -> {
             flushAndCloseFuture.completeExceptionally(exception);
             return null;
