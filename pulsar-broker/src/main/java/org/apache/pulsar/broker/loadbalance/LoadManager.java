@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * LoadManager runs though set of load reports collected from different brokers and generates a recommendation of
+ * LoadManager runs through set of load reports collected from different brokers and generates a recommendation of
  * namespace/ServiceUnit placement on machines/ResourceUnit. Each Concrete Load Manager will use different algorithms to
  * generate this mapping.
  *

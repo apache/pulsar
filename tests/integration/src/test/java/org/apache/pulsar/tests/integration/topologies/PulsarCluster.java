@@ -662,7 +662,7 @@ public class PulsarCluster {
                 });
                 log.info("Function {} logs {}", name, logs);
             } catch (com.github.dockerjava.api.exception.NotFoundException notFound) {
-                log.info("Cannot download {} logs from {}", name, container.getContainerName(), notFound.toString());
+                log.info("Cannot download {} logs from {} not found exception {}", name, container.getContainerName(), notFound.toString());
             } catch (Throwable err) {
                 log.info("Cannot download {} logs from {}", name, container.getContainerName(), err);
             }

@@ -96,6 +96,18 @@
         "txn-use",
         "txn-monitor"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        "helm-overview",
+        "helm-prepare",
+        "helm-install",
+        "helm-deploy",
+        "helm-upgrade",
+        "helm-tools"
+      ]
     }
   ]
 }
