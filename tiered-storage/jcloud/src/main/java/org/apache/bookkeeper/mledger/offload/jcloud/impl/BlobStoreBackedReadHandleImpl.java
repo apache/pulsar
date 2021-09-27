@@ -146,11 +146,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         entriesToRead--;
                         nextExpectedId++;
                     } else if (entryId > nextExpectedId && entryId < lastEntry) {
+                        log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
+                            + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
                         inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                         continue;
                     } else if (entryId < nextExpectedId
-                        && !index.getIndexEntryForEntry(nextExpectedId).equals(
-                        index.getIndexEntryForEntry(entryId))) {
+                        && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
+                        log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
+                        + ", seeking to the right position", entries, nextExpectedId);
                         inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                         continue;
                     } else if (entryId > lastEntry) {
@@ -158,7 +161,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             nextExpectedId, entryId, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     } else {
-                        long ignored = inputStream.skip(length);
+                        inputStream.skip(length);
                     }
                 }
 
@@ -229,5 +232,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 readBufferSize);
 
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
+    }
+
+    // for testing
+    State getState() {
+        return this.state;
     }
 }
