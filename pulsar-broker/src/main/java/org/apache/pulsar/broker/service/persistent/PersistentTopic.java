@@ -72,7 +72,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1335,29 +1334,7 @@ public class PersistentTopic extends AbstractTopic
             log.debug("[{}] Checking replication status", name);
         }
 
-        CompletableFuture<List<String>> replicationClustersFuture = brokerService.pulsar()
-                .getTopicPoliciesService()
-                .getTopicPoliciesAsyncWithRetry(name, null, brokerService.pulsar().getExecutor())
-                .thenCompose(topicPolicies -> {
-                    if (!topicPolicies.isPresent()
-                            || CollectionUtils.isEmpty(topicPolicies.get().getReplicationClusters())) {
-                        return brokerService.pulsar().getPulsarResources()
-                                .getNamespaceResources()
-                                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                                .thenCompose(optPolicies -> {
-                                    if (!optPolicies.isPresent()) {
-                                        return FutureUtil.failedFuture(
-                                                new ServerMetadataException(
-                                                        new MetadataStoreException.NotFoundException()));
-                                    }
-
-                                    return CompletableFuture.completedFuture(
-                                            Lists.newArrayList(optPolicies.get().replication_clusters));
-                                });
-                    } else {
-                        return CompletableFuture.completedFuture(topicPolicies.get().getReplicationClusters());
-                    }
-                });
+        CompletableFuture<List<String>> replicationClustersFuture = getReplicationClusters(name);
 
         CompletableFuture<Integer> ttlFuture = getMessageTTL();
 
@@ -1403,6 +1380,32 @@ public class PersistentTopic extends AbstractTopic
                     });
 
                     return FutureUtil.waitForAll(futures);
+                });
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<List<String>> getReplicationClusters(TopicName topicName) {
+        return brokerService.pulsar()
+                .getTopicPoliciesService()
+                .getTopicPoliciesAsyncWithRetry(topicName, null, brokerService.pulsar().getExecutor())
+                .thenCompose(topicPolicies -> {
+                    if (!topicPolicies.isPresent() || topicPolicies.get().getReplicationClusters() == null) {
+                        return brokerService.pulsar().getPulsarResources()
+                                .getNamespaceResources()
+                                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                                .thenCompose(optPolicies -> {
+                                    if (!optPolicies.isPresent()) {
+                                        return FutureUtil.failedFuture(
+                                                new ServerMetadataException(
+                                                        new MetadataStoreException.NotFoundException()));
+                                    }
+
+                                    return CompletableFuture.completedFuture(
+                                            Lists.newArrayList(optPolicies.get().replication_clusters));
+                                });
+                    } else {
+                        return CompletableFuture.completedFuture(topicPolicies.get().getReplicationClusters());
+                    }
                 });
     }
 

@@ -46,8 +46,7 @@ public class TopicPolicies {
     private Map<String, BacklogQuotaImpl> backLogQuotaMap = Maps.newHashMap();
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
-    @Builder.Default
-    private List<String> replicationClusters = new ArrayList<>();
+    private List<String> replicationClusters;
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;
     private Boolean deduplicationEnabled;
@@ -164,6 +163,6 @@ public class TopicPolicies {
     }
 
     public Set<String> getReplicationClustersSet() {
-        return Sets.newTreeSet(this.replicationClusters);
+        return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
 }

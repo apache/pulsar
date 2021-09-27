@@ -28,7 +28,6 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -2749,7 +2748,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.setReplicationClusters(Collections.emptyList());
+                    topicPolicies.setReplicationClusters(null);
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                             .thenRun(() -> {
                                 log.info("[{}] Successfully set replication clusters for namespace={}, "
