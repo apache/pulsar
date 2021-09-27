@@ -9,7 +9,7 @@ Below is a list configurations for the Presto Pulsar connector and instruction o
 
 ## Presto Pulsar Connector Configurations
 There are several configurations for the Presto Pulsar Connector.  The properties file that contain these configurations can be found at ```${project.root}/conf/presto/catalog/pulsar.properties```.
-The configurations for the connector and its default values are discribed below.
+The configurations for the connector and its default values are described below.
 
 ```properties
 # name of the connector to be displayed in the catalog
@@ -38,7 +38,7 @@ $ wget pulsar:binary_release_url
 
 ## Deploying a new cluster
 
-Please note that the [Getting Started](sql-getting-started.md) guide shows you how to easily setup a standalone single node enviroment to experiment with.
+Please note that the [Getting Started](sql-getting-started.md) guide shows you how to easily setup a standalone single node environment to experiment with.
 
 Pulsar SQL is powered by [Presto](https://prestosql.io) thus many of the configurations for deployment is the same for the Pulsar SQL worker.
 
@@ -93,7 +93,7 @@ For example, if I wanted to deploy a Pulsar SQL/Presto cluster on 3 nodes, you c
 
 First, copy the Pulsar binary distribution to all three nodes.
 
-The first node, will run the Presto coordinator.  The mininal configuration in ```${project.root}/conf/presto/config.properties``` can be the following
+The first node, will run the Presto coordinator.  The minimal configuration in ```${project.root}/conf/presto/config.properties``` can be the following
 
 ```properties
 coordinator=true

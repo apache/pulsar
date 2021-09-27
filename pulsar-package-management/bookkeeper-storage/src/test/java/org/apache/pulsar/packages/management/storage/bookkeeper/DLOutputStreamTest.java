@@ -97,6 +97,19 @@ public class DLOutputStreamTest {
     }
 
     @Test
+    public void writeLongBytesArrayData() throws ExecutionException, InterruptedException {
+        byte[] data = new byte[8192 * 3 + 4096];
+        DLOutputStream.openWriterAsync(dlm)
+                .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data))
+                        .thenCompose(DLOutputStream::closeAsync)).get();
+
+        verify(writer, times(1)).writeBulk(any(List.class));
+        verify(writer, times(1)).markEndOfStream();
+        verify(writer, times(1)).asyncClose();
+        verify(dlm, times(1)).asyncClose();
+    }
+
+    @Test
     public void openAsyncLogWriterFailed() {
         when(dlm.openAsyncLogWriter()).thenReturn(failedFuture(new Exception("Open writer was failed")));
 

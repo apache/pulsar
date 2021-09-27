@@ -115,7 +115,9 @@ window.addEventListener('load', function () {
         '<ul id="cli-dropdown-items">' +
         '<li><a href="/pulsar-admin-cli?version=' + version + '">Pulsar Admin</a></li>' +
         '<li><a href="/pulsar-client-cli?version=' + version + '">Pulsar Client</a></li>' +
-        '</ul>' +
+        '<li><a href="/pulsar-perf-cli?version=' + version + '">Pulsar Perf</a></li>' +
+        '<li><a href="/pulsar-cli?version=' + version + '">Pulsar</a></li>' +
+      '</ul>' +
         '</div>' +
         '</li>';
 

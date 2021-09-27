@@ -903,6 +903,46 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testCustomPartitionedProducer() throws Exception {
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        TopicName topicName = null;
+        Producer<byte[]> producer = null;
+        try {
+            log.info("-- Starting {} test --", methodName);
+
+            int numPartitions = 4;
+            topicName = TopicName
+                    .get("persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis());
+
+            admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
+
+            RouterWithTopicName router = new RouterWithTopicName();
+            producer = pulsarClient.newProducer().topic(topicName.toString())
+                    .messageRouter(router)
+                    .create();
+            for (int i = 0; i < 1; i++) {
+                String message = "my-message-" + i;
+                producer.newMessage().key(String.valueOf(i)).value(message.getBytes()).send();
+            }
+            assertEquals(router.topicName, topicName.toString());
+        } finally {
+            producer.close();
+            pulsarClient.close();
+            admin.topics().deletePartitionedTopic(topicName.toString());
+            log.info("-- Exiting {} test --", methodName);
+        }
+    }
+
+    private static class RouterWithTopicName implements MessageRouter {
+        static String topicName = null;
+
+        @Override
+        public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+            topicName = msg.getTopicName();
+            return 2;
+        }
+    }
 
     private static class AlwaysTwoMessageRouter implements MessageRouter {
         @Override

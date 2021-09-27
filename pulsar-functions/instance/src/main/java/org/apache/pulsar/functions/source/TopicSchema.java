@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -74,7 +75,7 @@ public class TopicSchema {
     public Schema<?> getSchema(String topic, Class<?> clazz, Optional<SchemaType> schemaType) {
         return cachedSchemas.computeIfAbsent(topic, key -> {
             // If schema type was not provided, try to get it from schema registry, or fallback to default types
-            SchemaType type = schemaType.orElse(getSchemaTypeOrDefault(topic, clazz));
+            SchemaType type = schemaType.orElseGet(() -> getSchemaTypeOrDefault(topic, clazz));
             return newSchemaInstance(clazz, type);
         });
     }
@@ -145,7 +146,11 @@ public class TopicSchema {
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, ConsumerConfig conf) {
         switch (type) {
         case NONE:
-            return (Schema<T>) Schema.BYTES;
+            if (ByteBuffer.class.isAssignableFrom(clazz)) {
+                return (Schema<T>) Schema.BYTEBUFFER;
+            } else {
+                return (Schema<T>) Schema.BYTES;
+            }
 
         case AUTO_CONSUME:
         case AUTO:
@@ -167,6 +172,9 @@ public class TopicSchema {
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
+
+        case PROTOBUF_NATIVE:
+            return ProtobufNativeSchema.ofGenericClass(clazz, new HashMap<>());
 
         case AUTO_PUBLISH:
             return (Schema<T>) Schema.AUTO_PRODUCE_BYTES();

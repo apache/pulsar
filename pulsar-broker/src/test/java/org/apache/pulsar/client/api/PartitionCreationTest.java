@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -122,10 +121,10 @@ public class PartitionCreationTest extends ProducerConsumerBase {
     public void testCreateMissedPartitions(boolean useRestApi) throws PulsarAdminException, PulsarClientException, MetadataStoreException {
         conf.setAllowAutoTopicCreation(false);
         final String topic = "testCreateMissedPartitions-useRestApi-" + useRestApi;
-        String path = ZkAdminPaths.partitionedTopicPath(TopicName.get(topic));
         int numPartitions = 3;
         // simulate partitioned topic without partitions
-        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources().create(path,
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .createPartitionedTopicAsync(TopicName.get(topic),
                 new PartitionedTopicMetadata(numPartitions));
         Consumer<byte[]> consumer = null;
         try {

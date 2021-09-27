@@ -6566,131 +6566,6 @@
         }
       }
     },
-    "/non-persistent/{tenant}/{namespace}/{topic}/terminate" : {
-      "post" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Terminate a topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
-        "description" : "",
-        "operationId" : "terminate",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "200" : {
-            "description" : "successful operation",
-            "schema" : {
-              "$ref" : "#/definitions/MessageId"
-            }
-          },
-          "307" : {
-            "description" : "Current broker doesn't serve the namespace of this topic"
-          },
-          "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Termination of a partitioned topic is not allowed"
-          },
-          "412" : {
-            "description" : "Topic name is not valid"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
-          }
-        }
-      }
-    },
-    "/non-persistent/{tenant}/{namespace}/{topic}/terminate/partitions" : {
-      "post" : {
-        "tags" : [ "non-persistent topic" ],
-        "summary" : "Terminate all partitioned topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
-        "description" : "",
-        "operationId" : "terminatePartitionedTopic",
-        "produces" : [ "application/json" ],
-        "parameters" : [ {
-          "name" : "tenant",
-          "in" : "path",
-          "description" : "Specify the tenant",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "namespace",
-          "in" : "path",
-          "description" : "Specify the namespace",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "topic",
-          "in" : "path",
-          "description" : "Specify topic name",
-          "required" : true,
-          "type" : "string"
-        }, {
-          "name" : "authoritative",
-          "in" : "query",
-          "description" : "Is authentication required to perform this operation",
-          "required" : false,
-          "type" : "boolean",
-          "default" : false
-        } ],
-        "responses" : {
-          "401" : {
-            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
-          },
-          "403" : {
-            "description" : "Don't have admin permission"
-          },
-          "404" : {
-            "description" : "Topic does not exist"
-          },
-          "405" : {
-            "description" : "Termination of a partitioned topic is not allowed"
-          },
-          "412" : {
-            "description" : "Topic name is not valid"
-          },
-          "500" : {
-            "description" : "Internal server error"
-          },
-          "503" : {
-            "description" : "Failed to validate global cluster configuration"
-          }
-        }
-      }
-    },
     "/non-persistent/{tenant}/{namespace}/{topic}/unload" : {
       "put" : {
         "tags" : [ "non-persistent topic" ],
@@ -8885,7 +8760,7 @@
     "/persistent/{tenant}/{namespace}/{topic}/terminate" : {
       "post" : {
         "tags" : [ "persistent topic" ],
-        "summary" : "Terminate a topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
+        "summary" : "Terminate a persistent topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
         "description" : "",
         "operationId" : "terminate",
         "produces" : [ "application/json" ],

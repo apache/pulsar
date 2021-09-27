@@ -23,12 +23,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@EqualsAndHashCode
+@ToString
 public class OwnedBundle {
     private static final Logger LOG = LoggerFactory.getLogger(OwnedBundle.class);
 
@@ -38,6 +42,8 @@ public class OwnedBundle {
      * {@link #nsLock} is used to protect read/write access to {@link #active} flag and the corresponding code section
      * based on {@link #active} flag.
      */
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private final ReentrantReadWriteLock nsLock = new ReentrantReadWriteLock();
     private static final int FALSE = 0;
     private static final int TRUE = 1;

@@ -39,13 +39,13 @@ public interface ManagedCursorMXBean {
     String getLedgerName();
 
     /**
-     * persist cursor by ledger
+     * persist cursor by ledger.
      * @param success
      */
     void persistToLedger(boolean success);
 
     /**
-     * persist cursor by zookeeper
+     * persist cursor by zookeeper.
      * @param success
      */
     void persistToZookeeper(boolean success);
@@ -69,5 +69,35 @@ public interface ManagedCursorMXBean {
      * @return the number of persist cursor by zookeeper that failed
      */
     long getPersistZookeeperErrors();
+
+    /**
+     * Add write data to a ledger of a cursor (in bytes).
+     * This will update writeCursorLedgerLogicalSize and writeCursorLedgerSize.
+     *
+     * @param size Size of data written to cursor (in bytes)
+     */
+    void addWriteCursorLedgerSize(long size);
+
+    /**
+     * Add read data from a ledger of a cursor (in bytes).
+     *
+     * @param size Size of data read from cursor (in bytes)
+     */
+    void addReadCursorLedgerSize(long size);
+
+    /**
+     * @return the size of data written to cursor (in bytes)
+     */
+    long getWriteCursorLedgerSize();
+
+    /**
+     * @return the size of data written to cursor without replicas (in bytes)
+     */
+    long getWriteCursorLedgerLogicalSize();
+
+    /**
+     * @return the size of data read from cursor (in bytes)
+     */
+    long getReadCursorLedgerSize();
 
 }

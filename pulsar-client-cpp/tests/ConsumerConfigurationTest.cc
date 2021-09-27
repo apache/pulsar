@@ -28,11 +28,19 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
+class DummyEventListener : public ConsumerEventListener {
+   public:
+    virtual void becameActive(Consumer consumer, int partitionId) override {}
+
+    virtual void becameInactive(Consumer consumer, int partitionId) override {}
+};
+
 TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ConsumerConfiguration conf;
     ASSERT_EQ(conf.getSchema().getSchemaType(), SchemaType::BYTES);
     ASSERT_EQ(conf.getConsumerType(), ConsumerExclusive);
     ASSERT_EQ(conf.hasMessageListener(), false);
+    ASSERT_EQ(conf.hasConsumerEventListener(), false);
     ASSERT_EQ(conf.getReceiverQueueSize(), 1000);
     ASSERT_EQ(conf.getMaxTotalReceiverQueueSizeAcrossPartitions(), 50000);
     ASSERT_EQ(conf.getConsumerName(), "");
@@ -50,6 +58,7 @@ TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.isEncryptionEnabled(), false);
     ASSERT_EQ(conf.isReplicateSubscriptionStateEnabled(), false);
     ASSERT_EQ(conf.getProperties().empty(), true);
+    ASSERT_EQ(conf.getPriorityLevel(), 0);
 }
 
 TEST(ConsumerConfigurationTest, testCustomConfig) {
@@ -71,6 +80,9 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
 
     conf.setMessageListener([](Consumer consumer, const Message& msg) {});
     ASSERT_EQ(conf.hasMessageListener(), true);
+
+    conf.setConsumerEventListener(std::make_shared<DummyEventListener>());
+    ASSERT_EQ(conf.hasConsumerEventListener(), true);
 
     conf.setReceiverQueueSize(2000);
     ASSERT_EQ(conf.getReceiverQueueSize(), 2000);
@@ -124,6 +136,9 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
     conf.setProperty("k1", "v1");
     ASSERT_EQ(conf.getProperties()["k1"], "v1");
     ASSERT_EQ(conf.hasProperty("k1"), true);
+
+    conf.setPriorityLevel(1);
+    ASSERT_EQ(conf.getPriorityLevel(), 1);
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {
@@ -272,9 +287,7 @@ TEST(ConsumerConfigurationTest, testSubscriptionInitialPosition) {
 }
 
 TEST(ConsumerConfigurationTest, testResetAckTimeOut) {
-    Result result;
-
-    uint64_t milliSeconds = 50000;
+    const uint64_t milliSeconds = 50000;
     ConsumerConfiguration config;
     config.setUnAckedMessagesTimeoutMs(milliSeconds);
     ASSERT_EQ(milliSeconds, config.getUnAckedMessagesTimeoutMs());

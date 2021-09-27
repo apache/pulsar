@@ -41,6 +41,221 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 
+class ConsumerStateEventListener : public ConsumerEventListener {
+   public:
+    ConsumerStateEventListener(std::string name) { name_ = name; }
+
+    void becameActive(Consumer consumer, int partitionId) override {
+        LOG_INFO("Received consumer active event, partitionId:" << partitionId << ", name: " << name_);
+        activeQueue_.push(partitionId);
+    }
+
+    void becameInactive(Consumer consumer, int partitionId) override {
+        LOG_INFO("Received consumer inactive event, partitionId:" << partitionId << ", name: " << name_);
+        inActiveQueue_.push(partitionId);
+    }
+
+    std::queue<int> activeQueue_;
+    std::queue<int> inActiveQueue_;
+    std::string name_;
+};
+
+typedef std::shared_ptr<ConsumerStateEventListener> ConsumerStateEventListenerPtr;
+
+void verifyConsumerNotReceiveAnyStateChanges(ConsumerStateEventListenerPtr listener) {
+    ASSERT_EQ(0, listener->activeQueue_.size());
+    ASSERT_EQ(0, listener->inActiveQueue_.size());
+}
+
+void verifyConsumerActive(ConsumerStateEventListenerPtr listener, int partitionId) {
+    ASSERT_NE(0, listener->activeQueue_.size());
+    int pid = listener->activeQueue_.front();
+    listener->activeQueue_.pop();
+    ASSERT_EQ(partitionId, pid);
+    ASSERT_EQ(0, listener->inActiveQueue_.size());
+}
+
+void verifyConsumerInactive(ConsumerStateEventListenerPtr listener, int partitionId) {
+    ASSERT_NE(0, listener->inActiveQueue_.size());
+    int pid = listener->inActiveQueue_.front();
+    listener->inActiveQueue_.pop();
+    ASSERT_EQ(partitionId, pid);
+    ASSERT_EQ(0, listener->activeQueue_.size());
+}
+
+class ActiveInactiveListenerEvent : public ConsumerEventListener {
+   public:
+    void becameActive(Consumer consumer, int partitionId) override {
+        Lock lock(mutex_);
+        activePartitonIds_.emplace(partitionId);
+        inactivePartitionIds_.erase(partitionId);
+    }
+
+    void becameInactive(Consumer consumer, int partitionId) override {
+        Lock lock(mutex_);
+        activePartitonIds_.erase(partitionId);
+        inactivePartitionIds_.emplace(partitionId);
+    }
+
+    typedef std::unique_lock<std::mutex> Lock;
+    std::set<int> activePartitonIds_;
+    std::set<int> inactivePartitionIds_;
+    std::mutex mutex_;
+};
+
+typedef std::shared_ptr<ActiveInactiveListenerEvent> ActiveInactiveListenerEventPtr;
+
+TEST(ConsumerTest, testConsumerEventWithoutPartition) {
+    Client client(lookupUrl);
+
+    const std::string topicName = "testConsumerEventWithoutPartition-topic-" + std::to_string(time(nullptr));
+    const std::string subName = "sub";
+    const int waitTimeInMs = 1000;
+    // constexpr int unAckedMessagesTimeoutMs = 10000;
+    // constexpr int tickDurationInMs = 1000;
+
+    // 1. two consumers on the same subscription
+    Consumer consumer1;
+    ConsumerConfiguration config1;
+    ConsumerStateEventListenerPtr listener1 = std::make_shared<ConsumerStateEventListener>("listener-1");
+    config1.setConsumerEventListener(listener1);
+    config1.setConsumerName("consumer-1");
+    config1.setConsumerType(ConsumerType::ConsumerFailover);
+
+    ASSERT_EQ(pulsar::ResultOk, client.subscribe(topicName, subName, config1, consumer1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(waitTimeInMs * 2));
+
+    Consumer consumer2;
+    ConsumerConfiguration config2;
+    ConsumerStateEventListenerPtr listener2 = std::make_shared<ConsumerStateEventListener>("listener-2");
+    config2.setConsumerEventListener(listener2);
+    config2.setConsumerName("consumer-2");
+    config2.setConsumerType(ConsumerType::ConsumerFailover);
+
+    ASSERT_EQ(pulsar::ResultOk, client.subscribe(topicName, subName, config2, consumer2));
+    std::this_thread::sleep_for(std::chrono::milliseconds(waitTimeInMs * 2));
+
+    verifyConsumerActive(listener1, -1);
+    verifyConsumerInactive(listener2, -1);
+
+    // clear inActiveQueue_
+    std::queue<int>().swap(listener2->inActiveQueue_);
+
+    consumer1.close();
+    std::this_thread::sleep_for(std::chrono::milliseconds(waitTimeInMs * 2));
+    verifyConsumerActive(listener2, -1);
+    verifyConsumerNotReceiveAnyStateChanges(listener1);
+}
+
+TEST(ConsumerTest, testConsumerEventWithPartition) {
+    Client client(lookupUrl);
+
+    const int numPartitions = 4;
+    const std::string partitionedTopic =
+        "testConsumerEventWithPartition-topic-" + std::to_string(time(nullptr));
+    const std::string subName = "sub";
+    const int numOfMessages = 100;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
+
+    int res =
+        makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions",
+                       std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    // two consumers on the same subscription
+    Consumer consumer1;
+    ConsumerConfiguration config1;
+    ActiveInactiveListenerEventPtr listener1 = std::make_shared<ActiveInactiveListenerEvent>();
+    config1.setConsumerEventListener(listener1);
+    config1.setConsumerName("consumer-1");
+    config1.setConsumerType(ConsumerType::ConsumerFailover);
+    config1.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    config1.setTickDurationInMs(tickDurationInMs);
+    client.subscribe(partitionedTopic, subName, config1, consumer1);
+
+    Consumer consumer2;
+    ConsumerConfiguration config2;
+    ActiveInactiveListenerEventPtr listener2 = std::make_shared<ActiveInactiveListenerEvent>();
+    config2.setConsumerEventListener(listener2);
+    config2.setConsumerName("consumer-2");
+    config2.setConsumerType(ConsumerType::ConsumerFailover);
+    config1.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    config1.setTickDurationInMs(tickDurationInMs);
+    client.subscribe(partitionedTopic, subName, config2, consumer2);
+
+    // send messages
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(false);
+    producerConfig.setBlockIfQueueFull(true);
+    producerConfig.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfig, producer));
+    std::string prefix = "message-";
+    for (int i = 0; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg = MessageBuilder().setContent(messageContent).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+    producer.flush();
+    producer.close();
+
+    // receive message and check partitionIds on consumer1
+    std::set<int> receivedPartitionIds;
+    while (true) {
+        Message msg;
+        Result rc = consumer1.receive(msg, 1000);
+        if (pulsar::ResultOk != rc) {
+            break;
+        }
+
+        MessageId msgId = msg.getMessageId();
+        int32_t partitionIndex = msgId.partition();
+        ASSERT_TRUE(partitionIndex < numPartitions);
+        consumer1.acknowledge(msgId);
+        receivedPartitionIds.insert(partitionIndex);
+    }
+
+    std::set<int> result;
+    std::set_difference(listener1->activePartitonIds_.begin(), listener1->activePartitonIds_.end(),
+                        receivedPartitionIds.begin(), receivedPartitionIds.end(),
+                        std::inserter(result, result.end()));
+    ASSERT_EQ(0, result.size());
+
+    std::set<int>().swap(result);
+    std::set_difference(listener2->inactivePartitionIds_.begin(), listener2->inactivePartitionIds_.end(),
+                        receivedPartitionIds.begin(), receivedPartitionIds.end(),
+                        std::inserter(result, result.end()));
+    ASSERT_EQ(0, result.size());
+
+    // receive message and check partitionIds on consumer2
+    std::set<int>().swap(receivedPartitionIds);
+    while (true) {
+        Message msg;
+        Result rc = consumer2.receive(msg, 1000);
+        if (pulsar::ResultOk != rc) {
+            break;
+        }
+        MessageId msgId = msg.getMessageId();
+        int32_t partitionIndex = msgId.partition();
+        ASSERT_TRUE(partitionIndex < numPartitions);
+        consumer2.acknowledge(msgId);
+        receivedPartitionIds.insert(partitionIndex);
+    }
+
+    std::set<int>().swap(result);
+    std::set_difference(listener2->activePartitonIds_.begin(), listener2->activePartitonIds_.end(),
+                        receivedPartitionIds.begin(), receivedPartitionIds.end(),
+                        std::inserter(result, result.end()));
+    ASSERT_EQ(0, result.size());
+
+    std::set<int>().swap(result);
+    std::set_difference(listener1->inactivePartitionIds_.begin(), listener1->inactivePartitionIds_.end(),
+                        receivedPartitionIds.begin(), receivedPartitionIds.end(),
+                        std::inserter(result, result.end()));
+    ASSERT_EQ(0, result.size());
+}
+
 TEST(ConsumerTest, consumerNotInitialized) {
     Consumer consumer;
 

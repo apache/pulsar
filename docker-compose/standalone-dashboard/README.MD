@@ -20,25 +20,21 @@
 -->
 # Docker Compose
 
-In this folder path run the following command to start the cluster
+To start the cluster, run the following command in the current folder: 
 
 ```
 docker-compose up
 ```
 
-## Urls
+## Available endpoints
 
-Assuming localhost the the following endpoint will be available
+The following endpoints are available (assuming Docker Compose exposes ports on `localhost`):
 
+* [web-dashboard](http://localhost:80) - Pulsar dashboard, shows various metrics and metadata information about the cluster
+* `http://localhost:8080` - broker HTTP REST API URL, for both administrative tasks and for topic lookup by producers and consumers
+* `pulsar://locahost:6650` - broker binary protocol URL, for all data transferred by producers and consumers
 
-[web-dashboard](http://localhost:80) pulsar admin dashboard, shows various metrics and metatdata information about the cluster
-
-[broker-admin](http://localhost:8080) access broker rest interface
-
-[broker-service-url](pulsar://locahost:6650)  broker service url for use with producers and consumers
-
-
-You can shut it down with the following command in folder path
+To shut down the cluster, run the following command in the current folder:
 
 ```
 docker-compose down

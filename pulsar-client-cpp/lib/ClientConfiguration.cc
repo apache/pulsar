@@ -87,7 +87,9 @@ ClientConfiguration& ClientConfiguration::setTlsTrustCertsFilePath(const std::st
     return *this;
 }
 
-std::string ClientConfiguration::getTlsTrustCertsFilePath() const { return impl_->tlsTrustCertsFilePath; }
+const std::string& ClientConfiguration::getTlsTrustCertsFilePath() const {
+    return impl_->tlsTrustCertsFilePath;
+}
 
 ClientConfiguration& ClientConfiguration::setTlsAllowInsecureConnection(bool allowInsecure) {
     impl_->tlsAllowInsecureConnection = allowInsecure;

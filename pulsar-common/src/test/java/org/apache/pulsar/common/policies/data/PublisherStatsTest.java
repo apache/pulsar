@@ -20,14 +20,35 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
+import java.util.Iterator;
+import java.util.Set;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class PublisherStatsTest {
 
     @Test
-    public void testPublisherStats() {
+    public void testPublisherStats() throws Exception {
+        Set<String> allowedFields = Sets.newHashSet(
+            "accessMode",
+            "msgRateIn",
+            "msgThroughputIn",
+            "averageMsgSize",
+            "chunkedMessageRate",
+            "producerId",
+            "metadata",
+            "address",
+            "connectedSince",
+            "clientVersion",
+            "producerName"
+        );
+
         PublisherStatsImpl stats = new PublisherStatsImpl();
         assertNull(stats.getAddress());
         assertNull(stats.getClientVersion());
@@ -53,6 +74,15 @@ public class PublisherStatsTest {
         assertEquals(stats.getConnectedSince(), "connected");
         assertEquals(stats.getAddress(), "address1");
         assertEquals(stats.getClientVersion(), "version");
+
+        // Check if private fields are included in json
+        ObjectMapper mapper = ObjectMapperFactory.create();
+        JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(stats));
+        Iterator<String> itr = node.fieldNames();
+        while (itr.hasNext()) {
+            String field = itr.next();
+            assertTrue(allowedFields.contains(field), field + " should not be exposed");
+        }
         
         stats.setAddress(null);
         assertNull(stats.getAddress());

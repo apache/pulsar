@@ -21,18 +21,26 @@ FROM ubuntu:16.04
 
 # prepare the directory for pulsar related files
 RUN mkdir /pulsar
-ADD protobuf.patch /pulsar
 
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
     add-apt-repository ppa:openjdk-r/ppa && \
     apt-get update && \
     apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
-                liblog4cxx-dev libprotobuf-dev google-mock libgtest-dev \
+                liblog4cxx-dev google-mock libgtest-dev \
                 libboost-dev libboost-program-options-dev libboost-system-dev libboost-python-dev \
                 libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless openjdk-11-jdk-headless clang-format-5.0 \
                 gnupg2 golang-1.13-go zip unzip libzstd-dev libsnappy-dev python3-pip libpython-dev
+
+# Build protobuf 3.x.y from source since the default protobuf from Ubuntu's apt source is 2.x.y
+RUN curl -O -L https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz && \
+    tar xvfz protobuf-cpp-3.17.3.tar.gz && \
+    cd protobuf-3.17.3/ && \
+    CXXFLAGS=-fPIC ./configure && \
+    make -j8 && make install && \
+    cd .. && rm -rf protobuf-3.17.3/ protobuf-cpp-3.17.3.tar.gz
+ENV LD_LIBRARY_PATH /usr/local/lib
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
@@ -49,8 +57,8 @@ ENV JAVA_HOME_11=/usr/lib/jvm/java-1.11.0-openjdk-amd64
 ## Website build dependencies
 
 # Install Ruby-2.4.1
-RUN apt-get install -y
-RUN gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB && \
+RUN (curl -sSL https://rvm.io/mpapis.asc | gpg --import -) && \
+    (curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -) && \
     (curl -sSL https://get.rvm.io | bash -s stable)
 ENV PATH "$PATH:/usr/local/rvm/bin"
 RUN rvm install 2.4.1
@@ -69,20 +77,6 @@ RUN dpkg -i crowdin.deb
 # Install PIP and PDoc
 RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && python get-pip.py && rm get-pip.py
 RUN pip3 install pdoc
-
-# Install Protobuf doc generator (requires Go)
-ENV GOPATH "$HOME/go"
-ENV PATH "/usr/lib/go-1.13/bin:$GOPATH/bin:$PATH"
-RUN go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
-
-# Build the patched protoc
-RUN git clone https://github.com/google/protobuf.git /pulsar/protobuf && \
-    cd /pulsar/protobuf && \
-    git checkout v2.4.1 && \
-    patch -p1 < /pulsar/protobuf.patch && \
-    autoreconf --install && \
-    ./configure && \
-    make
 
 # Installation
 ARG MAVEN_VERSION=3.6.3

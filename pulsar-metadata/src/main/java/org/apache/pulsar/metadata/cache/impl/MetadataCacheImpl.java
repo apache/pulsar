@@ -25,10 +25,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -36,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -49,7 +45,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
 @Slf4j
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
@@ -83,9 +79,17 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     }
 
                     @Override
-                    public CompletableFuture<Optional<CacheGetResult<T>>> asyncReload(String key,
-                            Optional<CacheGetResult<T>> oldValue, Executor executor) {
-                        return readValueFromStore(key);
+                    public CompletableFuture<Optional<CacheGetResult<T>>> asyncReload(
+                            String key,
+                            Optional<CacheGetResult<T>> oldValue,
+                            Executor executor) {
+                        if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
+                            return readValueFromStore(key);
+                        } else {
+                            // Do not try to refresh the cache item if we know that we're not connected to the
+                            // metadata store
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
     }
@@ -102,7 +106,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils
                                 .value(Optional.of(new CacheGetResult<>(obj, optRes.get().getStat())));
                     } catch (Throwable t) {
-                        return FutureUtils.exception(new ContentDeserializationException(t));
+                        return FutureUtils.exception(new ContentDeserializationException(
+                                "Failed to deserialize payload for key '" + path + "'", t));
                     }
                 });
     }
@@ -159,10 +164,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
-                        // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
+                        objCache.synchronous().invalidate(path);
+                        objCache.synchronous().refresh(path);
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
@@ -190,10 +194,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(stat -> {
-                        // Make sure we have the value cached before the operation is completed
-                        objCache.put(path,
-                                FutureUtils.value(Optional.of(new CacheGetResult<>(newValueObj, stat))));
+                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
+                        objCache.synchronous().invalidate(path);
+                        objCache.synchronous().refresh(path);
                     }).thenApply(__ -> newValueObj);
                 }), path);
     }
@@ -267,7 +270,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         case Created:
         case Modified:
             if (objCache.synchronous().getIfPresent(path) != null) {
-                // Trigger background refresh of the cached item
+                // Trigger background refresh of the cached item, but before make sure
+                // to invalidate the entry so that we won't serve a stale cached version
+                objCache.synchronous().invalidate(path);
                 objCache.synchronous().refresh(path);
             }
             break;

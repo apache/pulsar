@@ -464,6 +464,7 @@ class Client:
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
+                        lazy_start_partitioned_producers=False,
                         properties=None,
                         batching_type=BatchingType.Default,
                         encryption_key=None,
@@ -518,6 +519,17 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
           other option is `PartitionsRoutingMode.UseSinglePartition`
+        * `lazy_start_partitioned_producers`:
+          This config affects producers of partitioned topics only. It controls whether
+          producers register and connect immediately to the owner broker of each partition
+          or start lazily on demand. The internal producer of one partition is always
+          started eagerly, chosen by the routing policy, but the internal producers of
+          any additional partitions are started on demand, upon receiving their first
+          message.
+          Using this mode can reduce the strain on brokers for topics with large numbers of
+          partitions and when the SinglePartition routing policy is used without keyed messages.
+          Because producer connection can be on demand, this can produce extra send latency
+          for the first messages of a given partition.
         * `properties`:
           Sets the properties for the producer. The properties associated with a producer
           can be used for identify a producer at broker side.
@@ -558,6 +570,7 @@ class Client:
         _check_type(BatchingType, batching_type, 'batching_type')
         _check_type_or_none(str, encryption_key, 'encryption_key')
         _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
+        _check_type(bool, lazy_start_partitioned_producers, 'lazy_start_partitioned_producers')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -571,6 +584,7 @@ class Client:
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
         conf.batching_type(batching_type)
+        conf.lazy_start_partitioned_producers(lazy_start_partitioned_producers)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -588,6 +602,7 @@ class Client:
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         p._schema = schema
+        p._client = self._client
         return p
 
     def subscribe(self, topic, subscription_name,
@@ -751,7 +766,8 @@ class Client:
                       receiver_queue_size=1000,
                       reader_name=None,
                       subscription_role_prefix=None,
-                      is_read_compacted=False
+                      is_read_compacted=False,
+                      crypto_key_reader=None
                       ):
         """
         Create a reader on a particular topic
@@ -801,6 +817,9 @@ class Client:
           Sets the subscription role prefix.
         * `is_read_compacted`:
           Selects whether to read the compacted version of the topic
+        * crypto_key_reader:
+           Symmetric encryption class implementation, configuring public key encryption messages for the producer
+           and private key decryption messages for the consumer
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
@@ -809,6 +828,7 @@ class Client:
         _check_type_or_none(str, reader_name, 'reader_name')
         _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
+        _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -820,6 +840,8 @@ class Client:
             conf.subscription_role_prefix(subscription_role_prefix)
         conf.schema(schema.schema_info())
         conf.read_compacted(is_read_compacted)
+        if crypto_key_reader:
+            conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
@@ -842,6 +864,15 @@ class Client:
         """
         _check_type(str, topic, 'topic')
         return self._client.get_topic_partitions(topic)
+
+    def shutdown(self):
+        """
+        Perform immediate shutdown of Pulsar client.
+
+        Release all resources and close all producer, consumer, and readers without waiting
+        for ongoing operations to complete.
+        """
+        self._client.shutdown()
 
     def close(self):
         """

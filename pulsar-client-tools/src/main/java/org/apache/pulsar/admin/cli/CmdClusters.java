@@ -311,7 +311,7 @@ public class CmdClusters extends CmdBase {
         protected String brokerClientTrustCertsFilePath;
 
         @Parameter(names = "--listener-name", description = "listenerName when client would like to connect to cluster", required = false)
-        private String listenerName;
+        protected String listenerName;
 
         @Parameter(names = "--cluster-config-file", description = "The path to a YAML config file specifying the "
                 + "cluster's configuration")

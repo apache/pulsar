@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
+import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -34,23 +37,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.SortedSet;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-import com.google.common.hash.Hashing;
 
 @Test(groups = "broker-naming")
 public class NamespaceBundlesTest {
@@ -93,14 +89,19 @@ public class NamespaceBundlesTest {
     @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
-        LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
-        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
-        when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
-        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
-        doNothing().when(poilciesCache).registerListener(any());
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
         when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
+
+        PulsarResources resources = mock(PulsarResources.class);
+        when(pulsar.getPulsarResources()).thenReturn(resources);
+        when(resources.getLocalPolicies()).thenReturn(mock(LocalPoliciesResources.class));
+        when(resources.getLocalPolicies().getLocalPoliciesWithVersion(any())).thenReturn(
+                CompletableFuture.completedFuture(Optional.empty()));
+
+        when(resources.getNamespaceResources()).thenReturn(mock(NamespaceResources.class));
+        when(resources.getNamespaceResources().getPoliciesAsync(any())).thenReturn(
+                CompletableFuture.completedFuture(Optional.empty()));
         return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 

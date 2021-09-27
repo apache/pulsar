@@ -30,12 +30,12 @@ RoundRobinMessageRouter::RoundRobinMessageRouter(ProducerConfiguration::HashingS
                                                  boost::posix_time::time_duration maxBatchingDelay)
     : MessageRouterBase(hashingScheme),
       batchingEnabled_(batchingEnabled),
-      lastPartitionChange_(TimeUtils::currentTimeMillis()),
-      msgCounter_(0),
-      cumulativeBatchSize_(0),
       maxBatchingMessages_(maxBatchingMessages),
       maxBatchingSize_(maxBatchingSize),
-      maxBatchingDelay_(maxBatchingDelay) {
+      maxBatchingDelay_(maxBatchingDelay),
+      lastPartitionChange_(TimeUtils::currentTimeMillis()),
+      msgCounter_(0),
+      cumulativeBatchSize_(0) {
     boost::random::mt19937 rng(time(nullptr));
     boost::random::uniform_int_distribution<int> dist;
     currentPartitionCursor_ = dist(rng);

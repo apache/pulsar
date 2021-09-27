@@ -60,6 +60,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     @Getter
     private ThreadGroup threadGroup;
     private FunctionCacheManager fnCache;
+    private ClientBuilder clientBuilder;
     private PulsarClient pulsarClient;
     private PulsarAdmin pulsarAdmin;
     private String storageServiceUrl;
@@ -101,7 +102,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarAdmin = exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig) : null;
-        this.pulsarClient = InstanceUtils.createPulsarClient(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
+        this.clientBuilder = InstanceUtils.createPulsarClientBuilder(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
+        this.pulsarClient = this.clientBuilder.build();
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
@@ -175,6 +177,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             threadGroup,
             jarFile,
             pulsarClient,
+            clientBuilder,
             pulsarAdmin,
             storageServiceUrl,
             secretsProvider,

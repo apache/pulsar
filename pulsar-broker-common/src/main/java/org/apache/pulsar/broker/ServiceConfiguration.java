@@ -40,6 +40,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -93,6 +94,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_TRANSACTION = "Transaction";
     @Category
     private static final String CATEGORY_PACKAGES_MANAGEMENT = "Packages Management";
+    @Category
+    private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -332,12 +335,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int backlogQuotaCheckIntervalInSeconds = 60;
 
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead.\""
+    )
+    private double backlogQuotaDefaultLimitGB = -1;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
                 + " Increase it if you want to allow larger msg backlog"
     )
-    private long backlogQuotaDefaultLimitGB = -1;
+    private long backlogQuotaDefaultLimitBytes = -1;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -537,6 +547,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " Using a value of 0, is disabling maxTopicsPerNamespace-limit check."
     )
     private int maxTopicsPerNamespace = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections in the broker. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnections = 0;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
+    )
+    private int brokerMaxConnectionsPerIp = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -918,6 +940,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Check between intervals to see if max message size of topic policy has updated. default is 60s"
+    )
+    private int maxMessageSizeCheckIntervalInSeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
@@ -942,11 +970,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean disableBrokerInterceptors = true;
 
     @FieldContext(
-        doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
-        + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
-        + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
+        doc = "There are two policies to apply when broker metadata session expires: session expired happens, \"shutdown\" or \"reconnect\". \n\n"
+        + " With \"shutdown\", the broker will be restarted.\n\n"
+        + " With \"reconnect\", the broker will keep serving the topics, while attempting to recreate a new session."
     )
-    private String zookeeperSessionExpiredPolicy = "shutdown";
+    private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.shutdown;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -984,6 +1012,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable exposing broker entry metadata to client.")
+    private boolean exposingBrokerEntryMetadataToClientEnabled = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1319,6 +1352,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
     private String bookkeeperTLSTrustCertsFilePath;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Tls cert refresh duration at bookKeeper-client in seconds (0 to disable check)")
+    private int bookkeeperTlsCertFilesRefreshDurationSeconds = 300;
+
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
     private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
 
@@ -1368,6 +1404,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds). Default is 60 seconds")
     private int managedLedgerCursorPositionFlushSeconds = 60;
+
+    @FieldContext(minValue = 1,
+            category = CATEGORY_STORAGE_ML,
+            doc = "How frequently to refresh the stats. (seconds). Default is 60 seconds")
+    private int managedLedgerStatsPeriodSeconds = 60;
 
     //
     //
@@ -1582,6 +1623,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Read priority when ledgers exists in both bookkeeper and the second layer storage.")
     private String managedLedgerDataReadPriority = OffloadedReadPriority.TIERED_STORAGE_FIRST
             .getValue();
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
+    private String managedLedgerInfoCompressionType = "NONE";
 
     /*** --- Load balancer --- ****/
     @FieldContext(
@@ -1884,6 +1930,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerServiceCompactionThresholdInBytes = 0;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for the compaction phase one loop, If the execution time of the compaction " +
+                    "phase one loop exceeds this time, the compaction will not proceed."
+    )
+    private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"
@@ -1891,11 +1944,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "   if you enable this setting, it will cause non-java clients failed to produce."
     )
     private boolean isSchemaValidationEnforced = false;
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The schema storage implementation used by this broker"
     )
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+
     @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "The list compatibility checkers to be used in schema registry"
@@ -1905,6 +1960,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
             "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
     );
+
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy in broker level. If this config in namespace policy is `UNDEFINED`"
+                    + ", schema compatibility strategy check will use it in broker level."
+    )
+    private SchemaCompatibilityStrategy schemaCompatibilityStrategy = SchemaCompatibilityStrategy.UNDEFINED;
 
     /**** --- WebSocket --- ****/
     @FieldContext(
@@ -2219,6 +2281,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String packagesManagementLedgerRootPath = "/ledgers";
 
     /* packages management service configurations (end) */
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate broker additional servlet"
+    )
+    private String additionalServletDirectory = "./brokerAdditionalServlet";
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of broker additional servlet to load, which is a list of broker additional servlet names"
+    )
+    private Set<String> additionalServlets = Sets.newTreeSet();
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

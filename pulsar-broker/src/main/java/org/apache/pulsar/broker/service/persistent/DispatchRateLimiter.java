@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -73,6 +69,15 @@ public class DispatchRateLimiter {
      */
     public long getAvailableDispatchRateLimitOnMsg() {
         return dispatchRateLimiterOnMessage == null ? -1 : dispatchRateLimiterOnMessage.getAvailablePermits();
+    }
+
+    /**
+     * returns available byte-permit if msg-dispatch-throttling is enabled else it returns -1.
+     *
+     * @return
+     */
+    public long getAvailableDispatchRateLimitOnByte() {
+        return dispatchRateLimiterOnByte == null ? -1 : dispatchRateLimiterOnByte.getAvailablePermits();
     }
 
     /**
@@ -315,18 +320,12 @@ public class DispatchRateLimiter {
 
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
-        final String path = path(POLICIES, namespace.toString());
-        Optional<Policies> policies = Optional.empty();
         try {
-            ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
-            if (configurationCacheService != null) {
-                policies = configurationCacheService.policiesCache().getAsync(path)
-                        .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-            }
+            return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(namespace);
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);
+            return Optional.empty();
         }
-        return policies;
     }
 
     /**
@@ -349,8 +348,15 @@ public class DispatchRateLimiter {
         // update msg-rateLimiter
         if (msgRate > 0) {
             if (this.dispatchRateLimiterOnMessage == null) {
-                this.dispatchRateLimiterOnMessage = new RateLimiter(brokerService.pulsar().getExecutor(), msgRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg, true);
+                this.dispatchRateLimiterOnMessage =
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(msgRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterMsg)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
+                                .build();
             } else {
                 this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterMsg);
@@ -369,8 +375,15 @@ public class DispatchRateLimiter {
         // update byte-rateLimiter
         if (byteRate > 0) {
             if (this.dispatchRateLimiterOnByte == null) {
-                this.dispatchRateLimiterOnByte = new RateLimiter(brokerService.pulsar().getExecutor(), byteRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte, true);
+                this.dispatchRateLimiterOnByte =
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(byteRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterByte)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
+                                .build();
             } else {
                 this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterByte);

@@ -19,26 +19,21 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.PerMonitoringClassFields;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
-
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -119,7 +114,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final String tenantName = "SomeTenant";
         final String namespaceName = "SomeNameSpace";
         rgs.registerTenant(rgName, tenantName);
-        rgs.registerNameSpace(rgName, namespaceName);
+        final NamespaceName tenantAndNamespaceName = NamespaceName.get(tenantName, namespaceName);
+        rgs.registerNameSpace(rgName, tenantAndNamespaceName);
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
             for (int monClassIdx = 0; monClassIdx < ResourceGroupMonitoringClass.values().length; monClassIdx++) {
@@ -132,7 +128,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         log.info("{} iterations of incrementUsage on RGS in {} msecs ({} usecs for each)",
                 numPerfTestIterations, diffMsecs, (1000 * (float) diffMsecs)/numPerfTestIterations);
         rgs.unRegisterTenant(rgName, tenantName);
-        rgs.unRegisterNameSpace(rgName, namespaceName);
+        rgs.unRegisterNameSpace(rgName, tenantAndNamespaceName);
 
         // The overhead of a RG lookup
         ResourceGroup retRG;
@@ -159,6 +155,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         rgConfig.setDispatchRateInBytes(40000);
         rgConfig.setDispatchRateInMsgs(500);
 
+        int initialNumQuotaCalculations = numAnonymousQuotaCalculations;
         rgs.resourceGroupCreate(rgName, rgConfig);
 
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupCreate(rgName, rgConfig));
@@ -199,7 +196,9 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         final String tenantName = topic.getTenant();
         final String namespaceName = topic.getNamespacePortion();
         rgs.registerTenant(rgName, tenantName);
-        rgs.registerNameSpace(rgName, namespaceName);
+
+        final NamespaceName tenantAndNamespace = NamespaceName.get(tenantName, namespaceName);
+        rgs.registerNameSpace(rgName, tenantAndNamespace);
 
         // Delete of our valid config should throw until we unref correspondingly.
         Assert.assertThrows(PulsarAdminException.class, () -> rgs.resourceGroupDelete(rgName));
@@ -222,7 +221,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
             // We know that dummyQuotaCalc::needToReportLocalUsage() makes us report usage once every
             // maxUsageReportSuppressRounds iterations. So, if we run for maxUsageReportSuppressRounds iterations,
             // we should see needToReportLocalUsage() return true at least once.
-            Set<Boolean> myBoolSet = new HashSet();
+            Set<Boolean> myBoolSet = new HashSet<>();
             myBoolSet.clear();
             for (int idx = 0; idx < ResourceGroupService.MaxUsageReportSuppressRounds; idx++) {
                 needToReport = retRG.setUsageInMonitoredEntity(monClass, nwUsage);
@@ -234,15 +233,35 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         }
 
         rgs.unRegisterTenant(rgName, tenantName);
-        rgs.unRegisterNameSpace(rgName, namespaceName);
+        rgs.unRegisterNameSpace(rgName, tenantAndNamespace);
+
+        BytesAndMessagesCount publishQuota = rgs.getPublishRateLimiters(rgName);
+
+        // Calculated quota is synthetically set to the number of quota-calculation callbacks.
+        int numQuotaCalcsDuringTest = numAnonymousQuotaCalculations - initialNumQuotaCalculations;
+        if (numQuotaCalcsDuringTest == 0) {
+            // Quota calculations were not done yet during this test; we expect to see the default "initial" setting.
+            Assert.assertEquals(publishQuota.messages, rgConfig.getPublishRateInMsgs());
+            Assert.assertEquals(publishQuota.bytes, rgConfig.getPublishRateInBytes());
+        }
+
+        // Calculate the quota synchronously to avoid waiting for a periodic call within ResourceGroupService.
+        rgs.calculateQuotaForAllResourceGroups();
+        publishQuota = rgs.getPublishRateLimiters(rgName);
+        // The bytes/messages are (synthetically) set from numAnonymousQuotaCalculations in the above round of
+        // calls, or some later round (since the periodic call to calculateQuotaForAllResourceGroups() would be
+        // ongoing). So, we expect bytes/messages setting to be more than 0 and at most numAnonymousQuotaCalculations.
+        Assert.assertTrue(publishQuota.messages > 0 && publishQuota.messages <= numAnonymousQuotaCalculations);
+        Assert.assertTrue(publishQuota.bytes > 0 &&  publishQuota.bytes <= numAnonymousQuotaCalculations);
 
         rgs.resourceGroupDelete(rgName);
+        Assert.assertThrows(PulsarAdminException.class, () -> rgs.getPublishRateLimiters(rgName));
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 0);
     }
 
     private ResourceGroupService rgs;
-    int numAnonymousQuotaCalculations = 0;
+    int numAnonymousQuotaCalculations;
 
     private static final Logger log = LoggerFactory.getLogger(ResourceGroupServiceTest.class);
 

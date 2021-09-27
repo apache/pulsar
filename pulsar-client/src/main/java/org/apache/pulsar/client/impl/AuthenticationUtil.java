@@ -71,7 +71,7 @@ public class AuthenticationUtil {
         try {
             if (isNotBlank(authPluginClassName)) {
                 Class<?> authClass = Class.forName(authPluginClassName);
-                Authentication auth = (Authentication) authClass.newInstance();
+                Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 if (auth instanceof EncodedAuthenticationParameterSupport) {
                     // Parse parameters on plugin side.
                     ((EncodedAuthenticationParameterSupport) auth).configure(authParamsString);
@@ -104,7 +104,7 @@ public class AuthenticationUtil {
         try {
             if (isNotBlank(authPluginClassName)) {
                 Class<?> authClass = Class.forName(authPluginClassName);
-                Authentication auth = (Authentication) authClass.newInstance();
+                Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 auth.configure(authParams);
                 return auth;
             } else {

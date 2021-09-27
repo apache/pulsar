@@ -19,18 +19,17 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-
+import java.io.File;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
-import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -42,8 +41,11 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.zookeeper.AddWatchMode;
+import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -53,42 +55,76 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
 @Slf4j
-public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended, Watcher, MetadataStoreLifecycle {
+public class ZKMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended, MetadataStoreLifecycle {
 
     private final String metadataURL;
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
-    private ZKSessionWatcher sessionWatcher;
+    private Optional<ZKSessionWatcher> sessionWatcher;
 
-    public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws MetadataStoreException {
+    public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
+            throws MetadataStoreException {
         try {
             this.metadataURL = metadataURL;
             this.metadataStoreConfig = metadataStoreConfig;
             isZkManaged = true;
-            zkc = ZooKeeperClient.newBuilder().connectString(metadataURL)
+            zkc = PulsarZooKeeperClient.newBuilder().connectString(metadataURL)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(event -> {
                         if (sessionWatcher != null) {
-                            sessionWatcher.process(event);
+                            sessionWatcher.ifPresent(sw -> sw.process(event));
                         }
                     }))
                     .build();
-            sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
+            if (enableSessionWatcher) {
+                sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
+            } else {
+                sessionWatcher = Optional.empty();
+            }
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
         }
     }
 
     @VisibleForTesting
+    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc) {
         this.metadataURL = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
-        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+        this.sessionWatcher = Optional.of(new ZKSessionWatcher(zkc, this::receivedSessionEvent));
+        zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
+    }
+
+    @Override
+    protected void receivedSessionEvent(SessionEvent event) {
+        if (event == SessionEvent.SessionReestablished) {
+            // Recreate the persistent watch on the new session
+            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE,
+                    (rc, path, ctx) -> {
+                        if (rc == Code.OK.intValue()) {
+                            super.receivedSessionEvent(event);
+                        } else {
+                            log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
+                            sessionWatcher.ifPresent(ZKSessionWatcher::setSessionInvalid);
+                            // On the reconnectable client, mark the session as expired to trigger a new reconnect and 
+                            // we will have the chance to set the watch again.
+                            if (zkc instanceof PulsarZooKeeperClient) {
+                                ((PulsarZooKeeperClient) zkc).process(
+                                        new WatchedEvent(Watcher.Event.EventType.None,
+                                                Watcher.Event.KeeperState.Expired,
+                                                null));
+                             }
+                        }
+                    }, null);
+        } else {
+            super.receivedSessionEvent(event);
+        }
     }
 
     @Override
@@ -96,7 +132,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         CompletableFuture<Optional<GetResult>> future = new CompletableFuture<>();
 
         try {
-            zkc.getData(path, this, (rc, path1, ctx, data, stat) -> {
+            zkc.getData(path, null, (rc, path1, ctx, data, stat) -> {
                 execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -137,7 +173,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
         try {
-            zkc.getChildren(path, this, (rc, path1, ctx, children) -> {
+            zkc.getChildren(path, null, (rc, path1, ctx, children) -> {
                 execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -180,7 +216,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
-            zkc.exists(path, this, (rc, path1, ctx, stat) -> {
+            zkc.exists(path, null, (rc, path1, ctx, stat) -> {
                 execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -205,7 +241,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @Override
-    public CompletableFuture<Stat> storePut(String path, byte[] value, Optional<Long> optExpectedVersion,
+    protected CompletableFuture<Stat> storePut(String path, byte[] value, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
         boolean hasVersion = optExpectedVersion.isPresent();
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
@@ -215,20 +251,19 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         try {
             if (hasVersion && expectedVersion == -1) {
                 CreateMode createMode = getCreateMode(options);
-                ZkUtils.asyncCreateFullPathOptimistic(zkc, path, value, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        createMode, (rc, path1, ctx, name) -> {
-                            execute(() -> {
-                                Code code = Code.get(rc);
-                                if (code == Code.OK) {
-                                    future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
-                                } else if (code == Code.NODEEXISTS) {
-                                    // We're emulating a request to create node, so the version is invalid
-                                    future.completeExceptionally(getException(Code.BADVERSION, path));
-                                } else {
-                                    future.completeExceptionally(getException(code, path));
-                                }
-                            }, future);
-                        }, null);
+                asyncCreateFullPathOptimistic(zkc, path, value, createMode, (rc, path1, ctx, name) -> {
+                    execute(() -> {
+                        Code code = Code.get(rc);
+                        if (code == Code.OK) {
+                            future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
+                        } else if (code == Code.NODEEXISTS) {
+                            // We're emulating a request to create node, so the version is invalid
+                            future.completeExceptionally(getException(Code.BADVERSION, path));
+                        } else {
+                            future.completeExceptionally(getException(code, path));
+                        }
+                    }, future);
+                });
             } else {
                 zkc.setData(path, value, expectedVersion, (rc, path1, ctx, stat) -> {
                     execute(() -> {
@@ -262,7 +297,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     }
 
     @Override
-    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -290,7 +325,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         if (isZkManaged) {
             zkc.close();
         }
-        sessionWatcher.close();
+        if (sessionWatcher.isPresent()) {
+            sessionWatcher.get().close();
+        }
         super.close();
     }
 
@@ -315,8 +352,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
     }
 
-    @Override
-    public void process(WatchedEvent event) {
+    private void handleWatchEvent(WatchedEvent event) {
         if (log.isDebugEnabled()) {
             log.debug("Received ZK watch : {}", event);
         }
@@ -326,10 +362,16 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             return;
         }
 
+        String parent = parent(path);
+        Notification childrenChangedNotification = null;
+
         NotificationType type;
         switch (event.getType()) {
         case NodeCreated:
             type = NotificationType.Created;
+            if (parent != null) {
+                childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
+            }
             break;
 
         case NodeDataChanged:
@@ -342,6 +384,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
         case NodeDeleted:
             type = NotificationType.Deleted;
+            if (parent != null) {
+                childrenChangedNotification = new Notification(NotificationType.ChildrenChanged, parent);
+            }
             break;
 
         default:
@@ -349,6 +394,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         }
 
         receivedNotification(new Notification(type, event.getPath()));
+        if (childrenChangedNotification != null) {
+            receivedNotification(childrenChangedNotification);
+        }
     }
 
     private static CreateMode getCreateMode(EnumSet<CreateOption> options) {
@@ -369,6 +417,10 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         return zkc.getSessionId();
     }
 
+    public ZooKeeper getZkClient() {
+        return zkc;
+    }
+
     @Override
     public CompletableFuture<Void> initializeCluster() {
         if (this.metadataURL == null) {
@@ -381,7 +433,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         if (chrootIndex > 0) {
             String chrootPath = metadataURL.substring(chrootIndex);
             String zkConnectForChrootCreation = metadataURL.substring(0, chrootIndex);
-            try (ZooKeeper chrootZk = ZooKeeperClient.newBuilder()
+            try (ZooKeeper chrootZk = PulsarZooKeeperClient.newBuilder()
                     .connectString(zkConnectForChrootCreation)
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .connectRetryPolicy(
@@ -389,8 +441,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                     metadataStoreConfig.getSessionTimeoutMillis(), 0))
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
-                    ZkUtils.createFullPathOptimistic(chrootZk, chrootPath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                            CreateMode.PERSISTENT);
+                    createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);
                     log.info("Created zookeeper chroot path {} successfully", chrootPath);
                 }
             } catch (Exception e) {
@@ -398,5 +449,42 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
             }
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    private static void asyncCreateFullPathOptimistic(final ZooKeeper zk, final String originalPath, final byte[] data,
+                                                      final CreateMode createMode,
+                                                      final AsyncCallback.StringCallback callback) {
+        zk.create(originalPath, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, createMode, (rc, path, ctx, name) -> {
+            if (rc != Code.NONODE.intValue()) {
+                callback.processResult(rc, path, ctx, name);
+            } else {
+                String parent = (new File(originalPath)).getParent().replace("\\", "/");
+
+                // Create parent nodes as "CONTAINER" so that ZK will automatically delete them when they're empty
+                asyncCreateFullPathOptimistic(zk, parent, new byte[0], CreateMode.CONTAINER,
+                        (rc1, path1, ctx1, name1) -> {
+                            if (rc1 != Code.OK.intValue() && rc1 != Code.NODEEXISTS.intValue()) {
+                                callback.processResult(rc1, path1, ctx1, name1);
+                            } else {
+                                asyncCreateFullPathOptimistic(zk, originalPath, data,
+                                        createMode, callback);
+                            }
+                        });
+            }
+        }, null);
+    }
+
+    private static void createFullPathOptimistic(ZooKeeper zkc, String path, byte[] data, CreateMode createMode)
+            throws KeeperException, InterruptedException {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicInteger rc = new AtomicInteger(Code.OK.intValue());
+        asyncCreateFullPathOptimistic(zkc, path, data, createMode, (rc2, path1, ctx, name) -> {
+            rc.set(rc2);
+            latch.countDown();
+        });
+        latch.await();
+        if (rc.get() != Code.OK.intValue()) {
+            throw KeeperException.create(Code.get(rc.get()));
+        }
     }
 }

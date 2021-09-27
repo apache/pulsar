@@ -39,6 +39,9 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import java.util.stream.Collectors;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.common.util.FutureUtil;
@@ -64,6 +67,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
 
+    // We don't strictly need to use 'volatile' here because we don't need the precise consistent semantic. Instead,
+    // we want to avoid the overhead of 'volatile'.
+    @Getter
+    private boolean isConnected = true;
+
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
@@ -84,7 +92,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     @Override
                     public CompletableFuture<List<String>> asyncReload(String key, List<String> oldValue,
                             Executor executor) {
-                        return getChildrenFromStore(key);
+                        if (isConnected) {
+                            return getChildrenFromStore(key);
+                        } else {
+                            // Do not refresh if we're not connected
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
 
@@ -99,7 +112,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
                             Executor executor) {
-                        return existsFromStore(key);
+                        if (isConnected) {
+                            return existsFromStore(key);
+                        } else {
+                            // Do not refresh if we're not connected
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
     }
@@ -198,8 +216,25 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
     }
 
+    @Override
+    public CompletableFuture<Void> deleteRecursive(String path) {
+        return getChildren(path)
+                .thenCompose(children -> FutureUtil.waitForAll(
+                        children.stream()
+                                .map(child -> deleteRecursive(path + "/" + child))
+                                .collect(Collectors.toList())))
+                .thenCompose(__ -> exists(path))
+                .thenCompose(exists -> {
+                    if (exists) {
+                        return delete(path, Optional.empty());
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
+    }
+
     protected abstract CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options);
+                                                        EnumSet<CreateOption> options);
 
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
@@ -228,6 +263,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     protected void receivedSessionEvent(SessionEvent event) {
+        isConnected = event.isConnected();
+
         sessionListeners.forEach(l -> {
             try {
                 l.accept(event);
