@@ -23,6 +23,7 @@ import java.net.URL;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -58,7 +59,10 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
+        ServiceConfiguration serviceConfiguration = getDefaultConf();
+        serviceConfiguration.setSystemTopicEnabled(true);
+        serviceConfiguration.setTransactionCoordinatorEnabled(true);
+        super.internalSetup(serviceConfiguration);
         PerfClientUtils.setExitProcedure(code -> {
             log.error("JVM exit code is {}", code);
             if (code != 0) {
