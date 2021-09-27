@@ -279,6 +279,60 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-tls-keystore"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-oauth2"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-extending"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-bouncy-castle"
+        }
+      ]
     }
   ]
 }
