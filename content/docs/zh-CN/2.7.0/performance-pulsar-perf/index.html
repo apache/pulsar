@@ -109,6 +109,9 @@
 <tr><td>batch-max-bytes</td><td>设置每个批消息的最大字节数</td><td>4194304</td></tr>
 <tr><td>batch-max-messages</td><td>设置每个批消息的最大消息数</td><td>1000</td></tr>
 <tr><td>batch-time-window</td><td>设置每批消息的窗口大小</td><td>1 ms</td></tr>
+<tr><td>batch-max-bytes</td><td>设置每个批消息的最大字节数</td><td>4194304</td></tr>
+<tr><td>batch-max-messages</td><td>设置每个批消息的最大消息数</td><td>1000</td></tr>
+<tr><td>chunking</td><td>Configure whether to split the message and publish in chunks if message size is larger than allowed max size.</td><td>false</td></tr>
 <tr><td>compression</td><td>指定消息载荷（ payload）的压缩格式</td><td>N/A</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
 <tr><td>delay</td><td>给消息标记延迟时间</td><td>0s</td></tr>
@@ -119,6 +122,8 @@
 <tr><td>max-connections</td><td>设置单个broker的最大TCP连接数</td><td>100</td></tr>
 <tr><td>max-outstanding</td><td>设置未处理消息的最大数量</td><td>1000</td></tr>
 <tr><td>max-outstanding-across-partitions</td><td>设置跨分区场景下的最大未处理消息数</td><td>50000</td></tr>
+<tr><td>message-key-generation-mode</td><td>Set the generation mode of message key. Valid options are <code>autoIncrement</code>, <code>random</code>.</td><td>N/A</td></tr>
+<tr><td>num-io-threads</td><td>Set the number of threads to be used for handling connections to brokers.</td><td>1</td></tr>
 <tr><td>num-messages</td><td>设置要发布的消息总数。 如果设为0则持续发布消息</td><td>0</td></tr>
 <tr><td>num-producers</td><td>设置每个主题的生产者数量</td><td>1</td></tr>
 <tr><td>num-test-threads</td><td>设置测试线程数量</td><td>1</td></tr>
@@ -163,12 +168,17 @@
 <tr><td>acks-delay-millis</td><td>设置确认分组的延迟时间，以毫秒为单位</td><td>100 ms</td></tr>
 <tr><td>auth-params</td><td>设置认证参数，格式由认证插件类中<code>configure</code>方法的实现决定的，如&quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;。</td><td>N/A</td></tr>
 <tr><td>auth_plugin</td><td>设置认证插件类名</td><td>N/A</td></tr>
+<tr><td>auto_ack_chunk_q_full</td><td>Configure whether to automatically ack for the oldest message in receiver queue if the queue is full.</td><td>false</td></tr>
+<tr><td>listener-name</td><td>Set the listener name for the broker.</td><td>N/A</td></tr>
 <tr><td>conf-file</td><td>设置配置文件</td><td>N/A</td></tr>
 <tr><td>encryption-key-name</td><td>设置用于加密有效载荷的公钥名称</td><td>N/A</td></tr>
 <tr><td>encryption-key-value-file</td><td>设置包含用于加密有效载荷的公钥文件</td><td>N/A</td></tr>
 <tr><td>help</td><td>配置帮助信息</td><td>false</td></tr>
+<tr><td>expire_time_incomplete_chunked_messages</td><td>Set the expiration time for incomplete chunk messages (in milliseconds).</td><td>0</td></tr>
 <tr><td>max-connections</td><td>设置单个broker的最大TCP连接数</td><td>100</td></tr>
+<tr><td>max_chunked_msg</td><td>Set the max pending chunk messages.</td><td>0</td></tr>
 <tr><td>num-consumers</td><td>设定每个主题的消费者数量</td><td>1</td></tr>
+<tr><td>num-io-threads</td><td>Set the number of threads to be used for handling connections to brokers.</td><td>1</td></tr>
 <tr><td>num-topic</td><td>设置主题数量</td><td>1</td></tr>
 <tr><td>rate</td><td>模拟一个慢速消费者消费数据(速率 消息/秒)</td><td>0.0</td></tr>
 <tr><td>receiver-queue-size</td><td>设置接收队列大小</td><td>1000</td></tr>
@@ -176,7 +186,10 @@
 <tr><td>service-url</td><td>设置 Pulsar 服务的 URL</td><td></td></tr>
 <tr><td>stats-interval-seconds</td><td>设置统计间隔。 如果置为0，则不统计。</td><td>0</td></tr>
 <tr><td>subscriber-name</td><td>设置订阅者名称前缀</td><td>sub</td></tr>
+<tr><td>subscription-position</td><td>Set the subscription position. Valid values are <code>Latest</code>, <code>Earliest</code>.</td><td>Latest</td></tr>
 <tr><td>subscription-type</td><td>设置订阅类型 <li> Exclusive <li> Shared（共享） <li> Failover（灾备） <li> Key_Shared</td><td>Exclusive</td></tr>
+<tr><td>test-duration</td><td>Set the test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
+<tr><td>tls-allow-insecure</td><td>Set the allowed insecure TLS connection.</td><td>N/A</td></tr>
 <tr><td>trust-cert-file</td><td>设置受信的TLS证书文件所在路径</td><td><empty string></td></tr>
 </tbody>
 </table>

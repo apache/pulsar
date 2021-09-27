@@ -109,6 +109,7 @@
 <tr><td>batch-max-bytes</td><td>Set the maximum number of bytes for each batch.</td><td>4194304</td></tr>
 <tr><td>batch-max-messages</td><td>Set the maximum number of messages for each batch.</td><td>1000</td></tr>
 <tr><td>batch-time-window</td><td>Set a window for a batch of messages.</td><td>1 ms</td></tr>
+<tr><td>chunking</td><td>Configure whether to split the message and publish in chunks if message size is larger than allowed max size.</td><td>false</td></tr>
 <tr><td>compression</td><td>Compress the message payload.</td><td>N/A</td></tr>
 <tr><td>conf-file</td><td>Set the configuration file.</td><td>N/A</td></tr>
 <tr><td>delay</td><td>Mark messages with a given delay.</td><td>0s</td></tr>
@@ -163,20 +164,25 @@
 <tr><td>acks-delay-millis</td><td>Set the acknowledgment grouping delay in milliseconds.</td><td>100 ms</td></tr>
 <tr><td>auth-params</td><td>Set the authentication parameters, whose format is determined by the implementation of the <code>configure</code> method in the authentication plugin class, such as &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;.</td><td>N/A</td></tr>
 <tr><td>auth_plugin</td><td>Set the authentication plugin class name.</td><td>N/A</td></tr>
+<tr><td>auto_ack_chunk_q_full</td><td>Configure whether to automatically ack for the oldest message in receiver queue if the queue is full.</td><td>false</td></tr>
 <tr><td>conf-file</td><td>Set the configuration file.</td><td>N/A</td></tr>
 <tr><td>encryption-key-name</td><td>Set the name of the public key used to encrypt the payload.</td><td>N/A</td></tr>
 <tr><td>encryption-key-value-file</td><td>Set the file which contains the public key used to encrypt the payload.</td><td>N/A</td></tr>
 <tr><td>help</td><td>Configure the help message.</td><td>false</td></tr>
+<tr><td>expire_time_incomplete_chunked_messages</td><td>Set the expiration time for incomplete chunk messages (in milliseconds).</td><td>0</td></tr>
 <tr><td>max-connections</td><td>Set the maximum number of TCP connections to a single broker.</td><td>100</td></tr>
+<tr><td>max_chunked_msg</td><td>Set the max pending chunk messages.</td><td>0</td></tr>
 <tr><td>num-consumers</td><td>Set the number of consumers for each topic.</td><td>1</td></tr>
 <tr><td>num-topic</td><td>Set the number of topics.</td><td>1</td></tr>
 <tr><td>rate</td><td>Simulate a slow message consumer (rate in msg/s).</td><td>0.0</td></tr>
 <tr><td>receiver-queue-size</td><td>Set the size of the receiver queue.</td><td>1000</td></tr>
 <tr><td>replicated</td><td>Configure whether the subscription status should be replicated.</td><td>false</td></tr>
+<tr><td>replicated</td><td>Configure whether the subscription status should be replicated.</td><td>false</td></tr>
 <tr><td>service-url</td><td>Set the Pulsar service URL.</td><td></td></tr>
 <tr><td>stats-interval-seconds</td><td>Set the statistics interval. If it is set to 0, statistics is disabled.</td><td>0</td></tr>
 <tr><td>subscriber-name</td><td>Set the subscriber name prefix.</td><td>sub</td></tr>
 <tr><td>subscription-type</td><td>Set the subscription type. <li> Exclusive <li> Shared <li> Failover <li> Key_Shared</td><td>Exclusive</td></tr>
+<tr><td>test-duration</td><td>Set the test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages.</td><td>0</td></tr>
 <tr><td>trust-cert-file</td><td>Set the path for the trusted TLS certificate file.</td><td><empty string></td></tr>
 </tbody>
 </table>
