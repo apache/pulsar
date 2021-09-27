@@ -30,6 +30,7 @@ import java.util.TreeMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
@@ -126,15 +127,15 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     }
 
     @Override
-    public Map<String, List<String>> getConsumerKeyHashRanges() {
-        Map<String, List<String>> result = new LinkedHashMap<>();
+    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
+        Map<Consumer, List<Range>> result = new LinkedHashMap<>();
         rwLock.readLock().lock();
         try {
             int start = 0;
             for (Map.Entry<Integer, List<Consumer>> entry: hashRing.entrySet()) {
                 for (Consumer consumer: entry.getValue()) {
-                    result.computeIfAbsent(consumer.consumerName(), key -> new ArrayList<>())
-                            .add("[" + start + ", " + entry.getKey() + "]");
+                    result.computeIfAbsent(consumer, key -> new ArrayList<>())
+                            .add(Range.of(start, entry.getKey()));
                 }
                 start = entry.getKey() + 1;
             }
