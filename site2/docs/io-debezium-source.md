@@ -463,7 +463,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 ### Packaging
 
 Oracle connector does not include Oracle JDBC driver and the end user will need to package it with the connector.
-Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended using the driver provided with your Oracle Db installation, or you can [download](https://www.oracle.com/database/technologies/appdev/jdbc.html) one.
+Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended using the driver provided with your Oracle DB installation, or you can [download](https://www.oracle.com/database/technologies/appdev/jdbc.html) one.
 Integration test have an [example](https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122) of packaging the driver into the connector nar file. 
 
 ### Configuration
