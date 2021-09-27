@@ -16,7 +16,6 @@ You can manage Pulsar configuration by configuration files in the [`conf`](https
 - [BookKeeper](#bookkeeper)
 - [Broker](#broker)
 - [Client](#client)
-- [Service discovery](#service-discovery)
 - [Log4j](#log4j)
 - [Log4j shell](#log4j-shell)
 - [Standalone](#standalone)
@@ -373,26 +372,7 @@ You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool
 | tlsTrustStorePassword | TLS TrustStore password. | |
 
 
-## Service discovery
 
-|Name|Description|Default|
-|---|---|---|
-|zookeeperServers|  Zookeeper quorum connection string (comma-separated)  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
-|zookeeperSessionTimeoutMs| ZooKeeper session timeout |30000|
-|servicePort| Port to use to server binary-proto request  |6650|
-|servicePortTls|  Port to use to server binary-proto-tls request  |6651|
-|webServicePort|  Port that discovery service listen on |8080|
-|webServicePortTls| Port to use to server HTTPS request |8443|
-|bindOnLocalhost| Control whether to bind directly on localhost rather than on normal hostname  |false|
-|authenticationEnabled| Enable authentication |false|
-|authenticationProviders| Authentication provider name list, which is comma separated list of class names (comma-separated) ||
-|authorizationEnabled|  Enforce authorization |false|
-|superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated) ||
-|tlsEnabled|  Enable TLS  |false|
-|tlsCertificateFilePath|  Path for the TLS certificate file ||
-|tlsKeyFilePath|  Path for the TLS private key file ||
 
 
 
