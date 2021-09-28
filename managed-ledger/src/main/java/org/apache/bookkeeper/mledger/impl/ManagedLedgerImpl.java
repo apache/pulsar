@@ -2226,7 +2226,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 && config.getLedgerOffloader().getOffloadPolicies() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
-                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0)
+        {
+            if(config.isTransactionEnable() && config.getLedgerOffloader().getOffloadFilter() == null){
+                return;
+            }
             executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
         }
     }

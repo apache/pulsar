@@ -26,6 +26,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileSystemLedgerOffloaderFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -66,6 +67,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
     private OffloadPoliciesImpl offloadPolicies;
+    private OffloadFilter offloadFilter;
 
     public static boolean driverSupported(String driver) {
         return DRIVER_NAMES.equals(driver);
@@ -342,6 +344,16 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public OffloadPoliciesImpl getOffloadPolicies() {
         return offloadPolicies;
+    }
+
+    @Override
+    public void setOffloadFilter(OffloadFilter offloadFilter) {
+        this.offloadFilter = offloadFilter;
+    }
+
+    @Override
+    public OffloadFilter getOffloadFilter() {
+        return this.offloadFilter;
     }
 
     @Override

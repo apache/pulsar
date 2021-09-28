@@ -77,6 +77,7 @@ public class ManagedLedgerConfig {
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private boolean isTransactionEnable;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -86,6 +87,15 @@ public class ManagedLedgerConfig {
         this.createIfMissing = createIfMissing;
         return this;
     }
+
+    public boolean isTransactionEnable() {
+        return isTransactionEnable;
+    }
+
+    public void setTransactionEnable(boolean transactionEnable) {
+        isTransactionEnable = transactionEnable;
+    }
+
 
     /**
      * @return the lazyCursorRecovery

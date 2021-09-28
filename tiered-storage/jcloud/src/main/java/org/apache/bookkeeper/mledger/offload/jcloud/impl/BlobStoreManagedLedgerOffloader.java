@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle.OfferEntryResult;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
@@ -102,6 +103,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private final int streamingBlockSize;
     private volatile ManagedLedger ml;
     private OffloadIndexBlockV2Builder streamingIndexBuilder;
+
+    private OffloadFilter offloadFilter;
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
@@ -600,6 +603,17 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         properties.putAll(config.getConfigProperties());
         return OffloadPoliciesImpl.create(properties);
     }
+
+    @Override
+    public void setOffloadFilter(OffloadFilter offloadFilter) {
+        this.offloadFilter = offloadFilter;
+    }
+
+    @Override
+    public OffloadFilter getOffloadFilter() {
+        return this.offloadFilter;
+    }
+
 
     @Override
     public void close() {
