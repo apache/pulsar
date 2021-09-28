@@ -48,7 +48,7 @@ public interface EntryContext {
     boolean isBatch();
 
     /**
-     * Create a new single message, which is an internal message of a batch.
+     * Get the internal single message with a specific index from a payload if the entry is a batch.
      *
      * @param index the batch index
      * @param numMessages the number of messages in the batch
@@ -56,24 +56,24 @@ public interface EntryContext {
      * @param containMetadata whether the payload contains the single message metadata
      * @param schema the schema of the batch
      * @param <T>
-     * @return the created single message
+     * @return the single message
      * @implNote The `index` and `numMessages` parameters are used to create the message id with batch index.
      *   If `containMetadata` is true, parse the single message metadata from the payload first. The fields of single
      *   message metadata will overwrite the same fields of the entry's metadata.
      */
-    <T> Message<T> newSingleMessage(int index,
-                                    int numMessages,
-                                    MessagePayload payload,
-                                    boolean containMetadata,
-                                    Schema<T> schema);
+    <T> Message<T> getMessageAt(int index,
+                                int numMessages,
+                                MessagePayload payload,
+                                boolean containMetadata,
+                                Schema<T> schema);
 
     /**
-     * Create a new non-batched message.
+     * Convert the given payload to a single message if the entry is non-batched.
      *
      * @param payload the message payload
      * @param schema the schema of the message
      * @param <T>
-     * @return the created message
+     * @return the converted single message
      */
-    <T> Message<T> newMessage(MessagePayload payload, Schema<T> schema);
+    <T> Message<T> asSingleMessage(MessagePayload payload, Schema<T> schema);
 }

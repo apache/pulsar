@@ -65,7 +65,7 @@ public class CustomBatchConverter implements PayloadConverter {
                 bufList.add(valueBuf);
                 final MessagePayloadImpl singlePayload = MessagePayloadImpl.create(valueBuf);
                 try {
-                    return context.newSingleMessage(index++, numMessages, singlePayload, false, schema);
+                    return context.getMessageAt(index++, numMessages, singlePayload, false, schema);
                 } finally {
                     singlePayload.recycle();
                 }

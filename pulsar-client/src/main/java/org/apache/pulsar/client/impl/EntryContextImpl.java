@@ -111,11 +111,11 @@ public class EntryContextImpl implements EntryContext {
     }
 
     @Override
-    public <T> Message<T> newSingleMessage(int index,
-                                           int numMessages,
-                                           MessagePayload payload,
-                                           boolean containMetadata,
-                                           Schema<T> schema) {
+    public <T> Message<T> getMessageAt(int index,
+                                       int numMessages,
+                                       MessagePayload payload,
+                                       boolean containMetadata,
+                                       Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
             return consumer.newSingleMessage(index,
@@ -136,7 +136,7 @@ public class EntryContextImpl implements EntryContext {
     }
 
     @Override
-    public <T> Message<T> newMessage(MessagePayload payload, Schema<T> schema) {
+    public <T> Message<T> asSingleMessage(MessagePayload payload, Schema<T> schema) {
         final ByteBuf payloadBuffer = MessagePayloadUtils.convertToByteBuf(payload);
         try {
             return consumer.newMessage(

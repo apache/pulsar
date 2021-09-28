@@ -55,8 +55,8 @@ public class DefaultPayloadConverter implements PayloadConverter {
             public Message<T> next() {
                 index++;
                 return isBatch
-                        ? context.newSingleMessage(index, numMessages, payload, true, schema)
-                        : context.newMessage(payload, schema);
+                        ? context.getMessageAt(index, numMessages, payload, true, schema)
+                        : context.asSingleMessage(payload, schema);
             }
         };
     }
