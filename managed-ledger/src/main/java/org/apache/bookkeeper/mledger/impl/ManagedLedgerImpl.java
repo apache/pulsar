@@ -1581,7 +1581,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
 
-        if (!pendingAddEntries.isEmpty()) {
+        if (!pendingAddEntries.isEmpty() && isNeededCreateNewLedgerAfterCloseLedger()) {
             // Need to create a new ledger to write pending entries
             log.info("[{}] Creating a new ledger", name);
             STATE_UPDATER.set(this, State.CreatingLedger);
@@ -1592,10 +1592,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     synchronized void createLedgerAfterClosed() {
-        STATE_UPDATER.set(this, State.CreatingLedger);
-        this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
-        mbean.startDataLedgerCreateOp();
-        asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+        if(isNeededCreateNewLedgerAfterCloseLedger()) {
+            log.info("[{}] Creating a new ledger after closed", name);
+            STATE_UPDATER.set(this, State.CreatingLedger);
+            this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
+            mbean.startDataLedgerCreateOp();
+            asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+        }
+    }
+
+    synchronized boolean isNeededCreateNewLedgerAfterCloseLedger() {
+        final State state = STATE_UPDATER.get(this);
+        if (state != State.CreatingLedger && state != State.LedgerOpened) {
+            return true;
+        }
+        return false;
     }
 
     @VisibleForTesting
