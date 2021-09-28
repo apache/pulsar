@@ -10,7 +10,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 ## Supported platforms
 
-Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
+Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows(64-bit)** platforms.
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
@@ -288,8 +288,8 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 ## Create a consumer
 
 To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer:
-- Blocking style: synchronously calling `receive(msg)`.
-- Non-blocking (event based) style: using a message listener.
+- [Blocking style](#blocking-example): synchronously calling `receive(msg)`.
+- [Non-blocking](#consumer-with-a-message-listener) (event based) style: using a message listener.
 
 ### Blocking example
 
@@ -335,7 +335,7 @@ int main() {
 
 ### Consumer with a message listener
 
-We can avoid the need to run a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
+You can avoid  running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
@@ -386,8 +386,8 @@ int main() {
 ## Create a producer
 
 To use Pulsar as a producer, you need to create a producer on the C++ client. There are two main ways of using a producer:
-- Blocking style where each call to `send` waits for an ack from the broker.
-- Non-blocking asynchronous style where `sendAsync` is called instead of `send` and a callback is supplied for when the ack is received from the broker.
+- [Blocking style](#simple-blocking-example) : each call to `send` waits for an ack from the broker.
+- [Non-blocking asynchronous style](#non-blocking-example) : `sendAsync` is called instead of `send` and a callback is supplied for when the ack is received from the broker.
 
 ### Simple blocking example
 
