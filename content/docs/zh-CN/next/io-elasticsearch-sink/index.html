@@ -31,15 +31,15 @@
 <tr><td>Schema aware</td><td>Sink 将内容映射到 Elasticsearch 文档时使用 schema 并处理 AVRO、JSON 和 KeyValue schema 类型。<br /><br /> 如果你设置 <code>schemaEnable</code> 为 <code>true</code>，sink 会解释消息的内容，同时你可以定义一个 <strong>主键</strong>，该主键又用作 Elasticsearch 上的特殊 <code>_id</code> 字段。</td></tr>
 </tbody>
 </table>
-<p><br /><br /> This allows you to perform <code>UPDATE</code>, <code>INSERT</code>, and <code>DELETE</code> operations to Elasticsearch driven by the logical primary key of the message.<br /><br /> This is very useful in a typical Change Data Capture scenario in which you follow the changes on your database, write them to Pulsar (using the Debezium adapter for instance), and then you write to Elasticsearch.<br /><br /> You configure the mapping of the primary key using the <code>primaryFields</code> configuration entry.<br /><br />The <code>DELETE</code> operation can be performed when the primary key is not empty and the remaining value is empty. Use the <code>nullValueAction</code> to configure this behaviour. The default configuration simply ignores such empty values.</p>
-<h3><a class="anchor" aria-hidden="true" id="map-multiple-indexes"></a><a href="#map-multiple-indexes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Map multiple indexes</h3>
-<p>Since Pulsar 2.9.0, the <code>indexName</code> property is no more required. If you omit it, the sink writes to an index name after the Pulsar topic name.</p>
-<h3><a class="anchor" aria-hidden="true" id="enable-bulk-writes"></a><a href="#enable-bulk-writes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable bulk writes</h3>
-<p>Since Pulsar 2.9.0, you can use bulk writes by setting the <code>bulkEnabled</code> property to <code>true</code>.</p>
-<h3><a class="anchor" aria-hidden="true" id="enable-secure-connections-via-tls"></a><a href="#enable-secure-connections-via-tls" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable secure connections via TLS</h3>
-<p>Since Pulsar 2.9.0, you can enable secure connections with TLS.</p>
+<p><br /><br /> 这允许你执行 <code>UPDATE</code>、<code>INSERT</code> 和 <code>DELETE</code> 操作 Elasticsearch 的消息逻辑主键驱动。<br /><br />这个在典型的变更数据捕获场景中非常有用，在该场景中，你跟踪数据库上的变更，将它们写入 Pulsar (例如使用 Debezium 适配器)，然后写入 Elasticsearch。<br /><br /> 你可以使用 <code>primaryFields</code> 配置映射主键 entry。<br /><br />当主键不为空、剩余值为空时，可以执行 <code>DELETE</code>操作。 使用 <code>nullValueAction</code> 来配置此行为。 默认配置只是忽略这样的空值。</p>
+<h3><a class="anchor" aria-hidden="true" id="映射多个索引"></a><a href="#映射多个索引" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>映射多个索引</h3>
+<p>从 Pulsar 2.9.0 起， <code>indexName</code> 属性不再需要。 如果省略它，sink 将在写入 Pulsar 主题名称后写入索引名称。</p>
+<h3><a class="anchor" aria-hidden="true" id="启用批量写入"></a><a href="#启用批量写入" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启用批量写入</h3>
+<p>从 Pulsar 2.9.0 开始，你可以将 <code>bulkEnabled</code> 属性设置为 <code>true</code> 来使用批量写入。</p>
+<h3><a class="anchor" aria-hidden="true" id="通过-tls-启用安全连接"></a><a href="#通过-tls-启用安全连接" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>通过 TLS 启用安全连接</h3>
+<p>从 Pulsar 2.9.0 开始，你可以使用 TLS 启用安全连接。</p>
 <h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
-<p>The configuration of the Elasticsearch sink connector has the following properties.</p>
+<p>Elasticsearch sink 连接器的配置具有以下属性。</p>
 <h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
 <table>
 <thead>
@@ -48,52 +48,52 @@
 <tbody>
 <tr><td><code>elasticSearchUrl</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>连接器要连接的 Elasticsearch 集群的 URL。</td></tr>
 <tr><td><code>indexName</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>连接器要写入消息的索引名。</td></tr>
-<tr><td><code>schemaEnable</code></td><td>Boolean</td><td>false</td><td>false</td><td>Turn on the Schema Aware mode.</td></tr>
-<tr><td><code>createIndexIfNeeded</code></td><td>Boolean</td><td>false</td><td>false</td><td>Manage index if missing.</td></tr>
-<tr><td><code>maxRetries</code></td><td>Integer</td><td>false</td><td>1</td><td>The maximum number of retries for elasticsearch requests. Use -1 to disable it.</td></tr>
-<tr><td><code>retryBackoffInMs</code></td><td>Integer</td><td>false</td><td>100</td><td>The base time to wait when retrying an Elasticsearch request (in milliseconds).</td></tr>
-<tr><td><code>maxRetryTimeInSec</code></td><td>Integer</td><td>false</td><td>86400</td><td>The maximum retry time interval in seconds for retrying an elasticsearch request.</td></tr>
-<tr><td><code>bulkEnabled</code></td><td>Boolean</td><td>false</td><td>false</td><td>Enable the elasticsearch bulk processor to flush write requests based on the number or size of requests, or after a given period.</td></tr>
-<tr><td><code>bulkActions</code></td><td>Integer</td><td>false</td><td>1000</td><td>The maximum number of actions per elasticsearch bulk request. Use -1 to disable it.</td></tr>
-<tr><td><code>bulkSizeInMb</code></td><td>Integer</td><td>false</td><td>5</td><td>The maximum size in megabytes of elasticsearch bulk requests. Use -1 to disable it.</td></tr>
-<tr><td><code>bulkConcurrentRequests</code></td><td>Integer</td><td>false</td><td>0</td><td>The maximum number of in flight elasticsearch bulk requests. The default 0 allows the execution of a single request. A value of 1 means 1 concurrent request is allowed to be executed while accumulating new bulk requests.</td></tr>
-<tr><td><code>bulkFlushIntervalInMs</code></td><td>Integer</td><td>false</td><td>-1</td><td>The maximum period of time to wait for flushing pending writes when bulk writes are enabled. Default is -1 meaning not set.</td></tr>
-<tr><td><code>compressionEnabled</code></td><td>Boolean</td><td>false</td><td>false</td><td>Enable elasticsearch request compression.</td></tr>
-<tr><td><code>connectTimeoutInMs</code></td><td>Integer</td><td>false</td><td>5000</td><td>The elasticsearch client connection timeout in milliseconds.</td></tr>
-<tr><td><code>connectionRequestTimeoutInMs</code></td><td>Integer</td><td>false</td><td>1000</td><td>The time in milliseconds for getting a connection from the elasticsearch connection pool.</td></tr>
-<tr><td><code>connectionIdleTimeoutInMs</code></td><td>Integer</td><td>false</td><td>5</td><td>Idle connection timeout to prevent a read timeout.</td></tr>
-<tr><td><code>keyIgnore</code></td><td>Boolean</td><td>false</td><td>true</td><td>Whether to ignore the record key to build the Elasticsearch document <code>_id</code>. If primaryFields is defined, the connector extract the primary fields from the payload to build the document <code>_id</code> If no primaryFields are provided, elasticsearch auto generates a random document <code>_id</code>.</td></tr>
-<tr><td><code>primaryFields</code></td><td>String</td><td>false</td><td>&quot;id&quot;</td><td>The comma separated ordered list of field names used to build the Elasticsearch document <code>_id</code> from the record value. If this list is a singleton, the field is converted as a string. If this list has 2 or more fields, the generated <code>_id</code> is a string representation of a JSON array of the field values.</td></tr>
-<tr><td><code>nullValueAction</code></td><td>enum (IGNORE,DELETE,FAIL)</td><td>false</td><td>IGNORE</td><td>How to handle records with null values, possible options are IGNORE, DELETE or FAIL. Default is IGNORE the message.</td></tr>
-<tr><td><code>malformedDocAction</code></td><td>enum (IGNORE,WARN,FAIL)</td><td>false</td><td>FAIL</td><td>How to handle elasticsearch rejected documents due to some malformation. Possible options are IGNORE, DELETE or FAIL. Default is FAIL the Elasticsearch document.</td></tr>
-<tr><td><code>stripNulls</code></td><td>Boolean</td><td>false</td><td>true</td><td>If stripNulls is false, elasticsearch _source includes 'null' for empty fields (for example {&quot;foo&quot;: null}), otherwise null fields are stripped.</td></tr>
-<tr><td><code>socketTimeoutInMs</code></td><td>Integer</td><td>false</td><td>60000</td><td>The socket timeout in milliseconds waiting to read the elasticsearch response.</td></tr>
-<tr><td><code>typeName</code></td><td>String</td><td>false</td><td>&quot;_doc&quot;</td><td>连接器写入消息的类型名称。 <br /><br /> The value should be set explicitly to a valid type name other than &quot;_doc&quot; for Elasticsearch version before 6.2, and left to default otherwise.</td></tr>
+<tr><td><code>schemaEnable</code></td><td>Boolean</td><td>false</td><td>false</td><td>打开 Schema Aware 模式。</td></tr>
+<tr><td><code>createIndexIfNeeded</code></td><td>Boolean</td><td>false</td><td>false</td><td>缺少索引时管理索引。</td></tr>
+<tr><td><code>maxRetries</code></td><td>Integer</td><td>false</td><td>1</td><td>Elasticsearch 请求的最大重试次数。 使用 -1 禁用它。</td></tr>
+<tr><td><code>retryBackoffInMs</code></td><td>Integer</td><td>false</td><td>100</td><td>重试 Elasticsearch 请求时要等待的基本时间 (以毫秒为单位)。</td></tr>
+<tr><td><code>maxRetryTimeInSec</code></td><td>Integer</td><td>false</td><td>86400</td><td>重试 Elasticsearch 请求的最大重试时间间隔 (以秒为单位)。</td></tr>
+<tr><td><code>bulkEnabled</code></td><td>Boolean</td><td>false</td><td>false</td><td>启用 elasticsearch 批量处理器，使其能够根据请求的数量或大小或在给定时间段后刷新写入请求。</td></tr>
+<tr><td><code>bulkActions</code></td><td>Integer</td><td>false</td><td>1000</td><td>每次 elasticsearch 批量请求的最大操作数。 使用 -1 禁用它。</td></tr>
+<tr><td><code>bulkSizeInMb</code></td><td>Integer</td><td>false</td><td>5</td><td>Elasticsearch 批量请求的最大规模 (以兆字节为单位)。 使用 -1 禁用它。</td></tr>
+<tr><td><code>bulkConcurrentRequests</code></td><td>Integer</td><td>false</td><td>0</td><td>运行中 elasticsearch 批量请求的最大数量。 默认值为 0，允许执行单个请求。 值为 1 时表示在累积新的批量请求时，允许执行 1 个并发请求。</td></tr>
+<tr><td><code>bulkFlushIntervalInMs</code></td><td>Integer</td><td>false</td><td>-1</td><td>启用批量写入时，等待刷新挂起写入的最长时间。 默认值为 -1 表示未设置。</td></tr>
+<tr><td><code>compressionEnabled</code></td><td>Boolean</td><td>false</td><td>false</td><td>启用 elasticsearch 请求压缩。</td></tr>
+<tr><td><code>connectTimeoutInMs</code></td><td>Integer</td><td>false</td><td>5000</td><td>Elasticsearch 客户端连接超时时长 (以毫秒为单位)。</td></tr>
+<tr><td><code>connectionRequestTimeoutInMs</code></td><td>Integer</td><td>false</td><td>1000</td><td>从 elasticsearch 连接池中获取连接的时间 (以毫秒为单位)。</td></tr>
+<tr><td><code>connectionIdleTimeoutInMs</code></td><td>Integer</td><td>false</td><td>5</td><td>空闲连接超时以防止读取超时。</td></tr>
+<tr><td><code>keyIgnore</code></td><td>Boolean</td><td>false</td><td>true</td><td>是否忽略记录键来构建 Elasticsearch 文档 <code>_id</code>。 如果定义了 primaryFields，连接器从有效载荷中提取主要字段来构建文档 <code>_id</code>，如果没有提供 primaryFields，elasticsearch 会自动生成一个随机文档 <code>_id</code>。</td></tr>
+<tr><td><code>primaryFields</code></td><td>String</td><td>false</td><td>&quot;id&quot;</td><td>用于从记录值构建 Elasticsearch 文档 <code>_id</code> 的字段名称的逗号分隔有序列表。 如果此列表是一个单行符，则此字段会转换为一个字符串。 如果这个列表有两个或更多字段，生成的 <code>_id</code> 是一个字段数组的 JSON 字符串表示。</td></tr>
+<tr><td><code>nullValueAction</code></td><td>枚举(IGNORE,DELETE,FAILE)</td><td>false</td><td>IGNORE</td><td>如何处理空值记录，可能的选项有 IGNORE、DELETE 或 FAIL。 默认为 IGNORE 消息</td></tr>
+<tr><td><code>malformedDocAction</code></td><td>枚举(IGNORE,DELETE,FAILE)</td><td>false</td><td>FAIL</td><td>如何处理因某些格式错误而被 Elasticsearch 拒绝的文档。 可能的选项是 IGNORE, DELETE 或 FAIL。 默认为 FAIL Elasticsearch 文档。</td></tr>
+<tr><td><code>stripNulls</code></td><td>Boolean</td><td>false</td><td>true</td><td>如果 stripNulls 为false，则 elasticsearch _source 中空字段为 'null' (例如{&quot;foo&quot;: null})，否则将删除空字段。</td></tr>
+<tr><td><code>socketTimeoutInMs</code></td><td>Integer</td><td>false</td><td>60000</td><td>等待读取 elasticsearch 响应的套接字超时时长 (以毫秒为单位)。</td></tr>
+<tr><td><code>typeName</code></td><td>String</td><td>false</td><td>&quot;_doc&quot;</td><td>连接器写入消息的类型名称。 <br /><br /> 对于 6.2 之前的 Elasticsearch 版本，该值应明确设置为“_doc”以外的有效类型名称，否则保留为默认值</td></tr>
 <tr><td><code>indexNumberOfShards</code></td><td>int</td><td>false</td><td>1</td><td>索引的分片数.</td></tr>
 <tr><td><code>indexNumberOfReplicas</code></td><td>int</td><td>false</td><td>1</td><td>索引的副本数.</td></tr>
-<tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The username used by the connector to connect to the elastic search cluster. <br /><br />If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
-<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The password used by the connector to connect to the elastic search cluster. <br /><br />If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
-<tr><td><code>ssl</code></td><td>ElasticSearchSslConfig</td><td>false</td><td></td><td>Configuration for TLS encrypted communication</td></tr>
+<tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The username used by the connector to connect to the elastic search cluster. <br /><br />如果设置了 <code>username</code> ，那么也应该同时提供<code>password</code>。</td></tr>
+<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The password used by the connector to connect to the elastic search cluster. <br /><br />如果设置了 <code>username</code> ，那么也应该同时提供<code>password</code>。</td></tr>
+<tr><td><code>ssl</code></td><td>ElasticSearchSslConfig</td><td>false</td><td></td><td>TLS 加密通信的配置</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="definition-of-elasticsearchsslconfig-structure"></a><a href="#definition-of-elasticsearchsslconfig-structure" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Definition of ElasticSearchSslConfig structure:</h3>
+<h3><a class="anchor" aria-hidden="true" id="elasticsearchsslconfig-结构的定义"></a><a href="#elasticsearchsslconfig-结构的定义" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ElasticSearchSslConfig 结构的定义：</h3>
 <table>
 <thead>
 <tr><th>配置项</th><th>类型</th><th>Required</th><th>默认值</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td><code>enabled</code></td><td>Boolean</td><td>false</td><td>false</td><td>Enable SSL/TLS.</td></tr>
-<tr><td><code>hostnameVerification</code></td><td>Boolean</td><td>false</td><td>true</td><td>Whether or not to validate node hostnames when using SSL.</td></tr>
-<tr><td><code>truststorePath</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The path to the truststore file.</td></tr>
-<tr><td><code>truststorePassword</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>Truststore password.</td></tr>
-<tr><td><code>keystorePath</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The path to the keystore file.</td></tr>
-<tr><td><code>keystorePassword</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>Keystore password.</td></tr>
-<tr><td><code>cipherSuites</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>SSL/TLS cipher suites.</td></tr>
-<tr><td><code>protocols</code></td><td>String</td><td>false</td><td>&quot;TLSv1.2&quot;</td><td>Comma separated list of enabled SSL/TLS protocols.</td></tr>
+<tr><td><code>enabled</code></td><td>Boolean</td><td>false</td><td>false</td><td>启用 SSL/TLS。</td></tr>
+<tr><td><code>hostnameVerification</code></td><td>Boolean</td><td>false</td><td>true</td><td>使用 SSL 时是否验证节点主机名。</td></tr>
+<tr><td><code>truststorePath</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>TrustStore 文件的路径。</td></tr>
+<tr><td><code>truststorePassword</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>TrustStore 密码。</td></tr>
+<tr><td><code>keystorePath</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>KeyStore 文件的路径。</td></tr>
+<tr><td><code>keystorePassword</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>KeyStore 密码。</td></tr>
+<tr><td><code>cipherSuites</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>SSL/TLS 密码套件。</td></tr>
+<tr><td><code>protocols</code></td><td>String</td><td>false</td><td>&quot;TLSv1.2&quot;</td><td>已启用 SSL/TLS 协议的逗号分隔列表。</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h2>
-<p>Before using the Elasticsearch sink connector, you need to create a configuration file through one of the following methods.</p>
+<p>在使用 Elasticsearch sink 连接器之前，你需要通过以下方法之一创建配置文件。</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration-1"></a><a href="#configuration-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
 <h4><a class="anchor" aria-hidden="true" id="elasticsearch-之后-62-版本"></a><a href="#elasticsearch-之后-62-版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Elasticsearch 之后 6.2 版本</h4>
 <ul>
@@ -143,7 +143,7 @@
 <li><p>以 standalone 模式启动本地的 Pulsar 服务。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>Make sure the NAR file is available at <code>connectors/pulsar-io-elastic-search-2.8.1.nar</code>.</p></li>
+<p>确保 NAR 文件在 <code>connectors/pulsar-io-elastic-search-2.8.1.nar</code> 中可用。</p></li>
 <li><p>使用以下方法之一在本地运行模式中启动 Pulsar Elasticsearch 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置。</p>
@@ -181,7 +181,7 @@
 </code></pre></li>
 </ul></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#功能">功能</a><ul class="toc-headings"><li><a href="#处理数据">处理数据</a></li><li><a href="#map-multiple-indexes">Map multiple indexes</a></li><li><a href="#enable-bulk-writes">Enable bulk writes</a></li><li><a href="#enable-secure-connections-via-tls">Enable secure connections via TLS</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#definition-of-elasticsearchsslconfig-structure">Definition of ElasticSearchSslConfig structure:</a></li></ul></li><li><a href="#示例">示例</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#功能">功能</a><ul class="toc-headings"><li><a href="#处理数据">处理数据</a></li><li><a href="#映射多个索引">映射多个索引</a></li><li><a href="#启用批量写入">启用批量写入</a></li><li><a href="#通过-tls-启用安全连接">通过 TLS 启用安全连接</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#elasticsearchsslconfig-结构的定义">ElasticSearchSslConfig 结构的定义：</a></li></ul></li><li><a href="#示例">示例</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
