@@ -1366,7 +1366,7 @@ $ pulsar-admin topics get-backlog-size \
 ```
 
 <!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
 
 <!--Java-->
 ```java
