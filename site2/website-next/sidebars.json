@@ -121,6 +121,27 @@
         "deploy-docker",
         "deploy-monitoring"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        "performance-pulsar-perf"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        "client-libraries",
+        "client-libraries-java",
+        "client-libraries-go",
+        "client-libraries-python",
+        "client-libraries-cpp",
+        "client-libraries-node",
+        "client-libraries-websocket",
+        "client-libraries-dotnet"
+      ]
     }
   ]
 }
