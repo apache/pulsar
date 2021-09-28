@@ -558,10 +558,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public boolean checkAndUnblockIfStuck() {
-        if (cursor.checkAndUpdateReadPositionChanged()) {
+        Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        if (consumer == null || cursor.checkAndUpdateReadPositionChanged()) {
             return false;
         }
-        Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
         int totalAvailablePermits = consumer.getAvailablePermits();
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
         if (totalAvailablePermits > 0 && !havePendingRead && cursor.getNumberOfEntriesInBacklog(false) > 0) {
