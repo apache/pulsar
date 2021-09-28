@@ -3,7 +3,11 @@
     {
       "type": "category",
       "label": "Get Started",
-      "items": ["standalone", "standalone-docker", "kubernetes-helm"]
+      "items": [
+        "standalone",
+        "standalone-docker",
+        "kubernetes-helm"
+      ]
     },
     {
       "type": "category",
@@ -80,6 +84,42 @@
         "tiered-storage-filesystem",
         "tiered-storage-azure",
         "tiered-storage-aliyun"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Transactions",
+      "items": [
+        "txn-why",
+        "txn-what",
+        "txn-how",
+        "txn-use",
+        "txn-monitor"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        "helm-overview",
+        "helm-prepare",
+        "helm-install",
+        "helm-deploy",
+        "helm-upgrade",
+        "helm-tools"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        "deploy-aws",
+        "deploy-kubernetes",
+        "deploy-bare-metal",
+        "deploy-bare-metal-multi-cluster",
+        "deploy-dcos",
+        "deploy-docker",
+        "deploy-monitoring"
       ]
     }
   ]

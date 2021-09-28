@@ -448,9 +448,9 @@ public class BrokerService implements Closeable {
         this.startDeduplicationSnapshotMonitor();
     }
 
-    protected void startStatsUpdater(int statsUpdateInitailDelayInSecs, int statsUpdateFrequencyInSecs) {
+    protected void startStatsUpdater(int statsUpdateInitialDelayInSecs, int statsUpdateFrequencyInSecs) {
         statsUpdater.scheduleAtFixedRate(safeRun(this::updateRates),
-                statsUpdateInitailDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
+            statsUpdateInitialDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
 
         // Ensure the broker starts up with initial stats
         updateRates();
@@ -1201,6 +1201,9 @@ public class BrokerService implements Closeable {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
                     }
+                }).exceptionally(ex -> {
+                    topicFuture.completeExceptionally(ex.getCause());
+                    return null;
                 });
 
         return topicFuture;
@@ -2252,8 +2255,7 @@ public class BrokerService implements Closeable {
         }
 
         final String topic = pendingTopic.getLeft();
-        try {
-            checkTopicNsOwnership(topic);
+        checkTopicNsOwnership(topic).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
@@ -2266,14 +2268,14 @@ public class BrokerService implements Closeable {
                 createPendingLoadTopic();
                 return null;
             });
-        } catch (Exception e) {
+        }).exceptionally(e -> {
             log.error("Failed to create pending topic {}", topic, e);
             pendingTopic.getRight()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
-            inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
-        }
-
+            inactivityMonitor.schedule(this::createPendingLoadTopic, 100, TimeUnit.MILLISECONDS);
+            return null;
+        });
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
