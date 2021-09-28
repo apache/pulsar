@@ -471,10 +471,36 @@ Integration test have an [example](https://github.com/apache/pulsar/blob/e2bc52d
 Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) Oracle DB with LogMiner or XStream API enabled. 
 Supported options and steps for enabling them vary from version to version of Oracle DB.
 Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java) may or may not work for the version and edition of Oracle DB you are using.
-Please refer to the documentation for Oracle DB as needed.
+Please refer to the [documentation for Oracle DB](https://docs.oracle.com/en/database/oracle/oracle-database/) as needed.
 
 Similarly to other connectors, you can use JSON or YAMl to configure the connector.
 Using yaml as an example, you can create a debezium-oracle-source-config.yaml file like:
+
+* JSON
+
+```json
+{
+  "database.hostname": "localhost",
+  "database.port": "1521",
+  "database.user": "dbzuser",
+  "database.password": "dbz",
+  "database.dbname": "XE",
+  "database.server.name": "XE",
+  "schema.exclude.list": "system,dbzuser",
+  "snapshot.mode": "initial",
+  "topic.namespace": "public/default",
+  "task.class": "io.debezium.connector.oracle.OracleConnectorTask",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "typeClassName": "org.apache.pulsar.common.schema.KeyValue",
+  "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+  "database.tcpKeepAlive": "true",
+  "decimal.handling.mode": "double",
+  "database.history.pulsar.topic": "debezium-oracle-source-history-topic",
+  "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
+}
+```
+* YAML
 
 ```yaml
 tenant: "public"
