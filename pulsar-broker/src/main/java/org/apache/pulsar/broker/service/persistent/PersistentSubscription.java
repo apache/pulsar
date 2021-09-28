@@ -1038,7 +1038,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
                 if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer)) {
                     consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer).stream()
-                            .map(range -> String.format("[%s, %s]", range.getStart(), range.getEnd()))
+                            .map(Range::toString)
                             .collect(Collectors.toList());
                 }
             });
