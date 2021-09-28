@@ -462,8 +462,8 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 ### Packaging
 
-Oracle connector does not include Oracle JDBC driver and the end user will need to package it with the connector.
-Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended using the driver provided with your Oracle DB installation, or you can [download](https://www.oracle.com/database/technologies/appdev/jdbc.html) one.
+Oracle connector does not include Oracle JDBC driver and you need to package it with the connector.
+Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended to use the driver provided with your Oracle DB installation, or you can [download](https://www.oracle.com/database/technologies/appdev/jdbc.html) one.
 Integration test have an [example](https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122) of packaging the driver into the connector nar file. 
 
 ### Configuration
@@ -507,7 +507,7 @@ configs:
     database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
 ```
 
-Full list of configuration properties supported by Debezium is available in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties).
+For the full list of configuration properties supported by Debezium, see [Debezium Connector for Oracle](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties).
 
 
 ## FAQ
