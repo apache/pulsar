@@ -1677,7 +1677,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         format("The producer %s can not send message to the topic %s within given timeout",
                             producerName, topic), firstMsg.sequenceId);
                     failPendingMessages(cnx(), te);
-                    stats.incrementSendFailed(pendingMessages.size());
                     // Since the pending queue is cleared now, set timer to expire after configured value.
                     timeToWaitMs = conf.getSendTimeoutMs();
                 } else {
