@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -25,8 +26,6 @@ import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
-
-import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 
 class TopicStats {
 
@@ -303,9 +302,9 @@ class TopicStats {
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_throughput_out",
                         remoteCluster, replStats.msgThroughputOut, splitTopicAndPartitionIndexLabel);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_backlog", remoteCluster,
-                        replStats.replicationBacklog,splitTopicAndPartitionIndexLabel);
+                        replStats.replicationBacklog, splitTopicAndPartitionIndexLabel);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_connected_count",
-                        remoteCluster, replStats.connectedCount,splitTopicAndPartitionIndexLabel);
+                        remoteCluster, replStats.connectedCount, splitTopicAndPartitionIndexLabel);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_rate_expired",
                         remoteCluster, replStats.msgRateExpired, splitTopicAndPartitionIndexLabel);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_delay_in_seconds",
