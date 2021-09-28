@@ -16,25 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.bookkeeper.mledger;
 
-import javax.swing.text.Position;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
-public class TransactionBufferStats {
-
-    /** The state of this transaction buffer. */
-    public String state;
-
-    /** The max read position of this transaction buffer. */
-    public String maxReadPosition;
-
-    /** The last snapshot timestamps of this transaction buffer. */
-    public long lastSnapshotTimestamps;
+public interface OffloadFilter {
+    /**
+     *Check the state of TransactionBuffer
+     * @return
+     */
+    public boolean checkIfReady();
 
     /**
-     * The last snapshot maxReadPosition(stablePosition) of this transactionBuffer.
+     * Check whether this Entry needs offload
+     * @return
      */
-    public long persistentMaxReadPositionEntryId;
+    public boolean CheckIfNeedOffload(LedgerEntry LedgerEntry);
 
-    public long persistentMaxReadPositionLedgerId;
+    /**
+     * PersistentMaxReadPosition is the stable Position in the snapshot
+     * @return
+     */
+    public PositionImpl getPersistentMaxReadPosition();
 }
