@@ -1153,6 +1153,8 @@ public class PersistentTopic extends AbstractTopic
 
                                             brokerService.pulsar().getTopicPoliciesService()
                                                     .clean(TopicName.get(topic));
+
+                                            brokerService.deleteTopicAuthenticationWithRetry(topic);
                                             log.info("[{}] Topic deleted", topic);
                                             deleteFuture.complete(null);
                                         }

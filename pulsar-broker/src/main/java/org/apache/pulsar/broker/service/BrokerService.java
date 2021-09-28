@@ -955,6 +955,9 @@ public class BrokerService implements Closeable {
             }
         }
 
+        if (log.isDebugEnabled()) {
+            log.debug("Topic {} is not loaded, try to delete from metadata", topic);
+        }
         // Topic is not loaded, though we still might be able to delete from metadata
         TopicName tn = TopicName.get(topic);
         if (!tn.isPersistent()) {
@@ -966,6 +969,7 @@ public class BrokerService implements Closeable {
         managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
             @Override
             public void deleteLedgerComplete(Object ctx) {
+                deleteTopicAuthenticationWithRetry(topic);
                 future.complete(null);
             }
 
@@ -976,6 +980,28 @@ public class BrokerService implements Closeable {
         }, null);
 
         return future;
+    }
+
+    public void deleteTopicAuthenticationWithRetry(String topic) {
+        pulsar.getPulsarResources().getNamespaceResources()
+                .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
+                    p.auth_policies.getTopicAuthentication().remove(topic);
+                    return p;
+                }).thenAccept(r2 -> {
+                    log.info("Successfully delete authentication policies for topic {}", topic);
+                }).exceptionally(ex1 -> {
+                    if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
+                        log.warn(
+                                "Failed to delete authentication policies because of bad version. "
+                                        + "Retry to delete authentication policies for topic {}",
+                                topic);
+                        deleteTopicAuthenticationWithRetry(topic);
+                    } else {
+                        log.error("Failed to delete authentication policies for topic {}", topic);
+                        ex1.printStackTrace();
+                    }
+                    return null;
+                });
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {

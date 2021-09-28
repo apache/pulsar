@@ -632,25 +632,29 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
             }
+            // Only tries to delete the authentication policies for partitioned topic when all its partitions are
+            // successfully deleted
+            pulsar().getBrokerService().deleteTopicAuthenticationWithRetry(topicName.toString());
+
             // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
             try {
                 namespaceResources().getPartitionedTopicResources()
                         .deletePartitionedTopicAsync(topicName).thenAccept(r2 -> {
                             log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
                             asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex1 -> {
-                    log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, ex1.getCause());
-                    if (ex1.getCause()
+                }).exceptionally(ex2 -> {
+                    log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, ex2.getCause());
+                    if (ex2.getCause()
                             instanceof org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(
                                 new RestException(Status.NOT_FOUND, "Partitioned topic does not exist")));
-                    } else if (ex1
+                    } else if (ex2
                             .getCause()
                             instanceof org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException) {
                         asyncResponse.resume(
                                 new RestException(new RestException(Status.CONFLICT, "Concurrent modification")));
                     } else {
-                        asyncResponse.resume(new RestException((ex1.getCause())));
+                        asyncResponse.resume(new RestException((ex2.getCause())));
                     }
                     return null;
                 });
