@@ -125,6 +125,24 @@
         "administration-upgrade",
         "administration-isolation"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        "security-overview",
+        "security-tls-transport",
+        "security-tls-authentication",
+        "security-tls-keystore",
+        "security-jwt",
+        "security-athenz",
+        "security-kerberos",
+        "security-oauth2",
+        "security-authorization",
+        "security-encryption",
+        "security-extending",
+        "security-bouncy-castle"
+      ]
     }
   ]
 }
