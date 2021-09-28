@@ -18,31 +18,33 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.client.util.MessageIdUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
+
+@Slf4j
 @Test(groups = "broker")
 public class ConsumedLedgersTrimTest extends BrokerTestBase {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ConsumedLedgersTrimTest.class);
-
+    
     @Override
     protected void setup() throws Exception {
         //No-op
@@ -127,7 +129,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         managedLedgerConfig.setMaxEntriesPerLedger(1000);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         MessageId initialMessageId = persistentTopic.getLastMessageId().get();
-        LOG.info("lastmessageid " + initialMessageId);
+        log.info("lastmessageid " + initialMessageId);
 
         int msgNum = 7;
         for (int i = 0; i < msgNum; i++) {
@@ -137,7 +139,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
         MessageId messageIdBeforeRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        LOG.info("messageIdBeforeRestart " + messageIdBeforeRestart);
+        log.info("messageIdBeforeRestart " + messageIdBeforeRestart);
         assertNotEquals(messageIdBeforeRestart, initialMessageId);
 
         // restart the broker we have to start a new ledger
@@ -146,7 +148,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         // force load topic
         pulsar.getAdminClient().topics().getStats(topicName);
         MessageId messageIdAfterRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        LOG.info("lastmessageid " + messageIdAfterRestart);
+        log.info("lastmessageid " + messageIdAfterRestart);
         assertEquals(messageIdAfterRestart, messageIdBeforeRestart);
 
         persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -169,8 +171,72 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         // lastMessageId should be available even in this case, but is must
         // refer to -1
         MessageId messageIdAfterTrim = pulsar.getAdminClient().topics().getLastMessageId(topicName);
-        LOG.info("lastmessageid " + messageIdAfterTrim);
+        log.info("admin lastmessageid {}", messageIdAfterTrim);
         assertEquals(messageIdAfterTrim, MessageId.earliest);
 
+        messageIdAfterTrim = persistentTopic.getLastMessageId().get();
+        log.info("topic lastmessageid {}", messageIdAfterTrim);
+        assertEquals(messageIdAfterTrim, MessageId.earliest);
     }
+
+    @Test
+    public void testConsumedLedgersTrimNoSubMdInconsistency() throws Exception {
+        conf.setRetentionCheckIntervalInSeconds(1);
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        super.baseSetup();
+        final String topicName = "persistent://prop/ns-abc/testConsumedLedgersTrimNoSubMdInconsistency";
+
+        // write some messages
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .producerName("producer-name")
+                .create();
+
+        // set retention parameters, the ledgers are to be deleted as soon as possible
+        // but the topic is not to be automatically deleted
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        managedLedgerConfig.setRetentionSizeInMB(-1);
+        managedLedgerConfig.setRetentionTime(100000, TimeUnit.SECONDS);
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        MessageId initialMessageId = persistentTopic.getLastMessageId().get();
+        log.info("lastmessageid {}", initialMessageId);
+
+        int msgNum = 5;
+        for (int i = 0; i < msgNum; i++) {
+            producer.send(new byte[1024 * 1024]);
+        }
+
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 3);
+        MessageId messageIdBeforeRestart = pulsar.getAdminClient().topics().getLastMessageId(topicName);
+        log.info("messageIdBeforeRestart {}", messageIdBeforeRestart);
+        assertNotEquals(messageIdBeforeRestart, initialMessageId);
+        assertNotEquals(MessageIdUtils.getOffset(messageIdBeforeRestart), -1);
+
+        Set<Long> ledgerIdsBeforeRestart = managedLedger.getLedgersInfo().keySet();
+        log.info("current ledgers {}", ledgerIdsBeforeRestart);
+
+        stopBroker();
+
+        // delete ledgers in BK but keep metadata in managed ledger
+        for (long ledgerId: ledgerIdsBeforeRestart) {
+            mockBookKeeper.deleteLedger(ledgerId);
+            log.info("deleted ledger {}", ledgerId);
+        }
+
+        startBroker();
+
+        // force load topic
+        // Managed topic initialization should fail immediately
+        try {
+            pulsar.getAdminClient().topics().getStats(topicName);
+            Assert.fail("Expected exception");
+        } catch (PulsarAdminException.ServerSideErrorException e) {
+            // expected
+        }
+    }
+
 }

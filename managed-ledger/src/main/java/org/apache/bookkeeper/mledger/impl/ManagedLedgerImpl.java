@@ -325,8 +325,43 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.propertiesMap = Maps.newHashMap();
     }
 
-    synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
+    synchronized void initialize(final ManagedLedgerInitializeLedgerCallback originalCb, final Object ctx) {
         log.info("Opening managed ledger {}", name);
+
+        ManagedLedgerInitializeLedgerCallback callback = new ManagedLedgerInitializeLedgerCallback() {
+            @Override
+            public void initializeComplete() {
+                if (lastConfirmedEntry != null && lastConfirmedEntry.entryId != -1) {
+                    // check that ledger used by lastConfirmedEntry actually exists
+                    try {
+                        getLedgerMetadata(lastConfirmedEntry.getLedgerId()).get();
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.info("[{}] Unexpected InterruptedException", name, ie);
+                    } catch (ExecutionException ex) {
+                        if (ex.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                            log.error("[{}] Managed ledger initialization found deleted ledger {} "
+                                            + "used by lastConfirmedEntry {}.",
+                                    name, lastConfirmedEntry.getLedgerId(), lastConfirmedEntry, ex);
+                            originalCb.initializeFailed(new ManagedLedgerException.NonRecoverableLedgerException(
+                                    "Initialization of managed ledger: "
+                                            + name
+                                            + " failed. Deleted ledger: "
+                                            + lastConfirmedEntry.getLedgerId()
+                                            + " used by lastConfirmedEntry: " + lastConfirmedEntry));
+                            return;
+                        }
+                    }
+
+                }
+                originalCb.initializeComplete();
+            }
+
+            @Override
+            public void initializeFailed(ManagedLedgerException e) {
+                originalCb.initializeFailed(e);
+            }
+        };
 
         // Fetch the list of existing ledgers in the managed ledger
         store.getManagedLedgerInfo(name, config.isCreateIfMissing(), config.getProperties(),
