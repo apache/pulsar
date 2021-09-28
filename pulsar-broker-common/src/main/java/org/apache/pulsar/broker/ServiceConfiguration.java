@@ -1680,7 +1680,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerSheddingIntervalMinutes = 1;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
-        doc = "Prevent the same topics to be shed and moved to other broker more that"
+        doc = "Prevent the same topics to be shed and moved to other broker more than"
             + " once within this timeframe"
     )
     private long loadBalancerSheddingGracePeriodMinutes = 30;
