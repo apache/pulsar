@@ -328,6 +328,44 @@
     },
     {
       "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-pulsar-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-isolation"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Security",
       "items": [
         {
