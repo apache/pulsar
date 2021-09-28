@@ -3,11 +3,7 @@
     {
       "type": "category",
       "label": "Get Started",
-      "items": [
-        "standalone",
-        "standalone-docker",
-        "kubernetes-helm"
-      ]
+      "items": ["standalone", "standalone-docker", "kubernetes-helm"]
     },
     {
       "type": "category",
@@ -89,13 +85,7 @@
     {
       "type": "category",
       "label": "Transactions",
-      "items": [
-        "txn-why",
-        "txn-what",
-        "txn-how",
-        "txn-use",
-        "txn-monitor"
-      ]
+      "items": ["txn-why", "txn-what", "txn-how", "txn-use", "txn-monitor"]
     },
     {
       "type": "category",
@@ -107,6 +97,19 @@
         "helm-deploy",
         "helm-upgrade",
         "helm-tools"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        "deploy-aws",
+        "deploy-kubernetes",
+        "deploy-bare-metal",
+        "deploy-bare-metal-multi-cluster",
+        "deploy-dcos",
+        "deploy-docker",
+        "deploy-monitoring"
       ]
     },
     {
