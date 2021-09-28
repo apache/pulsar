@@ -135,6 +135,196 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-use"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-connectors"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-cdc"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/io-cli"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-getting-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-deployment-configurations"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/sql-rest-api"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/tiered-storage-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/tiered-storage-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/tiered-storage-gcs"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/tiered-storage-filesystem"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/tiered-storage-azure"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/tiered-storage-aliyun"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Transactions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/txn-why"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/txn-what"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/txn-how"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/txn-use"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/txn-monitor"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/helm-tools"
+        }
+      ],
+      "collapsible": true,
+      "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-monitoring"
+        }
+      ]
     }
   ]
 }

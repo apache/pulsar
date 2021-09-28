@@ -187,7 +187,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         return result;
     }
 
-    synchronized  void lockWasInvalidated() {
+    synchronized void lockWasInvalidated() {
         if (state != State.Valid) {
             // Ignore notifications while we're releasing the lock ourselves
             return;
@@ -206,7 +206,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             // We failed to revalidate the lock due to connectivity issue
                             // Continue assuming we hold the lock, until we can revalidate it, either
                             // on Reconnected or SessionReestablished events.
-                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection", path,
+                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
                                     ex.getCause().getMessage());
                         }
                     }
@@ -214,11 +214,13 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 });
     }
 
-    synchronized void revalidateIfNeededAfterReconnection() {
+    synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
         if (revalidateAfterReconnection) {
             revalidateAfterReconnection = false;
             log.warn("Revalidate lock at {} after reconnection", path);
-            revalidate();
+            return revalidate();
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 

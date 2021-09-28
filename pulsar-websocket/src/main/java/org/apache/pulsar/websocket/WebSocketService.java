@@ -19,24 +19,20 @@
 package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
-
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.ConfigurationMetadataCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -52,8 +48,6 @@ import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.stats.ProxyStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Socket proxy server which initializes other dependent services and starts server by opening web-socket end-point url.
@@ -73,7 +67,6 @@ public class WebSocketService implements Closeable {
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
-    private ConfigurationMetadataCacheService configurationCacheService;
 
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
@@ -105,16 +98,15 @@ public class WebSocketService implements Closeable {
                 throw new PulsarServerException(e);
             }
             pulsarResources = new PulsarResources(null, configMetadataStore);
-            this.configurationCacheService = new ConfigurationMetadataCacheService(pulsarResources, null);
         }
 
         // start authorizationService
         if (config.isAuthorizationEnabled()) {
-            if (configurationCacheService == null) {
+            if (pulsarResources == null) {
                 throw new PulsarServerException(
                         "Failed to initialize authorization manager due to empty ConfigurationStoreServers");
             }
-            authorizationService = new AuthorizationService(this.config, configurationCacheService);
+            authorizationService = new AuthorizationService(this.config, pulsarResources);
         }
         // start authentication service
         authenticationService = new AuthenticationService(this.config);
@@ -221,14 +213,13 @@ public class WebSocketService implements Closeable {
     }
 
     private ClusterData retrieveClusterData() throws PulsarServerException {
-        if (configurationCacheService == null) {
+        if (pulsarResources == null) {
             throw new PulsarServerException(
                 "Failed to retrieve Cluster data due to empty ConfigurationStoreServers");
         }
         try {
-            String path = "/admin/clusters/" + config.getClusterName();
-            return localCluster = pulsarResources.getClusterResources().get(path)
-                    .orElseThrow(() -> new NotFoundException(path));
+            return localCluster = pulsarResources.getClusterResources().getCluster(config.getClusterName())
+                    .orElseThrow(() -> new NotFoundException("Cluster " + config.getClusterName()));
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }
@@ -236,10 +227,6 @@ public class WebSocketService implements Closeable {
 
     public ProxyStats getProxyStats() {
         return proxyStats;
-    }
-
-    public ConfigurationCacheService getConfigurationCache() {
-        return configurationCacheService;
     }
 
     public ScheduledExecutorService getExecutor() {

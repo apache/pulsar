@@ -49,6 +49,78 @@
         "functions-cli",
         "window-functions-context"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        "io-overview",
+        "io-quickstart",
+        "io-use",
+        "io-debug",
+        "io-connectors",
+        "io-cdc",
+        "io-develop",
+        "io-cli"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        "sql-overview",
+        "sql-getting-started",
+        "sql-deployment-configurations",
+        "sql-rest-api"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        "tiered-storage-overview",
+        "tiered-storage-aws",
+        "tiered-storage-gcs",
+        "tiered-storage-filesystem",
+        "tiered-storage-azure",
+        "tiered-storage-aliyun"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Transactions",
+      "items": [
+        "txn-why",
+        "txn-what",
+        "txn-how",
+        "txn-use",
+        "txn-monitor"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        "helm-overview",
+        "helm-prepare",
+        "helm-install",
+        "helm-deploy",
+        "helm-upgrade",
+        "helm-tools"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        "deploy-aws",
+        "deploy-kubernetes",
+        "deploy-bare-metal",
+        "deploy-bare-metal-multi-cluster",
+        "deploy-dcos",
+        "deploy-docker",
+        "deploy-monitoring"
+      ]
     }
   ]
 }

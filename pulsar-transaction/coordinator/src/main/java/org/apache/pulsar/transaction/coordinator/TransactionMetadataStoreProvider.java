@@ -41,7 +41,7 @@ public interface TransactionMetadataStoreProvider {
         Class<?> providerClass;
         try {
             providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
+            Object obj = providerClass.getDeclaredConstructor().newInstance();
             checkArgument(obj instanceof TransactionMetadataStoreProvider,
                 "The factory has to be an instance of "
                     + TransactionMetadataStoreProvider.class.getName());

@@ -52,6 +52,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | batch-max-bytes | Set the maximum number of bytes for each batch. | 4194304 |
 | batch-max-messages | Set the maximum number of messages for each batch. | 1000 |
 | batch-time-window | Set a window for a batch of messages. | 1 ms |
+| chunking | Configure whether to split the message and publish in chunks if message size is larger than allowed max size. | false |
 | compression | Compress the message payload. | N/A |
 | conf-file | Set the configuration file. | N/A |
 | delay | Mark messages with a given delay. | 0s |
@@ -114,20 +115,25 @@ The following table lists configuration options available for the `pulsar-perf c
 | acks-delay-millis | Set the acknowledgment grouping delay in milliseconds. | 100 ms |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
 | auth_plugin | Set the authentication plugin class name. | N/A |
+| auto_ack_chunk_q_full | Configure whether to automatically ack for the oldest message in receiver queue if the queue is full. | false |
 | conf-file | Set the configuration file. | N/A |
 | encryption-key-name | Set the name of the public key used to encrypt the payload. | N/A |
 | encryption-key-value-file | Set the file which contains the public key used to encrypt the payload. | N/A |
 | help | Configure the help message. | false |
+| expire_time_incomplete_chunked_messages | Set the expiration time for incomplete chunk messages (in milliseconds). | 0 |
 | max-connections | Set the maximum number of TCP connections to a single broker. | 100 |
+| max_chunked_msg | Set the max pending chunk messages. | 0 |
 | num-consumers | Set the number of consumers for each topic. | 1 |
 | num-topic | Set the number of topics. | 1 |
 | rate | Simulate a slow message consumer (rate in msg/s). | 0.0 |
 | receiver-queue-size | Set the size of the receiver queue. | 1000 |
 | replicated | Configure whether the subscription status should be replicated. | false |
+| replicated | Configure whether the subscription status should be replicated. | false |
 | service-url | Set the Pulsar service URL. | |
 | stats-interval-seconds | Set the statistics interval. If it is set to 0, statistics is disabled. | 0 |
 | subscriber-name | Set the subscriber name prefix. | sub |
 | subscription-type | Set the subscription type. <li> Exclusive <li> Shared <li> Failover <li> Key_Shared | Exclusive |
+| test-duration | Set the test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages. | 0 |
 | trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
 
 ### Configurations

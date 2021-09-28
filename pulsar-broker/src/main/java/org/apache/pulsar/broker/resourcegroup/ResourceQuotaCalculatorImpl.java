@@ -79,9 +79,10 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         // New quota is the old usage incremented by any residual as a ratio of the local usage to the total usage.
         // This should result in the calculatedQuota increasing proportionately if total usage is less than the
         // configured usage, and reducing proportionately if the total usage is greater than the configured usage.
-        // Capped to zero, to prevent negative setting of quota.
+        // Capped to 1, to prevent negative or zero setting of quota.
+        // the rate limiter code assumes that rate value of 0 or less to mean that no rate limit should be applied
         float myUsageFraction = (float) myUsage / totalUsage;
-        float calculatedQuota = max(myUsage + residual * myUsageFraction, 0);
+        float calculatedQuota = max(myUsage + residual * myUsageFraction, 1);
 
         val longCalculatedQuota = (long) calculatedQuota;
         log.info("computeLocalQuota: myUsage={}, totalUsage={}, myFraction={}; newQuota returned={} [long: {}]",

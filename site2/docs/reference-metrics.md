@@ -35,18 +35,19 @@ The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a
 
 | Name | Type | Description |
 |---|---|---|
-| zookeeper_server_znode_count | Gauge | The number of z-nodes stored. |
-| zookeeper_server_data_size_bytes | Gauge | The total size of all of z-nodes stored. |
-| zookeeper_server_connections | Gauge | The number of currently opened connections. |
-| zookeeper_server_watches_count | Gauge | The number of watchers registered. |
-| zookeeper_server_ephemerals_count | Gauge | The number of ephemeral z-nodes. |
+| znode_count | Gauge | The number of z-nodes stored. |
+| approximate_data_size | Gauge | The approximate size of all of z-nodes stored. |
+| num_alive_connections | Gauge | The number of currently lived connections. |
+| watch_count | Gauge | The number of watchers registered. |
+| ephemerals_count | Gauge | The number of ephemeral z-nodes. |
 
 ### Request metrics
 
 | Name | Type | Description |
 |---|---|---|
-| zookeeper_server_requests | Counter | The total number of requests received by a particular server. |
-| zookeeper_server_requests_latency_ms | Summary | The requests latency calculated in milliseconds. <br> Available labels: *type* (write, read). <br> <ul><li>*write*: the requests that write data to ZooKeeper.</li><li>*read*: the requests that read data from ZooKeeper.</li></ul>|
+| request_commit_queued | Counter | The total number of requests already committed by a particular server. |
+| updatelatency | Summary | The update requests latency calculated in milliseconds. |
+| readlatency | Summary | The read requests latency calculated in milliseconds. |
 
 ## BookKeeper
 
@@ -243,7 +244,6 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
 | pulsar_ml_cache_pool_active_allocations_small | Gauge | The number of currently active small allocations in direct arena |
-| pulsar_ml_cache_pool_active_allocations_tiny | Gauge | The number of currently active tiny allocations in direct arena |
 | pulsar_ml_cache_pool_allocated | Gauge | The total allocated memory of chunk lists in direct arena |
 | pulsar_ml_cache_pool_used | Gauge | The total used memory of chunk lists in direct arena |
 | pulsar_ml_cache_used_size | Gauge | The size in byte used to store the entries payloads |

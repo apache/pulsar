@@ -20,6 +20,7 @@ package org.apache.pulsar;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
@@ -91,12 +92,14 @@ public class PulsarTransactionCoordinatorMetadataSetup {
 
         try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup
                 .initMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+            PulsarResources pulsarResources = new PulsarResources(null, configStore);
             // Create system tenant
             PulsarClusterMetadataSetup
-                    .createTenantIfAbsent(configStore, NamespaceName.SYSTEM_NAMESPACE.getTenant(), arguments.cluster);
+                    .createTenantIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                            arguments.cluster);
 
             // Create system namespace
-            PulsarClusterMetadataSetup.createNamespaceIfAbsent(configStore, NamespaceName.SYSTEM_NAMESPACE,
+            PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE,
                     arguments.cluster);
 
             // Create transaction coordinator assign partitioned topic

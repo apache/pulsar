@@ -149,6 +149,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         return new Object[][] { { "ns1" }, { "global" } };
     }
 
+    @DataProvider(name = "isV1")
+    public Object[][] isV1() {
+        return new Object[][] { { true }, { false } };
+    }
+
     /**
      * <pre>
      * It verifies increasing partitions for partitioned-topic.
@@ -217,8 +222,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer2.close();
         consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        // sometime: mockZk fails to refresh ml-cache: so, invalidate the cache to get fresh data
-        pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         assertEquals(Sets.newHashSet(admin.topics().getSubscriptions(newPartitionTopicName)),
                 Sets.newHashSet(subName1, subName2));
 
@@ -2180,5 +2183,16 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         producer1.close();
         producer2.close();
+    }
+
+    @Test(dataProvider = "isV1")
+    public void testNonPartitionedTopic(boolean isV1) throws Exception {
+        String tenant = "prop-xyz";
+        String cluster = "test";
+        String namespace = tenant + "/" + (isV1 ? cluster + "/" : "") + "n1" + isV1;
+        String topic = "persistent://" + namespace + "/t1" + isV1;
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
+        admin.topics().createNonPartitionedTopic(topic);
+        assertTrue(admin.topics().getList(namespace).contains(topic));
     }
 }

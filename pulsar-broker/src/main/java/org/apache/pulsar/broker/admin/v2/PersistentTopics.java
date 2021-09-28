@@ -230,7 +230,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     int numPartitions,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
-            validateGlobalNamespaceOwnership(tenant, namespace);
+            validateNamespaceName(tenant, namespace);
+            validateGlobalNamespaceOwnership();
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
@@ -263,7 +264,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateGlobalNamespaceOwnership(tenant, namespace);
+        validateNamespaceName(tenant, namespace);
+        validateGlobalNamespaceOwnership();
         validateTopicName(tenant, namespace, encodedTopic);
         internalCreateNonPartitionedTopic(authoritative);
     }

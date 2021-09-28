@@ -407,7 +407,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 newVersionedMetaData.getFunctionDetails().getNamespace(),
                 newVersionedMetaData.getFunctionDetails().getName(),
                 newVersionedMetaData, true,
-                String.format("Error deleting {} @ /{}/{}/{}",
+                String.format("Error deleting %s @ /%s/%s/%s",
                         ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
 
         // clean up component files stored in BK
@@ -538,12 +538,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         if (!FunctionMetaDataUtils.canChangeState(functionMetaData, Integer.parseInt(instanceId), start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
-            throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
+            throw new RestException(Status.BAD_REQUEST, "Operation not permitted");
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, Integer.parseInt(instanceId), start);
         internalProcessFunctionRequest(tenant, namespace, componentName, newFunctionMetaData, false,
-                String.format("Failed to start/stop {}: {}/{}/{}/{}", ComponentTypeUtils.toString(componentType),
+                String.format("Failed to start/stop %s: %s/%s/%s/%s", ComponentTypeUtils.toString(componentType),
                         tenant, namespace, componentName, instanceId));
     }
 
@@ -664,12 +664,12 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         if (!FunctionMetaDataUtils.canChangeState(functionMetaData, -1, start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
-            throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
+            throw new RestException(Status.BAD_REQUEST, "Operation not permitted");
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, -1, start);
         internalProcessFunctionRequest(tenant, namespace, componentName, newFunctionMetaData, false,
-                String.format("Failed to start/stop {}: {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
+                String.format("Failed to start/stop %s: %s/%s/%s", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
     }
 
     public void restartFunctionInstances(final String tenant,
