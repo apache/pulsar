@@ -48,7 +48,7 @@ public class CustomBatchConverter implements PayloadConverter {
         bufList.add(buf);
         final CustomBatchFormat.StringIterable strings = CustomBatchFormat.deserialize(buf);
         final Iterator<String> stringIterator = strings.iterator();
-        final int numMessages = context.getNumMessages();
+        final int numMessages = strings.size();
 
         return () -> new Iterator<Message<T>>() {
             int index = 0;
