@@ -2722,8 +2722,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
                 ledger.mbean.endCursorLedgerCloseOp();
                 if (rc == BKException.Code.OK) {
+                    log.info("[{}][{}] Closed cursor-ledger {}", ledger.getName(), name,
+                            cursorLedger.getId());
                     callback.closeComplete(ctx);
                 } else {
+                    log.warn("[{}][{}] Failed to close cursor-ledger {}: {}", ledger.getName(), name,
+                            cursorLedger.getId(), BKException.getMessage(rc));
                     callback.closeFailed(createManagedLedgerException(rc), ctx);
                 }
             }
