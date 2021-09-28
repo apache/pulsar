@@ -165,110 +165,115 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                            Map<String, String> extraMetadata) {
         final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(readHandle.getId()).submit(() -> {
-            if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
-                promise.completeExceptionally(
-                        new IllegalArgumentException("An empty or open ledger should never be offloaded"));
-                return;
-            }
-            OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
-                .withLedgerMetadata(readHandle.getLedgerMetadata())
-                .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
-            String dataBlockKey = DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid);
-            String indexBlockKey = DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid);
+        if(offloadFilter != null && readHandle.getLedgerMetadata().getLedgerId() >= offloadFilter
+                .getPersistentMaxReadPosition().getLedgerId()){
+            promise.complete(null);
+        }else {
+            scheduler.chooseThread(readHandle.getId()).submit(() -> {
+                if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
+                    promise.completeExceptionally(
+                            new IllegalArgumentException("An empty or open ledger should never be offloaded"));
+                    return;
+                }
+                OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
+                        .withLedgerMetadata(readHandle.getLedgerMetadata())
+                        .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
+                String dataBlockKey = DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid);
+                String indexBlockKey = DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid);
 
-            MultipartUpload mpu = null;
-            List<MultipartPart> parts = Lists.newArrayList();
+                MultipartUpload mpu = null;
+                List<MultipartPart> parts = Lists.newArrayList();
 
-            // init multi part upload for data block.
-            try {
-                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
-                DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
-                Blob blob = blobBuilder.build();
-                mpu = writeBlobStore.initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
-            } catch (Throwable t) {
-                promise.completeExceptionally(t);
-                return;
-            }
+                // init multi part upload for data block.
+                try {
+                    BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
+                    DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
+                    Blob blob = blobBuilder.build();
+                    mpu = writeBlobStore.initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
+                } catch (Throwable t) {
+                    promise.completeExceptionally(t);
+                    return;
+                }
 
-            long dataObjectLength = 0;
-            // start multi part upload for data block.
-            try {
-                long startEntry = 0;
-                int partId = 1;
-                long entryBytesWritten = 0;
-                while (startEntry <= readHandle.getLastAddConfirmed()) {
-                    int blockSize = BlockAwareSegmentInputStreamImpl
-                        .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
+                long dataObjectLength = 0;
+                // start multi part upload for data block.
+                try {
+                    long startEntry = 0;
+                    int partId = 1;
+                    long entryBytesWritten = 0;
+                    while (startEntry <= readHandle.getLastAddConfirmed()) {
+                        int blockSize = BlockAwareSegmentInputStreamImpl
+                                .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
 
-                    try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
-                        readHandle, startEntry, blockSize)) {
+                        try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
+                                readHandle, startEntry, blockSize)) {
+                            ((BlockAwareSegmentInputStreamImpl)blockStream).setOffloadFilter(offloadFilter);
+                            Payload partPayload = Payloads.newInputStreamPayload(blockStream);
+                            partPayload.getContentMetadata().setContentLength((long) blockSize);
+                            partPayload.getContentMetadata().setContentType("application/octet-stream");
+                            parts.add(writeBlobStore.uploadMultipartPart(mpu, partId, partPayload));
+                            log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
+                                    config.getBucket(), dataBlockKey, partId, mpu.id());
 
-                        Payload partPayload = Payloads.newInputStreamPayload(blockStream);
-                        partPayload.getContentMetadata().setContentLength((long) blockSize);
-                        partPayload.getContentMetadata().setContentType("application/octet-stream");
-                        parts.add(writeBlobStore.uploadMultipartPart(mpu, partId, partPayload));
-                        log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
-                                config.getBucket(), dataBlockKey, partId, mpu.id());
+                            indexBuilder.addBlock(startEntry, partId, blockSize);
 
-                        indexBuilder.addBlock(startEntry, partId, blockSize);
-
-                        if (blockStream.getEndEntryId() != -1) {
-                            startEntry = blockStream.getEndEntryId() + 1;
-                        } else {
-                            // could not read entry from ledger.
-                            break;
+                            if (blockStream.getEndEntryId() != -1) {
+                                startEntry = blockStream.getEndEntryId() + 1;
+                            } else {
+                                // could not read entry from ledger.
+                                break;
+                            }
+                            entryBytesWritten += blockStream.getBlockEntryBytesCount();
+                            partId++;
                         }
-                        entryBytesWritten += blockStream.getBlockEntryBytesCount();
-                        partId++;
+
+                        dataObjectLength += blockSize;
                     }
 
-                    dataObjectLength += blockSize;
-                }
-
-                writeBlobStore.completeMultipartUpload(mpu, parts);
-                mpu = null;
-            } catch (Throwable t) {
-                try {
-                    if (mpu != null) {
-                        writeBlobStore.abortMultipartUpload(mpu);
+                    writeBlobStore.completeMultipartUpload(mpu, parts);
+                    mpu = null;
+                } catch (Throwable t) {
+                    try {
+                        if (mpu != null) {
+                            writeBlobStore.abortMultipartUpload(mpu);
+                        }
+                    } catch (Throwable throwable) {
+                        log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
+                                config.getBucket(), dataBlockKey, mpu.id(), throwable);
                     }
-                } catch (Throwable throwable) {
-                    log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
-                            config.getBucket(), dataBlockKey, mpu.id(), throwable);
+                    promise.completeExceptionally(t);
+                    return;
                 }
-                promise.completeExceptionally(t);
-                return;
-            }
 
-            // upload index block
-            try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
-                 IndexInputStream indexStream = index.toStream()) {
-                // write the index block
-                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
-                DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
-                Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
-                indexPayload.getContentMetadata().setContentLength((long) indexStream.getStreamSize());
-                indexPayload.getContentMetadata().setContentType("application/octet-stream");
+                // upload index block
+                try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
+                     IndexInputStream indexStream = index.toStream()) {
+                    // write the index block
+                    BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
+                    DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
+                    Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
+                    indexPayload.getContentMetadata().setContentLength((long) indexStream.getStreamSize());
+                    indexPayload.getContentMetadata().setContentType("application/octet-stream");
 
-                Blob blob = blobBuilder
-                        .payload(indexPayload)
-                        .contentLength((long) indexStream.getStreamSize())
-                    .build();
+                    Blob blob = blobBuilder
+                            .payload(indexPayload)
+                            .contentLength((long) indexStream.getStreamSize())
+                            .build();
 
-                writeBlobStore.putBlob(config.getBucket(), blob);
-                promise.complete(null);
-            } catch (Throwable t) {
-                try {
-                    writeBlobStore.removeBlob(config.getBucket(), dataBlockKey);
-                } catch (Throwable throwable) {
-                    log.error("Failed deleteObject in bucket - {} with key - {}.",
-                            config.getBucket(), dataBlockKey, throwable);
+                    writeBlobStore.putBlob(config.getBucket(), blob);
+                    promise.complete(null);
+                } catch (Throwable t) {
+                    try {
+                        writeBlobStore.removeBlob(config.getBucket(), dataBlockKey);
+                    } catch (Throwable throwable) {
+                        log.error("Failed deleteObject in bucket - {} with key - {}.",
+                                config.getBucket(), dataBlockKey, throwable);
+                    }
+                    promise.completeExceptionally(t);
+                    return;
                 }
-                promise.completeExceptionally(t);
-                return;
-            }
-        });
+            });
+        }
         return promise;
     }
 

@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
@@ -65,6 +66,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
+
+    private OffloadFilter offloadFilter;
 
     public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize) {
         this.ledger = ledger;
@@ -121,6 +124,11 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();
+                if(offloadFilter != null){
+                   if(!offloadFilter.CheckIfNeedOffload(entry)){
+                       continue;
+                   }
+                }
                 ByteBuf buf = entry.getEntryBuffer().retain();
                 int entryLength = buf.readableBytes();
                 long entryId = entry.getEntryId();
@@ -202,6 +210,10 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     @Override
     public int getBlockEntryBytesCount() {
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
+    }
+
+    public void setOffloadFilter(OffloadFilter offloadFilter) {
+        this.offloadFilter = offloadFilter;
     }
 
     public static long getHeaderSize() {
