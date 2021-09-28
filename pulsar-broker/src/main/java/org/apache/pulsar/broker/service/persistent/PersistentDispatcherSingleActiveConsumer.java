@@ -251,7 +251,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }));
     }
 
-
     private synchronized void internalConsumerFlow(Consumer consumer) {
         if (havePendingRead) {
             if (log.isDebugEnabled()) {
