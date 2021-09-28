@@ -62,7 +62,7 @@ public class DefaultPayloadConverter implements PayloadConverter {
     }
 
     @Override
-    public void cleanup() {
+    public void afterConvert() {
         totalRefCnt += payloadBuffer.refCnt();
     }
 }

@@ -66,7 +66,6 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -1112,7 +1111,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             byteBuf.release();
             entryContext.recycle();
             payload.recycle();
-            conf.getPayloadConverter().cleanup();
+            conf.getPayloadConverter().afterConvert();
         }
 
         if (skippedMessages > 0) {

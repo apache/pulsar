@@ -74,7 +74,7 @@ public class CustomBatchConverter implements PayloadConverter {
     }
 
     @Override
-    public void cleanup() {
+    public void afterConvert() {
         bufList.forEach(ReferenceCounted::release);
         bufList.clear();
     }
