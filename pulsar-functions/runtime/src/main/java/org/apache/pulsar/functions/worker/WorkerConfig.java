@@ -181,7 +181,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String functionsDirectory = "./functions";
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulsar topic used for storing function metadata"
+        doc = "The Pulsar topic used for storing function metadata"
     )
     private String functionMetadataTopicName;
     @FieldContext(
@@ -191,32 +191,32 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Boolean useCompactedMetadataTopic = false;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The web service url for function workers"
+        doc = "The web service URL for function workers"
     )
     private String functionWebServiceUrl;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulser binary service url that function metadata manager talks to"
+        doc = "The Pulsar binary service URL that function metadata manager talks to"
     )
     private String pulsarServiceUrl;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulsar web service url that function metadata manager talks to"
+        doc = "The Pulsar web service URL that function metadata manager talks to"
     )
     private String pulsarWebServiceUrl;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulsar topic used for cluster coordination"
+        doc = "The Pulsar topic used for cluster coordination"
     )
     private String clusterCoordinationTopicName;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulsar namespace for storing metadata topics"
+        doc = "The Pulsar namespace for storing metadata topics"
     )
     private String pulsarFunctionsNamespace;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
-        doc = "The pulsar cluster name. Used for creating pulsar namespace during worker initialization"
+        doc = "The Pulsar cluster name. Used for creating Pulsar namespace during worker initialization"
     )
     private String pulsarFunctionsCluster;
     @FieldContext(
@@ -231,12 +231,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String downloadDirectory;
     @FieldContext(
         category = CATEGORY_STATE,
-        doc = "The service url of state storage"
+        doc = "The service URL of state storage"
     )
     private String stateStorageServiceUrl;
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
-        doc = "The pulsar topic used for storing function assignment informations"
+        doc = "The Pulsar topic used for storing function assignment informations"
     )
     private String functionAssignmentTopicName;
     @FieldContext(
@@ -304,7 +304,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String bookkeeperClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
-        doc = "BookKeeper auth plugin implementatation specifics parameters name and values"
+        doc = "BookKeeper auth plugin implementation specifics parameters name and values"
     )
     private String bookkeeperClientAuthenticationParametersName;
     @FieldContext(
@@ -413,7 +413,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         return this.initializedDlogMetadata;
     };
 
-    /******** security settings for pulsar broker client **********/
+    /******** security settings for Pulsar broker client **********/
 
     @FieldContext(
             category = CATEGORY_CLIENT_SECURITY,
