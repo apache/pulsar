@@ -321,7 +321,7 @@ public abstract class BookKeeperClusterTestCase {
      *
      * @param addr
      *            Socket Address
-     * @param latch
+     * @param l
      *            Latch to wait on
      * @throws InterruptedException
      * @throws IOException
