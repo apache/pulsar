@@ -117,7 +117,10 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                     reader.next(key, value);
                     int length = value.getLength();
                     long entryId = key.get();
-                    if (entryId == nextExpectedId) {
+                    if (entryId >= nextExpectedId && entryId <= lastEntry) {
+                        if(entryId > nextExpectedId){
+                            nextExpectedId = entryId;
+                        }
                         ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         buf.writeBytes(value.copyBytes());

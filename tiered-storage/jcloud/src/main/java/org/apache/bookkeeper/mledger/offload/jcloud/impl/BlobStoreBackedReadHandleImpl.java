@@ -112,7 +112,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         }
                         long entryId = dataStream.readLong();
 
-                        if (entryId == nextExpectedId) {
+                        if (entryId >= nextExpectedId && entryId <= lastEntry) {
+                            if(entryId > nextExpectedId){
+                                nextExpectedId = entryId;
+                            }
                             ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                             entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                             int toWrite = length;
@@ -121,9 +124,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                             }
                             entriesToRead--;
                             nextExpectedId++;
-                        } else if (entryId > nextExpectedId) {
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
                         } else if (entryId < nextExpectedId
                                 && !index.getIndexEntryForEntry(nextExpectedId).equals(
                                 index.getIndexEntryForEntry(entryId)))  {
