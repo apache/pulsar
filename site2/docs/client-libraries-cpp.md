@@ -10,7 +10,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 ## Supported platforms
 
-Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows(64-bit)** platforms.
+Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms.
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
@@ -257,6 +257,11 @@ vcpkg install --feature-flags=manifests --triplet x64-windows
 cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
 cmake --build ./build --config Release
 ```
+
+> **NOTE**
+>
+> 1. For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
+> 2. For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
 
 4. Client libraries are available in the following places.
 
