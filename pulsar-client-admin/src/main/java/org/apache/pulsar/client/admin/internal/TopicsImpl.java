@@ -2186,13 +2186,28 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void setDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException {
-        sync(() -> setDispatchRateAsync(topic, dispatchRate));
+        setDispatchRate(topic, true, dispatchRate);
+    }
+
+    @Override
+    public void setDispatchRate(String topic,
+                                boolean resetMode,
+                                DispatchRate dispatchRate) throws PulsarAdminException {
+        sync(() -> setDispatchRateAsync(topic, resetMode, dispatchRate));
     }
 
     @Override
     public CompletableFuture<Void> setDispatchRateAsync(String topic, DispatchRate dispatchRate) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "dispatchRate");
+        return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> setDispatchRateAsync(String topic, boolean resetMode, DispatchRate dispatchRate) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "dispatchRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
@@ -2246,13 +2261,30 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void setSubscriptionDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException {
-        sync(() -> setSubscriptionDispatchRateAsync(topic, dispatchRate));
+        setSubscriptionDispatchRate(topic, true, dispatchRate);
+    }
+
+    @Override
+    public void setSubscriptionDispatchRate(String topic,
+                                            boolean resetMode,
+                                            DispatchRate dispatchRate) throws PulsarAdminException {
+        sync(() -> setSubscriptionDispatchRateAsync(topic, resetMode, dispatchRate));
     }
 
     @Override
     public CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, DispatchRate dispatchRate) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscriptionDispatchRate");
+        return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic,
+                                                                    boolean resetMode,
+                                                                    DispatchRate dispatchRate) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionDispatchRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
@@ -2355,13 +2387,26 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void setPublishRate(String topic, PublishRate publishRate) throws PulsarAdminException {
-        sync(() -> setPublishRateAsync(topic, publishRate));
+        setPublishRate(topic, true, publishRate);
+    }
+
+    @Override
+    public void setPublishRate(String topic, boolean resetMode, PublishRate publishRate) throws PulsarAdminException {
+        sync(() -> setPublishRateAsync(topic, resetMode, publishRate));
     }
 
     @Override
     public CompletableFuture<Void> setPublishRateAsync(String topic, PublishRate publishRate) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "publishRate");
+        return asyncPostRequest(path, Entity.entity(publishRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> setPublishRateAsync(String topic, boolean resetMode, PublishRate publishRate) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "publishRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(publishRate, MediaType.APPLICATION_JSON));
     }
 
@@ -2785,13 +2830,30 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void setReplicatorDispatchRate(String topic, DispatchRate dispatchRate) throws PulsarAdminException {
-        sync(() -> setReplicatorDispatchRateAsync(topic, dispatchRate));
+        setReplicatorDispatchRate(topic, true, dispatchRate);
+    }
+
+    @Override
+    public void setReplicatorDispatchRate(String topic,
+                                          boolean resetMode,
+                                          DispatchRate dispatchRate) throws PulsarAdminException {
+        sync(() -> setReplicatorDispatchRateAsync(topic, resetMode, dispatchRate));
     }
 
     @Override
     public CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic, DispatchRate dispatchRate) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "replicatorDispatchRate");
+        return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicatorDispatchRateAsync(String topic,
+                                                                  boolean resetMode,
+                                                                  DispatchRate dispatchRate) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replicatorDispatchRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
@@ -2845,13 +2907,28 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void setSubscribeRate(String topic, SubscribeRate subscribeRate) throws PulsarAdminException {
-        sync(() -> setSubscribeRateAsync(topic, subscribeRate));
+        setSubscribeRate(topic, true, subscribeRate);
+    }
+
+    @Override
+    public void setSubscribeRate(String topic,
+                                 boolean resetMode,
+                                 SubscribeRate subscribeRate) throws PulsarAdminException {
+        sync(() -> setSubscribeRateAsync(topic, resetMode, subscribeRate));
     }
 
     @Override
     public CompletableFuture<Void> setSubscribeRateAsync(String topic, SubscribeRate subscribeRate) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscribeRate");
+        return asyncPostRequest(path, Entity.entity(subscribeRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscribeRateAsync(String topic, boolean resetMode, SubscribeRate subscribeRate) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscribeRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(subscribeRate, MediaType.APPLICATION_JSON));
     }
 

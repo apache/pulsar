@@ -685,14 +685,26 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true), namespaceDispatchRate);
 
-        DispatchRate topicDispatchRate = DispatchRate.builder()
+        DispatchRate expectedTopicDispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(20)
                 .dispatchThrottlingRateInByte(21)
                 .ratePeriodInSecond(12)
                 .build();
-        admin.topicPolicies().setSubscriptionDispatchRate(topic, topicDispatchRate);
-        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topicPolicies().getSubscriptionDispatchRate(topic)));
-        assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true), topicDispatchRate);
+        DispatchRate topicDispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(21)
+                .ratePeriodInSecond(10)
+                .build();
+        admin.topics().setSubscriptionDispatchRate(topic, topicDispatchRate);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getSubscriptionDispatchRate(topic)));
+        assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), topicDispatchRate);
+        DispatchRate topicDispatchRate2 = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(20)
+                .ratePeriodInSecond(12)
+                .build();
+        admin.topics().setSubscriptionDispatchRate(topic, false, topicDispatchRate2);
+        Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getSubscriptionDispatchRate(topic)));
+        assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), expectedTopicDispatchRate);
 
         admin.namespaces().removeSubscriptionDispatchRate(myNamespace);
         admin.topicPolicies().removeSubscriptionDispatchRate(topic);
@@ -1140,6 +1152,71 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetSetDispatchRateWithResetMode() throws Exception {
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(100)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
+
+        DispatchRate dispatchRate1 = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(1)
+                .build();
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate1, testTopic);
+
+        admin.topics().setDispatchRate(testTopic, dispatchRate1);
+        log.info("Dispatch Rate set success on topic: {}", testTopic);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getDispatchRate(testTopic), dispatchRate1));
+
+        DispatchRate dispatchRate2 = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(100)
+                .relativeToPublishRate(true)
+                .build();
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate2, testTopic);
+
+        admin.topics().setDispatchRate(testTopic, false, dispatchRate2);
+        log.info("Dispatch Rate set success on topic: {}", testTopic);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getDispatchRate(testTopic), dispatchRate));
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testGetSetReplicatorDispatchRateWithResetMode() throws Exception {
+        DispatchRate expectedTopicRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(20)
+                .ratePeriodInSecond(30)
+                .build();
+        DispatchRate topicRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(20)
+                .ratePeriodInSecond(20)
+                .build();
+        admin.topics().setReplicatorDispatchRate(testTopic, topicRate);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getReplicatorDispatchRate(testTopic), topicRate));
+        DispatchRate topicRate2 = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(30)
+                .build();
+        admin.topics().setReplicatorDispatchRate(testTopic, false, topicRate2);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topics().getReplicatorDispatchRate(testTopic), expectedTopicRate));
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
     public void testRemoveDispatchRate() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(100)
@@ -1529,6 +1606,31 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetSetPublishRateWithResetMode() throws Exception {
+        PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
+
+        PublishRate publishRate1 = new PublishRate(10000, -1);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate1, testTopic);
+
+        admin.topics().setPublishRate(testTopic, publishRate1);
+        log.info("Publish Rate set success on topic: {}", testTopic);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getPublishRate(testTopic), publishRate1));
+
+        PublishRate publishRate2 = new PublishRate(-1, 1024 * 1024 * 5);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate2, testTopic);
+
+        admin.topics().setPublishRate(testTopic, false, publishRate2);
+        log.info("Publish Rate set success on topic: {}", testTopic);
+
+        Awaitility.await()
+                .untilAsserted(() -> Assert.assertEquals(admin.topics().getPublishRate(testTopic), publishRate));
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
     public void testRemovePublishRate() throws Exception {
         PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
         log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
@@ -1715,13 +1817,20 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getSubscribeRate(myNamespace), subscribeRate1));
 
+        SubscribeRate expectedSubscribeRate = new SubscribeRate(2, 60);
+        SubscribeRate subscribeRate = new SubscribeRate(-1, 60);
+        log.info("Subscribe Rate: {} will be set to the namespace: {}", subscribeRate, persistenceTopic);
+        admin.topics().setSubscribeRate(persistenceTopic, subscribeRate);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topics().getSubscribeRate(persistenceTopic), subscribeRate));
+
         SubscribeRate subscribeRate2 =  new SubscribeRate(2, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate2, persistenceTopic);
-        admin.topicPolicies().setSubscribeRate(persistenceTopic, subscribeRate2);
+        admin.topics().setSubscribeRate(persistenceTopic, false, subscribeRate2);
         log.info("Subscribe Rate set success on topic: {}", persistenceTopic);
 
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getSubscribeRate(persistenceTopic), subscribeRate2));
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topics().getSubscribeRate(persistenceTopic), expectedSubscribeRate));
 
         PulsarClient pulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);
         PulsarClient pulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
