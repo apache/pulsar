@@ -926,6 +926,7 @@ class SchemaTest(TestCase):
 
         class ComplexRecord(Record):
             _avro_namespace = 'xxx.xxx'
+            _sorted_fields = True
             a = Integer()
             b = Integer()
             color = Color
