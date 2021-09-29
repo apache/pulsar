@@ -16,6 +16,7 @@ org.apache.pulsar.broker.lookup.v2
 org.apache.pulsar.broker.namespace
 org.apache.pulsar.broker.protocol
 org.apache.pulsar.broker.resourcegroup
+org.apache.pulsar.broker.rest
 org.apache.pulsar.broker.service
 org.apache.pulsar.broker.service.nonpersistent
 org.apache.pulsar.broker.service.persistent
