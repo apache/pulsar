@@ -1581,19 +1581,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
 
-        if (!pendingAddEntries.isEmpty() && isNeededCreateNewLedgerAfterCloseLedger()) {
+        if (!pendingAddEntries.isEmpty()) {
             // Need to create a new ledger to write pending entries
-            log.info("[{}] Creating a new ledger", name);
-            STATE_UPDATER.set(this, State.CreatingLedger);
-            this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
-            mbean.startDataLedgerCreateOp();
-            asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+            createLedgerAfterClosed();
         }
     }
 
     synchronized void createLedgerAfterClosed() {
         if(isNeededCreateNewLedgerAfterCloseLedger()) {
-            log.info("[{}] Creating a new ledger after closed", name);
+            log.info("[{}] Creating a new ledger", name);
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
