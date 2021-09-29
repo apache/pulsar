@@ -216,10 +216,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 .thenCompose(optGetResult -> {
                     if (!optGetResult.isPresent()) {
                         // The lock just disappeared, try to acquire it again
-                        synchronized (ResourceLockImpl.this) {
-                            // Reset the expectation on the version
-                            version = -1L;
-                        }
+                        // Reset the expectation on the version
+                        setVersion(-1L);
                         return acquireWithNoRevalidation(newValue)
                                 .thenRun(() -> log.info("Successfully re-acquired missing lock at {}", path));
                     }
@@ -254,12 +252,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                                 // session which maybe expiring soon
                                 log.info("Deleting stale lock at {}", path);
                                 return store.delete(path, Optional.of(res.getStat().getVersion()))
-                                        .thenRun(() -> {
-                                            synchronized (ResourceLockImpl.this) {
-                                                // Reset the expectation that the key is not there anymore
-                                                version = -1L;
-                                            }
-                                        })
+                                        .thenRun(() ->
+                                            // Reset the expectation that the key is not there anymore
+                                            setVersion(-1L)
+                                        )
                                         .thenCompose(__ -> acquireWithNoRevalidation(newValue))
                                         .thenRun(() -> log.info("Successfully re-acquired stale lock at {}", path));
                             }
@@ -275,15 +271,17 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                         }
 
                         return store.delete(path, Optional.of(res.getStat().getVersion()))
-                                .thenRun(() -> {
-                                    synchronized (ResourceLockImpl.this) {
-                                        // Reset the expectation that the key is not there anymore
-                                        version = -1L;
-                                    }
-                                })
+                                .thenRun(() ->
+                                    // Reset the expectation that the key is not there anymore
+                                    setVersion(-1L)
+                                )
                                 .thenCompose(__ -> acquireWithNoRevalidation(newValue))
                                 .thenRun(() -> log.info("Successfully re-acquired lock at {}", path));
                     }
                 });
+    }
+
+    private synchronized void setVersion(long version) {
+        this.version = version;
     }
 }
