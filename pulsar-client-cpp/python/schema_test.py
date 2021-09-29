@@ -732,16 +732,16 @@ class SchemaTest(TestCase):
             j = MySubRecord()
 
         class ExampleRequiredDefault(Record):
-            a = Integer(required_default=True)
-            b = Boolean(required=True, required_default=True)
-            c = Long(required_default=True)
-            d = Float(required_default=True)
-            e = Double(required_default=True)
-            f = String(required_default=True)
-            g = Bytes(required_default=True)
-            h = Array(String(), required_default=True)
-            i = Map(String(), required_default=True)
-            j = MySubRecord(required_default=True)
+            a = Integer(required=False, default=None)
+            b = Boolean(required=False, default=None)
+            c = Long(required=False, default=None)
+            d = Float(required=False, default=None)
+            e = Double(required=False, default=None)
+            f = String(required=False, default=None)
+            g = Bytes(required=False, default=None)
+            h = Array(String(), required=False, default=None)
+            i = Map(String(), required=False, default=None)
+            j = MySubRecord(required=False, default=None)
         self.assertEqual(ExampleRequiredDefault.schema(), {
                 "name": "ExampleRequiredDefault",
                 "type": "record",
@@ -756,8 +756,11 @@ class SchemaTest(TestCase):
                     },
                     {
                         "name": "b",
-                        "type": "boolean",
-                        "default": False
+                        "type": [
+                            "null",
+                            "boolean"
+                        ],
+                        "default": None
                     },
                     {
                         "name": "c",
