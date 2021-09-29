@@ -487,6 +487,7 @@ public class ClientErrorsTest {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.AuthorizationException);
         }
+        assertEquals(producerCounter.get(), 1);
 
         mockBrokerService.resetHandleProducer();
         mockBrokerService.resetHandleCloseProducer();
@@ -541,6 +542,7 @@ public class ClientErrorsTest {
                 producer.send("msg".getBytes());
             }
             assertEquals(producer.getProducers().size(), client.getPartitionsForTopic(topicName).get().size());
+            assertEquals(producerCounter.get(), 5);
         } catch (Exception e) {
             fail();
         }

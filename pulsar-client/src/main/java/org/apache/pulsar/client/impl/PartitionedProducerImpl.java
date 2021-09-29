@@ -82,13 +82,17 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
         conf.setMaxPendingMessages(maxPendingMessages);
 
-        final List<Integer> indexList = conf.isLazyStartPartitionedProducers() &&
-                                            conf.getAccessMode() == ProducerAccessMode.Shared ?
-                // try to create producer at least one partition
-                Collections.singletonList(routerPolicy
-                        .choosePartition(((TypedMessageBuilderImpl<T>) newMessage()).getMessage(), topicMetadata)) :
-                // try to create producer for all partitions
-                IntStream.range(0, topicMetadata.numPartitions()).boxed().collect(Collectors.toList());
+        final List<Integer> indexList;
+        if (conf.isLazyStartPartitionedProducers() &&
+                conf.getAccessMode() == ProducerAccessMode.Shared) {
+            // try to create producer at least one partition
+            indexList = Collections.singletonList(routerPolicy
+                    .choosePartition(((TypedMessageBuilderImpl<T>) newMessage()).getMessage(), topicMetadata));
+        } else {
+            // try to create producer for all partitions
+            indexList = IntStream.range(0, topicMetadata.numPartitions()).boxed().collect(Collectors.toList());
+        }
+
         firstPartitionIndex = indexList.get(0);
         start(indexList);
 
@@ -174,8 +178,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     private ProducerImpl<T> createProducer(final int partitionIndex) {
         return producers.computeIfAbsent(partitionIndex, (idx) -> {
-            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
-            return client.newProducerImpl(partitionName, partitionIndex,
+            String partitionName = TopicName.get(topic).getPartition(idx).toString();
+            return client.newProducerImpl(partitionName, idx,
                     conf, schema, interceptors, new CompletableFuture<>());
         });
     }
@@ -360,7 +364,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                     int partitionIndex = TopicName.getPartitionIndex(partitionName);
                                     return producers.computeIfAbsent(partitionIndex, (idx) ->
                                             new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
-                                            partitionIndex, schema, interceptors)).producerCreatedFuture();
+                                                    idx, schema, interceptors)).producerCreatedFuture();
                                 }).collect(Collectors.toList());
 
                         FutureUtil.waitForAll(futureList)

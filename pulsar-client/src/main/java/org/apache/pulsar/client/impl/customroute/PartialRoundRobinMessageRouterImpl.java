@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl.customroute;
 
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -50,33 +52,30 @@ public class PartialRoundRobinMessageRouterImpl implements MessageRouter {
      * @return the partition to route the message.
      */
     public int choosePartition(Message<?> msg, TopicMetadata metadata) {
-        return getOrCreatePartialList(metadata)
-                .get(signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), partialList.size()));
+        final List<Integer> newPartialList = new ArrayList<>(getOrCreatePartialList(metadata));
+        return newPartialList
+                .get(signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), newPartialList.size()));
     }
 
     private List<Integer> getOrCreatePartialList(TopicMetadata metadata) {
-        if (partialList.isEmpty()) {
-            partialList.addAll(IntStream.range(0, metadata.numPartitions())
-                    .boxed()
-                    .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
-                        Collections.shuffle(list);
-                        return list.stream();
-                    }))
-                    .limit(numPartitionsLimit)
-                    .collect(Collectors.toList()));
-        }
-        if (partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
-            partialList.addAll(IntStream.range(0, metadata.numPartitions())
-                    .boxed()
-                    .filter(e -> !partialList.contains(e))
-                    .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
-                        Collections.shuffle(list);
-                        return list.stream();
-                    }))
-                    .limit(numPartitionsLimit - partialList.size())
-                    .collect(Collectors.toList()));
+        if (partialList.isEmpty() ||
+                partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
+            synchronized (this) {
+                if (partialList.isEmpty()) {
+                    partialList.addAll(IntStream.range(0, metadata.numPartitions()).boxed()
+                            .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
+                                Collections.shuffle(list);
+                                return list.stream();
+                            })).limit(numPartitionsLimit).collect(Collectors.toList()));
+                } else if (partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
+                    partialList.addAll(IntStream.range(0, metadata.numPartitions()).boxed().filter(e -> !partialList.contains(e))
+                            .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
+                                Collections.shuffle(list);
+                                return list.stream();
+                            })).limit(numPartitionsLimit - partialList.size()).collect(Collectors.toList()));
+                }
+            }
         }
         return partialList;
     }
-
 }
