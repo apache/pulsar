@@ -60,6 +60,7 @@ import javax.ws.rs.core.UriInfo;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
@@ -1282,6 +1283,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         public MockLedgerOffloader(OffloadPoliciesImpl offloadPolicies) {
             this.offloadPolicies = offloadPolicies;
+        }
+
+        @Override
+        public void setOffloadFilter(OffloadFilter offloadFilter) {
+
+        }
+
+        @Override
+        public OffloadFilter getOffloadFilter() {
+            return null;
         }
 
         @Override

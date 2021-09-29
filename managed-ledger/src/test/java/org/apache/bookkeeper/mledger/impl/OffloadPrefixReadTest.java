@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
@@ -211,6 +212,16 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 
+
+        @Override
+        public void setOffloadFilter(OffloadFilter offloadFilter) {
+
+        }
+
+        @Override
+        public OffloadFilter getOffloadFilter() {
+            return null;
+        }
 
         @Override
         public String getOffloadDriverName() {
