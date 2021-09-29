@@ -50,6 +50,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -67,7 +68,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
-import org.apache.pulsar.client.api.PayloadConverter;
+import org.apache.pulsar.client.api.PayloadProcessor;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
@@ -1086,39 +1087,35 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         });
     }
 
-    private void consumeMessagesFromConverter(final BrokerEntryMetadata brokerEntryMetadata,
-                                              final MessageMetadata messageMetadata,
-                                              final ByteBuf byteBuf,
-                                              final MessageIdImpl messageId,
-                                              final Schema<T> schema,
-                                              final int redeliveryCount,
-                                              final List<Long> ackSet) {
+    private void processPayloadByProcessor(final BrokerEntryMetadata brokerEntryMetadata,
+                                           final MessageMetadata messageMetadata,
+                                           final ByteBuf byteBuf,
+                                           final MessageIdImpl messageId,
+                                           final Schema<T> schema,
+                                           final int redeliveryCount,
+                                           final List<Long> ackSet) {
+        final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf.retain());
         final EntryContextImpl entryContext = EntryContextImpl.get(
                 brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet);
-        final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf.retain());
-        final PayloadConverter converter = conf.getPayloadConverter();
-        int skippedMessages = 0;
+        final AtomicInteger skippedMessages = new AtomicInteger(0);
         try {
-            for (Message<T> message : converter.convert(entryContext, payload, schema)) {
+            conf.getPayloadProcessor().process(payload, entryContext, schema, message -> {
                 if (message == null) {
-                    skippedMessages++;
-                    continue;
+                    skippedMessages.incrementAndGet();
                 }
                 executeNotifyCallback((MessageImpl<T>) message);
-            }
-        } catch (Throwable e) {
-            converter.whenInterrupted(e);
-            log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, e);
-            discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
+            }, throwable -> {
+                log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, throwable);
+                discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
+            });
         } finally {
             byteBuf.release();
             entryContext.recycle();
             payload.release();
-            conf.getPayloadConverter().afterConvert();
         }
 
-        if (skippedMessages > 0) {
-            increaseAvailablePermits(cnx(), skippedMessages);
+        if (skippedMessages.get() > 0) {
+            increaseAvailablePermits(cnx(), skippedMessages.get());
         }
 
         internalPinnedExecutor.execute(()
@@ -1180,9 +1177,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        if (conf.getPayloadConverter() != null) {
+        if (conf.getPayloadProcessor() != null) {
             // uncompressedPayload is released in this method so we don't need to call release() again
-            consumeMessagesFromConverter(
+            processPayloadByProcessor(
                     brokerEntryMetadata, msgMetadata, uncompressedPayload, msgId, schema, redeliveryCount, ackSet);
             return;
         }

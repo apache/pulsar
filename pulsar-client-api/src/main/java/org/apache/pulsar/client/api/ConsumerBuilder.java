@@ -743,13 +743,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> poolMessages(boolean poolMessages);
 
     /**
-     * Set the payload converter that might convert the message payload to the format that Pulsar consumer can recognize
-     * before creating {@link Message}s from an entry.
+     * If it's configured with a non-null value, the consumer will use the processor to process the payload, including
+     * decoding it to messages and triggering the listener.
      *
      * Default: null
-     *
-     * @param payloadConverter
-     * @return
      */
-    ConsumerBuilder<T> payloadConverter(PayloadConverter payloadConverter);
+    ConsumerBuilder<T> payloadProcessor(PayloadProcessor payloadProcessor);
 }

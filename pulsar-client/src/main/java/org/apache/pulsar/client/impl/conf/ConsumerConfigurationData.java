@@ -42,7 +42,7 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.PayloadConverter;
+import org.apache.pulsar.client.api.PayloadProcessor;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
@@ -151,7 +151,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean poolMessages = false;
 
     @JsonIgnore
-    private transient PayloadConverter payloadConverter = null;
+    private transient PayloadProcessor payloadProcessor = null;
 
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");

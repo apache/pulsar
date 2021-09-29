@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.converter;
+package org.apache.pulsar.client.processor;
 
 import io.netty.buffer.ByteBuf;
 import java.nio.charset.StandardCharsets;
