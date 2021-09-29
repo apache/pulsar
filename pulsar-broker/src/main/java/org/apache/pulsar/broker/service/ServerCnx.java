@@ -1724,7 +1724,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             int bs = metadata.getNumMessagesInBatch();
                             int largestBatchIndex = bs > 0 ? bs - 1 : -1;
                             ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                                    entry.getLedgerId(), entry.getLedgerId(), partitionIndex, largestBatchIndex,
+                                    entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
                                     markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
                                     markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
                             entry.release();
