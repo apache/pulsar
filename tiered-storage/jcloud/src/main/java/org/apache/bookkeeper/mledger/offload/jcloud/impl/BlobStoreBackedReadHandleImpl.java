@@ -60,7 +60,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         Closed
     }
 
-    private volatile State state = null;
+    private State state = null;
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream,
