@@ -1094,7 +1094,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                            final Schema<T> schema,
                                            final int redeliveryCount,
                                            final List<Long> ackSet) {
-        final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf.retain());
+        final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf);
         final EntryContextImpl entryContext = EntryContextImpl.get(
                 brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet);
         final AtomicInteger skippedMessages = new AtomicInteger(0);
@@ -1109,9 +1109,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
             });
         } finally {
-            byteBuf.release();
             entryContext.recycle();
-            payload.release();
+            payload.release(); // byteBuf.release() is called in this method
         }
 
         if (skippedMessages.get() > 0) {
