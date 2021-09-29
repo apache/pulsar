@@ -145,6 +145,8 @@ public class PayloadConverterTest extends ProducerConsumerBase {
             final Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             values.add(message.getValue());
+            consumer.acknowledge(message.getMessageId());
+            consumer.acknowledgeCumulative(message.getMessageId());
         }
 
         if (numPartitions > 1) {
@@ -207,6 +209,8 @@ public class PayloadConverterTest extends ProducerConsumerBase {
             final Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             Assert.assertEquals(message.getValue(), messagePrefix + i);
+            consumer.acknowledge(message.getMessageId());
+            consumer.acknowledgeCumulative(message.getMessageId());
         }
 
         Assert.assertEquals(converter.getTotalRefCnt(), getNumBatches(numMessages, batchingMaxMessages));
