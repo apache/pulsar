@@ -18,25 +18,29 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.nio.ByteBuffer;
+import org.apache.pulsar.client.internal.DefaultImplementation;
+
 /**
- * The abstraction of a message's payload.
+ * The factory class of {@link MessagePayload}.
  */
-public interface MessagePayload {
+public interface MessagePayloadFactory {
+
+    MessagePayloadFactory DEFAULT = DefaultImplementation.getDefaultImplementation().newDefaultMessagePayloadFactory();
 
     /**
-     * Copy the bytes of the payload into the byte array.
+     * Create a payload whose underlying buffer refers to a byte array.
      *
-     * @return the byte array that is filled with the readable bytes of the payload, it should not be null
+     * @param bytes the byte array
+     * @return the created MessagePayload object
      */
-    byte[] copiedBuffer();
+    MessagePayload wrap(byte[] bytes);
 
     /**
-     * Release the resources if necessary.
+     * Create a payload whose underlying buffer refers to a NIO buffer.
      *
-     * NOTE: For a MessagePayload object that is created from {@link MessagePayloadFactory#DEFAULT}, this method must be
-     * called to avoid memory leak.
+     * @param buffer the NIO buffer
+     * @return the created MessagePayload object
      */
-    default void release() {
-        // No ops
-    }
+    MessagePayload wrap(ByteBuffer buffer);
 }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.converter;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCounted;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -27,9 +26,9 @@ import java.util.List;
 import org.apache.pulsar.client.api.EntryContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PayloadConverter;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.MessagePayloadImpl;
 import org.apache.pulsar.client.impl.MessagePayloadUtils;
 
 public class CustomBatchConverter implements PayloadConverter {
@@ -61,13 +60,11 @@ public class CustomBatchConverter implements PayloadConverter {
             @Override
             public Message<T> next() {
                 final String value = stringIterator.next();
-                final ByteBuf valueBuf = Unpooled.wrappedBuffer(Schema.STRING.encode(value));
-                bufList.add(valueBuf);
-                final MessagePayloadImpl singlePayload = MessagePayloadImpl.create(valueBuf);
+                final MessagePayload singlePayload = MessagePayloadFactory.DEFAULT.wrap(Schema.STRING.encode(value));
                 try {
                     return context.getMessageAt(index++, numMessages, singlePayload, false, schema);
                 } finally {
-                    singlePayload.recycle();
+                    singlePayload.release();
                 }
             }
         };

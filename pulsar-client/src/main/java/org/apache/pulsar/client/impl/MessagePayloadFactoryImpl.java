@@ -16,27 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl;
 
-/**
- * The abstraction of a message's payload.
- */
-public interface MessagePayload {
+import io.netty.buffer.Unpooled;
+import java.nio.ByteBuffer;
+import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadFactory;
 
-    /**
-     * Copy the bytes of the payload into the byte array.
-     *
-     * @return the byte array that is filled with the readable bytes of the payload, it should not be null
-     */
-    byte[] copiedBuffer();
+public class MessagePayloadFactoryImpl implements MessagePayloadFactory {
 
-    /**
-     * Release the resources if necessary.
-     *
-     * NOTE: For a MessagePayload object that is created from {@link MessagePayloadFactory#DEFAULT}, this method must be
-     * called to avoid memory leak.
-     */
-    default void release() {
-        // No ops
+    @Override
+    public MessagePayload wrap(byte[] bytes) {
+        return MessagePayloadImpl.create(Unpooled.wrappedBuffer(bytes));
+    }
+
+    @Override
+    public MessagePayload wrap(ByteBuffer buffer) {
+        return MessagePayloadImpl.create(Unpooled.wrappedBuffer(buffer));
     }
 }

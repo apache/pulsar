@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
+import io.netty.util.ReferenceCountUtil;
 import lombok.Getter;
 import lombok.NonNull;
 import org.apache.pulsar.client.api.MessagePayload;
@@ -51,7 +52,9 @@ public class MessagePayloadImpl implements MessagePayload {
         this.recyclerHandle = handle;
     }
 
-    public void recycle() {
+    @Override
+    public void release() {
+        ReferenceCountUtil.release(byteBuf);
         byteBuf = null;
         recyclerHandle.recycle(this);
     }
