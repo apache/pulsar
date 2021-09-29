@@ -1152,12 +1152,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                                 return null;
                             } else {
-                                // There was an early request to create a producer with
-                                // same producerId. This can happen when
-                                // client
-                                // timeout is lower the broker timeouts. We need to wait
-                                // until the previous producer creation
-                                // request
+                                // There was an early request to create a producer with same producerId.
+                                // This can happen when client timeout is lower than the broker timeouts.
+                                // We need to wait until the previous producer creation request
                                 // either complete or fails.
                                 ServerError error = null;
                                 if (!existingProducerFuture.isDone()) {

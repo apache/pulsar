@@ -803,6 +803,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 "org.apache.pulsar.broker.admin.v3", true, attributeMap);
         webService.addRestResources("/lookup",
                 "org.apache.pulsar.broker.lookup", true, attributeMap);
+        webService.addRestResources("/topics",
+                            "org.apache.pulsar.broker.rest", true, attributeMap);
 
         // Add metrics servlet
         webService.addServlet("/metrics",

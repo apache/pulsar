@@ -16,31 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.websocket.data;
-
-import java.util.List;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-/**
- * Class represent messages to be published.
- */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProducerMessages {
-    // Version of schema used for messages.
-    private long schemaVersion = -1;
-
-    // Base64 encoded serialized schema for key
-    private String keySchema;
-
-    // Base64 encoded serialized schema for value
-    private String valueSchema;
-
-    private String producerName;
-
-    private List<ProducerMessage> messages;
-}
+package org.apache.pulsar.broker.rest;
