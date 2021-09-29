@@ -182,7 +182,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private Map<String, String> brokerToFailureDomainMap;
 
-    private SessionEvent lastMetadataSessionEvent;
+    private SessionEvent lastMetadataSessionEvent = SessionEvent.Reconnected;
 
     // record load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
