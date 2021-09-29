@@ -18,15 +18,6 @@ public class OffloadFilterImp implements OffloadFilter {
     }
 
     @Override
-    public boolean checkIfReady() {
-        if(persistentTopic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()){
-            return persistentTopic.getTransactionBufferStats().state.equals("Ready") ;
-        }
-        return true;
-    }
-
-
-    @Override
     public boolean CheckIfNeedOffload(LedgerEntry ledgerEntry) {
         MessageMetadata messageMetadata = Commands.parseMessageMetadata(ledgerEntry.getEntryBuffer());
 
