@@ -247,11 +247,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
+            internalConsumerFlow(consumer);
         }));
     }
 
-    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+    private synchronized void internalConsumerFlow(Consumer consumer) {
         if (havePendingRead) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Ignoring flow control message since we already have a pending read req", name,
