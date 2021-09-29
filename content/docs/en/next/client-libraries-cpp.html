@@ -77,7 +77,7 @@
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://github.com/apache/pulsar/edit/master/site2/docs/client-libraries-cpp.md" target="_blank" rel="noreferrer noopener">Edit</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar C++ client</h1></header><article><div><span><p>You can use Pulsar C++ client to create Pulsar producers and consumers in C++.</p>
 <p>All the methods in producer, consumer, and reader of a C++ client are thread-safe.</p>
 <h2><a class="anchor" aria-hidden="true" id="supported-platforms"></a><a href="#supported-platforms" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supported platforms</h2>
-<p>Pulsar C++ client is supported on <strong>Linux</strong> and <strong>MacOS</strong> platforms.</p>
+<p>Pulsar C++ client is supported on <strong>Linux</strong> ,<strong>MacOS</strong> and <strong>Windows</strong> platforms.</p>
 <p><a href="http://www.doxygen.nl/">Doxygen</a>-generated API docs for the C++ client are available <a href="/api/cpp/2.8.0-SNAPSHOT">here</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="system-requirements"></a><a href="#system-requirements" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>System requirements</h2>
 <p>You need to install the following components before using the C++ client:</p>
@@ -293,6 +293,13 @@ vcpkg install --feature-flags=manifests --triplet x64-windows
 <pre><code class="hljs css language-shell">cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
 cmake --build ./build --config Release
 </code></pre>
+<blockquote>
+<p><strong>NOTE</strong></p>
+<ol>
+<li>For Windows 32-bit, you need to use <code>-A Win32</code> and <code>-DVCPKG_TRIPLET=x86-windows</code>.</li>
+<li>For MSVC Debug mode, you need to replace <code>Release</code> with <code>Debug</code> for both <code>CMAKE_BUILD_TYPE</code> variable and <code>--config</code> option.</li>
+</ol>
+</blockquote>
 <ol start="4">
 <li>Client libraries are available in the following places.</li>
 </ol>
@@ -313,8 +320,8 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/<span class="hljs-class"><span class="hlj
 <h2><a class="anchor" aria-hidden="true" id="create-a-consumer"></a><a href="#create-a-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a consumer</h2>
 <p>To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer:</p>
 <ul>
-<li>Blocking style: synchronously calling <code>receive(msg)</code>.</li>
-<li>Non-blocking (event based) style: using a message listener.</li>
+<li><a href="#blocking-example">Blocking style</a>: synchronously calling <code>receive(msg)</code>.</li>
+<li><a href="#consumer-with-a-message-listener">Non-blocking</a> (event based) style: using a message listener.</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="blocking-example"></a><a href="#blocking-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Blocking example</h3>
 <p>The benefit of this approach is that it is the simplest code. Simply keeps calling <code>receive(msg)</code> which blocks until a message is received.</p>
@@ -354,7 +361,7 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/<span class="hljs-class"><span class="hlj
 }
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="consumer-with-a-message-listener"></a><a href="#consumer-with-a-message-listener" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer with a message listener</h3>
-<p>We can avoid the need to run a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.</p>
+<p>You can avoid  running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.</p>
 <p>This example starts a subscription at the earliest offset and consumes 100 messages.</p>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
 <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;atomic&gt;</span></span>
@@ -401,8 +408,8 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/<span class="hljs-class"><span class="hlj
 <h2><a class="anchor" aria-hidden="true" id="create-a-producer"></a><a href="#create-a-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a producer</h2>
 <p>To use Pulsar as a producer, you need to create a producer on the C++ client. There are two main ways of using a producer:</p>
 <ul>
-<li>Blocking style where each call to <code>send</code> waits for an ack from the broker.</li>
-<li>Non-blocking asynchronous style where <code>sendAsync</code> is called instead of <code>send</code> and a callback is supplied for when the ack is received from the broker.</li>
+<li><a href="#simple-blocking-example">Blocking style</a> : each call to <code>send</code> waits for an ack from the broker.</li>
+<li><a href="#non-blocking-example">Non-blocking asynchronous style</a> : <code>sendAsync</code> is called instead of <code>send</code> and a callback is supplied for when the ack is received from the broker.</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="simple-blocking-example"></a><a href="#simple-blocking-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Simple blocking example</h3>
 <p>This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.</p>
