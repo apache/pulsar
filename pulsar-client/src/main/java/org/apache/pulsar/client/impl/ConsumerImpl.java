@@ -1104,7 +1104,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 executeNotifyCallback((MessageImpl<T>) message);
             }
-        } catch (IllegalStateException e) {
+        } catch (Throwable e) {
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, e);
             discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
         } finally {

@@ -18,6 +18,25 @@
  */
 package org.apache.pulsar.client.api;
 
+/**
+ * The converter that is responsible to convert a message payload to messages for consumers to consume.
+ *
+ * It's internally in consumer's implementation internally like:
+ *
+ * ```java
+ * try {
+ *     for (Message<T> msg : converter.convert(context, payload, schema) {
+ *         // Do something with `msg`...
+ *     }
+ * } catch (Throwable e) {
+ *     converter.whenInterrupted(e);
+ *     // Handle the exception...
+ * } finally {
+ *     // Do some cleanup work...
+ *     converter.afterConvert();
+ * }
+ * ```
+ */
 public interface PayloadConverter {
 
     /**
@@ -34,17 +53,18 @@ public interface PayloadConverter {
     <T> Iterable<Message<T>> convert(EntryContext context, MessagePayload payload, Schema<T> schema);
 
     /**
+     * The returned value of {@link PayloadConverter#convert} will be iterated in the internal implementation, if any
+     * exception was thrown, the iteration would stop. In this case, this method will be called.
+     */
+    default void whenInterrupted(Throwable e) {
+        // No ops
+    }
+
+    /**
      * The returned value of {@link PayloadConverter#convert} will be iterated in the internal implementation, after
      * the iteration is stopped, this method will be called.
-     *
-     * The internal implementation is like:
-     *
-     * ```java
-     * for (Message<T> msg : converter.convert(context, payload, schema) {
-     *     // Do something with `msg`
-     * }
-     * converter.afterConvert();
-     * ```
      */
-    default void afterConvert() {}
+    default void afterConvert() {
+        // No ops
+    }
 }
