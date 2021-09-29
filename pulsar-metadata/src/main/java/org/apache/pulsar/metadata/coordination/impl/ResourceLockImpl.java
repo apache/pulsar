@@ -146,7 +146,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private CompletableFuture<Void> acquireWithNoRevalidation(T newValue) {
         byte[] payload;
         try {
-            payload = serde.serialize(newValue);
+            payload = serde.serialize(path, newValue);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -231,7 +231,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
                     T existingValue;
                     try {
-                        existingValue = serde.deserialize(optGetResult.get().getValue());
+                        existingValue = serde.deserialize(path, res.getValue(), res.getStat());
                     } catch (Throwable t) {
                         return FutureUtils.exception(t);
                     }

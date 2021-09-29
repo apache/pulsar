@@ -128,7 +128,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
-    @FieldContext(doc = "Timeout of idling WebSocket session (in millisecond)")
+    @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
@@ -157,7 +157,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "TLS rejecting the connection if the client certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    @FieldContext(doc = "TLS cert refresh duration (in second). 0 means checking every new connection.")
+    @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
 
     @FieldContext(doc = "Key-value properties. Types are all String")

@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +29,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -65,9 +63,15 @@ class LockManagerImpl<T> implements LockManager<T> {
     private State state = State.Ready;
 
     LockManagerImpl(MetadataStoreExtended store, Class<T> clazz, ExecutorService executor) {
+        this(store, new JSONMetadataSerdeSimpleType<>(
+                TypeFactory.defaultInstance().constructSimpleType(clazz, null)),
+                executor);
+    }
+
+    LockManagerImpl(MetadataStoreExtended store, MetadataSerde<T> serde, ExecutorService executor) {
         this.store = store;
-        this.cache = store.getMetadataCache(clazz);
-        this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
+        this.cache = store.getMetadataCache(serde);
+        this.serde = serde;
         this.executor = executor;
         store.registerSessionListener(this::handleSessionEvent);
         store.registerListener(this::handleDataNotification);

@@ -319,14 +319,17 @@ public class ManagedLedgerWriter {
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
 
+            long total = totalMessagesSent.sum();
             double rate = messagesSent.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
-                    "Throughput produced: {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    throughputFormat.format(rate), throughputFormat.format(throughput),
+                    "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    intFormat.format(total),
+                    throughputFormat.format(rate),
+                    throughputFormat.format(throughput),
                     dec.format(reportHistogram.getMean() / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
@@ -408,5 +411,6 @@ public class ManagedLedgerWriter {
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat totalFormat = new DecimalFormat("0.000");
+    static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerWriter.class);
 }

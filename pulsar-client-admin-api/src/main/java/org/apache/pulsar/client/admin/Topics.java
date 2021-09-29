@@ -1620,6 +1620,28 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
+     * Get backlog size by a message ID.
+     * @param topic
+     *            Topic name
+     * @param messageId
+     *            message ID
+     * @return the backlog size from
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    Long getBacklogSizeByMessageId(String topic, MessageId messageId) throws PulsarAdminException;
+
+    /**
+     * Get backlog size by a message ID asynchronously.
+     * @param topic
+     *            Topic name
+     * @param messageId
+     *            message ID
+     * @return the backlog size from
+     */
+    CompletableFuture<Long> getBacklogSizeByMessageIdAsync(String topic, MessageId messageId);
+
+    /**
      * Set a backlog quota for a topic.
      * The backlog quota can be set on this resource:
      *

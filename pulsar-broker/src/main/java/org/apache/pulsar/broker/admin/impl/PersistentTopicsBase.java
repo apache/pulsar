@@ -2668,6 +2668,53 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    protected void internalGetBacklogSizeByMessageId(AsyncResponse asyncResponse,
+                                                     MessageIdImpl messageId, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            try {
+                validateGlobalNamespaceOwnership(namespaceName);
+            } catch (Exception e) {
+                log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+        }
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName,
+                authoritative, false);
+        if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+            log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
+                    clientAppId(), topicName);
+            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "calculate backlog size is not allowed for partitioned-topic"));
+        } else {
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.GET_BACKLOG_SIZE);
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            PositionImpl pos = new PositionImpl(messageId.getLedgerId(), messageId.getEntryId());
+            if (topic == null) {
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+                return;
+            }
+            try {
+                ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
+                if (messageId.getLedgerId() == -1) {
+                    asyncResponse.resume(managedLedger.getTotalSize());
+                } else {
+                    asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos));
+                }
+            } catch (WebApplicationException wae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to get backlog size for topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, wae);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, wae);
+            } catch (Exception e) {
+                log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+            }
+        }
+    }
+
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
                                            BacklogQuotaImpl backlogQuota) {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);

@@ -1849,6 +1849,48 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Long getBacklogSizeByMessageId(String topic, MessageId messageId)
+            throws PulsarAdminException {
+        try {
+            return getBacklogSizeByMessageIdAsync(topic, messageId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Long> getBacklogSizeByMessageIdAsync(String topic, MessageId messageId) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "backlogSize");
+
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        try {
+            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<Long>() {
+
+                @Override
+                public void completed(Long backlogSize) {
+                    future.complete(backlogSize);
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+
+            });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
+    }
+
+    @Override
     public void setBacklogQuota(String topic, BacklogQuota backlogQuota,
                                 BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
         try {

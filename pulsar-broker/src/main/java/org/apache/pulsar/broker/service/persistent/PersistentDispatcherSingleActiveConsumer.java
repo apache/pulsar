@@ -247,11 +247,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
+            internalConsumerFlow(consumer);
         }));
     }
 
-    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+    private synchronized void internalConsumerFlow(Consumer consumer) {
         if (havePendingRead) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Ignoring flow control message since we already have a pending read req", name,
@@ -558,10 +558,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public boolean checkAndUnblockIfStuck() {
-        if (cursor.checkAndUpdateReadPositionChanged()) {
+        Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        if (consumer == null || cursor.checkAndUpdateReadPositionChanged()) {
             return false;
         }
-        Consumer consumer = ACTIVE_CONSUMER_UPDATER.get(this);
         int totalAvailablePermits = consumer.getAvailablePermits();
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
         if (totalAvailablePermits > 0 && !havePendingRead && cursor.getNumberOfEntriesInBacklog(false) > 0) {

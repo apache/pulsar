@@ -128,7 +128,7 @@ If you deploy a single-cluster instance, you do not need a separate cluster for 
 
 If your Pulsar instance consists of just one cluster, then you can deploy a configuration store on the same machines as the local ZooKeeper quorum but run on different TCP ports.
 
-To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorom.You need to use the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum. You need to use the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184
@@ -323,9 +323,9 @@ $ bin/pulsar broker
 
 ## Service discovery
 
-[Clients](getting-started-clients.md) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions immediately below.
+[Clients](getting-started-clients.md) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL.
 
-You can also use your own service discovery system . If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration.md) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to some active brokers in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
+You can use your own service discovery system. If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration.md) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to some active brokers in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
 > **Service discovery already provided by many scheduling systems**
 > Many large-scale deployment systems, such as [Kubernetes](deploy-kubernetes), have service discovery systems built in. If you run Pulsar on such a system, you may not need to provide your own service discovery mechanism.
