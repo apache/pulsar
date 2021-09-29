@@ -1597,7 +1597,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    synchronized boolean isNeededCreateNewLedgerAfterCloseLedger() {
+    boolean isNeededCreateNewLedgerAfterCloseLedger() {
         final State state = STATE_UPDATER.get(this);
         if (state != State.CreatingLedger && state != State.LedgerOpened) {
             return true;
