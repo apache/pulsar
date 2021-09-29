@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
@@ -44,7 +45,7 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     private final MetadataStoreExtended store;
 
-    private final Map<Class<?>, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
+    private final Map<Object, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
     private final Map<String, LeaderElection<?>> leaderElections = new ConcurrentHashMap<>();
 
     private final ScheduledExecutorService executor;
@@ -78,6 +79,12 @@ public class CoordinationServiceImpl implements CoordinationService {
     public <T> LockManager<T> getLockManager(Class<T> clazz) {
         return (LockManager<T>) lockManagers.computeIfAbsent(clazz,
                 k -> new LockManagerImpl<T>(store, clazz, executor));
+    }
+
+    @Override
+    public <T> LockManager<T> getLockManager(MetadataSerde<T> serde) {
+        return (LockManager<T>) lockManagers.computeIfAbsent(serde,
+                k -> new LockManagerImpl<T>(store, serde, executor));
     }
 
     @Override
