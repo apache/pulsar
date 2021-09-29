@@ -37,6 +37,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.CacheGetResult;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -102,9 +103,10 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     }
 
                     try {
-                        T obj = serde.deserialize(optRes.get().getValue());
+                        GetResult res = optRes.get();
+                        T obj = serde.deserialize(path, res.getValue(), res.getStat());
                         return FutureUtils
-                                .value(Optional.of(new CacheGetResult<>(obj, optRes.get().getStat())));
+                                .value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
                     } catch (Throwable t) {
                         return FutureUtils.exception(new ContentDeserializationException(
                                 "Failed to deserialize payload for key '" + path + "'", t));
@@ -141,15 +143,16 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     long expectedVersion;
 
                     if (optEntry.isPresent()) {
+                        CacheGetResult<T> entry = optEntry.get();
                         T clone;
                         try {
                             // Use clone and CAS zk to ensure thread safety
-                            clone = serde.deserialize(serde.serialize(optEntry.get().getValue()));
+                            clone = serde.deserialize(path, serde.serialize(path, entry.getValue()), entry.getStat());
                         } catch (IOException e) {
                             return FutureUtils.exception(e);
                         }
                         currentValue = Optional.of(clone);
-                        expectedVersion = optEntry.get().getStat().getVersion();
+                        expectedVersion = entry.getStat().getVersion();
                     } else {
                         currentValue = Optional.empty();
                         expectedVersion = -1;
@@ -159,7 +162,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     byte[] newValue;
                     try {
                         newValueObj = modifyFunction.apply(currentValue);
-                        newValue = serde.serialize(newValueObj);
+                        newValue = serde.serialize(path, newValueObj);
                     } catch (Throwable t) {
                         return FutureUtils.exception(t);
                     }
@@ -181,15 +184,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
                     CacheGetResult<T> entry = optEntry.get();
                     T currentValue = entry.getValue();
-                    long expectedVersion = optEntry.get().getStat().getVersion();
+                    long expectedVersion = entry.getStat().getVersion();
 
                     T newValueObj;
                     byte[] newValue;
                     try {
                         // Use clone and CAS zk to ensure thread safety
-                        currentValue = serde.deserialize(serde.serialize(currentValue));
+                        currentValue = serde.deserialize(path, serde.serialize(path, currentValue), entry.getStat());
                         newValueObj = modifyFunction.apply(currentValue);
-                        newValue = serde.serialize(newValueObj);
+                        newValue = serde.serialize(path, newValueObj);
                     } catch (Throwable t) {
                         return FutureUtils.exception(t);
                     }
@@ -205,7 +208,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     public CompletableFuture<Void> create(String path, T value) {
         byte[] content;
         try {
-            content = serde.serialize(value);
+            content = serde.serialize(path, value);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
