@@ -86,4 +86,19 @@ public class MessagePayloadTest {
             return bytes;
         }
     }
+
+    @Test
+    public void testFactoryWrap() {
+        MessagePayloadImpl payload = (MessagePayloadImpl) MessagePayloadFactory.DEFAULT.wrap(new byte[1]);
+        ByteBuf byteBuf = payload.getByteBuf();
+        Assert.assertEquals(byteBuf.refCnt(), 1);
+        payload.release();
+        Assert.assertEquals(byteBuf.refCnt(), 0);
+
+        payload = (MessagePayloadImpl) MessagePayloadFactory.DEFAULT.wrap(ByteBuffer.allocate(1));
+        byteBuf = payload.getByteBuf();
+        Assert.assertEquals(byteBuf.refCnt(), 1);
+        payload.release();
+        Assert.assertEquals(byteBuf.refCnt(), 0);
+    }
 }

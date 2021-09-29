@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.converter;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCounted;
-import java.util.ArrayList;
+import lombok.Getter;
 import java.util.Iterator;
-import java.util.List;
 import org.apache.pulsar.client.api.EntryContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
@@ -34,7 +32,9 @@ import org.apache.pulsar.client.impl.MessagePayloadUtils;
 public class CustomBatchConverter implements PayloadConverter {
 
     private static final PayloadConverter DEFAULT = new DefaultPayloadConverter();
-    private final List<ByteBuf> bufList = new ArrayList<>();
+    @Getter
+    private int totalRefCnt = 0;
+    private ByteBuf tempBuf = null;
 
     @Override
     public <T> Iterable<Message<T>> convert(EntryContext context, MessagePayload payload, Schema<T> schema) {
@@ -44,7 +44,7 @@ public class CustomBatchConverter implements PayloadConverter {
         }
 
         final ByteBuf buf = MessagePayloadUtils.convertToByteBuf(payload);
-        bufList.add(buf);
+        tempBuf = buf;
         final CustomBatchFormat.StringIterable strings = CustomBatchFormat.deserialize(buf);
         final Iterator<String> stringIterator = strings.iterator();
         final int numMessages = strings.size();
@@ -72,7 +72,7 @@ public class CustomBatchConverter implements PayloadConverter {
 
     @Override
     public void afterConvert() {
-        bufList.forEach(ReferenceCounted::release);
-        bufList.clear();
+        tempBuf.release();
+        totalRefCnt += tempBuf.refCnt();
     }
 }

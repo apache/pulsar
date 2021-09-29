@@ -79,6 +79,21 @@ public class PayloadConverterTest extends ProducerConsumerBase {
         };
     }
 
+    @DataProvider
+    public static Object[][] customBatchConfig() {
+        return new Object[][] {
+                // numMessages / batchingMaxMessages
+                { 10, 1 },
+                { 10, 4 }
+        };
+    }
+
+    private static int getNumBatches(final int numMessages, final int batchingMaxMessages) {
+        int numBatches = numMessages / batchingMaxMessages;
+        numBatches += (numMessages % batchingMaxMessages == 0) ? 0 : 1;
+        return numBatches;
+    }
+
     @Test(dataProvider = "config")
     public void testDefaultConverter(int numPartitions, boolean enableBatching, int batchingMaxMessages)
             throws Exception {
@@ -143,27 +158,25 @@ public class PayloadConverterTest extends ProducerConsumerBase {
         // Each buffer's refCnt is 1 when the iteration is stopped, because it will be released in
         // PulsarDecoder#channelRead() finally.
         if (enableBatching) {
-            int numBatches = numMessages / batchingMaxMessages;
-            numBatches += (numMessages % batchingMaxMessages == 0) ? 0 : 1;
-            Assert.assertEquals(converter.getTotalRefCnt(), numBatches);
+            Assert.assertEquals(converter.getTotalRefCnt(), getNumBatches(numMessages, batchingMaxMessages));
         } else {
             Assert.assertEquals(converter.getTotalRefCnt(), numMessages);
         }
     }
 
-    @Test
-    public void testCustomConverter() throws Exception {
-        final String topic = "persistent://public/default/testCustomConverter";
-        final int numMessages = 10;
-        final int batchingMaxMessages = 4;
+    @Test(dataProvider = "customBatchConfig")
+    public void testCustomConverter(final int numMessages, final int batchingMaxMessages) throws Exception {
+        final String topic = "persistent://public/default/testCustomConverter-"
+                + numMessages + "-" + batchingMaxMessages;
         final String messagePrefix = "msg-";
 
+        final CustomBatchConverter converter = new CustomBatchConverter();
         @Cleanup
         final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .payloadConverter(new CustomBatchConverter())
+                .payloadConverter(converter)
                 .subscribe();
 
         final PersistentTopic persistentTopic =
@@ -195,6 +208,8 @@ public class PayloadConverterTest extends ProducerConsumerBase {
             Assert.assertNotNull(message);
             Assert.assertEquals(message.getValue(), messagePrefix + i);
         }
+
+        Assert.assertEquals(converter.getTotalRefCnt(), getNumBatches(numMessages, batchingMaxMessages));
     }
 
     private static MessageMetadata createCustomMetadata() {
