@@ -67,6 +67,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PayloadConverter;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
@@ -1095,9 +1096,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final EntryContextImpl entryContext = EntryContextImpl.get(
                 brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet);
         final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf.retain());
+        final PayloadConverter converter = conf.getPayloadConverter();
         int skippedMessages = 0;
         try {
-            for (Message<T> message : conf.getPayloadConverter().convert(entryContext, payload, schema)) {
+            for (Message<T> message : converter.convert(entryContext, payload, schema)) {
                 if (message == null) {
                     skippedMessages++;
                     continue;
@@ -1105,6 +1107,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 executeNotifyCallback((MessageImpl<T>) message);
             }
         } catch (Throwable e) {
+            converter.whenInterrupted(e);
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, e);
             discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
         } finally {
