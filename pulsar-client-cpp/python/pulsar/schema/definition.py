@@ -67,9 +67,10 @@ class Record(with_metaclass(RecordMeta, object)):
     # Generate a schema where fields are sorted alphabetically
     _sorted_fields = False
 
-    def __init__(self, default=None, required=False, *args, **kwargs):
+    def __init__(self, default=None, required=False, required_default=False, *args, **kwargs):
         self._default = default
         self._required = required
+        self._required_default = required_default
 
         for k, value in self._fields.items():
             if k in kwargs:
@@ -137,7 +138,13 @@ class Record(with_metaclass(RecordMeta, object)):
             field_type = field.schema_info(defined_names) \
                 if field._required else ['null', field.schema_info(defined_names)]
 
-            if not field._required and field.default() != _empty_default:
+            if field._required_default:
+                schema['fields'].append({
+                    'name': name,
+                    'default': None,
+                    'type': field_type
+                })
+            elif not field._required and field.default() != _empty_default:
                 schema['fields'].append({
                     'name': name,
                     'default': field.default(),
@@ -155,6 +162,8 @@ class Record(with_metaclass(RecordMeta, object)):
         if key == '_default':
             super(Record, self).__setattr__(key, value)
         elif key == '_required':
+            super(Record, self).__setattr__(key, value)
+        elif key == '_required_default':
             super(Record, self).__setattr__(key, value)
         else:
             if key not in self._fields:
@@ -200,9 +209,10 @@ class Record(with_metaclass(RecordMeta, object)):
 
 
 class Field(object):
-    def __init__(self, default=_empty_default, required=False):
+    def __init__(self, default=_empty_default, required=False, required_default=False):
         self._required = required
         self._default = default
+        self._required_default = required_default
         if self._default != _empty_default:
             self._default = self.validate_type('default', default)
 
@@ -370,10 +380,10 @@ class _Enum(Field):
 
 
 class Array(Field):
-    def __init__(self, array_type, default=_empty_default, required=False):
+    def __init__(self, array_type, default=_empty_default, required=False, required_default=False):
         _check_record_or_field(array_type)
         self.array_type = array_type
-        super(Array, self).__init__(default=default, required=required)
+        super(Array, self).__init__(default=default, required=required, required_default=required_default)
 
     def type(self):
         return 'array'
@@ -403,12 +413,11 @@ class Array(Field):
                 else self.array_type.type()
         }
 
-
 class Map(Field):
-    def __init__(self, value_type, default=_empty_default, required=False):
+    def __init__(self, value_type, default=_empty_default, required=False, required_default=False):
         _check_record_or_field(value_type)
         self.value_type = value_type
-        super(Map, self).__init__(default=default, required=required)
+        super(Map, self).__init__(default=default, required=required, required_default=required_default)
 
     def type(self):
         return 'map'

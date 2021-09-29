@@ -713,7 +713,7 @@ class SchemaTest(TestCase):
 
         client.close()
 
-    def test_avro_required_default(self):
+    def test_avro_required_default_None(self):
         class MySubRecord(Record):
             x = Integer()
             y = Long()
@@ -742,6 +742,168 @@ class SchemaTest(TestCase):
             h = Array(String(), required=False, default=None)
             i = Map(String(), required=False, default=None)
             j = MySubRecord(required=False, default=None)
+        self.assertEqual(ExampleRequiredDefault.schema(), {
+                "name": "ExampleRequiredDefault",
+                "type": "record",
+                "fields": [
+                    {
+                        "name": "a",
+                        "type": [
+                            "null",
+                            "int"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "b",
+                        "type": [
+                            "null",
+                            "boolean"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "c",
+                        "type": [
+                            "null",
+                            "long"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "d",
+                        "type": [
+                            "null",
+                            "float"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "e",
+                        "type": [
+                            "null",
+                            "double"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "f",
+                        "type": [
+                            "null",
+                            "string"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "g",
+                        "type": [
+                            "null",
+                            "bytes"
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "h",
+                        "type": [
+                            "null",
+                            {
+                                "type": "array",
+                                "items": "string"
+                            }
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "i",
+                        "type": [
+                            "null",
+                            {
+                                "type": "map",
+                                "values": "string"
+                            }
+                        ],
+                        "default": None
+                    },
+                    {
+                        "name": "j",
+                        "type": [
+                            "null",
+                            {
+                                "name": "MySubRecord",
+                                "type": "record",
+                                "fields": [
+                                    {
+                                        "name": "x",
+                                        "type": [
+                                            "null",
+                                            "int"
+                                        ]
+                                    },
+                                    {
+                                        "name": "y",
+                                        "type": [
+                                            "null",
+                                            "long"
+                                        ],
+                                    },
+                                    {
+                                        "name": "z",
+                                        "type": [
+                                            "null",
+                                            "string"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ],
+                        "default": None
+                    }
+                ]
+            })
+
+        client = pulsar.Client(self.serviceUrl)
+        producer = client.create_producer(
+            'my-avro-python-default-topic',
+            schema=AvroSchema(Example))
+
+        producer_default = client.create_producer(
+            'my-avro-python-default-topic',
+            schema=AvroSchema(ExampleRequiredDefault))
+
+        producer.close()
+        producer_default.close()
+
+        client.close()
+
+    def test_avro_required_default(self):
+        class MySubRecord(Record):
+            x = Integer()
+            y = Long()
+            z = String()
+
+        class Example(Record):
+            a = Integer()
+            b = Boolean(required=True)
+            c = Long()
+            d = Float()
+            e = Double()
+            f = String()
+            g = Bytes()
+            h = Array(String())
+            i = Map(String())
+            j = MySubRecord()
+
+        class ExampleRequiredDefault(Record):
+            a = Integer(required_default=True)
+            b = Boolean(required_default=True)
+            c = Long(required_default=True)
+            d = Float(required_default=True)
+            e = Double(required_default=True)
+            f = String(required_default=True)
+            g = Bytes(required_default=True)
+            h = Array(String(), required_default=True)
+            i = Map(String(), required_default=True)
+            j = MySubRecord(required_default=True)
         self.assertEqual(ExampleRequiredDefault.schema(), {
                 "name": "ExampleRequiredDefault",
                 "type": "record",
