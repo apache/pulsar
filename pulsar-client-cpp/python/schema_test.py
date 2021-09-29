@@ -348,6 +348,30 @@ class SchemaTest(TestCase):
         self.assertEqual(r2.__class__.__name__, 'Example')
         self.assertEqual(r2, r)
 
+    def test_non_sorted_fields(self):
+        class T1(Record):
+            a = Integer()
+            b = Integer()
+
+        class T2(Record):
+            b = Integer()
+            a = Integer()
+
+        self.assertNotEqual(T1.schema()['fields'], T2.schema()['fields'])
+
+    def test_sorted_fields(self):
+        class T1(Record):
+            _sorted_fields = True
+            a = Integer()
+            b = Integer()
+
+        class T2(Record):
+            _sorted_fields = True
+            b = Integer()
+            a = Integer()
+
+        self.assertEqual(T1.schema()['fields'], T2.schema()['fields'])
+
     def test_schema_version(self):
         class Example(Record):
             a = Integer()
