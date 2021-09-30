@@ -680,7 +680,8 @@ public class PulsarService implements AutoCloseable {
             this.metricsServlet = new PrometheusMetricsServlet(
                     this, config.isExposeTopicLevelMetricsInPrometheus(),
                     config.isExposeConsumerLevelMetricsInPrometheus(),
-                    config.isExposeProducerLevelMetricsInPrometheus());
+                    config.isExposeProducerLevelMetricsInPrometheus(),
+                    config.isSplitTopicAndPartitionLabelInPrometheus());
             if (pendingMetricsProviders != null) {
                 pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
                 this.pendingMetricsProviders = null;

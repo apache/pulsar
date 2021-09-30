@@ -1222,6 +1222,48 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         pulsarClient.close();
     }
 
+    @Test
+    public void testSplitTopicAndPartitionLabel() throws Exception {
+        String ns1 = "prop/ns-abc1";
+        String ns2 = "prop/ns-abc2";
+        admin.namespaces().createNamespace(ns1);
+        admin.namespaces().createNamespace(ns2);
+        String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
+        String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
+        for (int i = 0; i < 6; i++) {
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID());
+        }
+        for (int i = 0; i < 3; i++) {
+            admin.topics().createPartitionedTopic(baseTopic2 + UUID.randomUUID(), 3);
+        }
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topicsPattern("persistent://" + ns1 + "/.*")
+                .subscriptionName("sub")
+                .subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topicsPattern("persistent://" + ns2 + "/.*")
+                .subscriptionName("sub")
+                .subscribe();
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true,  statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Collection<Metric> metric = metrics.get("pulsar_consumers_count");
+        assertTrue(metric.size() >= 15);
+        metric.forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.tags.get("partition"), "-1");
+            }
+            if (ns2.equals(item.tags.get("namespace"))) {
+                System.out.println(item);
+                assertTrue(Integer.parseInt(item.tags.get("partition")) >= 0);
+            }
+        });
+        consumer1.close();
+        consumer2.close();
+    }
+
     private void compareCompactionStateCount(List<Metric> cm, double count) {
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
