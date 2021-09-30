@@ -27,6 +27,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -42,10 +43,10 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Test for {@link org.apache.pulsar.client.api.PayloadProcessor}.
+ * Test for {@link MessagePayloadProcessor}.
  */
 @Slf4j
-public class PayloadProcessorTest extends ProducerConsumerBase {
+public class MessagePayloadProcessorTest extends ProducerConsumerBase {
 
     @BeforeClass
     @Override
@@ -124,7 +125,7 @@ public class PayloadProcessorTest extends ProducerConsumerBase {
                 .topic(topic)
                 .subscriptionName("sub")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .payloadProcessor(processor)
+                .messagePayloadProcessor(processor)
                 .subscribe();
         final List<String> values = new ArrayList<>();
         for (int i = 0; i < numMessages; i++) {
