@@ -171,7 +171,7 @@ In this example, using await operator instead of executor function.</p>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>send(Object)</code></td><td style="text-align:left">Publishes a <a href="#messages">message</a> to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">Sends message from send queue to Pulsar broker. When the message is successfully acknowledged by the Pulsar broker, or an error will be thrown, the Promise object run executor function.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 <tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">Closes the producer and releases all resources allocated to it. If <code>close()</code> is called then no more messages will be accepted from the publisher. This method will return Promise object, and when all pending publish requests have been persisted by Pulsar then run executor function. If an error is thrown, no pending writes will be retried.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>

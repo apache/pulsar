@@ -177,7 +177,7 @@
 <li>Pulsar proxy에서 <a href="/docs/ko/next/security-tls-transport">TLS 암호화</a> 및 <a href="/docs/ko/next/security-tls-authentication">인증</a>지원</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
-<p>Pulsar 브로커에 연결하는 <a href="/docs/ko/next/client-libraries">클라이언트</a>는 단일 URL을 사용하여 전체 Pulsar 인스턴스와 통신 할 수 있어야합니다. Pulsar는 <a href="/docs/ko/next/deploy-bare-metal#service-discovery-setup">Pulsar 인스턴스 배포</a> 가이드의 지침을 사용하여 설정할 수있는 기본 제공 서비스 검색 메커니즘을 제공합니다.</p>
+<p>Pulsar 브로커에 연결하는 <a href="/docs/ko/next/client-libraries">클라이언트</a>는 단일 URL을 사용하여 전체 Pulsar 인스턴스와 통신 할 수 있어야합니다.</p>
 <p>원하는 경우 고유 한 서비스 검색 시스템을 사용할 수 있습니다. 자체 시스템을 사용하는 경우 클라이언트가 엔드 포인트에 대한 HTTP 요청을 수행 할 때, <code>http://pulsar.us-west.example.com:8080</code>과 같은, 클라이언트는 DNS, HTTP 또는 IP 리디렉션 또는 다른 수단을 통해 원하는 클러스터의 <em>일부</em> 활성 브로커로 리디렉션되어야 합니다.</p>
 <p>아래 다이어그램은 Pulsar 서비스 검색을 보여줍니다:</p>
 <p><img src="/docs/assets/pulsar-service-discovery.png" alt="alt-text"></p>
