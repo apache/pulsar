@@ -78,15 +78,6 @@ public class CustomBatchFormat {
         return bytes;
     }
 
-    public static List<String> deserialize(final ByteBuf buf) {
-        final Metadata metadata = readMetadata(buf);
-        final List<String> strings = new ArrayList<>();
-        for (int i = 0; i < metadata.getNumMessages(); i++) {
-            strings.add(Schema.STRING.decode(readMessage(buf)));
-        }
-        return strings;
-    }
-
     @Test
     public void testMultipleStrings() {
         final List<List<String>> inputs = new ArrayList<>();
@@ -96,7 +87,12 @@ public class CustomBatchFormat {
 
         for (List<String> input : inputs) {
             final ByteBuf buf = serialize(input);
-            final List<String> parsedTokens = deserialize(buf);
+
+            final Metadata metadata = readMetadata(buf);
+            final List<String> parsedTokens = new ArrayList<>();
+            for (int i = 0; i < metadata.getNumMessages(); i++) {
+                parsedTokens.add(Schema.STRING.decode(readMessage(buf)));
+            }
 
             Assert.assertEquals(parsedTokens, input);
             Assert.assertEquals(parsedTokens.size(), input.size());

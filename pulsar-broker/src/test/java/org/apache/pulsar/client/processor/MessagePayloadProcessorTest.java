@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
@@ -76,10 +77,13 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
         };
     }
 
-    private static int getNumBatches(final int numMessages, final int batchingMaxMessages) {
-        int numBatches = numMessages / batchingMaxMessages;
-        numBatches += (numMessages % batchingMaxMessages == 0) ? 0 : 1;
-        return numBatches;
+    @DataProvider
+    public static Object[][] customBatchConfig() {
+        return new Object[][] {
+                // numMessages / batchingMaxMessages
+                { 10, 1 },
+                { 10, 4 }
+        };
     }
 
     @Test(dataProvider = "config")
@@ -133,7 +137,6 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
             Assert.assertNotNull(message);
             values.add(message.getValue());
             consumer.acknowledge(message.getMessageId());
-            consumer.acknowledgeCumulative(message.getMessageId());
         }
 
         if (numPartitions > 1) {
@@ -148,9 +151,43 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
         // 1. ConsumerImpl#processPayloadByProcessor
         // 2. PulsarDecoder#channelRead
         if (enableBatching) {
-            Assert.assertEquals(processor.getTotalRefCnt(), 2 * getNumBatches(numMessages, batchingMaxMessages));
+            int numBatches = numMessages / batchingMaxMessages;
+            numBatches += (numMessages % batchingMaxMessages == 0) ? 0 : 1;
+            Assert.assertEquals(processor.getTotalRefCnt(), 2 * numBatches);
         } else {
             Assert.assertEquals(processor.getTotalRefCnt(), 2 * numMessages);
+        }
+    }
+
+    @Test(dataProvider = "customBatchConfig")
+    public void testCustomProcessor(final int numMessages, final int batchingMaxMessages) throws Exception {
+        final String topic = "persistent://public/default/testCustomProcessor-"
+                + numMessages + "-" + batchingMaxMessages;
+
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .messagePayloadProcessor(new CustomBatchPayloadProcessor())
+                .subscribe();
+
+        final PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().orElse(null);
+        Assert.assertNotNull(persistentTopic);
+
+        final String messagePrefix = "msg-";
+        final CustomBatchProducer producer = new CustomBatchProducer(persistentTopic, batchingMaxMessages);
+        for (int i = 0; i < numMessages; i++) {
+            producer.sendAsync(messagePrefix + i);
+        }
+        producer.flush();
+
+        for (int i = 0; i < numMessages; i++) {
+            final Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertEquals(message.getValue(), messagePrefix + i);
+            consumer.acknowledge(message.getMessageId());
         }
     }
 }
