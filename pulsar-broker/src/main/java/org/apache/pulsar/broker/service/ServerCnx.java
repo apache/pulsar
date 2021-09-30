@@ -1442,8 +1442,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         if (state != State.Connected && hasRequestId) {
-            log.error("redeliverUnacknowledgedMessages error! " +
-                            "consumerId : {}, requestId: {}", consumerId, requestId,
+            log.error("redeliverUnacknowledgedMessages error! "
+                            + "consumerId : {}, requestId: {}", consumerId, requestId,
                     new ServiceUnitNotReadyException("ServerCnx don't connect!"));
             ctx.writeAndFlush(Commands.newError(requestId,
                     ServerError.ServiceNotReady,
@@ -1458,8 +1458,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch()).whenComplete((v, e) -> {
                     if (hasRequestId) {
                         if (e != null) {
-                            log.error("redeliverUnacknowledgedMessages error! " +
-                                    "consumerId : {}, requestId: {}", consumerId, requestId, e);
+                            log.error("redeliverUnacknowledgedMessages error! "
+                                    + "consumerId : {}, requestId: {}", consumerId, requestId, e);
                             ctx.writeAndFlush(Commands.newError(requestId,
                                     BrokerServiceException.getClientErrorCode(e), e.getMessage()));
                         } else {
@@ -1470,8 +1470,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
         } else {
             if (hasRequestId) {
-                log.error("redeliverUnacknowledgedMessages error! " +
-                        "consumerId : {}, requestId: {}", consumerId, requestId,
+                log.error("redeliverUnacknowledgedMessages error! "
+                                + "consumerId : {}, requestId: {}", consumerId, requestId,
                         new ServiceUnitNotReadyException("Consumer don't init complete!"));
                 ctx.writeAndFlush(Commands.newError(requestId,
                         ServerError.ServiceNotReady,
