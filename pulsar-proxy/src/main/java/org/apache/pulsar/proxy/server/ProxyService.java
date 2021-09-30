@@ -25,16 +25,19 @@ import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -55,6 +58,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.proxy.extensions.ProxyExtensions;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +77,7 @@ public class ProxyService implements Closeable {
     private MetadataStoreExtended localMetadataStore;
     private MetadataStoreExtended configMetadataStore;
     private PulsarResources pulsarResources;
+    private ProxyExtensions proxyExtensions = null;
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
@@ -121,7 +126,7 @@ public class ProxyService implements Closeable {
     private AdditionalServlets proxyAdditionalServlets;
 
     public ProxyService(ProxyConfiguration proxyConfig,
-                        AuthenticationService authenticationService) throws IOException {
+                        AuthenticationService authenticationService) throws Exception {
         checkNotNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
@@ -139,6 +144,10 @@ public class ProxyService implements Closeable {
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, false, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, workersThreadFactory);
         this.authenticationService = authenticationService;
+
+        // Initialize the message protocol handlers
+        proxyExtensions = ProxyExtensions.load(proxyConfig);
+        proxyExtensions.initialize(proxyConfig);
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
@@ -213,6 +222,44 @@ public class ProxyService implements Closeable {
         } else {
             this.serviceUrlTls = null;
         }
+
+        // Initialize the message protocol handlers.
+        // start the protocol handlers only after the broker is ready,
+        // so that the protocol handlers can access broker service properly.
+        this.proxyExtensions.start(this);
+        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
+                this.proxyExtensions.newChannelInitializers();
+        startProxyExtensions(protocolHandlerChannelInitializers, bootstrap);
+    }
+
+    // This call is used for starting additional protocol handlers
+    public void startProxyExtensions(
+            Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlers, ServerBootstrap serverBootstrap) {
+
+        protocolHandlers.forEach((extensionName, initializers) -> {
+            initializers.forEach((address, initializer) -> {
+                try {
+                    startProxyExtension(extensionName, address, initializer, serverBootstrap);
+                } catch (IOException e) {
+                    LOG.error("{}", e.getMessage(), e.getCause());
+                    throw new RuntimeException(e.getMessage(), e.getCause());
+                }
+            });
+        });
+    }
+
+    private void startProxyExtension(String extensionName,
+                                     SocketAddress address,
+                                     ChannelInitializer<SocketChannel> initializer,
+                                     ServerBootstrap serverBootstrap) throws IOException {
+        ServerBootstrap bootstrap = serverBootstrap.clone();
+        bootstrap.childHandler(initializer);
+        try {
+            bootstrap.bind(address).sync();
+        } catch (Exception e) {
+            throw new IOException("Failed to bind extension `" + extensionName + "` on " + address, e);
+        }
+        LOG.info("Successfully bound extension `{}` on {}", extensionName, address);
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
