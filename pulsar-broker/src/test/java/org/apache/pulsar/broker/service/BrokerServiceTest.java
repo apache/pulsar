@@ -26,7 +26,11 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -35,6 +39,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -46,10 +51,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -57,6 +62,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -67,10 +74,9 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.pulsar.broker.lookup.LookupResult;
-import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -1289,6 +1295,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
 
+
     @DataProvider(name = "containerBuilder")
     public Object[][] containerBuilderProvider() {
         return new Object[][] {
@@ -1301,7 +1308,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testPersistentOwnershipChangeWithoutBatch() throws Exception{
         final String topicName = "persistent://prop/ns-abc/reloadTopic";
         TopicStats  stats;
-
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .create();
         log.info(checkValue(0));
@@ -1312,10 +1318,15 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
         log.info(checkValue(11));
 
+        printMsgInCounter();
+
         restartBroker();
 
+        printMsgInCounter();
         PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         Producer producer1 = pulsarClient1.newProducer().topic(topicName).create();
+
+        printMsgInCounter();
 
         //Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         log.info(checkValue(11));
@@ -1330,7 +1341,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .create();
 
         log.info(checkValue(0));
-
+        printMsgInCounter();
         List<CompletableFuture<MessageId>> completableFutureArrayList = new ArrayList<>();
         for (int i = 0; i < 11; i++){
             String message = "my-message-" + i;
@@ -1348,7 +1359,11 @@ public class BrokerServiceTest extends BrokerTestBase {
             } catch (Exception exception) {
                 exception.printStackTrace();
             }
-
+            try {
+                printMsgInCounter();
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
             try {
                 PulsarClient pulsarClient1 = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
                 Producer producer1 = pulsarClient1.newProducer().topic(topicName).create();
@@ -1361,7 +1376,11 @@ public class BrokerServiceTest extends BrokerTestBase {
             //Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
 
             log.info(checkValue(11));
-
+            try {
+                printMsgInCounter();
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
             countDownLatch.countDown();
         });
         countDownLatch.await();
@@ -1377,7 +1396,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
-
+        printMsgInCounter();
         log.info(checkValue(0));
 
         List<CompletableFuture<MessageId>> completableFutureList = new ArrayList<>();
@@ -1395,6 +1414,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             try {
                 restartBroker();
+                printMsgInCounter();
             } catch (Exception exception) {
                 exception.printStackTrace();
             }
@@ -1406,7 +1426,11 @@ public class BrokerServiceTest extends BrokerTestBase {
                 pulsarClientException.printStackTrace();
             }
             log.info(checkValue(15));
-
+            try {
+                printMsgInCounter();
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
             countDownLatch.countDown();
         });
         countDownLatch.await();
@@ -1421,7 +1445,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .batchingMaxPublishDelay(2, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
                 .batcherBuilder(builder)
                 .create();
-
+        printMsgInCounter();
         log.info(checkValue(0));
 
         List<CompletableFuture<MessageId>> completableFutureList = new ArrayList<>();
@@ -1442,6 +1466,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 //unload topic
                 NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
                 pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.MINUTES).get();
+                printMsgInCounter();
             } catch (Exception exception) {
                 exception.printStackTrace();
             }
@@ -1450,6 +1475,11 @@ public class BrokerServiceTest extends BrokerTestBase {
                 Producer producer1 = pulsarClient1.newProducer().topic(topicName).create();
             } catch (PulsarClientException pulsarClientException) {
                 pulsarClientException.printStackTrace();
+            }
+            try {
+                printMsgInCounter();
+            } catch (Exception exception) {
+                exception.printStackTrace();
             }
             log.info(checkValue(10));
             countDownLatch.countDown();
@@ -1467,6 +1497,76 @@ public class BrokerServiceTest extends BrokerTestBase {
         //msgInCounter stats
         assertEquals(stats.getMsgInCounter(), k);
         return ("testPersistentOwnershipChange success--assertEquals-" + k);
+    }
+
+    public void printMsgInCounter() throws Exception{
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        metrics.entries().forEach(e -> {
+            if (e.getKey().equals("pulsar_in_messages_total")) {
+                System.out.println(e.getKey() + ": " + e.getValue());
+            }
+
+        });
+    }
+
+
+    static class Metric {
+        Map<String, String> tags = new TreeMap<>();
+        double value;
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this).add("tags", tags).add("value", value).toString();
+        }
+    }
+
+    /**
+     * Hacky parsing of Prometheus text format. Should be good enough for unit tests
+     */
+    public static Multimap<String, Metric> parseMetrics(String metrics) {
+        Multimap<String, Metric> parsed = ArrayListMultimap.create();
+
+        // Example of lines are
+        // jvm_threads_current{cluster="standalone",} 203.0
+        // or
+        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
+        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
+        Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
+
+        Splitter.on("\n").split(metrics).forEach(line -> {
+            if (line.isEmpty() || line.startsWith("#")) {
+                return;
+            }
+
+            Matcher matcher = pattern.matcher(line);
+            assertTrue(matcher.matches(), "line " + line + " does not match pattern " + pattern);
+            String name = matcher.group(1);
+
+            Metric m = new Metric();
+            String numericValue = matcher.group(3);
+            if (numericValue.equalsIgnoreCase("-Inf")) {
+                m.value = Double.NEGATIVE_INFINITY;
+            } else if (numericValue.equalsIgnoreCase("+Inf")) {
+                m.value = Double.POSITIVE_INFINITY;
+            } else {
+                m.value = Double.parseDouble(numericValue);
+            }
+            String tags = matcher.group(2);
+            Matcher tagsMatcher = tagsPattern.matcher(tags);
+            while (tagsMatcher.find()) {
+                String tag = tagsMatcher.group(1);
+                String value = tagsMatcher.group(2);
+                m.tags.put(tag, value);
+            }
+
+            parsed.put(name, m);
+        });
+
+        return parsed;
     }
 
 

@@ -76,8 +76,6 @@ import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.api.LedgerEntries;
-import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -3976,20 +3974,5 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.checkLedgerRollTask = this.scheduledExecutor.schedule(
                     safeRun(this::rollCurrentLedgerIfFull), this.maximumRolloverTimeMs, TimeUnit.MILLISECONDS);
         }
-    }
-    public CompletableFuture<LedgerEntry> getLastEntry() {
-        if (lastConfirmedEntry.getEntryId() == -1){
-            return new CompletableFuture<>();
-        }
-
-        //Get a ledger handle to read from,and fetch it's lastConfirmedEntry
-        CompletableFuture<LedgerEntries> ledgerEntriesCompletableFuture =
-                getLedgerHandle(lastConfirmedEntry.getLedgerId()).thenCompose(ledger ->{
-            return ledger.readAsync(lastConfirmedEntry.getEntryId(), lastConfirmedEntry.getEntryId());
-        });
-
-        return ledgerEntriesCompletableFuture.thenApply(entries->{
-            return entries.getEntry(lastConfirmedEntry.getEntryId());
-        });
     }
 }
