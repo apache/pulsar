@@ -22,7 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import java.util.List;
 import lombok.NonNull;
-import org.apache.pulsar.client.api.EntryContext;
+import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.Schema;
@@ -33,16 +33,16 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
-public class EntryContextImpl implements EntryContext {
+public class MessagePayloadContextImpl implements MessagePayloadContext {
 
-    private static final Recycler<EntryContextImpl> RECYCLER = new Recycler<EntryContextImpl>() {
+    private static final Recycler<MessagePayloadContextImpl> RECYCLER = new Recycler<MessagePayloadContextImpl>() {
         @Override
-        protected EntryContextImpl newObject(Handle<EntryContextImpl> handle) {
-            return new EntryContextImpl(handle);
+        protected MessagePayloadContextImpl newObject(Handle<MessagePayloadContextImpl> handle) {
+            return new MessagePayloadContextImpl(handle);
         }
     };
 
-    private final Recycler.Handle<EntryContextImpl> recyclerHandle;
+    private final Recycler.Handle<MessagePayloadContextImpl> recyclerHandle;
     private BrokerEntryMetadata brokerEntryMetadata;
     private MessageMetadata messageMetadata;
     private SingleMessageMetadata singleMessageMetadata;
@@ -52,17 +52,17 @@ public class EntryContextImpl implements EntryContext {
     private BatchMessageAcker acker;
     private BitSetRecyclable ackBitSet;
 
-    private EntryContextImpl(final Recycler.Handle<EntryContextImpl> handle) {
+    private MessagePayloadContextImpl(final Recycler.Handle<MessagePayloadContextImpl> handle) {
         this.recyclerHandle = handle;
     }
 
-    public static EntryContextImpl get(final BrokerEntryMetadata brokerEntryMetadata,
-                                       @NonNull final MessageMetadata messageMetadata,
-                                       @NonNull final MessageIdImpl messageId,
-                                       @NonNull final ConsumerImpl<?> consumer,
-                                       final int redeliveryCount,
-                                       final List<Long> ackSet) {
-        final EntryContextImpl context = RECYCLER.get();
+    public static MessagePayloadContextImpl get(final BrokerEntryMetadata brokerEntryMetadata,
+                                                @NonNull final MessageMetadata messageMetadata,
+                                                @NonNull final MessageIdImpl messageId,
+                                                @NonNull final ConsumerImpl<?> consumer,
+                                                final int redeliveryCount,
+                                                final List<Long> ackSet) {
+        final MessagePayloadContextImpl context = RECYCLER.get();
         context.brokerEntryMetadata = brokerEntryMetadata;
         context.messageMetadata = messageMetadata;
         context.singleMessageMetadata = new SingleMessageMetadata();

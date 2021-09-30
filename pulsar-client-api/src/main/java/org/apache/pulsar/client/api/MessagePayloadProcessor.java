@@ -26,12 +26,12 @@ import java.util.function.Consumer;
  * It's responsible to convert the raw buffer to some messages, then trigger some callbacks so that consumer can consume
  * these messages and handle the exception if it existed.
  *
- * The most important part is to decode the raw buffer. After that, we can call {@link EntryContext#getMessageAt} or
- * {@link EntryContext#asSingleMessage} to construct {@link Message} for consumer to consume. Since we need to pass the
- * {@link MessagePayload} object to these methods, we can use {@link MessagePayloadFactory#DEFAULT} to create it or just
- * reuse the payload argument.
+ * The most important part is to decode the raw buffer. After that, we can call
+ * {@link MessagePayloadContext#getMessageAt} or {@link MessagePayloadContext#asSingleMessage} to construct
+ * {@link Message} for consumer to consume. Since we need to pass the {@link MessagePayload} object to these methods, we
+ * can use {@link MessagePayloadFactory#DEFAULT} to create it or just reuse the payload argument.
  */
-public interface PayloadProcessor {
+public interface MessagePayloadProcessor {
 
     /**
      * Process the message payload.
@@ -44,17 +44,17 @@ public interface PayloadProcessor {
      * @throws Exception
      */
     <T> void process(MessagePayload payload,
-                     EntryContext context,
+                     MessagePayloadContext context,
                      Schema<T> schema,
                      Consumer<Message<T>> messageConsumer) throws Exception;
 
     // The default processor for Pulsar format payload. It should be noted getNumMessages() and isBatch() methods of
     // EntryContext only work for Pulsar format. For other formats, the message metadata might be stored in the payload.
-    PayloadProcessor DEFAULT = new PayloadProcessor() {
+    MessagePayloadProcessor DEFAULT = new MessagePayloadProcessor() {
 
         @Override
         public <T> void process(MessagePayload payload,
-                                EntryContext context,
+                                MessagePayloadContext context,
                                 Schema<T> schema,
                                 Consumer<Message<T>> messageConsumer) {
             if (context.isBatch()) {

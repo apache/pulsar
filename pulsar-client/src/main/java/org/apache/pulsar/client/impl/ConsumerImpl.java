@@ -68,7 +68,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
-import org.apache.pulsar.client.api.PayloadProcessor;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
@@ -1095,7 +1094,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                            final int redeliveryCount,
                                            final List<Long> ackSet) {
         final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf);
-        final EntryContextImpl entryContext = EntryContextImpl.get(
+        final MessagePayloadContextImpl entryContext = MessagePayloadContextImpl.get(
                 brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet);
         final AtomicInteger skippedMessages = new AtomicInteger(0);
         try {

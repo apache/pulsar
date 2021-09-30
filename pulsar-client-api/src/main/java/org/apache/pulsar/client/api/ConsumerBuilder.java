@@ -748,5 +748,5 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * Default: null
      */
-    ConsumerBuilder<T> payloadProcessor(PayloadProcessor payloadProcessor);
+    ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
 }
