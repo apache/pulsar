@@ -1152,12 +1152,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                                 return null;
                             } else {
-                                // There was an early request to create a producer with
-                                // same producerId. This can happen when
-                                // client
-                                // timeout is lower the broker timeouts. We need to wait
-                                // until the previous producer creation
-                                // request
+                                // There was an early request to create a producer with same producerId.
+                                // This can happen when client timeout is lower than the broker timeouts.
+                                // We need to wait until the previous producer creation request
                                 // either complete or fails.
                                 ServerError error = null;
                                 if (!existingProducerFuture.isDone()) {
@@ -1724,7 +1721,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             int bs = metadata.getNumMessagesInBatch();
                             int largestBatchIndex = bs > 0 ? bs - 1 : -1;
                             ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                                    entry.getLedgerId(), entry.getLedgerId(), partitionIndex, largestBatchIndex,
+                                    entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
                                     markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
                                     markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
                             entry.release();

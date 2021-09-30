@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.RawMessageImpl;
+import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -413,7 +414,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         Assert.assertTrue(reader.hasMessageAvailable());
-        Assert.assertEquals(msg, reader.readNext().getValue());
+        Message<String> received = reader.readNext();
+        Assert.assertEquals(msg, received.getValue());
+        MessageId messageId = ((ReaderImpl<String>) reader).getConsumer().getLastMessageId();
+        Assert.assertEquals(messageId, received.getMessageId());
         Assert.assertFalse(reader.hasMessageAvailable());
     }
 }

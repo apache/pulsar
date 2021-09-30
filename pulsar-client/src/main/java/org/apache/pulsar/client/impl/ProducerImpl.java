@@ -1923,6 +1923,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return stats;
     }
 
+    @Override
     public String getProducerName() {
         return producerName;
     }

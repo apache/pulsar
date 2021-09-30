@@ -83,7 +83,7 @@ public class CmdFunctionWorker extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the assignments of the functions accross the worker cluster")
+    @Parameters(commandDescription = "Get the assignments of the functions across the worker cluster")
     class GetFunctionAssignments extends BaseCommand {
 
 
