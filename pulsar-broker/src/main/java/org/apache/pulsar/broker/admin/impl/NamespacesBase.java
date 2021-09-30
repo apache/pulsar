@@ -1177,15 +1177,41 @@ public abstract class NamespacesBase extends AdminResource {
         return algorithm;
     }
 
-    protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
+    protected void internalSetPublishRate(boolean resetMode, PublishRate publishRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
-        log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
+        log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, publishRate);
+        if (!resetMode) {
+            Policies policies = getNamespacePolicies(namespaceName);
+            PublishRate originalPublishRate =
+                    policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
+            publishRate = mergePublishRate(originalPublishRate, publishRate);
+        }
+        PublishRate maxPublishRate = publishRate;
         updatePolicies(namespaceName, policies -> {
-            policies.publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
+            policies.publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishRate);
             return policies;
         });
         log.info("[{}] Successfully updated the publish_max_message_rate for cluster on namespace {}", clientAppId(),
                 namespaceName);
+    }
+
+    private PublishRate mergePublishRate(PublishRate originalPublishRate,
+                                         PublishRate newPublishRate) {
+        if (originalPublishRate == null ^ newPublishRate == null) { // one is null and the other is not null
+            return originalPublishRate == null
+                ? newPublishRate
+                : originalPublishRate;
+        } else if (originalPublishRate != null) {
+            newPublishRate.publishThrottlingRateInMsg = newPublishRate.publishThrottlingRateInMsg == -1
+                ? originalPublishRate.publishThrottlingRateInMsg
+                : newPublishRate.publishThrottlingRateInMsg;
+            newPublishRate.publishThrottlingRateInByte = newPublishRate.publishThrottlingRateInByte == -1
+                ? originalPublishRate.publishThrottlingRateInByte
+                : newPublishRate.publishThrottlingRateInByte;
+            return newPublishRate;
+        }
+
+        return null;
     }
 
     protected void internalRemovePublishRate() {
@@ -1215,14 +1241,21 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSetTopicDispatchRate(DispatchRateImpl dispatchRate) {
+    protected void internalSetTopicDispatchRate(boolean resetMode, DispatchRateImpl dispatchRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
+            if (!resetMode) {
+                Policies policies = getNamespacePolicies(namespaceName);
+                DispatchRateImpl originalDispatchRate =
+                        policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
+                dispatchRate = mergeDispatchRate(originalDispatchRate, dispatchRate);
+            }
+            DispatchRateImpl maxDispatchRate = dispatchRate;
             updatePolicies(namespaceName, policies -> {
-                policies.topicDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                policies.clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                policies.topicDispatchRate.put(pulsar().getConfiguration().getClusterName(), maxDispatchRate);
+                policies.clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), maxDispatchRate);
                 return policies;
             });
             log.info("[{}] Successfully updated the dispatchRate for cluster on namespace {}", clientAppId(),
@@ -1232,6 +1265,28 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    private DispatchRateImpl mergeDispatchRate(DispatchRateImpl originalDispatchRate,
+                                               DispatchRateImpl newDispatchRate) {
+        if (originalDispatchRate == null ^ newDispatchRate == null) { // one is null and the other is not null
+            return originalDispatchRate == null
+                ? newDispatchRate
+                : originalDispatchRate;
+        } else if (originalDispatchRate != null) {
+            newDispatchRate.setDispatchThrottlingRateInMsg(newDispatchRate.getDispatchThrottlingRateInMsg() == -1
+                ? originalDispatchRate.getDispatchThrottlingRateInMsg()
+                : newDispatchRate.getDispatchThrottlingRateInMsg());
+            newDispatchRate.setDispatchThrottlingRateInByte(newDispatchRate.getDispatchThrottlingRateInByte() == -1
+                ? originalDispatchRate.getDispatchThrottlingRateInByte()
+                : newDispatchRate.getDispatchThrottlingRateInByte());
+            newDispatchRate.setRatePeriodInSecond(newDispatchRate.getRatePeriodInSecond() == 1
+                ? originalDispatchRate.getRatePeriodInSecond()
+                : newDispatchRate.getRatePeriodInSecond());
+            return newDispatchRate;
+        }
+
+        return null;
     }
 
     protected void internalDeleteTopicDispatchRate() {
@@ -1259,13 +1314,20 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
+    protected void internalSetSubscriptionDispatchRate(boolean resetMode, DispatchRateImpl dispatchRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
+            if (!resetMode) {
+                Policies policies = getNamespacePolicies(namespaceName);
+                DispatchRateImpl originalDispatchRate =
+                        policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+                dispatchRate = mergeDispatchRate(originalDispatchRate, dispatchRate);
+            }
+            DispatchRateImpl maxDispatchRate = dispatchRate;
             updatePolicies(namespaceName, (policies) -> {
-                policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), maxDispatchRate);
                 return policies;
             });
             log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
@@ -1301,12 +1363,19 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
+    protected void internalSetSubscribeRate(boolean resetMode, SubscribeRate subscribeRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
         try {
+            if (!resetMode) {
+                Policies policies = getNamespacePolicies(namespaceName);
+                SubscribeRate originalSubscribeRate =
+                        policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
+                subscribeRate = mergeSubscribeRate(originalSubscribeRate, subscribeRate);
+            }
+            SubscribeRate maxSubscribeRate = subscribeRate;
             updatePolicies(namespaceName, policies -> {
-                policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
+                policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), maxSubscribeRate);
                 return policies;
             });
             log.info("[{}] Successfully updated the subscribeRate for cluster on namespace {}", clientAppId(),
@@ -1316,6 +1385,26 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    private SubscribeRate mergeSubscribeRate(SubscribeRate originalSubscribeRate,
+                                             SubscribeRate newSubscribeRate) {
+        if (originalSubscribeRate == null ^ newSubscribeRate == null) { // one is null and the other is not null
+            return originalSubscribeRate == null
+                    ? newSubscribeRate
+                    : originalSubscribeRate;
+        } else if (originalSubscribeRate != null) {
+            newSubscribeRate.subscribeThrottlingRatePerConsumer =
+                    newSubscribeRate.subscribeThrottlingRatePerConsumer == -1
+                            ? originalSubscribeRate.subscribeThrottlingRatePerConsumer
+                            : newSubscribeRate.subscribeThrottlingRatePerConsumer;
+            newSubscribeRate.ratePeriodInSecond = newSubscribeRate.ratePeriodInSecond == 30
+                    ? originalSubscribeRate.ratePeriodInSecond
+                    : newSubscribeRate.ratePeriodInSecond;
+            return newSubscribeRate;
+        }
+
+        return null;
     }
 
     protected void internalDeleteSubscribeRate() {
@@ -1356,12 +1445,19 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
+    protected void internalSetReplicatorDispatchRate(boolean resetMode, DispatchRateImpl dispatchRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {
+            if (!resetMode) {
+                Policies policies = getNamespacePolicies(namespaceName);
+                DispatchRateImpl originalDispatchRate =
+                        policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
+                dispatchRate = mergeDispatchRate(originalDispatchRate, dispatchRate);
+            }
+            DispatchRateImpl maxDispatchRate = dispatchRate;
             updatePolicies(namespaceName, policies -> {
-                policies.replicatorDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                policies.replicatorDispatchRate.put(pulsar().getConfiguration().getClusterName(), maxDispatchRate);
                 return policies;
             });
             log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}", clientAppId(),

@@ -905,10 +905,14 @@ public class CmdNamespaces extends CmdBase {
                 "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
+        @Parameter(names = { "--reset-mode", "-r" },
+            description = "clear the previous rate and reset (default true). if false, merge the two rate", arity = 1)
+        private boolean resetMode = true;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setDispatchRate(namespace,
+            getAdmin().namespaces().setDispatchRate(namespace, resetMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)
@@ -956,10 +960,14 @@ public class CmdNamespaces extends CmdBase {
                 "-st" }, description = "subscribe-rate-period in second type (default 30 second will be overwrite if not passed)", required = false)
         private int subscribeRatePeriodSec = 30;
 
+        @Parameter(names = { "--reset-mode", "-r" },
+                description = "clear the previous rate and reset (default true). if false, merge two rate", arity = 1)
+        private boolean resetMode = true;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setSubscribeRate(namespace,
+            getAdmin().namespaces().setSubscribeRate(namespace, resetMode,
                     new SubscribeRate(subscribeRate, subscribeRatePeriodSec));
         }
     }
@@ -1010,10 +1018,14 @@ public class CmdNamespaces extends CmdBase {
                 "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))", required = false)
         private boolean relativeToPublishRate = false;
 
+        @Parameter(names = { "--reset-mode", "-r" },
+                description = "clear the previous rate and reset (default true). if false, merge two rate", arity = 1)
+        private boolean resetMode = true;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setSubscriptionDispatchRate(namespace,
+            getAdmin().namespaces().setSubscriptionDispatchRate(namespace, resetMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)
@@ -1061,10 +1073,14 @@ public class CmdNamespaces extends CmdBase {
             "-b" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)", required = false)
         private long bytePublishRate = -1;
 
+        @Parameter(names = { "--reset-mode", "-r" },
+            description = "clear the previous rate and reset (default true). if false, merge the two rate", arity = 1)
+        private boolean resetMode = true;
+
          @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setPublishRate(namespace,
+            getAdmin().namespaces().setPublishRate(namespace, resetMode,
                 new PublishRate(msgPublishRate, bytePublishRate));
         }
     }
@@ -1110,10 +1126,14 @@ public class CmdNamespaces extends CmdBase {
             "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = { "--reset-mode", "-r" },
+                description = "clear the previous rate and reset (default true). if false, merge two rate", arity = 1)
+        private boolean resetMode = true;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setReplicatorDispatchRate(namespace,
+            getAdmin().namespaces().setReplicatorDispatchRate(namespace, resetMode,
                     DispatchRate.builder()
                             .dispatchThrottlingRateInMsg(msgDispatchRate)
                             .dispatchThrottlingRateInByte(byteDispatchRate)

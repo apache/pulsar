@@ -1123,7 +1123,14 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setPublishRate(String namespace, PublishRate publishMsgRate) throws PulsarAdminException {
-        sync(() -> setPublishRateAsync(namespace, publishMsgRate));
+        setPublishRate(namespace, true, publishMsgRate);
+    }
+
+    @Override
+    public void setPublishRate(String namespace,
+                               boolean resetMode,
+                               PublishRate publishMsgRate) throws PulsarAdminException {
+        sync(() -> setPublishRateAsync(namespace, resetMode, publishMsgRate));
     }
 
     @Override
@@ -1132,10 +1139,16 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Void> setPublishRateAsync(String namespace, PublishRate publishMsgRate) {
+    public CompletableFuture<Void> setPublishRateAsync(String namespace, PublishRate publishRate) {
+        return setPublishRateAsync(namespace, true, publishRate);
+    }
+
+    @Override
+    public CompletableFuture<Void> setPublishRateAsync(String namespace, boolean resetMode, PublishRate publishRate) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "publishRate");
-        return asyncPostRequest(path, Entity.entity(publishMsgRate, MediaType.APPLICATION_JSON));
+        path = path.queryParam("resetMode", resetMode);
+        return asyncPostRequest(path, Entity.entity(publishRate, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -1184,13 +1197,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
-        sync(() -> setDispatchRateAsync(namespace, dispatchRate));
+        setDispatchRate(namespace, true, dispatchRate);
+    }
+
+    @Override
+    public void setDispatchRate(String namespace,
+                                boolean resetMode,
+                                DispatchRate dispatchRate) throws PulsarAdminException {
+        sync(() -> setDispatchRateAsync(namespace, resetMode, dispatchRate));
     }
 
     @Override
     public CompletableFuture<Void> setDispatchRateAsync(String namespace, DispatchRate dispatchRate) {
+        return setDispatchRateAsync(namespace, true, dispatchRate);
+    }
+
+    @Override
+    public CompletableFuture<Void> setDispatchRateAsync(String namespace,
+                                                        boolean resetMode,
+                                                        DispatchRate dispatchRate) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "dispatchRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
@@ -1221,13 +1249,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setSubscribeRate(String namespace, SubscribeRate subscribeRate) throws PulsarAdminException {
-        sync(() -> setSubscribeRateAsync(namespace, subscribeRate));
+        setSubscribeRate(namespace, true, subscribeRate);
+    }
+
+    @Override
+    public void setSubscribeRate(String namespace,
+                                 boolean resetMode,
+                                 SubscribeRate subscribeRate) throws PulsarAdminException {
+        sync(() -> setSubscribeRateAsync(namespace, resetMode, subscribeRate));
     }
 
     @Override
     public CompletableFuture<Void> setSubscribeRateAsync(String namespace, SubscribeRate subscribeRate) {
+        return setSubscribeRateAsync(namespace, true, subscribeRate);
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscribeRateAsync(String namespace,
+                                                         boolean resetMode,
+                                                         SubscribeRate subscribeRate) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscribeRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(subscribeRate, MediaType.APPLICATION_JSON));
     }
 
@@ -1283,13 +1326,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
-        sync(() -> setSubscriptionDispatchRateAsync(namespace, dispatchRate));
+        setSubscriptionDispatchRate(namespace, true, dispatchRate);
+    }
+
+    @Override
+    public void setSubscriptionDispatchRate(String namespace,
+                                            boolean resetMode,
+                                            DispatchRate dispatchRate) throws PulsarAdminException {
+        sync(() -> setSubscriptionDispatchRateAsync(namespace, resetMode, dispatchRate));
     }
 
     @Override
     public CompletableFuture<Void> setSubscriptionDispatchRateAsync(String namespace, DispatchRate dispatchRate) {
+        return setSubscriptionDispatchRateAsync(namespace, true, dispatchRate);
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionDispatchRateAsync(String namespace,
+                                                                    boolean resetMode,
+                                                                    DispatchRate dispatchRate) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionDispatchRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
@@ -1320,13 +1378,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setReplicatorDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
-        sync(() -> setReplicatorDispatchRateAsync(namespace, dispatchRate));
+        setReplicatorDispatchRate(namespace, true, dispatchRate);
+    }
+
+    @Override
+    public void setReplicatorDispatchRate(String namespace,
+                                          boolean resetMode,
+                                          DispatchRate dispatchRate) throws PulsarAdminException {
+        sync(() -> setReplicatorDispatchRateAsync(namespace, resetMode, dispatchRate));
     }
 
     @Override
     public CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace, DispatchRate dispatchRate) {
+        return setReplicatorDispatchRateAsync(namespace, true, dispatchRate);
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace,
+                                                                  boolean resetMode,
+                                                                  DispatchRate dispatchRate) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "replicatorDispatchRate");
+        path = path.queryParam("resetMode", resetMode);
         return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
     }
 
