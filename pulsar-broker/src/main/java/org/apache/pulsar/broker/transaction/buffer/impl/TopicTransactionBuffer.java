@@ -389,14 +389,17 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (TopicTransactionBuffer.this) {
             if (ongoingTxns.isEmpty()) {
                 maxReadPosition = position;
-                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
             }
         }
     }
 
     @Override
     public PositionImpl getMaxReadPosition() {
+        if (checkIfReady()) {
             return this.maxReadPosition;
+        } else {
+            return PositionImpl.earliest;
+        }
     }
 
     @Override

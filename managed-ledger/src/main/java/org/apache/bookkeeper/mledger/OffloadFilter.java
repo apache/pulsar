@@ -30,13 +30,13 @@ public interface OffloadFilter {
     public boolean CheckIfNeedOffload(LedgerEntry LedgerEntry);
 
     /**
-     * PersistentMaxReadPosition is the stable Position in the snapshot
+     * The largest stable position that can be exposed to the consumer
      * @return
      */
     public PositionImpl getMaxReadPosition();
 
     /**
-     *
+     * Check the status of TransactionBuffer. If Ready, return true, else return false.
      * @return
      */
     public boolean isTransactionBufferReady();
