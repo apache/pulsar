@@ -39,8 +39,11 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -124,7 +127,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // (2) change to 100
         int messageRate = 100;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(360)
+                .build();
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         boolean isDispatchRateUpdate = false;
         int retry = 5;
@@ -148,7 +155,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // (3) change to 500
         messageRate = 500;
-        dispatchRate = new DispatchRate(-1, messageRate, 360);
+        dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(messageRate)
+                .ratePeriodInSecond(360)
+                .build();
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         isDispatchRateUpdate = false;
         for (int i = 0; i < retry; i++) {
@@ -188,9 +199,17 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final int messageRate = 100;
         DispatchRate dispatchRate = null;
         if (DispatchRateType.messageRate.equals(dispatchRateType)) {
-            dispatchRate = new DispatchRate(messageRate, -1, 360);
+            dispatchRate = DispatchRate.builder()
+                    .dispatchThrottlingRateInMsg(messageRate)
+                    .dispatchThrottlingRateInByte(-1)
+                    .ratePeriodInSecond(360)
+                    .build();
         } else {
-            dispatchRate = new DispatchRate(-1, messageRate, 360);
+            dispatchRate = DispatchRate.builder()
+                    .dispatchThrottlingRateInMsg(-1)
+                    .dispatchThrottlingRateInByte(messageRate)
+                    .ratePeriodInSecond(360)
+                    .build();
         }
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
@@ -326,7 +345,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/throttlingAll";
 
         final int messageRate = 10;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(1)
+                .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
@@ -391,56 +414,47 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
         log.info("-- Starting {} test --", methodName);
 
         final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
+        final String subscriptionName = "my-subscriber-name";
 
-        final int byteRate = 100;
-        DispatchRate dispatchRate = new DispatchRate(-1, byteRate, 1);
+        //
+        final int byteRate = 250;
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(byteRate)
+                .ratePeriodInSecond(1)
+                .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
+        admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
         // create producer and topic
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        boolean isMessageRateUpdate = false;
-        int retry = 5;
-        for (int i = 0; i < retry; i++) {
-            if (topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0) {
-                isMessageRateUpdate = true;
-                break;
-            } else {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            }
-        }
-        Assert.assertTrue(isMessageRateUpdate);
+        Awaitility.await().until(() -> topic.getDispatchRateLimiter().get().getDispatchRateOnByte() > 0);
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
 
         final int numProducedMessages = 20;
-        final CountDownLatch latch = new CountDownLatch(numProducedMessages);
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+        for (int i = 0; i < numProducedMessages; i++) {
+            producer.send(new byte[99]);
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
                     log.debug("Received message [{}] in the listener", receivedMessage);
                     totalReceived.incrementAndGet();
-                    latch.countDown();
                 }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
-        // Asynchronously produce messages
-        for (int i = 0; i < numProducedMessages; i++) {
-            producer.send(new byte[byteRate / 10]);
-        }
-
-        latch.await();
-        Assert.assertEquals(totalReceived.get(), numProducedMessages);
+        Awaitility.await().atLeast(3, TimeUnit.SECONDS)
+                .atMost(5, TimeUnit.SECONDS).until(() -> totalReceived.get() > 6 && totalReceived.get() < 10);
 
         consumer.close();
         producer.close();
@@ -460,7 +474,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
 
         final int messageRate = 5;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(360)
+                .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
@@ -593,7 +611,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final int messageRate = 5; // 5 msgs per second
         final long byteRate = 10; // 10 bytes per second
-        DispatchRate dispatchRate = new DispatchRate(messageRate, byteRate, 360);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(byteRate)
+                .ratePeriodInSecond(360)
+                .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
@@ -666,9 +688,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 5;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(360)
+                .build();
 
-        admin.clusters().createCluster("global", new ClusterData("http://global:8080"));
+        admin.clusters().createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
@@ -736,7 +762,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 10;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(360)
+                .build();
 
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
@@ -834,7 +864,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // (2) Update namespace throttling limit
         int nsMessageRate = 500;
-        DispatchRate dispatchRate = new DispatchRate(nsMessageRate, 0, 1);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(nsMessageRate)
+                .dispatchThrottlingRateInByte(0)
+                .ratePeriodInSecond(1)
+                .build();
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         for (int i = 0; i < 5; i++) {
             if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() != nsMessageRate) {
@@ -844,7 +878,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         Assert.assertEquals(nsMessageRate, topic.getDispatchRateLimiter().get().getDispatchRateOnMsg());
 
         // (3) Disable namespace throttling limit will force to take cluster-config
-        dispatchRate = new DispatchRate(0, 0, 1);
+        dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(0)
+                .dispatchThrottlingRateInByte(0)
+                .ratePeriodInSecond(1)
+                .build();
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         for (int i = 0; i < 5; i++) {
             if (topic.getDispatchRateLimiter().get().getDispatchRateOnMsg() == nsMessageRate) {
@@ -872,7 +910,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/closingRateLimiter" + subscription.name();
         final String subName = "mySubscription" + subscription.name();
 
-        DispatchRate dispatchRate = new DispatchRate(10, 1024, 1);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(1024)
+                .ratePeriodInSecond(1)
+                .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
 
@@ -915,11 +957,19 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String cluster = "test";
 
         Optional<Policies> policies = Optional.of(new Policies());
-        DispatchRate clusterDispatchRate = new DispatchRate(100, 512, 1);
-        DispatchRate topicDispatchRate = new DispatchRate(200, 1024, 1);
+        DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(512)
+                .ratePeriodInSecond(1)
+                .build();
+        DispatchRateImpl topicDispatchRate = DispatchRateImpl.builder()
+                .dispatchThrottlingRateInMsg(200)
+                .dispatchThrottlingRateInByte(1024)
+                .ratePeriodInSecond(1)
+                .build();
 
         // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
-        DispatchRate dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
+        DispatchRateImpl dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
                 DispatchRateLimiter.Type.TOPIC);
         Assert.assertNull(dispatchRate);
 
@@ -946,8 +996,16 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         DispatchRateLimiter dispatchRateLimiter = new DispatchRateLimiter(topic, DispatchRateLimiter.Type.TOPIC);
 
         Policies policies = new Policies();
-        DispatchRate clusterDispatchRate = new DispatchRate(100, 512, 1);
-        DispatchRate topicDispatchRate = new DispatchRate(200, 1024, 1);
+        DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(512)
+                .ratePeriodInSecond(1)
+                .build();
+        DispatchRateImpl topicDispatchRate = DispatchRateImpl.builder()
+                .dispatchThrottlingRateInMsg(200)
+                .dispatchThrottlingRateInByte(1024)
+                .ratePeriodInSecond(1)
+                .build();
 
         // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
         dispatchRateLimiter.onPoliciesUpdate(policies);
@@ -995,7 +1053,12 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/relative-throttle" + subscription;
 
         final int messageRate = 1;
-        DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1, true);
+        DispatchRate dispatchRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(messageRate)
+                .dispatchThrottlingRateInByte(-1)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic

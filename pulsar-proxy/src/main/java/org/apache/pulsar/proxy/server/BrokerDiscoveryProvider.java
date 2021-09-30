@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.bookkeeper.common.util.MathUtils.signSafeMod;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -37,6 +36,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
@@ -100,9 +100,8 @@ public class BrokerDiscoveryProvider implements Closeable {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             checkAuthorization(service, topicName, role, authenticationData);
-            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
-                    topicName.getNamespaceObject().toString(), "persistent", topicName.getEncodedLocalName());
-            pulsarResources.getNamespaceResources().getPartitionedTopicResources().getAsync(path)
+            pulsarResources.getNamespaceResources().getPartitionedTopicResources()
+                    .getPartitionedTopicMetadataAsync(topicName)
                     .thenAccept(metadata -> {
                         // if the partitioned topic is not found in zk, then the topic
                         // is not partitioned
@@ -121,7 +120,7 @@ public class BrokerDiscoveryProvider implements Closeable {
         return metadataFuture;
     }
 
-    protected static void checkAuthorization(ProxyService service, TopicName topicName, String role,
+    protected void checkAuthorization(ProxyService service, TopicName topicName, String role,
             AuthenticationDataSource authenticationData) throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
@@ -134,12 +133,8 @@ public class BrokerDiscoveryProvider implements Closeable {
             // check namespace authorization
             TenantInfo tenantInfo;
             try {
-                tenantInfo = service.getConfigurationCacheService().propertiesCache()
-                        .get(path(POLICIES, topicName.getTenant()))
+                tenantInfo = pulsarResources.getTenantResources().getTenant(topicName.getTenant())
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
-            } catch (KeeperException.NoNodeException e) {
-                LOG.warn("Failed to get property admin data for non existing property {}", topicName.getTenant());
-                throw new IllegalAccessException("Property does not exist");
             } catch (Exception e) {
                 LOG.error("Failed to get property admin data for property");
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
@@ -152,13 +147,6 @@ public class BrokerDiscoveryProvider implements Closeable {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Successfully authorized {} on property {}", role, topicName.getTenant());
         }
-    }
-
-    public static String path(String... parts) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("/admin/");
-        Joiner.on('/').appendTo(sb, parts);
-        return sb.toString();
     }
 
     @Override

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.intercept;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.web.ExceptionHandler;
 import org.apache.pulsar.broker.web.PreInterceptFilter;
 import org.apache.pulsar.broker.web.ProcessHandlerFilter;
 import org.apache.pulsar.broker.web.ResponseHandlerFilter;
@@ -61,7 +62,8 @@ public class InterceptFilterOutTest {
     @Test
     public void testFilterOutForPreInterceptFilter() throws Exception {
         CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
-        PreInterceptFilter filter = new PreInterceptFilter(interceptor);
+        ExceptionHandler handler = new ExceptionHandler();
+        PreInterceptFilter filter = new PreInterceptFilter(interceptor, handler);
 
         HttpServletRequest request = Mockito.mock(HttpServletRequest.class);
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);

@@ -126,7 +126,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
             producer.sendAsync(payload);
         }
 
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 1);
+        Awaitility.await().untilAsserted(() -> assertEquals(pulsar.getBrokerService().getPausedConnections(), 1));
 
         CompletableFuture<Void> flushFuture = producer.flushAsync();
 
@@ -142,12 +142,14 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
         flushFuture.join();
 
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
 
         // Resume message publish.
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
 
         flushFuture.get();
-        assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(pulsar.getBrokerService().getPausedConnections(), 0));
     }
 }

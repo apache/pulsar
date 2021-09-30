@@ -35,7 +35,7 @@ import static org.testng.Assert.assertTrue;
  */
 public class PulsarVersionTest extends TestRetrySupport {
 
-    private final static String clusterNamePrefix = "pulsar-version";
+    private static final String clusterNamePrefix = "pulsar-version";
     private PulsarCluster pulsarCluster;
 
     @Override

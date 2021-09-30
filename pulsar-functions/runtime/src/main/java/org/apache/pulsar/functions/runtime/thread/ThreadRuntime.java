@@ -31,6 +31,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -62,6 +63,7 @@ public class ThreadRuntime implements Runtime {
     private ThreadGroup threadGroup;
     private FunctionCacheManager fnCache;
     private String jarFile;
+    private ClientBuilder clientBuilder;
     private PulsarClient pulsarClient;
     private PulsarAdmin pulsarAdmin;
     private String stateStorageServiceUrl;
@@ -74,7 +76,8 @@ public class ThreadRuntime implements Runtime {
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
                   String jarFile,
-                  PulsarClient pulsarClient,
+                  PulsarClient client,
+                  ClientBuilder clientBuilder,
                   PulsarAdmin pulsarAdmin,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
@@ -89,7 +92,8 @@ public class ThreadRuntime implements Runtime {
         this.threadGroup = threadGroup;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
-        this.pulsarClient = pulsarClient;
+        this.clientBuilder = clientBuilder;
+        this.pulsarClient = client;
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
@@ -167,18 +171,19 @@ public class ThreadRuntime implements Runtime {
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig,
+                clientBuilder,
                 pulsarClient,
                 pulsarAdmin,
                 stateStorageServiceUrl,
                 secretsProvider,
                 collectorRegistry,
                 functionClassLoader);
+
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
                         instanceConfig.getInstanceId()));
-        this.fnThread.setContextClassLoader(functionClassLoader);
         this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
@@ -206,7 +211,7 @@ public class ThreadRuntime implements Runtime {
                 // kill the thread
                 fnThread.join(THREAD_SHUTDOWN_TIMEOUT_MILLIS, 0);
                 if (fnThread.isAlive()) {
-                    fnThread.stop();
+                    log.warn("The function instance thread is still alive after {} milliseconds. Giving up waiting and moving forward to close function.", THREAD_SHUTDOWN_TIMEOUT_MILLIS);
                 }
             } catch (InterruptedException e) {
                 // ignore this

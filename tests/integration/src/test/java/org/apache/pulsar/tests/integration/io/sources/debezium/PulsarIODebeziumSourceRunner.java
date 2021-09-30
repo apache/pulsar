@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import com.google.common.base.Preconditions;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -34,35 +35,35 @@ import net.jodah.failsafe.Failsafe;
 @Slf4j
 public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
 
-	private String converterClassName;
-	private String tenant;
-	private String namespace;
-	private String sourceName;
-	private String outputTopicName;
-	private String consumeTopicName;
-	private int numMessages;
-	private boolean jsonWithEnvelope;
-	private PulsarClient client;
-	
-	public PulsarIODebeziumSourceRunner(PulsarCluster cluster, String functionRuntimeType, String converterClassName,
-			String tenant, String ns, String sourceName, String outputTopic, int numMessages, boolean jsonWithEnvelope,
-			String consumeTopicName, PulsarClient client) {
-		super(cluster, functionRuntimeType);
-		this.converterClassName = converterClassName;
-		this.tenant = tenant;
-		this.namespace = ns;
-		this.sourceName = sourceName;
-		this.outputTopicName = outputTopic;
-		this.numMessages = numMessages;
-		this.jsonWithEnvelope = jsonWithEnvelope;
-		this.consumeTopicName = consumeTopicName;
-		this.client = client;
-	}
+    private String converterClassName;
+    private String tenant;
+    private String namespace;
+    private String sourceName;
+    private String outputTopicName;
+    private String consumeTopicName;
+    private int numMessages;
+    private boolean jsonWithEnvelope;
+    private PulsarClient client;
+    
+    public PulsarIODebeziumSourceRunner(PulsarCluster cluster, String functionRuntimeType, String converterClassName,
+            String tenant, String ns, String sourceName, String outputTopic, int numMessages, boolean jsonWithEnvelope,
+            String consumeTopicName, PulsarClient client) {
+        super(cluster, functionRuntimeType);
+        this.converterClassName = converterClassName;
+        this.tenant = tenant;
+        this.namespace = ns;
+        this.sourceName = sourceName;
+        this.outputTopicName = outputTopic;
+        this.numMessages = numMessages;
+        this.jsonWithEnvelope = jsonWithEnvelope;
+        this.consumeTopicName = consumeTopicName;
+        this.client = client;
+    }
 
-	@Override
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public <T extends GenericContainer> void testSource(SourceTester<T> sourceTester)  throws Exception {
-	       // prepare the testing environment for source
+    @Override
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public <T extends GenericContainer> void testSource(SourceTester<T> sourceTester)  throws Exception {
+           // prepare the testing environment for source
         prepareSource(sourceTester);
 
         // submit the source connector
@@ -88,30 +89,35 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
         log.info("[debezium mysql test] create consumer finish. converterName: {}", converterClassName);
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, 9, null, converterClassName);
+        sourceTester.validateSourceResult(consumer, sourceTester.getNumEntriesExpectAfterStart(), null, converterClassName);
 
-        // prepare insert event
-        sourceTester.prepareInsertEvent();
+        final int numEntriesToInsert = sourceTester.getNumEntriesToInsert();
+        Preconditions.checkArgument(numEntriesToInsert >= 1);
 
-        // validate the source insert event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
+        for (int i = 1; i <= numEntriesToInsert; i++) {
+            // prepare insert event
+            sourceTester.prepareInsertEvent();
+            log.info("inserted entry {} of {}", i, numEntriesToInsert);
+            // validate the source insert event
+            sourceTester.validateSourceResult(consumer, 1, SourceTester.INSERT, converterClassName);
+        }
 
         // prepare update event
         sourceTester.prepareUpdateEvent();
 
         // validate the source update event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.UPDATE, converterClassName);
+        sourceTester.validateSourceResult(consumer, numEntriesToInsert, SourceTester.UPDATE, converterClassName);
 
         // prepare delete event
         sourceTester.prepareDeleteEvent();
 
         // validate the source delete event
-        sourceTester.validateSourceResult(consumer, 1, SourceTester.DELETE, converterClassName);
+        sourceTester.validateSourceResult(consumer,  numEntriesToInsert, SourceTester.DELETE, converterClassName);
 
         // delete the source
         deleteSource(tenant, namespace, sourceName);
 
         // get source info (source should be deleted)
         getSourceInfoNotFound(tenant, namespace, sourceName);
-	}
+    }
 }

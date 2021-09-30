@@ -59,7 +59,7 @@ public class NettyUDPServerHandler extends SimpleChannelInboundHandler<DatagramP
     }
 
     @Data
-    static private class NettyUDPRecord implements Record<byte[]>, Serializable {
+    private static class NettyUDPRecord implements Record<byte[]>, Serializable {
         private final Optional<String> key;
         private final byte[] value;
     }

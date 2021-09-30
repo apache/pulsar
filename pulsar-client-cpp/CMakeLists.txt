@@ -27,6 +27,11 @@ if (VCPKG_TRIPLET)
     message(STATUS "Use CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
     set(PROTOC_PATH "${CMAKE_PREFIX_PATH}/tools/protobuf/protoc")
     message(STATUS "Use protoc: ${PROTOC_PATH}")
+    set(VCPKG_DEBUG_ROOT "${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TRIPLET}/debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(ZLIB_ROOT ${VCPKG_DEBUG_ROOT})
+        set(OPENSSL_ROOT_DIR ${VCPKG_DEBUG_ROOT})
+    endif ()
 endif()
 
 find_program(CCACHE_PROGRAM ccache)
@@ -72,20 +77,31 @@ set(Boost_NO_BOOST_CMAKE ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 11)
 
-if (MSVC)
-    # Visual Studio compiler flags
+# Compiler specific configuration:
+# https://stackoverflow.com/questions/10046114/in-cmake-how-can-i-test-if-the-compiler-is-clang
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_definitions(-DWIN32_LEAN_AND_MEAN -DNOGDI -D_WIN32_WINNT=0x0501 -D_CRT_SECURE_NO_WARNINGS)
     add_compile_options(/wd4244 /wd4267 /wd4018 /wd4715 /wd4251 /wd4275)
-else()
-    add_compile_options(-Werror=switch -Wno-deprecated-declarations)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    # ?? Don't have this to test with
+else() # GCC or Clang are mostly compatible:
+    # Turn on warnings and enable warnings-as-errors:
+    add_compile_options(-Wall -Wformat-security -Wvla -Werror) 
+    # Turn off certain warnings that are too much pain for too little gain:
+    add_compile_options(-Wno-sign-compare -Wno-deprecated-declarations -Wno-error=cpp)
     if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
         add_compile_options(-msse4.2 -mpclmul)
     endif()
-endif(MSVC)
+    # Options unique to Clang or GCC:
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-Qunused-arguments) 
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9))
+        add_compile_options(-Wno-stringop-truncation)
+    endif()
+endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(Protobuf_LITE_LIBRARIES $ENV{PROTOBUF_LIBRARIES})
 set(LOG_CATEGORY_NAME $ENV{LOG_CATEGORY_NAME})
 
 if (NOT LOG_CATEGORY_NAME)
@@ -119,10 +135,12 @@ unset(OPENSSL_VERSION CACHE)
 
 if (LINK_STATIC)
     find_library(ZLIB_LIBRARIES REQUIRED NAMES libz.a z zlib)
-    find_library(Protobuf_LITE_LIBRARIES NAMES libprotobuf-lite.a libprotobuf-lite)
+    find_library(Protobuf_LIBRARIES NAMES libprotobuf.a libprotobuf)
     find_library(CURL_LIBRARIES NAMES libcurl.a curl curl_a libcurl_a)
     find_library(LIB_ZSTD NAMES libzstd.a)
     find_library(LIB_SNAPPY NAMES libsnappy.a)
+    message(STATUS "Protobuf_LIBRARIES: ${Protobuf_LIBRARIES}")
+    set(COMMON_LIBS ${Protobuf_LIBRARIES} ${COMMON_LIBS})
 
     if (USE_LOG4CXX)
         if (LOG4CXX_USE_DYNAMIC_LIBS)
@@ -156,17 +174,48 @@ else()
     # Link to shared libraries
     find_package(ZLIB REQUIRED)
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
-    if (NOT PROTOBUF_LIBRARIES)
-        find_package(ProtoBuf QUIET)
-        if (NOT Protobuf_FOUND OR NOT Protobuf_LITE_LIBRARIES)
-            find_library(Protobuf_LITE_LIBRARIES protobuf-lite libprotobuf-lite)
-            find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
-        endif()
-    endif (NOT PROTOBUF_LIBRARIES)
+    # NOTE: The default MODULE mode may not find debug libraries so use CONFIG mode here
+    unset(Protobuf_INCLUDE_DIRS CACHE)
+    unset(Protobuf_LIBRARIES CACHE)
+    find_package(Protobuf QUIET CONFIG)
+    # NOTE: On Windows x86 platform, Protobuf_FOUND might be set false but Protobuf_INCLUDE_DIRS and
+    # Protobuf_LIBRARIES are both found.
+    if (Protobuf_INCLUDE_DIRS AND Protobuf_LIBRARIES AND NOT Protobuf_FOUND)
+        set(Protobuf_FOUND TRUE)
+    endif ()
+    if (Protobuf_FOUND)
+        message("Found Protobuf in config mode")
+        message(STATUS "Protobuf_LIBRARIES: ${Protobuf_LIBRARIES}")
+        message(STATUS "Protobuf_INCLUDE_DIRS: ${Protobuf_INCLUDE_DIRS}")
+    else ()
+        message("Failed to find Protobuf in config mode, try to find it from system path")
+        find_library(Protobuf_LIBRARIES protobuf libprotobuf)
+        find_path(Protobuf_INCLUDE_DIRS google/protobuf/stubs/common.h)
+        message(STATUS "Protobuf_LIBRARIES: ${Protobuf_LIBRARIES}")
+        message(STATUS "Protobuf_INCLUDE_DIRS: ${Protobuf_INCLUDE_DIRS}")
+    endif ()
 
-    find_library(LIB_ZSTD zstd)
-    find_library(LIB_SNAPPY NAMES snappy libsnappy)
-    find_library(CURL_LIBRARIES NAMES curl libcurl)
+    if (${Protobuf_FOUND} AND (${CMAKE_VERSION} VERSION_GREATER 3.8))
+        set(COMMON_LIBS protobuf::libprotobuf ${COMMON_LIBS})
+    else ()
+        set(COMMON_LIBS ${Protobuf_LIBRARIES} ${COMMON_LIBS})
+    endif ()
+
+    if (MSVC AND (${CMAKE_BUILD_TYPE} STREQUAL Debug))
+        find_library(LIB_ZSTD zstdd HINTS "${VCPKG_DEBUG_ROOT}/lib")
+    else ()
+        find_library(LIB_ZSTD zstd)
+    endif ()
+    if (MSVC AND (${CMAKE_BUILD_TYPE} STREQUAL Debug))
+        find_library(LIB_SNAPPY NAMES snappyd HINTS "${VCPKG_DEBUG_ROOT}/lib")
+    else ()
+        find_library(LIB_SNAPPY NAMES snappy libsnappy)
+    endif ()
+
+    find_package(CURL REQUIRED)
+    if (${CMAKE_VERSION} VERSION_GREATER "3.12")
+        set(COMMON_LIBS ${COMMON_LIBS} CURL::libcurl)
+    endif ()
 
     if (USE_LOG4CXX)
         find_library(LOG4CXX_LIBRARY_PATH log4cxx)
@@ -194,6 +243,8 @@ if (CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
     MESSAGE(STATUS "Using Boost::Regex")
 else()
     MESSAGE(STATUS "Using std::regex")
+    # Turn on color error messages and show additional help with errors (only available in GCC v4.9+):
+    add_compile_options(-fdiagnostics-show-option -fdiagnostics-color)
 endif()
 
 if(BUILD_PERF_TOOLS)
@@ -250,7 +301,10 @@ if (NOT APPLE AND NOT MSVC)
     # we don't set options below to build _pulsar.so
     set(CMAKE_CXX_FLAGS_PYTHON "${CMAKE_CXX_FLAGS}")
     # Hide all non-exported symbols to avoid conflicts
-    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
+    add_compile_options(-fvisibility=hidden) 
+    if (CMAKE_COMPILER_IS_GNUCC)
+        add_compile_options(-Wl,--exclude-libs,ALL)
+    endif ()
 endif ()
 
 if (LIB_ZSTD)
@@ -295,7 +349,6 @@ set(COMMON_LIBS
   ${CURL_LIBRARIES}
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARIES}
-  ${Protobuf_LITE_LIBRARIES}
   ${ADDITIONAL_LIBRARIES}
   ${CMAKE_DL_LIBS}
 )

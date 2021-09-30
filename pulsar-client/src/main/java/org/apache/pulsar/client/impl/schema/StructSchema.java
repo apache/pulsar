@@ -105,7 +105,7 @@ public abstract class StructSchema<T> extends AbstractStructSchema<T> {
     }
 
     public static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
-        return SchemaInfo.builder()
+        return SchemaInfoImpl.builder()
                 .schema(createAvroSchema(schemaDefinition).toString().getBytes(UTF_8))
                 .properties(schemaDefinition.getProperties())
                 .name("")

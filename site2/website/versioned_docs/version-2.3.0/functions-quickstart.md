@@ -207,7 +207,7 @@ $ bin/pulsar-admin functions delete \
   --name exclamation
 ```
 
-If you see `Deleted successfully` in the output, then you've succesfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.
+If you see `Deleted successfully` in the output, then you've successfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.
 
 ## Writing and running a new function
 
@@ -272,7 +272,7 @@ For python functions requiring dependencies to be deployable in pulsar worker in
 Following programs are required to be installed on the client machine
 
 ```
-pip \\ rquired for getting python dependencies
+pip \\ required for getting python dependencies
 zip \\ for building zip archives
 ```
 
@@ -299,7 +299,7 @@ pip download \
 
 ```
 
-Sample ouptut
+Sample output
 
 ```
 Collecting sh==1.12.14 (from -r requirements.txt (line 1))

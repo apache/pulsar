@@ -33,7 +33,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -76,9 +77,9 @@ public class MaxMessageSizeTest {
 
             String url = "http://127.0.0.1:" + pulsar.getListenPortHTTP().get();
             admin = PulsarAdmin.builder().serviceHttpUrl(url).build();
-            admin.clusters().createCluster("max_message_test", new ClusterData(url));
+            admin.clusters().createCluster("max_message_test", ClusterData.builder().serviceUrl(url).build());
             admin.tenants()
-                 .createTenant("test", new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("max_message_test")));
+                 .createTenant("test", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("max_message_test")));
             admin.namespaces().createNamespace("test/message", Sets.newHashSet("max_message_test"));
         } catch (Exception e) {
             e.printStackTrace();

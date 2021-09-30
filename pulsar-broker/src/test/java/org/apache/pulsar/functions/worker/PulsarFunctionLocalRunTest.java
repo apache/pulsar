@@ -37,6 +37,7 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
@@ -82,9 +83,12 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -250,7 +254,7 @@ public class PulsarFunctionLocalRunTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // create cluster metadata
-        ClusterData clusterData = new ClusterData(urlTls.toString());
+        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder()
@@ -268,9 +272,10 @@ public class PulsarFunctionLocalRunTest {
         }
         pulsarClient = clientBuilder.build();
 
-        TenantInfo propAdmin = new TenantInfo();
-        propAdmin.getAdminRoles().add("superUser");
-        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList(CLUSTER)));
+        TenantInfo propAdmin = TenantInfo.builder()
+                .adminRoles(Collections.singleton("superUser"))
+                .allowedClusters(Sets.newHashSet(Lists.newArrayList(CLUSTER)))
+                .build();
         admin.tenants().createTenant(tenant, propAdmin);
 
         // setting up simple web sever to test submitting function via URL
@@ -439,13 +444,13 @@ public class PulsarFunctionLocalRunTest {
 
                 boolean result = false;
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
-                if (topicStats.subscriptions.containsKey(subscriptionName)
-                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == parallelism) {
-                    for (ConsumerStats consumerStats : topicStats.subscriptions.get(subscriptionName).consumers) {
-                        result = consumerStats.availablePermits == 1000
-                                && consumerStats.metadata != null
-                                && consumerStats.metadata.containsKey("id")
-                                && consumerStats.metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, functionName));
+                if (topicStats.getSubscriptions().containsKey(subscriptionName)
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == parallelism) {
+                    for (ConsumerStats consumerStats : topicStats.getSubscriptions().get(subscriptionName).getConsumers()) {
+                        result = consumerStats.getAvailablePermits() == 1000
+                                && consumerStats.getMetadata() != null
+                                && consumerStats.getMetadata().containsKey("id")
+                                && consumerStats.getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, functionName));
                     }
                 }
                 return result;
@@ -455,8 +460,8 @@ public class PulsarFunctionLocalRunTest {
         }, 50, 150));
         // validate pulsar sink consumer has started on the topic
         TopicStats stats = admin.topics().getStats(sourceTopic);
-        assertTrue(stats.subscriptions.get(subscriptionName) != null
-                && !stats.subscriptions.get(subscriptionName).consumers.isEmpty());
+        assertTrue(stats.getSubscriptions().get(subscriptionName) != null
+                && !stats.getSubscriptions().get(subscriptionName).getConsumers().isEmpty());
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
@@ -465,8 +470,8 @@ public class PulsarFunctionLocalRunTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -481,7 +486,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
                 totalMsgs);
 
         // validate prometheus metrics
@@ -520,20 +525,20 @@ public class PulsarFunctionLocalRunTest {
         retryStrategically((test) -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
-                return topicStats.subscriptions.get(subscriptionName) != null
-                        && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty();
+                return topicStats.getSubscriptions().get(subscriptionName) != null
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().isEmpty();
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 20, 150);
 
         TopicStats topicStats = admin.topics().getStats(sourceTopic);
-        assertTrue(topicStats.subscriptions.get(subscriptionName) != null
-                && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty());
+        assertTrue(topicStats.getSubscriptions().get(subscriptionName) != null
+                && topicStats.getSubscriptions().get(subscriptionName).getConsumers().isEmpty());
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
+                return (admin.topics().getStats(sinkTopic).getPublishers().size() == 0);
             } catch (PulsarAdminException e) {
                 if (e.getStatusCode() == 404) {
                     return true;
@@ -543,7 +548,7 @@ public class PulsarFunctionLocalRunTest {
         }, 10, 150);
 
         try {
-            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
+            assertEquals(admin.topics().getStats(sinkTopic).getPublishers().size(), 0);
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() != 404) {
                 fail();
@@ -615,8 +620,8 @@ public class PulsarFunctionLocalRunTest {
         retryStrategically((test) -> {
             try {
                 TopicStats stats = admin.topics().getStats(sourceTopic);
-                return stats.subscriptions.get(subscriptionName) != null
-                        && !stats.subscriptions.get(subscriptionName).consumers.isEmpty();
+                return stats.getSubscriptions().get(subscriptionName) != null
+                        && !stats.getSubscriptions().get(subscriptionName).getConsumers().isEmpty();
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -625,7 +630,7 @@ public class PulsarFunctionLocalRunTest {
         int totalMsgs = 5;
         Method setBaseValueMethod = avroTestObjectClass.getMethod("setBaseValue", new Class[]{int.class});
         for (int i = 0; i < totalMsgs; i++) {
-            Object avroTestObject = avroTestObjectClass.newInstance();
+            Object avroTestObject = avroTestObjectClass.getDeclaredConstructor().newInstance();
             setBaseValueMethod.invoke(avroTestObject, i);
             producer.newMessage().property(propertyKey, propertyValue)
                     .value(avroTestObject).send();
@@ -641,14 +646,14 @@ public class PulsarFunctionLocalRunTest {
         }
 
         // validate pulsar-sink consumer has consumed all messages
-        assertNotEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().unackedMessages, 0);
+        assertNotEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getUnackedMessages(), 0);
         localRunner.stop();
 
         retryStrategically((test) -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
-                return topicStats.subscriptions.get(subscriptionName) != null
-                        && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty();
+                return topicStats.getSubscriptions().get(subscriptionName) != null
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().isEmpty();
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -667,7 +672,8 @@ public class PulsarFunctionLocalRunTest {
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
-        producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass.newInstance()).send();
+        producer.newMessage().property(propertyKey, propertyValue).value(avroTestObjectClass
+                .getDeclaredConstructor().newInstance()).send();
         Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(msg);
 
@@ -737,7 +743,7 @@ public class PulsarFunctionLocalRunTest {
 
         Assert.assertTrue(retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sinkTopic).publishers.size() == parallelism;
+                return admin.topics().getStats(sinkTopic).getPublishers().size() == parallelism;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -747,11 +753,11 @@ public class PulsarFunctionLocalRunTest {
             try {
                 boolean result = false;
                 TopicStats sourceStats = admin.topics().getStats(sinkTopic);
-                if (sourceStats.publishers.size() == parallelism) {
-                    for (PublisherStats publisher : sourceStats.publishers) {
-                        result = publisher.metadata != null
-                                && publisher.metadata.containsKey("id")
-                                && publisher.metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+                if (sourceStats.getPublishers().size() == parallelism) {
+                    for (PublisherStats publisher : sourceStats.getPublishers()) {
+                        result = publisher.getMetadata() != null
+                                && publisher.getMetadata().containsKey("id")
+                                && publisher.getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
                     }
                 }
 
@@ -763,13 +769,13 @@ public class PulsarFunctionLocalRunTest {
 
         Assert.assertTrue(retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == parallelism)
+                return (admin.topics().getStats(sinkTopic).getPublishers().size() == parallelism)
                         && (admin.topics().getInternalStats(sinkTopic, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150));
-        assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), parallelism);
+        assertEquals(admin.topics().getStats(sinkTopic).getPublishers().size(), parallelism);
 
         // validate prometheus metrics
         String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
@@ -803,14 +809,14 @@ public class PulsarFunctionLocalRunTest {
 
         Assert.assertTrue(retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 0);
+                return (admin.topics().getStats(sinkTopic).getPublishers().size() == 0);
             } catch (PulsarAdminException e) {
                 return e.getStatusCode() == 404;
             }
         }, 10, 150));
 
         try {
-            assertEquals(admin.topics().getStats(sinkTopic).publishers.size(), 0);
+            assertEquals(admin.topics().getStats(sinkTopic).getPublishers().size(), 0);
         } catch (PulsarAdminException e) {
             if (e.getStatusCode() != 404) {
                 fail();
@@ -848,7 +854,7 @@ public class PulsarFunctionLocalRunTest {
         runWithNarClassLoader(() -> testPulsarSourceLocalRun(null, 2));
     }
 
-    private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism) throws Exception {
+    private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism, String className) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -866,7 +872,9 @@ public class PulsarFunctionLocalRunTest {
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
 
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
-        if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
+        if (className != null) {
+            sinkConfig.setClassName(className);
+        } else if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
             sinkConfig.setClassName("org.apache.pulsar.io.datagenerator.DataGeneratorPrintSink");
         }
 
@@ -893,10 +901,10 @@ public class PulsarFunctionLocalRunTest {
             try {
                 boolean result = false;
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
-                if (topicStats.subscriptions.containsKey(subscriptionName)
-                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == parallelism) {
-                    for (ConsumerStats consumerStats : topicStats.subscriptions.get(subscriptionName).consumers) {
-                        result = consumerStats.availablePermits == 1000;
+                if (topicStats.getSubscriptions().containsKey(subscriptionName)
+                        && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == parallelism) {
+                    for (ConsumerStats consumerStats : topicStats.getSubscriptions().get(subscriptionName).getConsumers()) {
+                        result = consumerStats.getAvailablePermits() == 1000;
                     }
                 }
                 return result;
@@ -912,8 +920,8 @@ public class PulsarFunctionLocalRunTest {
         }
         Assert.assertTrue(retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
-                return subStats.unackedMessages == 0 && subStats.msgThroughputOut == totalMsgs;
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -932,6 +940,14 @@ public class PulsarFunctionLocalRunTest {
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
+            } else if (line.startsWith("pulsar_sink_sink_exceptions_total")) {
+                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                assertFalse(metrics.isEmpty());
+                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
+                if (m == null) {
+                    m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
+                }
+                assertEquals(m.value, 0);
             }
         });
         Assert.assertEquals(metricsMap.size(), parallelism);
@@ -955,21 +971,25 @@ public class PulsarFunctionLocalRunTest {
         Assert.assertTrue(retryStrategically((test) -> {
             try {
                 TopicStats stats = admin.topics().getStats(sourceTopic);
-                return stats.subscriptions.get(subscriptionName) != null
-                        && stats.subscriptions.get(subscriptionName).consumers.isEmpty();
+                return stats.getSubscriptions().get(subscriptionName) != null
+                        && stats.getSubscriptions().get(subscriptionName).getConsumers().isEmpty();
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 20, 150));
 
         TopicStats topicStats = admin.topics().getStats(sourceTopic);
-        assertTrue(topicStats.subscriptions.get(subscriptionName) != null
-                && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty());
+        assertTrue(topicStats.getSubscriptions().get(subscriptionName) != null
+                && topicStats.getSubscriptions().get(subscriptionName).getConsumers().isEmpty());
 
     }
 
     private void testPulsarSinkLocalRun(String jarFilePathUrl) throws Exception {
-        testPulsarSourceLocalRun(jarFilePathUrl, 1);
+        testPulsarSinkLocalRun(jarFilePathUrl, 1);
+    }
+
+    private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism) throws Exception {
+        testPulsarSinkLocalRun(jarFilePathUrl, parallelism, null);
     }
 
     @Test(timeOut = 20000, groups = "builtin")
@@ -996,6 +1016,31 @@ public class PulsarFunctionLocalRunTest {
     @Test(timeOut = 40000)
     public void testPulsarSinkStatsMultipleInstances() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 2));
+    }
+
+    public static class StatsNullSink implements Sink<ByteBuffer> {
+        volatile long bytesTotal = 0;
+
+        @Override
+        public void open(Map map, final SinkContext sinkContext) throws Exception {
+
+        }
+
+        @Override
+        public void write(Record<ByteBuffer> record) throws Exception {
+            bytesTotal += record.getValue().capacity();
+            record.ack();
+        }
+
+        @Override
+        public void close() throws Exception {
+
+        }
+    }
+
+    @Test
+    public void testPulsarSinkStatsByteBufferType() throws Throwable{
+        runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName()));
     }
 
     private void runWithNarClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {

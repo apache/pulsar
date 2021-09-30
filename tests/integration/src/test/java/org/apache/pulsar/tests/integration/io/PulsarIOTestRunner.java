@@ -21,15 +21,15 @@ package org.apache.pulsar.tests.integration.io;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 import lombok.Cleanup;
@@ -59,9 +59,9 @@ public abstract class PulsarIOTestRunner {
     @SuppressWarnings("rawtypes")
 	protected Schema getSchema(boolean jsonWithEnvelope) {
         if (jsonWithEnvelope) {
-            return KeyValueSchema.kvBytes();
+            return KeyValueSchemaImpl.kvBytes();
         } else {
-            return KeyValueSchema.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
+            return KeyValueSchemaImpl.of(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED);
         }
     }
     
@@ -83,27 +83,14 @@ public abstract class PulsarIOTestRunner {
     }
     
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
-                                                              int numMessages) throws Exception {
+                                                              int numMessages, SinkTester<?> tester) throws Exception {
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-            .build();
-
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-            .topic(inputTopicName)
-            .create();
-
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
         LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            String key = "key-" + i;
-            String value = "value-" + i;
-            kvs.put(key, value);
-            producer.newMessage()
-                .key(key)
-                .value(value)
-                .send();
-        }
+        tester.produceMessage(numMessages, client, inputTopicName, kvs);
         return kvs;
     }  
 }

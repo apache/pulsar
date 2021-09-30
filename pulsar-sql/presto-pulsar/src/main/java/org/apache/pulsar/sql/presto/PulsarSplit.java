@@ -32,7 +32,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -62,7 +63,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final PositionImpl endPosition;
     private final String schemaInfoProperties;
 
-    private final OffloadPolicies offloadPolicies;
+    private final OffloadPoliciesImpl offloadPolicies;
 
     @JsonCreator
     public PulsarSplit(
@@ -80,7 +81,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
-            @JsonProperty("offloadPolicies") OffloadPolicies offloadPolicies) throws IOException {
+            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies) throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -101,7 +102,7 @@ public class PulsarSplit implements ConnectorSplit {
         this.offloadPolicies = offloadPolicies;
 
         ObjectMapper objectMapper = new ObjectMapper();
-        this.schemaInfo = SchemaInfo.builder()
+        this.schemaInfo = SchemaInfoImpl.builder()
                 .name(originSchemaName)
                 .type(schemaType)
                 .schema(schema.getBytes("ISO8859-1"))
@@ -188,7 +189,7 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public OffloadPolicies getOffloadPolicies() {
+    public OffloadPoliciesImpl getOffloadPolicies() {
         return offloadPolicies;
     }
 

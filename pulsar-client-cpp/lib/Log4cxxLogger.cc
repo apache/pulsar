@@ -66,7 +66,8 @@ std::unique_ptr<LoggerFactory> Log4CxxLoggerFactory::create() {
     if (!LogManager::getLoggerRepository()->isConfigured()) {
         LogManager::getLoggerRepository()->setConfigured(true);
         LoggerPtr root = log4cxx::Logger::getRootLogger();
-        static const LogString TTCC_CONVERSION_PATTERN(LOG4CXX_STR("%d{HH:mm:ss.SSS} [%t] %-5p %l - %m%n"));
+        static const LogString TTCC_CONVERSION_PATTERN(
+            LOG4CXX_STR("%d{yyyy-MM-dd HH:mm:ss,SSS Z} [%t] %-5p %l - %m%n"));
         LayoutPtr layout(new PatternLayout(TTCC_CONVERSION_PATTERN));
         AppenderPtr appender(new ConsoleAppender(layout));
         root->setLevel(log4cxx::Level::getInfo());

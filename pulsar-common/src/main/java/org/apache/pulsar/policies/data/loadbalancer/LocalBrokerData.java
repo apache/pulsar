@@ -248,11 +248,11 @@ public class LocalBrokerData implements LoadManagerReport {
     }
 
     public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
-                                                final double directMemoryWeight, final double bandwithInWeight,
-                                                final double bandWithOutWeight) {
+                                                final double directMemoryWeight, final double bandwidthInWeight,
+                                                final double bandwidthOutWeight) {
         return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
-                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwithInWeight,
-                bandwidthOut.percentUsage() * bandWithOutWeight) / 100;
+                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
+                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
     private static double max(double... args) {

@@ -28,16 +28,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 
@@ -57,7 +58,7 @@ public interface AuthorizationProvider extends Closeable {
                                                    AuthenticationDataSource authenticationData,
                                                    ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
     }
 
     /**
@@ -69,7 +70,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
     }
 
     /**
@@ -81,7 +82,7 @@ public interface AuthorizationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
                                                      AuthenticationDataSource authenticationData) {
-        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role) ? true : false);
+        return CompletableFuture.completedFuture(role != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(role));
     }
 
     /**
@@ -93,8 +94,28 @@ public interface AuthorizationProvider extends Closeable {
      *            pulsar zk configuration cache service
      * @throws IOException
      *             if the initialization fails
+     *
+     * @deprecated ConfigurationCacheService is not supported anymore as a way to get access to metadata.
+     * @see #initialize(ServiceConfiguration, PulsarResources)
      */
-    void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException;
+    @Deprecated
+    default void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+    }
+
+    /**
+     * Perform initialization for the authorization provider
+     *
+     * @param conf
+     *            broker config object
+     * @param pulsarResources
+     *            Resources component for access to metadata
+     * @throws IOException
+     *             if the initialization fails
+     */
+    default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
+        // For compatibility, call the old deprecated initialize
+        initialize(conf, (ConfigurationCacheService) null);
+    }
 
     /**
      * Check if the specified role has permission to send messages to the specified fully qualified topic name.

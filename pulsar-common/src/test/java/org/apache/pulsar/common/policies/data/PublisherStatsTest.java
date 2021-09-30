@@ -20,14 +20,36 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
+import java.util.Iterator;
+import java.util.Set;
+import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class PublisherStatsTest {
 
     @Test
-    public void testPublisherStats() {
-        PublisherStats stats = new PublisherStats();
+    public void testPublisherStats() throws Exception {
+        Set<String> allowedFields = Sets.newHashSet(
+            "accessMode",
+            "msgRateIn",
+            "msgThroughputIn",
+            "averageMsgSize",
+            "chunkedMessageRate",
+            "producerId",
+            "metadata",
+            "address",
+            "connectedSince",
+            "clientVersion",
+            "producerName"
+        );
+
+        PublisherStatsImpl stats = new PublisherStatsImpl();
         assertNull(stats.getAddress());
         assertNull(stats.getClientVersion());
         assertNull(stats.getConnectedSince());
@@ -52,6 +74,15 @@ public class PublisherStatsTest {
         assertEquals(stats.getConnectedSince(), "connected");
         assertEquals(stats.getAddress(), "address1");
         assertEquals(stats.getClientVersion(), "version");
+
+        // Check if private fields are included in json
+        ObjectMapper mapper = ObjectMapperFactory.create();
+        JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(stats));
+        Iterator<String> itr = node.fieldNames();
+        while (itr.hasNext()) {
+            String field = itr.next();
+            assertTrue(allowedFields.contains(field), field + " should not be exposed");
+        }
         
         stats.setAddress(null);
         assertNull(stats.getAddress());
@@ -77,17 +108,17 @@ public class PublisherStatsTest {
 
     @Test
     public void testPublisherStatsAggregation() {
-        PublisherStats stats1 = new PublisherStats();
+        PublisherStatsImpl stats1 = new PublisherStatsImpl();
         stats1.msgRateIn = 1;
         stats1.msgThroughputIn = 1;
         stats1.averageMsgSize = 1;
 
-        PublisherStats stats2 = new PublisherStats();
+        PublisherStatsImpl stats2 = new PublisherStatsImpl();
         stats2.msgRateIn = 1;
         stats2.msgThroughputIn = 2;
         stats2.averageMsgSize = 3;
 
-        PublisherStats target = new PublisherStats();
+        PublisherStatsImpl target = new PublisherStatsImpl();
         target.add(stats1);
         target.add(stats2);
 

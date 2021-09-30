@@ -40,7 +40,7 @@ public class DefaultImplementation {
                     LongRunningProcessStatus.Status.class, String.class, MessageId.class);
 
     public static PulsarAdminBuilder newAdminClientBuilder() {
-        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.newInstance());
+        return ReflectionUtils.catchExceptions(() -> ADMIN_CLIENT_BUILDER_IMPL.getDeclaredConstructor().newInstance());
     }
 
     public static OffloadProcessStatus newOffloadProcessStatus(LongRunningProcessStatus.Status status, String lastError
@@ -48,4 +48,5 @@ public class DefaultImplementation {
         return ReflectionUtils.catchExceptions(() -> OFFLOAD_PROCESS_STATUS_IMPL_status_string_messageid.newInstance(
                 status, lastError, messageId));
     }
+
 }

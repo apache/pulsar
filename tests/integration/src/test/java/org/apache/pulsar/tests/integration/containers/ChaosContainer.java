@@ -46,6 +46,12 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         this.clusterName = clusterName;
     }
 
+    @Override
+    protected void configure() {
+        super.configure();
+        addEnv("MALLOC_ARENA_MAX", "1");
+    }
+
     protected void beforeStop() {
         if (null == getContainerId()) {
             return;
@@ -84,6 +90,18 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         DockerClient client = this.getDockerClient();
         String dockerId = this.getContainerId();
         return DockerUtils.runCommandAsync(client, dockerId, commands);
+    }
+
+    public ContainerExecResult execCmdAsUser(String userId, String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsUser(userId, client, dockerId, commands);
+    }
+
+    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsyncAsUser(userId, client, dockerId, commands);
     }
 
     @Override

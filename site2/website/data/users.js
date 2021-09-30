@@ -13,13 +13,12 @@ module.exports = [
     {
         name: 'Giggso',
         url: 'https://giggso.com/',
-        logo: 'https://www.giggso.com/wp-content/uploads/2019/11/logo-2.png',
-        logo_white: true
+        logo: 'https://www.giggso.com/wp-content/uploads/2021/06/logo-giggs.png',
     },
     {
         name: 'STICorp',
         url: 'https://www.sticorp.com.br/',
-        logo: 'https://www.sticorp.com.br/wp-content/uploads/2015/09/logo-horizontal.png',
+        logo: 'https://sticorp.com.br/wp-content/uploads/2021/02/logo-sticorp.png',
     },
     {
         name: 'Verizon Media',
@@ -82,7 +81,7 @@ module.exports = [
     {
         name: 'Quantel AI',
         url: 'http://quantel.ai/',
-        logo: 'https://quantel.ai/wp-content/uploads/2019/09/Quantel-AI-Black-Font-Trans-1024x1024.png'
+        logo: 'https://static.wixstatic.com/media/7c19eb_41a090c255c94d19bc37cca9777c1d90~mv2.jpg/v1/fill/w_314,h_270,al_c,q_80,usm_0.66_1.00_0.01/Quantel-final%20white%20bg.webp'
     },
     {
         name: 'Splunk',
@@ -91,15 +90,14 @@ module.exports = [
         featured: 5
     },
     {
-        name: 'Stream Native',
+        name: 'StreamNative',
         url: 'https://streamnative.io/',
-        logo: 'https://streamnative.io/static/images/streamnative-logo-white-bakground.png',
+        logo: 'https://streamnative.io/assets/static/sn-logo-vertical-dark.c516648.a34f97839dee38e7499aa0c21d0b2255.png',
     },
     {
         name: 'EMQ',
         url: 'https://www.emqx.io/',
-        logo: 'https://www.emqx.io/static/img/logo.svg',
-        logo_white: true
+        logo: 'https://www.emqx.io/images/logo.png',
     },
     {
         name: 'Tencent',
@@ -156,7 +154,7 @@ module.exports = [
     {
         name: 'OKCoin',
         url: 'https://www.okcoin.com/',
-        logo: 'https://static.bafang.com/cdn/assets/imgs/206/BC3E3ADD7E55C085.png',
+        logo: 'https://i0.wp.com/blog.okcoin.com/wp-content/uploads/2019/08/OKCoin-Logo-Spring2019-250x60px-01.png?fit=251%2C62&ssl=1',
     },
     {
         name: 'BestPay',
@@ -182,7 +180,7 @@ module.exports = [
     {
         name: 'CTWing',
         url: 'https://www.ctwing.cn/',
-        logo: 'https://www.ctwing.cn/static/img/logo.168f8b7.svg'
+        logo: 'https://www.ctwing.cn/r/cms/www/default/images/public/logo.png'
     },
     {
         name: 'Globalegrow E-Commerce',
@@ -203,7 +201,7 @@ module.exports = [
     {
         name: 'Shihong',
         url: 'https://shihong.net.cn',
-        logo: 'https://shihong.net.cn/website/static/src/img/shihong1.png'
+        logo: 'https://www.shihong.net.cn/website/static/src/img/shihong1.png'
     },
     {
         name: 'CleverCloud',
@@ -305,7 +303,7 @@ module.exports = [
     {
         name: 'Bairong.Inc',
         url: 'http://www.brgroup.com',
-        logo: 'http://www.brgroup.com/_nuxt/img/logo.d2a976e.png',
+        logo: 'http://www.brgroup.com/_nuxt/img/d2a976e.png',
           logo_white: true
     },
     {
@@ -326,7 +324,7 @@ module.exports = [
     {
         name: 'Deposit-Solutions',
         url: 'https://www.deposit-solutions.com/',
-        logo: 'https://www.deposit-solutions.com/wp-content/uploads/2017/05/ds_logo_light_horiz.png'
+        logo: 'https://media-exp1.licdn.com/dms/image/C4E0BAQGWAAW9iYFSwA/company-logo_200_200/0/1625219600895?e=1638403200&v=beta&t=iGNhEWlAFQDJOHAScjumctjY5M2eSU4fL4X-9kgpR2M'
     },
     {
         name: 'Macrometa',

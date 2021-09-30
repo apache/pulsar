@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.Maps;
 import java.util.Collections;
 import java.util.Map;
 import javax.validation.constraints.NotNull;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
+@Getter
+@NoArgsConstructor
+@EqualsAndHashCode
+@ToString
 public class NamespaceEphemeralData {
     private String nativeUrl;
     private String nativeUrlTls;
@@ -32,9 +39,6 @@ public class NamespaceEphemeralData {
     private String httpUrlTls;
     private boolean disabled;
     private Map<String, AdvertisedListener> advertisedListeners;
-
-    public NamespaceEphemeralData() {
-    }
 
     public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
             boolean disabled) {
@@ -55,41 +59,11 @@ public class NamespaceEphemeralData {
         }
     }
 
-    public String getNativeUrl() {
-        return nativeUrl;
-    }
-
-    public String getNativeUrlTls() {
-        return nativeUrlTls;
-    }
-
-    public String getHttpUrl() {
-        return httpUrl;
-    }
-
-    public String getHttpUrlTls() {
-        return httpUrlTls;
-    }
-
-    public boolean isDisabled() {
-        return disabled;
-    }
-
-    public void setDisabled(boolean flag) {
-        this.disabled = flag;
-    }
-
     @NotNull
     public Map<String, AdvertisedListener> getAdvertisedListeners() {
         if (this.advertisedListeners == null) {
             return Collections.EMPTY_MAP;
         }
         return Collections.unmodifiableMap(this.advertisedListeners);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("nativeUrl", nativeUrl).add("httpUrl", httpUrl)
-                .add("disabled", disabled).add("advertisedListeners", getAdvertisedListeners()).toString();
     }
 }

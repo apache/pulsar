@@ -254,8 +254,9 @@ enum ProtocolVersion {
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
-    v16 = 16; // Add support for raw message metadata
+    v16 = 16; // Add support for broker entry metadata
     v17 = 17; // Added support ack receipt
+    v18 = 18; // Add client support for broker entry metadata
 }
 
 message CommandConnect {
@@ -493,6 +494,9 @@ message CommandSend {
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
     optional bool is_chunk     =7 [default = false];
+
+    // Specify if the message being published is a Pulsar marker or not
+    optional bool marker = 8 [default = false];
 }
 
 message CommandSendReceipt {

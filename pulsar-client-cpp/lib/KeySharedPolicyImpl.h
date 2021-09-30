@@ -25,6 +25,7 @@ namespace pulsar {
 struct KeySharedPolicyImpl {
     bool allowOutOfOrderDelivery;
     KeySharedMode keySharedMode;
+    StickyRanges ranges;
 
     KeySharedPolicyImpl() : allowOutOfOrderDelivery(false), keySharedMode(AUTO_SPLIT) {}
 };

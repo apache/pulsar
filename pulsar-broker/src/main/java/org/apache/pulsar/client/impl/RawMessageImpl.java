@@ -77,7 +77,7 @@ public class RawMessageImpl implements RawMessage {
         return buf;
     }
 
-    static public RawMessage deserializeFrom(ByteBuf buffer) {
+    public static RawMessage deserializeFrom(ByteBuf buffer) {
         int idSize = buffer.readInt();
 
         MessageIdData id = new MessageIdData();

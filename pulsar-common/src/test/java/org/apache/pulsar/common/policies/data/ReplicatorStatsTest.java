@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -25,7 +26,7 @@ public class ReplicatorStatsTest {
 
     @Test
     public void testReplicatorStatsNull() {
-        ReplicatorStats rs = new ReplicatorStats();
+        ReplicatorStatsImpl rs = new ReplicatorStatsImpl();
         try {
             rs.add(null);
             Assert.fail("Must fail.");
@@ -36,7 +37,7 @@ public class ReplicatorStatsTest {
 
     @Test
     public void testReplicatorStatsAdd() {
-        ReplicatorStats replicatorStats = new ReplicatorStats();
+        ReplicatorStatsImpl replicatorStats = new ReplicatorStatsImpl();
         replicatorStats.msgRateIn = 5;
         replicatorStats.msgThroughputIn = 10;
         replicatorStats.msgRateOut = 5;

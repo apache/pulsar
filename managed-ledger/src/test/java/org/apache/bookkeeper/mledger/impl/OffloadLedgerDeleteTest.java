@@ -20,20 +20,19 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
 
-import java.lang.reflect.Method;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -210,7 +209,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
     @Test
     public void isOffloadedNeedsDeleteTest() throws Exception {
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
         Mockito.when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
 
@@ -219,25 +218,23 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setLedgerOffloader(ledgerOffloader);
         config.setClock(clock);
 
-        ManagedLedger managedLedger = factory.open("isOffloadedNeedsDeleteTest", config);
-        Class<ManagedLedgerImpl> clazz = ManagedLedgerImpl.class;
-        Method method = clazz.getDeclaredMethod("isOffloadedNeedsDelete", MLDataFormats.OffloadContext.class);
-        method.setAccessible(true);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("isOffloadedNeedsDeleteTest", config);
 
         MLDataFormats.OffloadContext offloadContext = MLDataFormats.OffloadContext.newBuilder()
                 .setTimestamp(config.getClock().millis() - 1000)
                 .setComplete(true)
                 .setBookkeeperDeleted(false)
                 .build();
-        Boolean needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+
+        boolean needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
         Assert.assertFalse(needsDelete);
 
         offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(500L);
-        needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+        needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
         Assert.assertTrue(needsDelete);
 
         offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(1000L * 2);
-        needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+        needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
         Assert.assertFalse(needsDelete);
 
         offloadContext = MLDataFormats.OffloadContext.newBuilder()
@@ -245,7 +242,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
                 .setComplete(false)
                 .setBookkeeperDeleted(false)
                 .build();
-        needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+        needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
         Assert.assertFalse(needsDelete);
 
         offloadContext = MLDataFormats.OffloadContext.newBuilder()
@@ -253,7 +250,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
                 .setComplete(true)
                 .setBookkeeperDeleted(true)
                 .build();
-        needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+        needsDelete = managedLedger.isOffloadedNeedsDelete(offloadContext, Optional.of(offloadPolicies));
         Assert.assertFalse(needsDelete);
 
     }

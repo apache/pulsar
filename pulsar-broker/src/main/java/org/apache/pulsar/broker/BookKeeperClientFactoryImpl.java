@@ -81,6 +81,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
+                    .setZookeeper(zkClient)
                     .eventLoopGroup(eventLoopGroup)
                     .statsLogger(statsLogger)
                     .build();
@@ -109,6 +110,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setTLSTrustStore(conf.getBookkeeperTLSTrustCertsFilePath());
             bkConf.setTLSTrustStoreType(conf.getBookkeeperTLSTrustCertTypes());
             bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
+            bkConf.setTLSCertFilesRefreshDurationSeconds(conf.getBookkeeperTlsCertFilesRefreshDurationSeconds());
         }
 
         bkConf.setBusyWaitEnabled(conf.isEnableBusyWait());
@@ -123,7 +125,6 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
-        bkConf.setNumWorkerThreads(1);
 
         if (StringUtils.isNotBlank(conf.getBookkeeperMetadataServiceUri())) {
             bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataServiceUri());

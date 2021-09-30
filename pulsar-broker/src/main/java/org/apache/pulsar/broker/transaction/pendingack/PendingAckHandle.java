@@ -152,4 +152,5 @@ public interface PendingAckHandle {
      * @return the future of this operation.
      */
     CompletableFuture<Void> close();
+
 }

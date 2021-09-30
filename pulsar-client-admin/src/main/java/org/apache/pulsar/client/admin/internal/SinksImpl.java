@@ -40,6 +40,7 @@ import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
@@ -88,7 +89,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(new GenericType<List<String>>() {}));
@@ -128,7 +129,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(SinkConfig.class));
@@ -169,7 +170,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(SinkStatus.class));
@@ -212,7 +213,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(
@@ -364,10 +365,11 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
                             .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
-            if (updateOptions != null) {
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
+            if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
                         ObjectMapperFactory.getThreadLocal()
-                                .writeValueAsString(updateOptions), MediaType.APPLICATION_JSON));
+                                .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -435,10 +437,11 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     "sinkConfig",
                     new Gson().toJson(sinkConfig),
                     MediaType.APPLICATION_JSON_TYPE));
-            if (updateOptions != null) {
+            UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
+            if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(updateOptions),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
@@ -634,7 +637,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             future.complete(response.readEntity(

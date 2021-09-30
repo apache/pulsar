@@ -910,7 +910,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getSubscriptionExpirationTime(String namespace) throws PulsarAdminException;
+    Integer getSubscriptionExpirationTime(String namespace) throws PulsarAdminException;
 
     /**
      * Get the subscription expiration time for a namespace asynchronously.
@@ -964,6 +964,29 @@ public interface Namespaces {
      *            Expiration time values for all subscriptions for all topics in this namespace
      */
     CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String namespace, int expirationTime);
+
+    /**
+     * Remove the subscription expiration time for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeSubscriptionExpirationTime(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the subscription expiration time for a namespace asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeSubscriptionExpirationTimeAsync(String namespace);
 
     /**
      * Set anti-affinity group name for a namespace.
@@ -1506,7 +1529,12 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException;
+    void setBacklogQuota(String namespace, BacklogQuota backlogQuota, BacklogQuota.BacklogQuotaType backlogQuotaType)
+            throws PulsarAdminException;
+
+    default void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException {
+        setBacklogQuota(namespace, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
 
     /**
      * Set a backlog quota for all the topics on a namespace asynchronously.
@@ -1531,7 +1559,12 @@ public interface Namespaces {
      * @param backlogQuota
      *            the new BacklogQuota
      */
-    CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota);
+    CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota,
+                                                 BacklogQuota.BacklogQuotaType backlogQuotaType);
+
+    default CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota) {
+        return setBacklogQuotaAsync(namespace, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
 
     /**
      * Remove a backlog quota policy from a namespace.
@@ -1550,7 +1583,12 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void removeBacklogQuota(String namespace) throws PulsarAdminException;
+    void removeBacklogQuota(String namespace, BacklogQuota.BacklogQuotaType backlogQuotaType)
+            throws PulsarAdminException;
+
+    default void removeBacklogQuota(String namespace) throws PulsarAdminException {
+        removeBacklogQuota(namespace, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
 
     /**
      * Remove a backlog quota policy from a namespace asynchronously.
@@ -1562,7 +1600,12 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      */
-    CompletableFuture<Void> removeBacklogQuotaAsync(String namespace);
+    CompletableFuture<Void> removeBacklogQuotaAsync(String namespace, BacklogQuota.BacklogQuotaType backlogQuotaType);
+
+    default CompletableFuture<Void> removeBacklogQuotaAsync(String namespace) {
+        return removeBacklogQuotaAsync(namespace, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
+
 
     /**
      * Remove the persistence configuration on a namespace.

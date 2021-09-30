@@ -43,6 +43,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private volatile T value;
     private long version;
     private final CompletableFuture<Void> expiredFuture;
+    private boolean revalidateAfterReconnection = false;
 
     private enum State {
         Init,
@@ -72,7 +73,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     public synchronized CompletableFuture<Void> updateValue(T newValue) {
         byte[] payload;
         try {
-            payload = serde.serialize(newValue);
+            payload = serde.serialize(path, newValue);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -159,7 +160,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private CompletableFuture<Void> acquireWithNoRevalidation() {
         byte[] payload;
         try {
-            payload = serde.serialize(value);
+            payload = serde.serialize(path, value);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -186,7 +187,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         return result;
     }
 
-    synchronized  void lockWasInvalidated() {
+    synchronized void lockWasInvalidated() {
         if (state != State.Valid) {
             // Ignore notifications while we're releasing the lock ourselves
             return;
@@ -197,12 +198,30 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 .thenRun(() -> log.info("Successfully revalidated the lock on {}", path))
                 .exceptionally(ex -> {
                     synchronized (ResourceLockImpl.this) {
-                        log.warn("Failed to revalidate the lock at {}. Marked as expired", path);
-                        state = State.Released;
-                        expiredFuture.complete(null);
+                        if (ex.getCause() instanceof BadVersionException) {
+                            log.warn("Failed to revalidate the lock at {}. Marked as expired", path);
+                            state = State.Released;
+                            expiredFuture.complete(null);
+                        } else {
+                            // We failed to revalidate the lock due to connectivity issue
+                            // Continue assuming we hold the lock, until we can revalidate it, either
+                            // on Reconnected or SessionReestablished events.
+                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
+                                    ex.getCause().getMessage());
+                        }
                     }
                     return null;
                 });
+    }
+
+    synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
+        if (revalidateAfterReconnection) {
+            revalidateAfterReconnection = false;
+            log.warn("Revalidate lock at {} after reconnection", path);
+            return revalidate();
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     synchronized CompletableFuture<Void> revalidate() {
@@ -223,7 +242,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
                     T existingValue;
                     try {
-                        existingValue = serde.deserialize(optGetResult.get().getValue());
+                        existingValue = serde.deserialize(path, res.getValue(), res.getStat());
                     } catch (Throwable t) {
                         return FutureUtils.exception(t);
                     }

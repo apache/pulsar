@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -45,7 +46,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -108,7 +111,7 @@ public class PulsarWorkerAssignmentTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        final ClusterData clusterData = new ClusterData(pulsar.getBrokerServiceUrl());
+        final ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         final ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -117,9 +120,10 @@ public class PulsarWorkerAssignmentTest {
         }
         pulsarClient = clientBuilder.build();
 
-        final TenantInfo propAdmin = new TenantInfo();
-        propAdmin.getAdminRoles().add("superUser");
-        propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
+        TenantInfo propAdmin = TenantInfo.builder()
+                .adminRoles(Collections.singleton("superUser"))
+                .allowedClusters(Collections.singleton("use"))
+                .build();
         admin.tenants().updateTenant(tenant, propAdmin);
 
         Thread.sleep(100);
@@ -196,16 +200,16 @@ public class PulsarWorkerAssignmentTest {
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
-                        && admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers
+                return admin.topics().getStats(sinkTopic).getSubscriptions().size() == 1
+                        && admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers()
                                 .size() == 2;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
         // validate 2 instances have been started
-        assertEquals(admin.topics().getStats(sinkTopic).subscriptions.size(), 1);
-        assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 2);
+        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().size(), 1);
+        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers().size(), 2);
 
         // (2) Update function with 1 instance
         functionConfig.setParallelism(1);
@@ -213,8 +217,8 @@ public class PulsarWorkerAssignmentTest {
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
-                return admin.topics().getStats(sinkTopic).subscriptions.size() == 1
-                        && admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers
+                return admin.topics().getStats(sinkTopic).getSubscriptions().size() == 1
+                        && admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers()
                                 .size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
@@ -222,7 +226,7 @@ public class PulsarWorkerAssignmentTest {
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
-        assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
+        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers().size(), 1);
     }
 
     @Test(timeOut = 60000, enabled = false)

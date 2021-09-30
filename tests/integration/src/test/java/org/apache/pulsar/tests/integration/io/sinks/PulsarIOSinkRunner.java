@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.policies.data.SinkStatusUtil;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.PulsarIOTestRunner;
@@ -77,46 +78,51 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
         // get sink info
         getSinkInfoSuccess(tester, tenant, namespace, sinkName, builtin);
+        try {
 
-        // get sink status
-        Failsafe.with(statusRetryPolicy).run(() -> getSinkStatus(tenant, namespace, sinkName));
+            // get sink status
+            Failsafe.with(statusRetryPolicy).run(() -> getSinkStatus(tenant, namespace, sinkName));
 
-        // produce messages
-        Map<String, String> kvs;
-        if (tester instanceof JdbcPostgresSinkTester) {
-            kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
-            // wait for sink to process messages
-            Failsafe.with(statusRetryPolicy).run(() ->
-                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
+            // produce messages
+            Map<String, String> kvs;
+            if (tester instanceof JdbcPostgresSinkTester) {
+                kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
+                // wait for sink to process messages
+                Failsafe.with(statusRetryPolicy).run(() ->
+                        waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
 
-            // validate the sink result
-            tester.validateSinkResult(kvs);
+                // validate the sink result
+                tester.validateSinkResult(kvs);
 
-            kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
+                kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
-            // wait for sink to process messages
-            Failsafe.with(statusRetryPolicy).run(() ->
-                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20));
+                // wait for sink to process messages
+                Failsafe.with(statusRetryPolicy).run(() ->
+                        waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20));
 
-            // validate the sink result
-            tester.validateSinkResult(kvs);
+                // validate the sink result
+                tester.validateSinkResult(kvs);
 
-            kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
+                kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
-            // wait for sink to process messages
-            Failsafe.with(statusRetryPolicy).run(() ->
-                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20 + 20));
+                // wait for sink to process messages
+                Failsafe.with(statusRetryPolicy).run(() ->
+                        waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages + 20 + 20));
 
-            // validate the sink result
-            tester.validateSinkResult(kvs);
+                // validate the sink result
+                tester.validateSinkResult(kvs);
 
-        } else {
-            kvs = produceMessagesToInputTopic(inputTopicName, numMessages);
-            // wait for sink to process messages
-            Failsafe.with(statusRetryPolicy).run(() ->
-                    waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
-            // validate the sink result
-            tester.validateSinkResult(kvs);
+            } else {
+                kvs = produceMessagesToInputTopic(inputTopicName, numMessages, tester);
+                // wait for sink to process messages
+                Failsafe.with(statusRetryPolicy).run(() ->
+                        waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
+                // validate the sink result
+                tester.validateSinkResult(kvs);
+            }
+        } finally {
+            // always print the content of the logs, in order to ease debugging
+            pulsarCluster.dumpFunctionLogs(sinkName);
         }
 
         // update the sink
@@ -253,7 +259,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
         assertEquals(result.getExitCode(), 0);
 
-        SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
+        SinkStatus sinkStatus = SinkStatusUtil.decode(result.getStdout());
 
         assertEquals(sinkStatus.getNumInstances(), 1);
         assertEquals(sinkStatus.getNumRunning(), 1);
@@ -318,7 +324,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
         assertEquals(result.getExitCode(), 0);
 
-        final SinkStatus sinkStatus = SinkStatus.decode(result.getStdout());
+        final SinkStatus sinkStatus = SinkStatusUtil.decode(result.getStdout());
 
         assertEquals(sinkStatus.getNumInstances(), 1);
         assertEquals(sinkStatus.getNumRunning(), 1);

@@ -35,11 +35,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy which will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose
- * maximum system resource usage exceeds loadBalancerBrokerOverloadedThresholdPercentage. A bundle will be recommended
- * for unloading off that broker if and only if the following conditions hold: The broker has at least two bundles
- * assigned and the broker has at least one bundle that has not been unloaded recently according to
+ * maximum system resource usage exceeds loadBalancerBrokerOverloadedThresholdPercentage. To see which resources are
+ * considered when determining the maximum system resource, see {@link LocalBrokerData#getMaxResourceUsage()}. A bundle
+ * is recommended for unloading off that broker if and only if the following conditions hold: The broker has at
+ * least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to
  * LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message
- * rate that has not been recently unloaded.
+ * rate that has not been recently unloaded. Note that this strategy does not take into account "underloaded" brokers
+ * when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across
+ * all brokers, see {@link ThresholdShedder}.
  */
 public class OverloadShedder implements LoadSheddingStrategy {
 
@@ -47,7 +50,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
-    private final static double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
+    private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
 
     /**
      * Attempt to shed some bundles off every broker which is overloaded.

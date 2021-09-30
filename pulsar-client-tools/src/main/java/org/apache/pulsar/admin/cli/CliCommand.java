@@ -126,14 +126,14 @@ abstract class CliCommand {
         return arguments.get(0);
     }
 
-    static private String[] splitParameter(List<String> params, int n) {
+    private static String[] splitParameter(List<String> params, int n) {
         if (params.size() != 1) {
             throw new ParameterException("Need to provide just 1 parameter");
         }
 
         String[] parts = params.get(0).split("/");
         if (parts.length != n) {
-            throw new ParameterException("Paramter format is incorrect");
+            throw new ParameterException("Parameter format is incorrect");
         }
 
         return parts;

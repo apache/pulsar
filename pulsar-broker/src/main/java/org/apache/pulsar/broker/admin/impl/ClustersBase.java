@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
@@ -28,6 +26,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import io.swagger.annotations.Example;
 import io.swagger.annotations.ExampleProperty;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,8 +47,6 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.ClusterResources.FailureDomainResources;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -57,9 +54,12 @@ import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -95,11 +95,11 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}")
     @ApiOperation(
         value = "Get the configuration for the specified cluster.",
-        response = ClusterData.class,
+        response = ClusterDataImpl.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterData.class),
+            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterDataImpl.class),
             @ApiResponse(code = 403, message = "Don't have admin permission."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
@@ -114,7 +114,7 @@ public class ClustersBase extends PulsarWebResource {
         validateSuperUserAccess();
 
         try {
-            return clusterResources().get(path("clusters", cluster))
+            return clusterResources().getCluster(cluster)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
@@ -159,18 +159,18 @@ public class ClustersBase extends PulsarWebResource {
                 )
             )
         )
-        ClusterData clusterData
+                ClusterDataImpl clusterData
     ) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
             NamedEntity.checkName(cluster);
-            if (clusterResources().get(path("clusters", cluster)).isPresent()) {
+            if (clusterResources().getCluster(cluster).isPresent()) {
                 log.warn("[{}] Failed to create already existing cluster {}", clientAppId(), cluster);
                 throw new RestException(Status.CONFLICT, "Cluster already exists");
             }
-            clusterResources().create(path("clusters", cluster), clusterData);
+            clusterResources().createCluster(cluster, clusterData);
             log.info("[{}] Created cluster {}", clientAppId(), cluster);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to create cluster with invalid name {}", clientAppId(), cluster, e);
@@ -212,16 +212,13 @@ public class ClustersBase extends PulsarWebResource {
                 )
             )
         )
-        ClusterData clusterData
+                ClusterDataImpl clusterData
     ) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
-            clusterResources().set(path("clusters", cluster), old -> {
-                old.update(clusterData);
-                return old;
-            });
+            clusterResources().updateCluster(cluster, old -> clusterData);
             log.info("[{}] Updated cluster {}", clientAppId(), cluster);
         } catch (NotFoundException e) {
             log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
@@ -277,7 +274,7 @@ public class ClustersBase extends PulsarWebResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 cluster + " itself can't be part of peer-list");
                     }
-                    clusterResources().get(path("clusters", peerCluster))
+                    clusterResources().getCluster(peerCluster)
                             .orElseThrow(() -> new RestException(Status.PRECONDITION_FAILED,
                                     "Peer cluster " + peerCluster + " does not exist"));
                 } catch (RestException e) {
@@ -293,10 +290,11 @@ public class ClustersBase extends PulsarWebResource {
         }
 
         try {
-            clusterResources().set(path("clusters", cluster), old -> {
-                old.setPeerClusterNames(peerClusterNames);
-                return old;
-            });
+            clusterResources().updateCluster(cluster, old ->
+                old.clone()
+                        .peerClusterNames(peerClusterNames)
+                        .build()
+            );
             log.info("[{}] Successfully added peer-cluster {} for {}", clientAppId(), peerClusterNames, cluster);
         } catch (NotFoundException e) {
             log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
@@ -329,7 +327,7 @@ public class ClustersBase extends PulsarWebResource {
     ) {
         validateSuperUserAccess();
         try {
-            ClusterData clusterData = clusterResources().get(path("clusters", cluster))
+            ClusterData clusterData = clusterResources().getCluster(cluster)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
             return clusterData.getPeerClusterNames();
         } catch (Exception e) {
@@ -361,29 +359,19 @@ public class ClustersBase extends PulsarWebResource {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
-        // Check that the cluster is not used by any property (eg: no namespaces provisioned there)
+        // Check that the cluster is not used by any tenant (eg: no namespaces provisioned there)
         boolean isClusterUsed = false;
         try {
-            for (String property : tenantResources().getChildren(path(POLICIES))) {
-                if (!clusterResources().exists(path(POLICIES, property, cluster))) {
-                    continue;
-                }
-
-                if (!clusterResources().getChildren(path(POLICIES, property, cluster)).isEmpty()) {
-                    // We found a property that has at least a namespace in this cluster
-                    isClusterUsed = true;
-                    break;
-                }
-            }
+            isClusterUsed = pulsar().getPulsarResources().getClusterResources().isClusterUsed(cluster);
 
             // check the namespaceIsolationPolicies associated with the cluster
-            String path = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-            Optional<NamespaceIsolationPolicies> nsIsolationPolicies = namespaceIsolationPolicies().getPolicies(path);
+            Optional<NamespaceIsolationPolicies> nsIsolationPolicies =
+                    namespaceIsolationPolicies().getIsolationDataPolicies(cluster);
 
             // Need to delete the isolation policies if present
             if (nsIsolationPolicies.isPresent()) {
                 if (nsIsolationPolicies.get().getPolicies().isEmpty()) {
-                    namespaceIsolationPolicies().delete(path);
+                    namespaceIsolationPolicies().deleteIsolationData(cluster);
                 } else {
                     isClusterUsed = true;
                 }
@@ -399,9 +387,8 @@ public class ClustersBase extends PulsarWebResource {
         }
 
         try {
-            String clusterPath = path("clusters", cluster);
-            deleteFailureDomain(clusterPath);
-            clusterResources().delete(clusterPath);
+            clusterResources().getFailureDomainResources().deleteFailureDomains(cluster);
+            clusterResources().deleteCluster(cluster);
             log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
         } catch (NotFoundException e) {
             log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
@@ -412,28 +399,11 @@ public class ClustersBase extends PulsarWebResource {
         }
     }
 
-    private void deleteFailureDomain(String clusterPath) {
-        try {
-            String failureDomain = joinPath(clusterPath, ConfigurationCacheService.FAILURE_DOMAIN);
-            if (!clusterResources().exists(failureDomain)) {
-                return;
-            }
-            for (String domain : clusterResources().getChildren(failureDomain)) {
-                String domainPath = joinPath(failureDomain, domain);
-                clusterResources().delete(domainPath);
-            }
-            clusterResources().delete(failureDomain);
-        } catch (Exception e) {
-            log.warn("Failed to delete failure-domain under cluster {}", clusterPath);
-            throw new RestException(e);
-        }
-    }
-
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies")
     @ApiOperation(
         value = "Get the namespace isolation policies assigned to the cluster.",
-        response = NamespaceIsolationData.class,
+        response = NamespaceIsolationDataImpl.class,
         responseContainer = "Map",
         notes = "This operation requires Pulsar superuser privileges."
     )
@@ -442,7 +412,7 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public Map<String, NamespaceIsolationData> getNamespaceIsolationPolicies(
+    public Map<String, ? extends NamespaceIsolationData> getNamespaceIsolationPolicies(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -450,13 +420,13 @@ public class ClustersBase extends PulsarWebResource {
         @PathParam("cluster") String cluster
     ) throws Exception {
         validateSuperUserAccess();
-        if (!clusterResources().exists(path("clusters", cluster))) {
+        if (!clusterResources().clusterExists(cluster)) {
             throw new RestException(Status.NOT_FOUND, "Cluster " + cluster + " does not exist.");
         }
 
         try {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getPolicies(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
+                    .getIsolationDataPolicies(cluster)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to Namespace isolation data map
@@ -471,7 +441,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
     @ApiOperation(
             value = "Get the single namespace isolation policy assigned to the cluster.",
-            response = NamespaceIsolationData.class,
+            response = NamespaceIsolationDataImpl.class,
             notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
@@ -497,7 +467,7 @@ public class ClustersBase extends PulsarWebResource {
 
         try {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getPolicies(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
+                    .getIsolationDataPolicies(cluster)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to Namespace isolation data map
@@ -520,7 +490,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/namespaceIsolationPolicies/brokers")
     @ApiOperation(
         value = "Get list of brokers with namespace-isolation policies attached to them.",
-        response = BrokerNamespaceIsolationData.class,
+        response = BrokerNamespaceIsolationDataImpl.class,
         responseContainer = "set",
         notes = "This operation requires Pulsar superuser privileges."
     )
@@ -540,8 +510,7 @@ public class ClustersBase extends PulsarWebResource {
         validateClusterExists(cluster);
 
         Set<String> availableBrokers;
-        final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-        Map<String, NamespaceIsolationData> nsPolicies;
+        Map<String, ? extends NamespaceIsolationData> nsPolicies;
         try {
             availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
         } catch (Exception e) {
@@ -550,7 +519,7 @@ public class ClustersBase extends PulsarWebResource {
         }
         try {
             Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
-                    .getPolicies(nsIsolationPoliciesPath);
+                    .getIsolationDataPolicies(cluster);
             if (!nsPoliciesResult.isPresent()) {
                 throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
             }
@@ -560,23 +529,23 @@ public class ClustersBase extends PulsarWebResource {
             throw new RestException(e);
         }
         return availableBrokers.stream().map(broker -> {
-            BrokerNamespaceIsolationData brokerIsolationData = new BrokerNamespaceIsolationData();
-            brokerIsolationData.brokerName = broker;
+            BrokerNamespaceIsolationData.Builder brokerIsolationData = BrokerNamespaceIsolationData.builder()
+                    .brokerName(broker);
             if (nsPolicies != null) {
+                List<String> namespaceRegexes = new ArrayList<>();
                 nsPolicies.forEach((name, policyData) -> {
                     NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
                     if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
-                        if (brokerIsolationData.namespaceRegex == null) {
-                            brokerIsolationData.namespaceRegex = Lists.newArrayList();
-                        }
-                        brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                        namespaceRegexes.addAll(policyData.getNamespaces());
                         if (nsPolicyImpl.isPrimaryBroker(broker)) {
-                            brokerIsolationData.isPrimary = true;
+                            brokerIsolationData.primary(true);
                         }
                     }
                 });
+
+                brokerIsolationData.namespaceRegex(namespaceRegexes);
             }
-            return brokerIsolationData;
+            return brokerIsolationData.build();
         }).collect(Collectors.toList());
     }
 
@@ -584,7 +553,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/namespaceIsolationPolicies/brokers/{broker}")
     @ApiOperation(
         value = "Get a broker with namespace-isolation policies attached to it.",
-        response = BrokerNamespaceIsolationData.class,
+        response = BrokerNamespaceIsolationDataImpl.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
@@ -608,11 +577,10 @@ public class ClustersBase extends PulsarWebResource {
         validateSuperUserAccess();
         validateClusterExists(cluster);
 
-        final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
-        Map<String, NamespaceIsolationData> nsPolicies;
+        Map<String, ? extends NamespaceIsolationData> nsPolicies;
         try {
             Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
-                    .getPolicies(nsIsolationPoliciesPath);
+                    .getIsolationDataPolicies(cluster);
             if (!nsPoliciesResult.isPresent()) {
                 throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
             }
@@ -621,23 +589,22 @@ public class ClustersBase extends PulsarWebResource {
             log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, e);
             throw new RestException(e);
         }
-        BrokerNamespaceIsolationData brokerIsolationData = new BrokerNamespaceIsolationData();
-        brokerIsolationData.brokerName = broker;
+        BrokerNamespaceIsolationData.Builder brokerIsolationData = BrokerNamespaceIsolationData.builder()
+                .brokerName(broker);
         if (nsPolicies != null) {
+            List<String> namespaceRegexes = new ArrayList<>();
             nsPolicies.forEach((name, policyData) -> {
                 NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
                 boolean isPrimary = nsPolicyImpl.isPrimaryBroker(broker);
                 if (isPrimary || nsPolicyImpl.isSecondaryBroker(broker)) {
-                    if (brokerIsolationData.namespaceRegex == null) {
-                        brokerIsolationData.namespaceRegex = Lists.newArrayList();
-                    }
-                    brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
-                    brokerIsolationData.isPrimary = isPrimary;
-                    brokerIsolationData.policyName = name;
+                    namespaceRegexes.addAll(policyData.getNamespaces());
+                    brokerIsolationData.primary(isPrimary);
+                    brokerIsolationData.policyName(name);
                 }
             });
+            brokerIsolationData.namespaceRegex(namespaceRegexes);
         }
-        return brokerIsolationData;
+        return brokerIsolationData.build();
     }
 
     @POST
@@ -669,7 +636,7 @@ public class ClustersBase extends PulsarWebResource {
             value = "The namespace isolation policy data",
             required = true
         )
-        NamespaceIsolationData policyData
+                NamespaceIsolationDataImpl policyData
     ) {
         validateSuperUserAccess();
         validateClusterExists(cluster);
@@ -681,11 +648,10 @@ public class ClustersBase extends PulsarWebResource {
             policyData.validate();
             jsonInput = ObjectMapperFactory.create().writeValueAsString(policyData);
 
-            String nsIsolationPolicyPath = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getPolicies(nsIsolationPolicyPath).orElseGet(() -> {
+                    .getIsolationDataPolicies(cluster).orElseGet(() -> {
                         try {
-                            namespaceIsolationPolicies().setWithCreate(nsIsolationPolicyPath,
+                            namespaceIsolationPolicies().setIsolationDataWithCreate(cluster,
                                     (p) -> Collections.emptyMap());
                             return new NamespaceIsolationPolicies();
                         } catch (Exception e) {
@@ -694,7 +660,7 @@ public class ClustersBase extends PulsarWebResource {
                     });
 
             nsIsolationPolicies.setPolicy(policyName, policyData);
-            namespaceIsolationPolicies().set(nsIsolationPolicyPath, old -> nsIsolationPolicies.getPolicies());
+            namespaceIsolationPolicies().setIsolationData(cluster, old -> nsIsolationPolicies.getPolicies());
 
             // whether or not make the isolation update on time.
             if (pulsar().getConfiguration().isEnableNamespaceIsolationUpdateOnTime()) {
@@ -722,7 +688,7 @@ public class ClustersBase extends PulsarWebResource {
 
     // get matched namespaces; call unload for each namespaces;
     private void filterAndUnloadMatchedNameSpaces(AsyncResponse asyncResponse,
-                                                  NamespaceIsolationData policyData) throws Exception {
+                                                  NamespaceIsolationDataImpl policyData) throws Exception {
         Namespaces namespaces = pulsar().getAdminClient().namespaces();
 
         List<String> nssToUnload = Lists.newArrayList();
@@ -738,9 +704,9 @@ public class ClustersBase extends PulsarWebResource {
                 tenants.forEach(tenant -> namespaces.getNamespacesAsync(tenant)
                     .whenComplete((nss, e) -> {
                         int leftTenantsToHandle = tenantsNumber.decrementAndGet();
-                        if (ex != null) {
+                        if (e != null) {
                             log.error("[{}] Failed to get namespaces for tenant {} when setNamespaceIsolationPolicy.",
-                                clientAppId(), tenant, ex);
+                                clientAppId(), tenant, e);
 
                             if (leftTenantsToHandle == 0) {
                                 unloadMatchedNamespacesList(asyncResponse, nssToUnload, namespaces);
@@ -756,7 +722,7 @@ public class ClustersBase extends PulsarWebResource {
                             int leftNssToHandle = nssNumber.decrementAndGet();
 
                             // if namespace match any policy regex, add it to ns list to be unload.
-                            if (policyData.namespaces.stream()
+                            if (policyData.getNamespaces().stream()
                                 .anyMatch(nsnameRegex -> namespaceName.matches(nsnameRegex))) {
                                 nssToUnload.add(namespaceName);
                             }
@@ -832,11 +798,10 @@ public class ClustersBase extends PulsarWebResource {
 
         try {
 
-            String nsIsolationPolicyPath = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getPolicies(nsIsolationPolicyPath).orElseGet(() -> {
+                    .getIsolationDataPolicies(cluster).orElseGet(() -> {
                         try {
-                            namespaceIsolationPolicies().setWithCreate(nsIsolationPolicyPath,
+                            namespaceIsolationPolicies().setIsolationDataWithCreate(cluster,
                                     (p) -> Collections.emptyMap());
                             return new NamespaceIsolationPolicies();
                         } catch (Exception e) {
@@ -845,7 +810,7 @@ public class ClustersBase extends PulsarWebResource {
                     });
 
             nsIsolationPolicies.deletePolicy(policyName);
-            namespaceIsolationPolicies().set(nsIsolationPolicyPath, old -> nsIsolationPolicies.getPolicies());
+            namespaceIsolationPolicies().setIsolationData(cluster, old -> nsIsolationPolicies.getPolicies());
         } catch (NotFoundException nne) {
             log.warn("[{}] Failed to update brokers/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
                     cluster);
@@ -886,16 +851,15 @@ public class ClustersBase extends PulsarWebResource {
             value = "The configuration data of a failure domain",
             required = true
         )
-        FailureDomain domain
+                FailureDomainImpl domain
     ) throws Exception {
         validateSuperUserAccess();
         validateClusterExists(cluster);
         validateBrokerExistsInOtherDomain(cluster, domainName, domain);
 
         try {
-            String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT, domainName);
-            FailureDomainResources failureDomainListCache = clusterResources().getFailureDomainResources();
-            failureDomainListCache.setWithCreate(domainPath, old -> domain);
+            clusterResources().getFailureDomainResources()
+                    .setFailureDomainWithCreate(cluster, domainName, old -> domain);
         } catch (NotFoundException nne) {
             log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
                     domainName);
@@ -911,7 +875,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/failureDomains")
     @ApiOperation(
         value = "Get the cluster failure domains.",
-        response = FailureDomain.class,
+        response = FailureDomainImpl.class,
         responseContainer = "Map",
         notes = "This operation requires Pulsar superuser privileges."
     )
@@ -919,7 +883,7 @@ public class ClustersBase extends PulsarWebResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public Map<String, FailureDomain> getFailureDomains(
+    public Map<String, FailureDomainImpl> getFailureDomains(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -928,14 +892,12 @@ public class ClustersBase extends PulsarWebResource {
     ) throws Exception {
         validateSuperUserAccess();
 
-        Map<String, FailureDomain> domains = Maps.newHashMap();
+        Map<String, FailureDomainImpl> domains = Maps.newHashMap();
         try {
-            final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
-            FailureDomainResources failureDomainListCache = clusterResources().getFailureDomainResources();
-            for (String domainName : failureDomainListCache.getChildren(failureDomainRootPath)) {
+            FailureDomainResources fdr = clusterResources().getFailureDomainResources();
+            for (String domainName : fdr.listFailureDomains(cluster)) {
                 try {
-                    Optional<FailureDomain> domain = failureDomainListCache
-                            .get(joinPath(failureDomainRootPath, domainName));
+                    Optional<FailureDomainImpl> domain = fdr.getFailureDomain(cluster, domainName);
                     domain.ifPresent(failureDomain -> domains.put(domainName, failureDomain));
                 } catch (Exception e) {
                     log.warn("Failed to get domain {}", domainName, e);
@@ -955,7 +917,7 @@ public class ClustersBase extends PulsarWebResource {
     @Path("/{cluster}/failureDomains/{domainName}")
     @ApiOperation(
         value = "Get a domain in a cluster",
-        response = FailureDomain.class,
+        response = FailureDomainImpl.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
@@ -964,7 +926,7 @@ public class ClustersBase extends PulsarWebResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public FailureDomain getDomain(
+    public FailureDomainImpl getDomain(
         @ApiParam(
             value = "The cluster name",
             required = true
@@ -980,8 +942,7 @@ public class ClustersBase extends PulsarWebResource {
         validateClusterExists(cluster);
 
         try {
-            final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
-            return clusterResources().getFailureDomainResources().get(joinPath(failureDomainRootPath, domainName))
+            return clusterResources().getFailureDomainResources().getFailureDomain(cluster, domainName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Domain " + domainName + " for cluster " + cluster + " does not exist"));
         } catch (RestException re) {
@@ -1020,9 +981,7 @@ public class ClustersBase extends PulsarWebResource {
         validateClusterExists(cluster);
 
         try {
-            final String domainPath = joinPath(pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT,
-                    domainName);
-            clusterResources().getFailureDomainResources().delete(domainPath);
+            clusterResources().getFailureDomainResources().deleteFailureDomain(cluster, domainName);
         } catch (NotFoundException nne) {
             log.warn("[{}] Domain {} does not exist in {}", clientAppId(), domainName, cluster);
             throw new RestException(Status.NOT_FOUND,
@@ -1034,19 +993,17 @@ public class ClustersBase extends PulsarWebResource {
     }
 
     private void validateBrokerExistsInOtherDomain(final String cluster, final String inputDomainName,
-            final FailureDomain inputDomain) {
+            final FailureDomainImpl inputDomain) {
         if (inputDomain != null && inputDomain.brokers != null) {
             try {
-                final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
                 for (String domainName : clusterResources().getFailureDomainResources()
-                        .getChildren(failureDomainRootPath)) {
+                        .listFailureDomains(cluster)) {
                     if (inputDomainName.equals(domainName)) {
                         continue;
                     }
                     try {
-                        Optional<FailureDomain> domain =
-                                clusterResources().getFailureDomainResources()
-                                        .get(joinPath(failureDomainRootPath, domainName));
+                        Optional<FailureDomainImpl> domain =
+                                clusterResources().getFailureDomainResources().getFailureDomain(cluster, domainName);
                         if (domain.isPresent() && domain.get().brokers != null) {
                             List<String> duplicateBrokers = domain.get().brokers.stream().parallel()
                                     .filter(inputDomain.brokers::contains).collect(Collectors.toList());

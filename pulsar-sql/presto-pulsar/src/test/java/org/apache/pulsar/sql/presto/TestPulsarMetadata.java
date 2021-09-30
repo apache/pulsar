@@ -23,6 +23,7 @@ import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -168,8 +169,9 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetTableMetadataTableNoSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
+        ClientErrorException cee = new ClientErrorException(Response.Status.NOT_FOUND);
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenThrow(
-                new PulsarAdminException(new ClientErrorException(Response.Status.NOT_FOUND)));
+                new PulsarAdminException(cee, cee.getMessage(), cee.getResponse().getStatus()));
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
                 pulsarConnectorId.toString(),
@@ -187,9 +189,10 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetTableMetadataTableBlankSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        SchemaInfo badSchemaInfo = new SchemaInfo();
-        badSchemaInfo.setSchema(new byte[0]);
-        badSchemaInfo.setType(SchemaType.AVRO);
+        SchemaInfo badSchemaInfo = SchemaInfoImpl.builder()
+                .schema(new byte[0])
+                .type(SchemaType.AVRO)
+                .build();
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenReturn(badSchemaInfo);
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
@@ -213,9 +216,10 @@ public class TestPulsarMetadata extends TestPulsarConnector {
     @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetTableMetadataTableInvalidSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
-        SchemaInfo badSchemaInfo = new SchemaInfo();
-        badSchemaInfo.setSchema("foo".getBytes());
-        badSchemaInfo.setType(SchemaType.AVRO);
+        SchemaInfo badSchemaInfo = SchemaInfoImpl.builder()
+                .schema("foo".getBytes())
+                .type(SchemaType.AVRO)
+                .build();
         when(this.schemas.getSchemaInfo(eq(TOPIC_1.getSchemaName()))).thenReturn(badSchemaInfo);
 
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(

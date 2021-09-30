@@ -140,6 +140,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * The first message uses (initialSequenceId + 1) as its sequence ID and subsequent messages are assigned
      * incremental sequence IDs.
      *
+     * Default: -1, which means the first message's sequence ID is 0.
+     *
      * @param initialSequenceId the initial sequence ID for the producer.
      * @return
      */
@@ -178,6 +180,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * would fail unless blockIfQueueFull is set to true. Use {@link #setBlockIfQueueFull} to change the
      * blocking behavior.
      *
+     * Default: 1000
+     *
      * @param maxPendingMessages max number of pending messages.
      * @return
      */
@@ -194,6 +198,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * This setting will be used to lower the max pending messages for each partition
      * ({@link #setMaxPendingMessages(int)}), if the total exceeds the configured value.
      *
+     * Default: 50000
+     *
      * @param maxPendingMessagesAcrossPartitions
      */
     ProducerConfiguration& setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
@@ -205,6 +211,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
 
     /**
      * Set the message routing modes for partitioned topics.
+     *
+     * Default: UseSinglePartition
      *
      * @param PartitionsRoutingMode partition routing mode.
      * @return
@@ -233,6 +241,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * Set the hashing scheme, which is a standard hashing function available when choosing the partition
      * used for a particular message.
      *
+     * Default: HashingScheme::BoostHash
+     *
      * <p>Standard hashing functions available are:
      * <ul>
      * <li>{@link HashingScheme::JavaStringHash}: Java {@code String.hashCode()} (Default).
@@ -253,6 +263,27 @@ class PULSAR_PUBLIC ProducerConfiguration {
     HashingScheme getHashingScheme() const;
 
     /**
+     * This config affects producers of partitioned topics only. It controls whether
+     * producers register and connect immediately to the owner broker of each partition
+     * or start lazily on demand. The internal producer of one partition is always
+     * started eagerly, chosen by the routing policy, but the internal producers of
+     * any additional partitions are started on demand, upon receiving their first
+     * message.
+     * Using this mode can reduce the strain on brokers for topics with large numbers of
+     * partitions and when the SinglePartition routing policy is used without keyed messages.
+     * Because producer connection can be on demand, this can produce extra send latency
+     * for the first messages of a given partition.
+     * @param true/false as to whether to start partition producers lazily
+     * @return
+     */
+    ProducerConfiguration& setLazyStartPartitionedProducers(bool);
+
+    /**
+     * The getter associated with setLazyStartPartitionedProducers()
+     */
+    bool getLazyStartPartitionedProducers() const;
+
+    /**
      * The setter associated with getBlockIfQueueFull()
      */
     ProducerConfiguration& setBlockIfQueueFull(bool);
@@ -266,8 +297,9 @@ class PULSAR_PUBLIC ProducerConfiguration {
     // Zero queue size feature will not be supported on consumer end if batching is enabled
 
     /**
-     * Control whether automatic batching of messages is enabled or not for the producer. <i>Default value:
-     * false (no automatic batching).</i>
+     * Control whether automatic batching of messages is enabled or not for the producer.
+     *
+     * Default: true
      *
      * When automatic batching is enabled, multiple calls to Producer::sendAsync can result in a single batch
      * to be sent to the broker, leading to better throughput, especially when publishing small messages. If
@@ -343,6 +375,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
     const unsigned long& getBatchingMaxPublishDelayMs() const;
 
     /**
+     * Default: DefaultBatching
+     *
      * @see BatchingType
      */
     ProducerConfiguration& setBatchingType(BatchingType batchingType);

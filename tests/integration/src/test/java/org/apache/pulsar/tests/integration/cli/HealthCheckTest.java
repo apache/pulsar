@@ -47,7 +47,7 @@ import org.testng.annotations.Test;
  */
 public class HealthCheckTest extends TestRetrySupport {
 
-    private final static Logger log = LoggerFactory.getLogger(HealthCheckTest.class);
+    private static final Logger log = LoggerFactory.getLogger(HealthCheckTest.class);
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
         .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
@@ -95,7 +95,7 @@ public class HealthCheckTest extends TestRetrySupport {
 
     @Test
     public void testZooKeeperDown() throws Exception {
-        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "-f", "ZooKeeperStarter");
+        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "-f", "QuorumPeerMain");
         assertHealthcheckFailure();
     }
 

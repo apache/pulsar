@@ -54,7 +54,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.io.core.SourceContext;
-import org.junit.Assert;
+import org.testng.Assert;
 import org.mockito.ArgumentMatcher;
 import static org.testng.Assert.assertSame;
 
@@ -68,8 +68,8 @@ import org.testng.annotations.Test;
 public class PulsarSourceTest {
 
 
-    private final static String TOPIC = "persistent://sample/ns1/test_result";
-    private final static ConsumerConfig CONSUMER_CONFIG =  ConsumerConfig.builder()
+    private static final String TOPIC = "persistent://sample/ns1/test_result";
+    private static final ConsumerConfig CONSUMER_CONFIG =  ConsumerConfig.builder()
             .serdeClassName(TopicSchema.DEFAULT_SERDE).isRegexPattern(false).build();
 
     private static Map<String, ConsumerConfig> consumerConfigs = new HashMap<>();
@@ -343,13 +343,13 @@ public class PulsarSourceTest {
 
         if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
             SingleConsumerPulsarSourceConfig cfg = (SingleConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertEquals(1, pulsarSource.getInputConsumers().size());
+            Assert.assertEquals(pulsarSource.getInputConsumers().size(), 1);
             return;
         }
 
         if (pulsarSourceConfig instanceof MultiConsumerPulsarSourceConfig) {
             MultiConsumerPulsarSourceConfig cfg = (MultiConsumerPulsarSourceConfig) pulsarSourceConfig;
-            Assert.assertEquals(cfg.getTopicSchema().size(), pulsarSource.getInputConsumers().size());
+            Assert.assertEquals(pulsarSource.getInputConsumers().size(), cfg.getTopicSchema().size());
             return;
         }
 

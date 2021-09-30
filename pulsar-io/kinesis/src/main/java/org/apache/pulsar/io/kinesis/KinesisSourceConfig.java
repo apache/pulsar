@@ -146,11 +146,6 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
         return mapper.readValue(new File(yamlFile), KinesisSourceConfig.class);
     }
 
-    public static KinesisSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KinesisSourceConfig.class);
-    }
-
     public KinesisAsyncClient buildKinesisAsyncClient(AwsCredentialProviderPlugin credPlugin) {
         KinesisAsyncClientBuilder builder = KinesisAsyncClient.builder();
 

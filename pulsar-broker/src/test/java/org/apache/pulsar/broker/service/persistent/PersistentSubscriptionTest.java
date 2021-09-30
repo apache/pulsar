@@ -30,7 +30,8 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,8 +42,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -55,12 +54,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.PersistentTopicTest;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -72,6 +69,8 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -93,9 +92,9 @@ public class PersistentSubscriptionTest {
     private PulsarService pulsarMock;
     private BrokerService brokerMock;
     private ManagedLedgerFactory mlFactoryMock;
+    private MetadataStore store;
     private ManagedLedger ledgerMock;
     private ManagedCursorImpl cursorMock;
-    private ConfigurationCacheService configCacheServiceMock;
     private PersistentTopic topic;
     private PersistentSubscription persistentSubscription;
     private Consumer consumerMock;
@@ -121,6 +120,7 @@ public class PersistentSubscriptionTest {
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
+        doReturn(mock(PulsarResources.class)).when(pulsarMock).getPulsarResources();
         doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
         doReturn(new TransactionPendingAckStoreProvider() {
             @Override
@@ -171,28 +171,12 @@ public class PersistentSubscriptionTest {
         doReturn(mlFactoryMock).when(pulsarMock).getManagedLedgerFactory();
 
         ZooKeeper zkMock = createMockZooKeeper();
-        doReturn(zkMock).when(pulsarMock).getZkClient();
         doReturn(createMockBookKeeper(executor))
                 .when(pulsarMock).getBookKeeperClient();
 
-        ZooKeeperCache cache = mock(ZooKeeperCache.class);
-        doReturn(30).when(cache).getZkOperationTimeoutSeconds();
-        CompletableFuture getDataFuture = new CompletableFuture();
-        getDataFuture.complete(Optional.empty());
-        doReturn(getDataFuture).when(cache).getDataAsync(anyString(), any(), any());
-        doReturn(cache).when(pulsarMock).getLocalZkCache();
-
-        configCacheServiceMock = mock(ConfigurationCacheService.class);
-        @SuppressWarnings("unchecked")
-        ZooKeeperDataCache<Policies> zkPoliciesDataCacheMock = mock(ZooKeeperDataCache.class);
-        doReturn(zkPoliciesDataCacheMock).when(configCacheServiceMock).policiesCache();
-        doReturn(configCacheServiceMock).when(pulsarMock).getConfigurationCache();
-        doReturn(Optional.empty()).when(zkPoliciesDataCacheMock).get(anyString());
-
-        LocalZooKeeperCacheService zkCacheMock = mock(LocalZooKeeperCacheService.class);
-        doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkPoliciesDataCacheMock).getAsync(any());
-        doReturn(zkPoliciesDataCacheMock).when(zkCacheMock).policiesCache();
-        doReturn(zkCacheMock).when(pulsarMock).getLocalZkCacheService();
+        store = new ZKMetadataStore(zkMock);
+        doReturn(store).when(pulsarMock).getLocalMetadataStore();
+        doReturn(store).when(pulsarMock).getConfigurationMetadataStore();
 
         brokerMock = spy(new BrokerService(pulsarMock, eventLoopGroup));
         doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
@@ -225,6 +209,7 @@ public class PersistentSubscriptionTest {
             throw e;
         }
 
+        store.close();
         executor.shutdownNow();
         eventLoopGroup.shutdownGracefully().get();
     }

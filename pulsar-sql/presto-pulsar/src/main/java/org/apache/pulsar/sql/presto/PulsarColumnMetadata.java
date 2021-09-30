@@ -32,7 +32,7 @@ public class PulsarColumnMetadata extends ColumnMetadata {
     // need this because presto ColumnMetadata saves name in lowercase
     private String nameWithCase;
     private PulsarColumnHandle.HandleKeyValueType handleKeyValueType;
-    public final static String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
+    public static final String KEY_SCHEMA_COLUMN_PREFIX = "__key.";
 
     private DecoderExtraInfo decoderExtraInfo;
 
@@ -107,10 +107,10 @@ public class PulsarColumnMetadata extends ColumnMetadata {
         if (isInternal != that.isInternal) {
             return false;
         }
-        if (nameWithCase != null ? !nameWithCase.equals(that.nameWithCase) : that.nameWithCase != null) {
+        if (!Objects.equals(nameWithCase, that.nameWithCase)) {
             return false;
         }
-        if (decoderExtraInfo != null ? !decoderExtraInfo.equals(that.decoderExtraInfo) : that.decoderExtraInfo != null) {
+        if (!Objects.equals(decoderExtraInfo, that.decoderExtraInfo)) {
             return false;
         }
         return Objects.equals(handleKeyValueType, that.handleKeyValueType);
@@ -187,10 +187,10 @@ public class PulsarColumnMetadata extends ColumnMetadata {
 
             DecoderExtraInfo that = (DecoderExtraInfo) o;
 
-            if (mapping != that.mapping) {
+            if (!Objects.equals(mapping, that.mapping)) {
                 return false;
             }
-            if (dataFormat != null ? !dataFormat.equals(that.dataFormat) : that.dataFormat != null) {
+            if (!Objects.equals(dataFormat, that.dataFormat)) {
                 return false;
             }
             return Objects.equals(formatHint, that.formatHint);

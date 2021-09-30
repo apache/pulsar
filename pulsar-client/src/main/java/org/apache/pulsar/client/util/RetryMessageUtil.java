@@ -20,13 +20,13 @@ package org.apache.pulsar.client.util;
 
 public class RetryMessageUtil {
 
-    public final static String SYSTEM_PROPERTY_RECONSUMETIMES = "RECONSUMETIMES";
-    public final static String SYSTEM_PROPERTY_DELAY_TIME = "DELAY_TIME";
-    public final static String SYSTEM_PROPERTY_REAL_TOPIC = "REAL_TOPIC";
-    public final static String SYSTEM_PROPERTY_RETRY_TOPIC = "RETRY_TOPIC";
-    public final static String SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID = "ORIGIN_MESSAGE_IDY_TIME";
+    public static final String SYSTEM_PROPERTY_RECONSUMETIMES = "RECONSUMETIMES";
+    public static final String SYSTEM_PROPERTY_DELAY_TIME = "DELAY_TIME";
+    public static final String SYSTEM_PROPERTY_REAL_TOPIC = "REAL_TOPIC";
+    public static final String SYSTEM_PROPERTY_RETRY_TOPIC = "RETRY_TOPIC";
+    public static final String SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID = "ORIGIN_MESSAGE_IDY_TIME";
     
-    public final static int MAX_RECONSUMETIMES = 16;
-    public final static String RETRY_GROUP_TOPIC_SUFFIX = "-RETRY";
-    public final static String DLQ_GROUP_TOPIC_SUFFIX = "-DLQ";
+    public static final int MAX_RECONSUMETIMES = 16;
+    public static final String RETRY_GROUP_TOPIC_SUFFIX = "-RETRY";
+    public static final String DLQ_GROUP_TOPIC_SUFFIX = "-DLQ";
 }

@@ -20,9 +20,11 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.compaction.CompactionRecord;
+import org.apache.pulsar.compaction.CompactorMXBean;
 
 class TopicStats {
 
@@ -39,20 +41,12 @@ class TopicStats {
     long bytesOutCounter;
     double averageMsgSize;
 
-    long storageSize;
     public long msgBacklog;
-
-    long backlogSize;
-    long offloadedStorageUsed;
 
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
 
-    StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
-    StatsBuckets storageLedgerWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
-    StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
-    double storageWriteRate;
-    double storageReadRate;
+    ManagedLedgerStats managedLedgerStats = new ManagedLedgerStats();
 
     Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
     Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
@@ -61,6 +55,16 @@ class TopicStats {
     // Used for tracking duplicate TYPE definitions
     static Map<String, String> metricWithTypeDefinition = new HashMap<>();
 
+    // For compaction
+    long compactionRemovedEventCount;
+    long compactionSucceedCount;
+    long compactionFailedCount;
+    long compactionDurationTimeInMills;
+    double compactionReadThroughput;
+    double compactionWriteThroughput;
+    long compactionCompactedEntriesCount;
+    long compactionCompactedEntriesSize;
+    StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
 
     public void reset() {
         subscriptionsCount = 0;
@@ -75,21 +79,24 @@ class TopicStats {
         bytesOutCounter = 0;
         msgOutCounter = 0;
 
-        storageSize = 0;
+        managedLedgerStats.reset();
         msgBacklog = 0;
-        storageWriteRate = 0;
-        storageReadRate = 0;
-        backlogSize = 0;
-        offloadedStorageUsed = 0;
         backlogQuotaLimit = 0;
         backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
         producerStats.clear();
-        storageWriteLatencyBuckets.reset();
-        storageLedgerWriteLatencyBuckets.reset();
-        entrySizeBuckets.reset();
+
+        compactionRemovedEventCount = 0;
+        compactionSucceedCount = 0;
+        compactionFailedCount = 0;
+        compactionDurationTimeInMills = 0;
+        compactionReadThroughput = 0;
+        compactionWriteThroughput = 0;
+        compactionCompactedEntriesCount = 0;
+        compactionCompactedEntriesSize = 0;
+        compactionLatencyBuckets.reset();
     }
 
     static void resetTypes() {
@@ -97,7 +104,7 @@ class TopicStats {
     }
 
     static void printTopicStats(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
-                                TopicStats stats) {
+                                TopicStats stats, Optional<CompactorMXBean> compactorMXBean) {
         metric(stream, cluster, namespace, topic, "pulsar_subscriptions_count", stats.subscriptionsCount);
         metric(stream, cluster, namespace, topic, "pulsar_producers_count", stats.producersCount);
         metric(stream, cluster, namespace, topic, "pulsar_consumers_count", stats.consumersCount);
@@ -108,15 +115,19 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_throughput_out", stats.throughputOut);
         metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize);
 
-        metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.storageSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.managedLedgerStats.storageSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_logical_size",
+                stats.managedLedgerStats.storageLogicalSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
-        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size", stats.backlogSize);
-        metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size",
+                stats.managedLedgerStats.backlogSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.managedLedgerStats
+                .offloadedStorageUsed);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit_time",
                 stats.backlogQuotaLimitTime);
 
-        long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
+        long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_1", latencyBuckets[1]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_5", latencyBuckets[2]);
@@ -128,37 +139,37 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_1000", latencyBuckets[8]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_overflow", latencyBuckets[9]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_count",
-                stats.storageWriteLatencyBuckets.getCount());
+                stats.managedLedgerStats.storageWriteLatencyBuckets.getCount());
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_sum",
-                stats.storageWriteLatencyBuckets.getSum());
+                stats.managedLedgerStats.storageWriteLatencyBuckets.getSum());
 
-        long[] ledgerWritelatencyBuckets = stats.storageLedgerWriteLatencyBuckets.getBuckets();
+        long[] ledgerWriteLatencyBuckets = stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_0_5",
-                ledgerWritelatencyBuckets[0]);
+                ledgerWriteLatencyBuckets[0]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1",
-                ledgerWritelatencyBuckets[1]);
+                ledgerWriteLatencyBuckets[1]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_5",
-                ledgerWritelatencyBuckets[2]);
+                ledgerWriteLatencyBuckets[2]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_10",
-                ledgerWritelatencyBuckets[3]);
+                ledgerWriteLatencyBuckets[3]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_20",
-                ledgerWritelatencyBuckets[4]);
+                ledgerWriteLatencyBuckets[4]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_50",
-                ledgerWritelatencyBuckets[5]);
+                ledgerWriteLatencyBuckets[5]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_100",
-                ledgerWritelatencyBuckets[6]);
+                ledgerWriteLatencyBuckets[6]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_200",
-                ledgerWritelatencyBuckets[7]);
+                ledgerWriteLatencyBuckets[7]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_le_1000",
-                ledgerWritelatencyBuckets[8]);
+                ledgerWriteLatencyBuckets[8]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_overflow",
-                ledgerWritelatencyBuckets[9]);
+                ledgerWriteLatencyBuckets[9]);
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_count",
-                stats.storageLedgerWriteLatencyBuckets.getCount());
+                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getCount());
         metric(stream, cluster, namespace, topic, "pulsar_storage_ledger_write_latency_sum",
-                stats.storageLedgerWriteLatencyBuckets.getSum());
+                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getSum());
 
-        long[] entrySizeBuckets = stats.entrySizeBuckets.getBuckets();
+        long[] entrySizeBuckets = stats.managedLedgerStats.entrySizeBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_128", entrySizeBuckets[0]);
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_512", entrySizeBuckets[1]);
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_1_kb", entrySizeBuckets[2]);
@@ -168,8 +179,10 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_100_kb", entrySizeBuckets[6]);
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_1_mb", entrySizeBuckets[7]);
         metric(stream, cluster, namespace, topic, "pulsar_entry_size_le_overflow", entrySizeBuckets[8]);
-        metric(stream, cluster, namespace, topic, "pulsar_entry_size_count", stats.entrySizeBuckets.getCount());
-        metric(stream, cluster, namespace, topic, "pulsar_entry_size_sum", stats.entrySizeBuckets.getSum());
+        metric(stream, cluster, namespace, topic, "pulsar_entry_size_count",
+                stats.managedLedgerStats.entrySizeBuckets.getCount());
+        metric(stream, cluster, namespace, topic, "pulsar_entry_size_sum",
+                stats.managedLedgerStats.entrySizeBuckets.getSum());
 
         stats.producerStats.forEach((p, producerStats) -> {
             metric(stream, cluster, namespace, topic, p, producerStats.producerId, "pulsar_producer_msg_rate_in",
@@ -250,11 +263,64 @@ class TopicStats {
                         replStats.msgThroughputOut);
                 metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_backlog", remoteCluster,
                         replStats.replicationBacklog);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_connected_count",
+                        remoteCluster, replStats.connectedCount);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_rate_expired",
+                        remoteCluster, replStats.msgRateExpired);
+                metricWithRemoteCluster(stream, cluster, namespace, topic, "pulsar_replication_delay_in_seconds",
+                        remoteCluster, replStats.replicationDelayInSeconds);
             });
         }
 
         metric(stream, cluster, namespace, topic, "pulsar_in_bytes_total", stats.bytesInCounter);
         metric(stream, cluster, namespace, topic, "pulsar_in_messages_total", stats.msgInCounter);
+
+        // Compaction
+        boolean hasCompaction = compactorMXBean.flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic))
+                .map(__ -> true).orElse(false);
+        if (hasCompaction) {
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_removed_event_count",
+                    stats.compactionRemovedEventCount);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_succeed_count",
+                    stats.compactionSucceedCount);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_failed_count",
+                    stats.compactionFailedCount);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_duration_time_in_mills",
+                    stats.compactionDurationTimeInMills);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_read_throughput",
+                    stats.compactionReadThroughput);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_write_throughput",
+                    stats.compactionWriteThroughput);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_compacted_entries_count",
+                    stats.compactionCompactedEntriesCount);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_compacted_entries_size",
+                    stats.compactionCompactedEntriesSize);
+            long[] compactionLatencyBuckets = stats.compactionLatencyBuckets.getBuckets();
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_0_5",
+                    compactionLatencyBuckets[0]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_1",
+                    compactionLatencyBuckets[1]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_5",
+                    compactionLatencyBuckets[2]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_10",
+                    compactionLatencyBuckets[3]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_20",
+                    compactionLatencyBuckets[4]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_50",
+                    compactionLatencyBuckets[5]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_100",
+                    compactionLatencyBuckets[6]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_200",
+                    compactionLatencyBuckets[7]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_le_1000",
+                    compactionLatencyBuckets[8]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_overflow",
+                    compactionLatencyBuckets[9]);
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_sum",
+                    stats.compactionLatencyBuckets.getSum());
+            metric(stream, cluster, namespace, topic, "pulsar_compaction_latency_count",
+                    stats.compactionLatencyBuckets.getCount());
+        }
     }
 
     static void metricType(SimpleTextOutputStream stream, String name) {

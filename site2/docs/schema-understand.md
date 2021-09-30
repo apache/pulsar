@@ -327,7 +327,10 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
     ```java
-    public class User {
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class User {
         String name;
         int age;
     }
@@ -337,7 +340,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
     ```java
     Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
-    producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
+    producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
     ```
 
 3. Create a consumer with a `struct` schema and receive messages
@@ -382,7 +385,10 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
     ```java
-    public class User {
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class User {
         String name;
         int age;
     }
@@ -391,17 +397,17 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 2. Create a producer with a `SchemaDefinition` and send messages.
 
     ```java
-    SchemaDefinition<User> schemaDefinition =   SchemaDefinition.builder().withPojo(User.class).build();
-    Producer<User> producer = client.newProducer(schemaDefinition).create();
-    producer.newMessage().value(User.builder().userName("pulsar-user").userId(1L).build()).send();
+    SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
+    Producer<User> producer = client.newProducer(Schema.AVRO(schemaDefinition)).create();
+    producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
     ```
 
 3. Create a consumer with a `SchemaDefinition` schema and receive messages
 
     ```java
-    SchemaDefinition<User> schemaDefinition = SchemaDefinition.builder().withPojo(User.class).build();
-    Consumer<User> consumer = client.newConsumer(schemaDefinition).subscribe();
-    User user = consumer.receive();
+    SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
+    Consumer<User> consumer = client.newConsumer(Schema.AVRO(schemaDefinition)).subscribe();
+    User user = consumer.receive().getValue();
     ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -466,6 +472,25 @@ Consumer<GenericRecord> pulsarConsumer = client.newConsumer(Schema.AUTO_CONSUME(
 
 Message<GenericRecord> msg = consumer.receive() ; 
 GenericRecord record = msg.getValue();
+```
+
+### Native Avro Schema
+
+When migrating or ingesting event or message data from external systems (such as Kafka and Cassandra), the events are often already serialized in Avro format. The applications producing the data typically have validated the data against their schemas (including compatibility checks) and stored them in a database or a dedicated service (such as a schema registry). The schema of each serialized data record is usually retrievable by some metadata attached to that record. In such cases, a Pulsar producer doesn't need to repeat the schema validation step when sending the ingested events to a topic. All it needs to do is passing each message or event with its schema to Pulsar.
+
+Hence, we provide `Schema.NATIVE_AVRO` to wrap a native Avro schema of type `org.apache.avro.Schema`. The result is a schema instance of Pulsar that accepts a serialized Avro payload without validating it against the wrapped Avro schema.
+
+**Example**
+
+```java
+org.apache.avro.Schema nativeAvroSchema = … ;
+
+Producer<byte[]> producer = pulsarClient.newProducer().topic("ingress").create();
+
+byte[] content = … ;
+
+producer.newMessage(Schema.NATIVE_AVRO(nativeAvroSchema)).value(content).send();
+
 ```
 
 ## Schema version

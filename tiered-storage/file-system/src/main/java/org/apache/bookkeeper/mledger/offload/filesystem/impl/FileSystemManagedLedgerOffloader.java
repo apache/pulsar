@@ -34,7 +34,7 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
-import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +65,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private OrderedScheduler scheduler;
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
-    private OffloadPolicies offloadPolicies;
+    private OffloadPoliciesImpl offloadPolicies;
 
     public static boolean driverSupported(String driver) {
         return DRIVER_NAMES.equals(driver);
@@ -76,11 +76,11 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return driverName;
     }
 
-    public static FileSystemManagedLedgerOffloader create(OffloadPolicies conf, OrderedScheduler scheduler) throws IOException {
+    public static FileSystemManagedLedgerOffloader create(OffloadPoliciesImpl conf, OrderedScheduler scheduler) throws IOException {
         return new FileSystemManagedLedgerOffloader(conf, scheduler);
     }
 
-    private FileSystemManagedLedgerOffloader(OffloadPolicies conf, OrderedScheduler scheduler) throws IOException {
+    private FileSystemManagedLedgerOffloader(OffloadPoliciesImpl conf, OrderedScheduler scheduler) throws IOException {
         this.offloadPolicies = conf;
         this.configuration = new Configuration();
         if (conf.getFileSystemProfilePath() != null) {
@@ -111,7 +111,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     }
 
     @VisibleForTesting
-    public FileSystemManagedLedgerOffloader(OffloadPolicies conf, OrderedScheduler scheduler, String testHDFSPath, String baseDir) throws IOException {
+    public FileSystemManagedLedgerOffloader(OffloadPoliciesImpl conf, OrderedScheduler scheduler, String testHDFSPath, String baseDir) throws IOException {
         this.offloadPolicies = conf;
         this.configuration = new Configuration();
         this.configuration.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
@@ -203,8 +203,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     semaphore.acquire();
                     countDownLatch = new CountDownLatch(1);
                     assignmentScheduler.chooseThread(ledgerId).submit(FileSystemWriter.create(ledgerEntriesOnce, dataWriter, semaphore,
-                            countDownLatch, haveOffloadEntryNumber, this)).addListener(() -> {
-                    }, Executors.newSingleThreadExecutor());
+                            countDownLatch, haveOffloadEntryNumber, this));
                     needToOffloadFirstEntryNumber = end + 1;
                 } while (needToOffloadFirstEntryNumber - 1 != readHandle.getLastAddConfirmed() && fileSystemWriteException == null);
                 countDownLatch.await();
@@ -341,7 +340,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     }
 
     @Override
-    public OffloadPolicies getOffloadPolicies() {
+    public OffloadPoliciesImpl getOffloadPolicies() {
         return offloadPolicies;
     }
 

@@ -20,7 +20,14 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.google.gson.Gson;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.openapi.models.*;
+import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
+import io.kubernetes.client.openapi.models.V1ResourceRequirements;
+import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1Toleration;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,7 +64,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder(toBuilder = true)
-    static public class RuntimeOpts {
+    public static class RuntimeOpts {
         private String jobNamespace;
         private String jobName;
         private Map<String, String> extraLabels;

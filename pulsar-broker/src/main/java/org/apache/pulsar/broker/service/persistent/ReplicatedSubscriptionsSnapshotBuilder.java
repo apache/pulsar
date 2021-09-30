@@ -53,7 +53,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final Clock clock;
 
-    private final static Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
+    private static final Summary snapshotMetric = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
             "Time taken to create a consistent snapshot across clusters").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
@@ -130,5 +130,9 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     boolean isTimedOut() {
         return (startTimeMillis + timeoutMillis) < clock.millis();
+    }
+
+    long getStartTimeMillis() {
+        return startTimeMillis;
     }
 }

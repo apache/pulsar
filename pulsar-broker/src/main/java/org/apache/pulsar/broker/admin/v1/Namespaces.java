@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.common.policies.data.Policies.getBundles;
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -67,6 +66,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,19 +93,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the list of all the namespaces for a certain property on single cluster.",
             response = String.class, responseContainer = "Set")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster doesn't exist")})
-    public List<String> getNamespacesForCluster(@PathParam("property") String property,
+            @ApiResponse(code = 404, message = "Tenant or cluster doesn't exist")})
+    public List<String> getNamespacesForCluster(@PathParam("property") String tenant,
             @PathParam("cluster") String cluster) {
-        validateTenantOperation(property, TenantOperation.LIST_NAMESPACES);
+        validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
         List<String> namespaces = Lists.newArrayList();
         if (!clusters().contains(cluster)) {
-            log.warn("[{}] Failed to get namespace list for property: {}/{} - Cluster does not exist", clientAppId(),
-                    property, cluster);
+            log.warn("[{}] Failed to get namespace list for tenant: {}/{} - Cluster does not exist", clientAppId(),
+                    tenant, cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         }
         try {
-            for (String namespace : clusterResources().getChildren(path(POLICIES, property, cluster))) {
-                namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
+            for (String namespace : clusterResources().getNamespacesForCluster(tenant, cluster)) {
+                namespaces.add(NamespaceName.get(tenant, cluster, namespace).toString());
             }
         } catch (NotFoundException e) {
             // NoNode means there are no namespaces for this property on the specified cluster, returning empty list
@@ -241,7 +241,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.auth_policies.namespace_auth;
+        return policies.auth_policies.getNamespaceAuthentication();
     }
 
     @POST
@@ -331,7 +331,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the message TTL for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public int getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public Integer getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.TTL, PolicyOperation.READ);
@@ -352,12 +352,24 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTL(messageTTL);
     }
 
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid TTL") })
+    public void removeNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetNamespaceMessageTTL(null);
+    }
+
     @GET
     @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
     @ApiOperation(hidden = true, value = "Get the subscription expiration time for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public int getSubscriptionExpirationTime(@PathParam("property") String property,
+    public Integer getSubscriptionExpirationTime(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
@@ -378,6 +390,16 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscriptionExpirationTime(expirationTime);
     }
 
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(hidden = true, value = "Remove subscription expiration time for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void removeSubscriptionExpirationTime(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetSubscriptionExpirationTime(null);
+    }
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")
@@ -627,7 +649,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void setDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, DispatchRate dispatchRate) {
+            @PathParam("namespace") String namespace, DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
         internalSetTopicDispatchRate(dispatchRate);
     }
@@ -651,7 +673,7 @@ public class Namespaces extends NamespacesBase {
     public void setSubscriptionDispatchRate(@PathParam("property") String property,
                                             @PathParam("cluster") String cluster,
                                             @PathParam("namespace") String namespace,
-                                            DispatchRate dispatchRate) {
+                                            DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
         internalSetSubscriptionDispatchRate(dispatchRate);
     }
@@ -677,7 +699,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
-                    DispatchRate dispatchRate) {
+                    DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, cluster, namespace);
         internalSetReplicatorDispatchRate(dispatchRate);
     }

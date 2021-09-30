@@ -20,3 +20,4 @@
 name: kafka-connect-adaptor
 description: Kafka source connect adaptor
 sourceClass: org.apache.pulsar.io.kafka.connect.KafkaConnectSource
+sinkClass: org.apache.pulsar.io.kafka.connect.KafkaConnectSink

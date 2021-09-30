@@ -43,6 +43,40 @@ If authentication is enabled on the BookKeeper cluster, configure the following 
 - `bookkeeperClientAuthenticationParametersName`: the BookKeeper client authentication plugin parameters name.
 - `bookkeeperClientAuthenticationParameters`: the BookKeeper client authentication plugin parameters.
 
+### Configure Stateful-Functions to run with broker
+
+If you want to use Stateful-Functions related functions (for example,  `putState()` and `queryState()` related interfaces), follow steps below.
+
+1. Enable the **streamStorage** service in the BookKeeper.
+
+   Currently, the service uses the NAR package, so you need to set the configuration in `bookkeeper.conf`.
+
+    ```text
+    extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+    ```
+
+   After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
+
+   Input:
+
+    ```shell
+    telnet localhost 4181
+    ```
+   Output:
+    ```text
+    Trying 127.0.0.1...
+    Connected to localhost.
+    Escape character is '^]'.
+    ```
+
+2. Turn on this function in `functions_worker.yml`.
+
+    ```text
+    stateStorageServiceUrl: bk://<bk-service-url>:4181
+    ```
+    
+    `bk-service-url` is the service URL pointing to the BookKeeper table service.
+
 ### Start Functions-worker with broker
 
 Once you have configured the `functions_worker.yml` file, you can start or restart your broker. 
@@ -86,7 +120,7 @@ To run function-worker separately, you have to configure the following parameter
 #### Function metadata parameter
 
 - `pulsarServiceUrl`: The Pulsar service URL for your broker cluster.
-- `pulsarWebServiceUrl`: The Pulser web service URL for your broker cluster.
+- `pulsarWebServiceUrl`: The Pulsar web service URL for your broker cluster.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
 
 If authentication is enabled for your broker cluster, you *should* configure the authentication plugin and parameters for the functions worker to communicate with the brokers.

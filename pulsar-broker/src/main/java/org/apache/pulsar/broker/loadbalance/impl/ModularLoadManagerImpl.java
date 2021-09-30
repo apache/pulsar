@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -64,12 +62,13 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
@@ -248,7 +247,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
             brokerHostUsage = new GenericBrokerHostUsageImpl(pulsar);
         }
 
-        bundleSplitStrategy = new BundleSplitterTask(pulsar);
+        bundleSplitStrategy = new BundleSplitterTask();
 
         conf = pulsar.getConfiguration();
 
@@ -264,10 +263,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
         refreshBrokerToFailureDomainMap();
         // register listeners for domain changes
-        pulsar.getConfigurationCache().failureDomainListCache()
-                .registerListener((path, data, stat) -> scheduler.execute(() -> refreshBrokerToFailureDomainMap()));
-        pulsar.getConfigurationCache().failureDomainCache()
-                .registerListener((path, data, stat) -> scheduler.execute(() -> refreshBrokerToFailureDomainMap()));
+        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+                .registerListener(__ -> {
+                    scheduler.execute(() -> refreshBrokerToFailureDomainMap());
+                });
 
         loadSheddingPipeline.add(createLoadSheddingStrategy());
     }
@@ -291,7 +290,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
     private LoadSheddingStrategy createLoadSheddingStrategy() {
         try {
             Class<?> loadSheddingClass = Class.forName(conf.getLoadBalancerLoadSheddingStrategy());
-            Object loadSheddingInstance = loadSheddingClass.newInstance();
+            Object loadSheddingInstance = loadSheddingClass.getDeclaredConstructor().newInstance();
             if (loadSheddingInstance instanceof LoadSheddingStrategy) {
                 return (LoadSheddingStrategy) loadSheddingInstance;
             } else {
@@ -640,8 +639,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
     public boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker) {
         try {
-            Optional<LocalPolicies> nsPolicies = pulsar.getLocalZkCacheService().policiesCache()
-                    .get(joinPath(LOCAL_POLICIES_ROOT, namespace));
+            Optional<LocalPolicies> nsPolicies = pulsar.getPulsarResources().getLocalPolicies()
+                    .getLocalPolicies(NamespaceName.get(namespace));
             if (!nsPolicies.isPresent() || StringUtils.isBlank(nsPolicies.get().namespaceAntiAffinityGroup)) {
                 return true;
             }
@@ -931,7 +930,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         List<Metrics> metrics = Lists.newArrayList();
         Map<String, String> dimensions = new HashMap<>();
 
-        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf));
+        dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf, true));
         dimensions.put("metric", "loadBalancing");
 
         Metrics m = Metrics.create(dimensions);
@@ -1006,7 +1005,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         try {
             FutureUtil.waitForAll(futures).join();
         } catch (Exception e) {
-            log.warn("Error when writing metadata data to store: {}", e);
+            log.warn("Error when writing metadata data to store", e);
         }
     }
 
@@ -1024,14 +1023,15 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         if (!pulsar.getConfiguration().isFailureDomainsEnabled()) {
             return;
         }
-        final String clusterDomainRootPath = pulsar.getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
+        ClusterResources.FailureDomainResources fdr =
+                pulsar.getPulsarResources().getClusterResources().getFailureDomainResources();
+        String clusterName = pulsar.getConfiguration().getClusterName();
         try {
             synchronized (brokerToFailureDomainMap) {
                 Map<String, String> tempBrokerToFailureDomainMap = Maps.newHashMap();
-                for (String domainName : pulsar.getConfigurationCache().failureDomainListCache().get()) {
+                for (String domainName : fdr.listFailureDomains(clusterName)) {
                     try {
-                        Optional<FailureDomain> domain = pulsar.getConfigurationCache().failureDomainCache()
-                                .get(clusterDomainRootPath + "/" + domainName);
+                        Optional<FailureDomainImpl> domain = fdr.getFailureDomain(clusterName, domainName);
                         if (domain.isPresent()) {
                             for (String broker : domain.get().brokers) {
                                 tempBrokerToFailureDomainMap.put(broker, domainName);

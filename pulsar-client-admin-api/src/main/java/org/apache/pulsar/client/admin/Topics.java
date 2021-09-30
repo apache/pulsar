@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin;
 
-import com.google.gson.JsonObject;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -921,7 +920,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    JsonObject getInternalInfo(String topic) throws PulsarAdminException;
+    String getInternalInfo(String topic) throws PulsarAdminException;
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper.
@@ -936,7 +935,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<JsonObject> getInternalInfoAsync(String topic);
+    CompletableFuture<String> getInternalInfoAsync(String topic);
 
     /**
      * Get the stats for the partitioned topic
@@ -1351,6 +1350,28 @@ public interface Topics {
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
+     * Get message ID published at or just after this absolute timestamp (in ms).
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return MessageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    MessageId getMessageIdByTimestamp(String topic, long timestamp) throws PulsarAdminException;
+
+    /**
+     * Get message ID published at or just after this absolute timestamp (in ms) asynchronously.
+     * @param topic
+     *            Topic name
+     * @param timestamp
+     *            Timestamp
+     * @return a future that can be used to track when the message ID is returned.
+     */
+    CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp);
+
+    /**
      * Create a new subscription on a topic.
      *
      * @param topic
@@ -1585,7 +1606,8 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException;
+    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic)
+            throws PulsarAdminException;
 
     /**
      * Get applied backlog quota map for a topic.
@@ -1596,6 +1618,28 @@ public interface Topics {
      */
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
             throws PulsarAdminException;
+
+    /**
+     * Get backlog size by a message ID.
+     * @param topic
+     *            Topic name
+     * @param messageId
+     *            message ID
+     * @return the backlog size from
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    Long getBacklogSizeByMessageId(String topic, MessageId messageId) throws PulsarAdminException;
+
+    /**
+     * Get backlog size by a message ID asynchronously.
+     * @param topic
+     *            Topic name
+     * @param messageId
+     *            message ID
+     * @return the backlog size from
+     */
+    CompletableFuture<Long> getBacklogSizeByMessageIdAsync(String topic, MessageId messageId);
 
     /**
      * Set a backlog quota for a topic.
@@ -1618,6 +1662,7 @@ public interface Topics {
      *            Topic name
      * @param backlogQuota
      *            the new BacklogQuota
+     * @param backlogQuotaType
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1626,7 +1671,12 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException;
+    void setBacklogQuota(String topic, BacklogQuota backlogQuota,
+                         BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException;
+
+    default void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
+        setBacklogQuota(topic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
 
     /**
      * Remove a backlog quota policy from a topic.
@@ -1634,6 +1684,7 @@ public interface Topics {
      *
      * @param topic
      *            Topic name
+     * @param backlogQuotaType
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1642,7 +1693,12 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void removeBacklogQuota(String topic) throws PulsarAdminException;
+    void removeBacklogQuota(String topic, BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException;
+
+    default void removeBacklogQuota(String topic)
+            throws PulsarAdminException {
+        removeBacklogQuota(topic, BacklogQuota.BacklogQuotaType.destination_storage);
+    }
 
     /**
      * Get the delayed delivery policy applied for a specified topic.
@@ -3302,4 +3358,24 @@ public interface Topics {
      * @return a future that can be used to track when the topic is truncated
      */
     CompletableFuture<Void> truncateAsync(String topic);
+
+    /**
+     * Enable or disable a replicated subscription on a topic.
+     *
+     * @param topic
+     * @param subName
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void setReplicatedSubscriptionStatus(String topic, String subName, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * Enable or disable a replicated subscription on a topic asynchronously.
+     *
+     * @param topic
+     * @param subName
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled);
 }

@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -56,9 +56,12 @@ import org.apache.pulsar.common.protocol.Markers;
 public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.PublishContext {
     private final PersistentTopic topic;
     private final String localCluster;
+
+    // The timestamp of when the last snapshot was initiated
+    private long lastCompletedSnapshotStartTime = 0;
+
     private String lastCompletedSnapshotId;
 
-    private boolean skippedSnapshotForNoProducers = false;
     private volatile Position positionOfLastLocalMarker;
 
     private final ScheduledFuture<?> timer;
@@ -66,7 +69,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots =
             new ConcurrentHashMap<>();
 
-    private final static Gauge pendingSnapshotsMetric = Gauge
+    private static final Gauge pendingSnapshotsMetric = Gauge
             .build("pulsar_replicated_subscriptions_pending_snapshots",
                     "Counter of currently pending snapshots")
             .register();
@@ -123,10 +126,16 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
 
         ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
-        topic.publishMessage(subscriptionUpdate, this);
+        writeMarker(subscriptionUpdate);
     }
 
     private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
+        // if replicator producer is already closed, restart it to send snapshot response
+        Replicator replicator = topic.getReplicators().get(request.getSourceCluster());
+        if (!replicator.isConnected()) {
+            topic.startReplProducers();
+        }
+
         // Send response containing the current last written message id. The response
         // marker we're publishing locally and then replicating will have a higher
         // message id.
@@ -140,8 +149,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 request.getSourceCluster(),
                 localCluster,
                 lastMsgId.getLedgerId(), lastMsgId.getEntryId());
-
-        topic.publishMessage(marker, this);
+        writeMarker(marker);
     }
 
     private void receivedSnapshotResponse(Position position, ReplicatedSubscriptionsSnapshotResponse response) {
@@ -193,28 +201,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private void startNewSnapshot() {
         cleanupTimedOutSnapshots();
 
-        boolean hasLocalProducer = false;
-        for (Producer p : topic.getProducers().values()) {
-            if (!p.isRemote()) {
-                hasLocalProducer = true;
-                break;
-            }
-        }
-
-        if (!hasLocalProducer) {
-            if (!skippedSnapshotForNoProducers) {
-                skippedSnapshotForNoProducers = true;
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] There are no local producers: Skipping 1 snapshot", topic.getName());
-                }
-
-                return;
-            }
-        }
-
-        skippedSnapshotForNoProducers = false;
-
-        if (topic.getLastPosition() != null && topic.getLastPosition().equals(positionOfLastLocalMarker)) {
+        if (topic.getLastDataMessagePublishedTimestamp() < lastCompletedSnapshotStartTime) {
             // There was no message written since the last snapshot, we can skip creating a new snapshot
             if (log.isDebugEnabled()) {
                 log.debug("[{}] There is no new data in topic. Skipping snapshot creation.", topic.getName());
@@ -270,13 +257,21 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     void snapshotCompleted(String snapshotId) {
-        pendingSnapshots.remove(snapshotId);
+        ReplicatedSubscriptionsSnapshotBuilder snapshot = pendingSnapshots.remove(snapshotId);
         pendingSnapshotsMetric.dec();
         lastCompletedSnapshotId = snapshotId;
+
+        if (snapshot != null) {
+            lastCompletedSnapshotStartTime = snapshot.getStartTimeMillis();
+        }
     }
 
     void writeMarker(ByteBuf marker) {
-        topic.publishMessage(marker, this);
+        try {
+            topic.publishMessage(marker, this);
+        } finally {
+            marker.release();
+        }
     }
 
     /**
@@ -299,6 +294,12 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     String localCluster() {
         return localCluster;
+    }
+
+    @Override
+    public boolean isMarkerMessage() {
+        // Everything published by this controller will be a marker a message
+        return true;
     }
 
     @Override

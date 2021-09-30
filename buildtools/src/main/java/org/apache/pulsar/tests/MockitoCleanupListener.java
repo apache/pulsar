@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * Mockito.reset method should be called at the end of a test in the same thread where the methods were
  * mocked/stubbed. There are some tests which mock methods in the ForkJoinPool thread and these leak memory.
  * This listener doesn't support parallel execution at TestNG level. This is not thread safe.
- * Separate forks (testForkCount > 1) controlled with Maven Surefire is the recommended solution
+ * Separate forks {@code testForkCount > 1} controlled with Maven Surefire is the recommended solution
  * for parallel test execution and that is fine.
  */
 public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {

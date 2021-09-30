@@ -25,7 +25,8 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
@@ -59,7 +60,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
         this.numberOfBookies = numberOfBookies;
     }
 
-    protected void configurePulsar(ServiceConfiguration config) {
+    protected void configurePulsar(ServiceConfiguration config) throws Exception {
         //overridable by subclasses
     }
 
@@ -86,7 +87,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
-            config.setZooKeeperOperationTimeoutSeconds(1);
+            config.setZooKeeperOperationTimeoutSeconds(10);
             config.setNumIOThreads(1);
             Properties properties = new Properties();
             properties.put("bookkeeper_numWorkerThreads", "1");
@@ -98,9 +99,9 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
 
             admin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build();
 
-            admin.clusters().createCluster("usc", new ClusterData(pulsar.getWebServiceAddress()));
+            admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
             admin.tenants().createTenant("prop",
-                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
             log.error("Error setting up broker test", t);
             Assert.fail("Broker test setup failed");

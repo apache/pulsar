@@ -72,12 +72,11 @@ public class EntryCacheImpl implements EntryCache {
         return ml.getName();
     }
 
-    public final static PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect
+    public static final PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect
             0, // nHeapArenas,
             PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
             PooledByteBufAllocator.defaultPageSize(), // pageSize
             PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
-            PooledByteBufAllocator.defaultTinyCacheSize(), // tinyCacheSize
             PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
             PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
             true // Use cache for all threads

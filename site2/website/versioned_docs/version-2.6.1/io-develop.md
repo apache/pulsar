@@ -203,7 +203,7 @@ sourceClass: fully qualified class name (only if source connector)
 sinkClass: fully qualified class name (only if sink connector)
 ```
 
-If you are using the [Gradle NiFi plugin](https://github.com/sponiro/gradle-nar-plugin) you might need to create a directive to ensure your pulsar-io.yaml is [copied into the NAR file correctly](https://github.com/sponiro/gradle-nar-plugin/issues/5).
+For Gradle users, there is a [Gradle Nar plugin available on the Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.lhotari.gradle-nar-plugin).
 
 > #### Tip
 > 

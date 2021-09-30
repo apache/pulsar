@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.admin;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
@@ -36,7 +34,7 @@ public interface BrokerStats {
      * @throws PulsarAdminException
      */
 
-    JsonArray getMetrics() throws PulsarAdminException;
+    String getMetrics() throws PulsarAdminException;
 
     /**
      * Returns Monitoring metrics asynchronously.
@@ -44,7 +42,7 @@ public interface BrokerStats {
      * @return
      */
 
-    CompletableFuture<JsonArray> getMetricsAsync();
+    CompletableFuture<String> getMetricsAsync();
 
     /**
      * Requests JSON string server mbean dump.
@@ -54,7 +52,7 @@ public interface BrokerStats {
      * @return
      * @throws PulsarAdminException
      */
-    JsonArray getMBeans() throws PulsarAdminException;
+    String getMBeans() throws PulsarAdminException;
 
     /**
      * Requests JSON string server mbean dump asynchronously.
@@ -63,7 +61,7 @@ public interface BrokerStats {
      *
      * @return
      */
-    CompletableFuture<JsonArray> getMBeansAsync();
+    CompletableFuture<String> getMBeansAsync();
 
     /**
      * Returns JSON string topics stats.
@@ -73,7 +71,7 @@ public interface BrokerStats {
      * @return
      * @throws PulsarAdminException
      */
-    JsonObject getTopics() throws PulsarAdminException;
+    String getTopics() throws PulsarAdminException;
 
     /**
      * Returns JSON string topics stats asynchronously.
@@ -82,7 +80,7 @@ public interface BrokerStats {
      *
      * @return
      */
-    CompletableFuture<JsonObject> getTopicsAsync();
+    CompletableFuture<String> getTopicsAsync();
 
     /**
      * Get pending bookie client op stats by namespace.
@@ -92,7 +90,7 @@ public interface BrokerStats {
      * @return
      * @throws PulsarAdminException
      */
-    JsonObject getPendingBookieOpsStats() throws PulsarAdminException;
+    String getPendingBookieOpsStats() throws PulsarAdminException;
 
     /**
      * Get pending bookie client op stats by namespace asynchronously.
@@ -101,7 +99,7 @@ public interface BrokerStats {
      *
      * @return
      */
-    CompletableFuture<JsonObject> getPendingBookieOpsStatsAsync();
+    CompletableFuture<String> getPendingBookieOpsStatsAsync();
 
     /**
      * Get the stats for the Netty allocator.

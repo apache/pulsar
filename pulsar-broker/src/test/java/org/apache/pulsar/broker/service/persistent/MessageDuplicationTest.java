@@ -30,8 +30,6 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
@@ -44,15 +42,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 @Test(groups = "broker")
 public class MessageDuplicationTest {
 
-    private final static int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
-    private final static int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
-    private final static String REPLICATOR_PREFIX = "foo";
+    private static final int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
+    private static final int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
+    private static final String REPLICATOR_PREFIX = "foo";
 
     @Test
     public void testIsDuplicate() {
@@ -163,14 +160,11 @@ public class MessageDuplicationTest {
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
 
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) {
-                Object[] args = invocationOnMock.getArguments();
-                Runnable test = (Runnable) args[0];
-                test.run();
-                return null;
-            }
+        doAnswer(invocationOnMock -> {
+            Object[] args = invocationOnMock.getArguments();
+            Runnable test = (Runnable) args[0];
+            test.run();
+            return null;
         }).when(eventLoopGroup).submit(any(Runnable.class));
 
         BrokerService brokerService = mock(BrokerService.class);

@@ -25,7 +25,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import java.io.Closeable;
 import java.io.File;
@@ -43,7 +42,7 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -52,7 +51,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -126,7 +125,7 @@ public class PulsarFunctionTlsTest {
         Tenants tenants = mock(Tenants.class);
         when(admin.tenants()).thenReturn(tenants);
         Set<String> admins = Sets.newHashSet("superUser", "admin");
-        TenantInfo tenantInfo = new TenantInfo(admins, null);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(admins, null);
         when(tenants.getTenantInfo(any())).thenReturn(tenantInfo);
         Namespaces namespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(namespaces);
@@ -138,7 +137,7 @@ public class PulsarFunctionTlsTest {
         functionsWorkerService.init(workerConfig, null, false);
 
         AuthenticationService authenticationService = new AuthenticationService(config);
-        AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));
+        AuthorizationService authorizationService = new AuthorizationService(config, mock(PulsarResources.class));
         when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
         when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
         when(functionsWorkerService.isInitialized()).thenReturn(true);

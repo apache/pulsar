@@ -52,7 +52,7 @@ import io.prometheus.client.exporter.HTTPServer;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.common.functions.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -69,6 +69,7 @@ import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.NameAndConfigBasedSecretsProviderConfigurator;
@@ -546,7 +547,7 @@ public class LocalRunner implements AutoCloseable {
                     for (index = 0; index < futures.length; ++index) {
                         String json = futures[index].get();
                         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                        log.info(gson.toJson(new JsonParser().parse(json)));
+                        log.info(gson.toJson(JsonParser.parseString(json)));
                     }
                 } catch (TimeoutException | InterruptedException | ExecutionException e) {
                     log.error("Could not get status from all local instances");

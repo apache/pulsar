@@ -95,7 +95,7 @@ const functionsApiUrl = url + "/functions-rest-api";
 const sourceApiUrl = url + "/source-rest-api";
 const sinkApiUrl = url + "/sink-rest-api";
 const packagesApiUrl = url + "/packages-rest-api";
-const githubUrl = 'https://github.com/apache/incubator-pulsar';
+const githubUrl = 'https://github.com/apache/pulsar';
 const baseUrl = '/';
 
 const siteVariables = {

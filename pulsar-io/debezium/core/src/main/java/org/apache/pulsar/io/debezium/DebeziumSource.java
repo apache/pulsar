@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.debezium;
 
+import io.debezium.relational.history.DatabaseHistory;
 import java.util.Map;
 
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
@@ -28,10 +29,10 @@ import org.apache.pulsar.io.kafka.connect.KafkaConnectSource;
 import org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig;
 
 public abstract class DebeziumSource extends KafkaConnectSource {
-    static private final String DEFAULT_CONVERTER = "org.apache.kafka.connect.json.JsonConverter";
-    static private final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarDatabaseHistory";
-    static private final String DEFAULT_OFFSET_TOPIC = "debezium-offset-topic";
-    static private final String DEFAULT_HISTORY_TOPIC = "debezium-history-topic";
+    private static final String DEFAULT_CONVERTER = "org.apache.kafka.connect.json.JsonConverter";
+    private static final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarDatabaseHistory";
+    private static final String DEFAULT_OFFSET_TOPIC = "debezium-offset-topic";
+    private static final String DEFAULT_HISTORY_TOPIC = "debezium-history-topic";
 
     public static void throwExceptionIfConfigNotMatch(Map<String, Object> config,
                                                        String key,
@@ -78,12 +79,11 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         // database.history : implementation class for database history.
         setConfigIfNull(config, HistorizedRelationalDatabaseConnectorConfig.DATABASE_HISTORY.name(), DEFAULT_HISTORY);
 
-        // database.history.pulsar.service.url, this is set as the value of pulsar.service.url if null.
-        String serviceUrl = (String) config.get(PulsarKafkaWorkerConfig.PULSAR_SERVICE_URL_CONFIG);
-        if (serviceUrl == null) {
-            throw new IllegalArgumentException("Pulsar service URL not provided.");
+        // database.history.pulsar.service.url
+        String pulsarUrl = (String) config.get(PulsarDatabaseHistory.SERVICE_URL.name());
+        if (StringUtils.isEmpty(pulsarUrl)) {
+            throw new IllegalArgumentException("Pulsar service URL for History Database not provided.");
         }
-        setConfigIfNull(config, PulsarDatabaseHistory.SERVICE_URL.name(), serviceUrl);
 
         String topicNamespace = topicNamespace(sourceContext);
         // topic.namespace
@@ -96,6 +96,9 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         // offset.storage.topic: offset topic name
         setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
             topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
+
+        config.put(DatabaseHistory.CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.client.builder",
+                SerDeUtils.serialize(sourceContext.getPulsarClientBuilder()));
 
         super.open(config, sourceContext);
     }

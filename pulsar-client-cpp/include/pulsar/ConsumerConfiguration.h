@@ -30,6 +30,7 @@
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/InitialPosition.h>
 #include <pulsar/KeySharedPolicy.h>
+#include <pulsar/ConsumerEventListener.h>
 
 namespace pulsar {
 
@@ -42,6 +43,8 @@ typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 
 /// Callback definition for MessageListener
 typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;
+
+typedef std::shared_ptr<ConsumerEventListener> ConsumerEventListenerPtr;
 
 struct ConsumerConfigurationImpl;
 
@@ -128,6 +131,22 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     bool hasMessageListener() const;
 
     /**
+     * A event listener enables your application to react the consumer state
+     * change event (active or inactive).
+     */
+    ConsumerConfiguration& setConsumerEventListener(ConsumerEventListenerPtr eventListener);
+
+    /**
+     * @return the consumer event listener
+     */
+    ConsumerEventListenerPtr getConsumerEventListener() const;
+
+    /**
+     * @return true if the consumer event listener has been set
+     */
+    bool hasConsumerEventListener() const;
+
+    /**
      * Sets the size of the consumer receive queue.
      *
      * The consumer receive queue controls how many messages can be accumulated by the consumer before the
@@ -187,6 +206,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * 10 seconds. An Exception is thrown if the given value is less than 10000 (10 seconds).
      * If a successful acknowledgement is not sent within the timeout all the unacknowledged messages are
      * redelivered.
+     *
+     * Default: 0, which means the the tracker for unacknowledged messages is disabled.
+     *
      * @param timeout in milliseconds
      */
     void setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds);
@@ -269,6 +291,9 @@ class PULSAR_PUBLIC ConsumerConfiguration {
 
     /**
      * Set the time duration for which the broker side consumer stats will be cached in the client.
+     *
+     * Default: 30000, which means 30 seconds.
+     *
      * @param cacheTimeInMs in milliseconds
      */
     void setBrokerConsumerStatsCacheTimeInMs(const long cacheTimeInMs);
@@ -398,6 +423,19 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * Add all the properties in the provided map
      */
     ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
+
+    /**
+     * Set the Priority Level for consumer (0 is the default value and means the highest priority).
+     *
+     * @param priorityLevel the priority of this consumer
+     * @return the ConsumerConfiguration instance
+     */
+    ConsumerConfiguration& setPriorityLevel(int priorityLevel);
+
+    /**
+     * @return the configured priority for the consumer
+     */
+    int getPriorityLevel() const;
 
     friend class PulsarWrapper;
 

@@ -138,10 +138,10 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // get stats for topic1 using cluster-r3's admin3
         TopicStats stats = admin1.topics().getStats(topic1);
         assertNotNull(stats);
-        assertEquals(stats.publishers.size(), 1);
+        assertEquals(stats.getPublishers().size(), 1);
         stats = admin3.topics().getStats(topic1);
         assertNotNull(stats);
-        assertEquals(stats.publishers.size(), 1);
+        assertEquals(stats.getPublishers().size(), 1);
         producer.close();
 
         // set peer-clusters : r3->r2
@@ -153,10 +153,10 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // get stats for topic1 using cluster-r3's admin3
         stats = admin3.topics().getStats(topic2);
         assertNotNull(stats);
-        assertEquals(stats.publishers.size(), 1);
+        assertEquals(stats.getPublishers().size(), 1);
         stats = admin3.topics().getStats(topic2);
         assertNotNull(stats);
-        assertEquals(stats.publishers.size(), 1);
+        assertEquals(stats.getPublishers().size(), 1);
         producer.close();
 
 
@@ -223,10 +223,10 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // get stats for topic1 using cluster-r3's admin3
         TopicStats stats = admin1.topics().getStats(topic1);
         assertNotNull(stats);
-        assertEquals(stats.publishers.size(), 1);
+        assertEquals(stats.getPublishers().size(), 1);
         stats = admin3.topics().getStats(topic1);
         assertNotNull(stats);
-        assertEquals(stats.publishers.size(), 1);
+        assertEquals(stats.getPublishers().size(), 1);
         producer.close();
 
         // change the repl cluster to peer-cluster r3 from r1

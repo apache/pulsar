@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -45,7 +46,7 @@ public class SchemaData {
      * @return the converted schema info.
      */
     public SchemaInfo toSchemaInfo() {
-        return SchemaInfo.builder()
+        return SchemaInfoImpl.builder()
             .name("")
             .type(type)
             .schema(data)

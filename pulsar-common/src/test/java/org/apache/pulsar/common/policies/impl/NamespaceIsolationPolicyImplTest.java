@@ -26,8 +26,10 @@ import static org.testng.Assert.fail;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -35,9 +37,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.OldPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
@@ -54,21 +58,24 @@ public class NamespaceIsolationPolicyImplTest {
     @Test
     public void testConstructor() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
-        NamespaceIsolationData policyData = new NamespaceIsolationData();
-        policyData.namespaces = new ArrayList<>();
-        policyData.namespaces.add("pulsar/use/test.*");
-        policyData.primary = new ArrayList<>();
-        policyData.primary.add("prod1-broker[1-3].messaging.use.example.com");
-        policyData.secondary = new ArrayList<>();
-        policyData.secondary.add("prod1-broker.*.use.example.com");
-        policyData.auto_failover_policy = new AutoFailoverPolicyData();
-        policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
-        policyData.auto_failover_policy.parameters = new HashMap<>();
-        policyData.auto_failover_policy.parameters.put("min_limit", "3");
-        policyData.auto_failover_policy.parameters.put("usage_threshold", "90");
+
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("min_limit", "3");
+        parameters.put("usage_threshold", "90");
+
+        NamespaceIsolationData policyData = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("pulsar/use/test.*"))
+                .primary(Collections.singletonList("prod1-broker[1-3].messaging.use.example.com"))
+                .secondary(Collections.singletonList("prod1-broker.*.use.example.com"))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(parameters)
+                        .build()
+                ).build();
+
         NamespaceIsolationPolicyImpl newPolicy = new NamespaceIsolationPolicyImpl(policyData);
         assertEquals(newPolicy, defaultPolicy);
-        policyData.auto_failover_policy.parameters.put("usage_threshold", "80");
+        parameters.put("usage_threshold", "80");
         newPolicy = new NamespaceIsolationPolicyImpl(policyData);
         assertNotEquals(newPolicy, defaultPolicy);
         assertNotEquals(new OldPolicies(), newPolicy);
@@ -140,27 +147,49 @@ public class NamespaceIsolationPolicyImplTest {
     @Test
     public void testShouldFailover() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
-        SortedSet<BrokerStatus> brokerStatus = new TreeSet<>();
+        List<BrokerStatus> brokerStatus = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            BrokerStatus status = new BrokerStatus(String.format("broker-%d", i), true, i * 10);
+            BrokerStatus status = BrokerStatus.builder()
+                    .brokerAddress(String.format("broker-%s", i))
+                    .active(true)
+                    .loadFactor(i * 10)
+                    .build();
             brokerStatus.add(status);
         }
-        assertFalse(defaultPolicy.shouldFailover(brokerStatus));
-        List<BrokerStatus> objList = new ArrayList<>(brokerStatus);
+        assertFalse(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
         for (int i = 0; i < 8; i++) {
-            objList.get(i).setActive(false);
+            brokerStatus.set(i, BrokerStatus.builder()
+                    .brokerAddress(brokerStatus.get(i).getBrokerAddress())
+                    .active(false)
+                    .loadFactor(brokerStatus.get(i).getLoadFactor())
+                    .build());
         }
-        assertTrue(defaultPolicy.shouldFailover(brokerStatus));
-        objList.get(7).setActive(true);
-        assertTrue(defaultPolicy.shouldFailover(brokerStatus));
-        objList.get(9).setLoadFactor(80);
-        assertFalse(defaultPolicy.shouldFailover(brokerStatus));
+        assertTrue(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
+        brokerStatus.set(7, BrokerStatus.builder()
+                .brokerAddress(brokerStatus.get(7).getBrokerAddress())
+                .active(true)
+                .loadFactor(brokerStatus.get(7).getLoadFactor())
+                .build());
+        assertTrue(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
+        brokerStatus.set(9, BrokerStatus.builder()
+                .brokerAddress(brokerStatus.get(9).getBrokerAddress())
+                .active(brokerStatus.get(9).isActive())
+                .loadFactor(80)
+                .build());
+        assertFalse(defaultPolicy.shouldFailover(new TreeSet<>(brokerStatus)));
 
-        brokerStatus = new TreeSet<>();
+        brokerStatus = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
-            BrokerStatus status = new BrokerStatus(String.format("broker-%d", 2 * i), true, i * 20);
+            BrokerStatus status = BrokerStatus.builder().brokerAddress(String.format("broker-%d", 2 * i))
+                    .active(true)
+                    .loadFactor(i * 20)
+                    .build();
             brokerStatus.add(status);
-            status = new BrokerStatus(String.format("broker-%d", 2 * i + 1), true, i * 20);
+            status = BrokerStatus.builder()
+                    .brokerAddress(String.format("broker-%d", 2 * i + 1))
+                    .active(true)
+                    .loadFactor(i * 20)
+                    .build();
             brokerStatus.add(status);
         }
         assertEquals(brokerStatus.size(), 10);
@@ -172,8 +201,11 @@ public class NamespaceIsolationPolicyImplTest {
         SortedSet<BrokerStatus> brokerStatus = new TreeSet<>();
         SortedSet<BrokerStatus> expectedAvailablePrimaries = new TreeSet<>();
         for (int i = 0; i < 10; i++) {
-            BrokerStatus status = new BrokerStatus(String.format("prod1-broker%d.messaging.use.example.com", i),
-                    i % 2 == 0, i * 10);
+            BrokerStatus status = BrokerStatus.builder()
+                    .brokerAddress(String.format("prod1-broker%d.messaging.use.example.com", i))
+                    .active(i % 2 == 0)
+                    .loadFactor(i * 10)
+                    .build();
             brokerStatus.add(status);
             if (i % 2 == 0) {
                 expectedAvailablePrimaries.add(status);

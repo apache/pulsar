@@ -22,7 +22,8 @@ import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -47,8 +48,8 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
     public void testMaxTenant() throws Exception {
         conf.setMaxTenants(2);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("testTenant1", tenantInfo);
         admin.tenants().createTenant("testTenant2", tenantInfo);
         try {
@@ -61,7 +62,7 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         conf.setMaxTenants(0);
         super.internalSetup();
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         for (int i = 0; i < 10; i++) {
             admin.tenants().createTenant("testTenant-unlimited" + i, tenantInfo);
         }

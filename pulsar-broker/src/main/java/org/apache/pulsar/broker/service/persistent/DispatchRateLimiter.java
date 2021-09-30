@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -33,6 +29,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +69,15 @@ public class DispatchRateLimiter {
      */
     public long getAvailableDispatchRateLimitOnMsg() {
         return dispatchRateLimiterOnMessage == null ? -1 : dispatchRateLimiterOnMessage.getAvailablePermits();
+    }
+
+    /**
+     * returns available byte-permit if msg-dispatch-throttling is enabled else it returns -1.
+     *
+     * @return
+     */
+    public long getAvailableDispatchRateLimitOnByte() {
+        return dispatchRateLimiterOnByte == null ? -1 : dispatchRateLimiterOnByte.getAvailablePermits();
     }
 
     /**
@@ -138,8 +144,13 @@ public class DispatchRateLimiter {
                 dispatchThrottlingRateInByte = -1;
         }
 
-        return new DispatchRate(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte, 1,
-                config.isDispatchThrottlingRateRelativeToPublishRate());
+
+        return DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(dispatchThrottlingRateInMsg)
+                .dispatchThrottlingRateInByte(dispatchThrottlingRateInByte)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(config.isDispatchThrottlingRateRelativeToPublishRate())
+                .build();
     }
 
     /**
@@ -268,10 +279,12 @@ public class DispatchRateLimiter {
     }
 
     @SuppressWarnings("deprecation")
-    public static DispatchRate getPoliciesDispatchRate(final String cluster, Optional<Policies> policies, Type type) {
+    public static DispatchRateImpl getPoliciesDispatchRate(final String cluster,
+                                                           Optional<Policies> policies,
+                                                           Type type) {
         // return policy-dispatch rate only if it's enabled in policies
         return policies.map(p -> {
-            DispatchRate dispatchRate;
+            DispatchRateImpl dispatchRate;
             switch (type) {
                 case TOPIC:
                     dispatchRate = p.topicDispatchRate.get(cluster);
@@ -307,18 +320,12 @@ public class DispatchRateLimiter {
 
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
-        final String path = path(POLICIES, namespace.toString());
-        Optional<Policies> policies = Optional.empty();
         try {
-            ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
-            if (configurationCacheService != null) {
-                policies = configurationCacheService.policiesCache().getAsync(path)
-                        .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-            }
+            return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(namespace);
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);
+            return Optional.empty();
         }
-        return policies;
     }
 
     /**
@@ -331,20 +338,27 @@ public class DispatchRateLimiter {
         // synchronized to prevent race condition from concurrent zk-watch
         log.info("setting message-dispatch-rate {}", dispatchRate);
 
-        long msgRate = dispatchRate.dispatchThrottlingRateInMsg;
-        long byteRate = dispatchRate.dispatchThrottlingRateInByte;
-        long ratePeriod = dispatchRate.ratePeriodInSecond;
+        long msgRate = dispatchRate.getDispatchThrottlingRateInMsg();
+        long byteRate = dispatchRate.getDispatchThrottlingRateInByte();
+        long ratePeriod = dispatchRate.getRatePeriodInSecond();
 
-        Supplier<Long> permitUpdaterMsg = dispatchRate.relativeToPublishRate
+        Supplier<Long> permitUpdaterMsg = dispatchRate.isRelativeToPublishRate()
                 ? () -> getRelativeDispatchRateInMsg(dispatchRate)
                 : null;
         // update msg-rateLimiter
         if (msgRate > 0) {
             if (this.dispatchRateLimiterOnMessage == null) {
-                this.dispatchRateLimiterOnMessage = new RateLimiter(brokerService.pulsar().getExecutor(), msgRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterMsg, true);
+                this.dispatchRateLimiterOnMessage =
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(msgRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterMsg)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
+                                .build();
             } else {
-                this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.ratePeriodInSecond,
+                this.dispatchRateLimiterOnMessage.setRate(msgRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterMsg);
             }
         } else {
@@ -355,16 +369,23 @@ public class DispatchRateLimiter {
             }
         }
 
-        Supplier<Long> permitUpdaterByte = dispatchRate.relativeToPublishRate
+        Supplier<Long> permitUpdaterByte = dispatchRate.isRelativeToPublishRate()
                 ? () -> getRelativeDispatchRateInByte(dispatchRate)
                 : null;
         // update byte-rateLimiter
         if (byteRate > 0) {
             if (this.dispatchRateLimiterOnByte == null) {
-                this.dispatchRateLimiterOnByte = new RateLimiter(brokerService.pulsar().getExecutor(), byteRate,
-                        ratePeriod, TimeUnit.SECONDS, permitUpdaterByte, true);
+                this.dispatchRateLimiterOnByte =
+                        RateLimiter.builder()
+                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
+                                .permits(byteRate)
+                                .rateTime(ratePeriod)
+                                .timeUnit(TimeUnit.SECONDS)
+                                .permitUpdater(permitUpdaterByte)
+                                .isDispatchOrPrecisePublishRateLimiter(true)
+                                .build();
             } else {
-                this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.ratePeriodInSecond,
+                this.dispatchRateLimiterOnByte.setRate(byteRate, dispatchRate.getRatePeriodInSecond(),
                         TimeUnit.SECONDS, permitUpdaterByte);
             }
         } else {
@@ -378,13 +399,13 @@ public class DispatchRateLimiter {
 
     private long getRelativeDispatchRateInMsg(DispatchRate dispatchRate) {
         return (topic != null && dispatchRate != null)
-                ? (long) topic.getLastUpdatedAvgPublishRateInMsg() + dispatchRate.dispatchThrottlingRateInMsg
+                ? (long) topic.getLastUpdatedAvgPublishRateInMsg() + dispatchRate.getDispatchThrottlingRateInMsg()
                 : 0;
     }
 
     private long getRelativeDispatchRateInByte(DispatchRate dispatchRate) {
         return (topic != null && dispatchRate != null)
-                ? (long) topic.getLastUpdatedAvgPublishRateInByte() + dispatchRate.dispatchThrottlingRateInByte
+                ? (long) topic.getLastUpdatedAvgPublishRateInByte() + dispatchRate.getDispatchThrottlingRateInByte()
                 : 0;
     }
 
@@ -408,8 +429,8 @@ public class DispatchRateLimiter {
 
 
     private static boolean isDispatchRateEnabled(DispatchRate dispatchRate) {
-        return dispatchRate != null && (dispatchRate.dispatchThrottlingRateInMsg > 0
-                || dispatchRate.dispatchThrottlingRateInByte > 0);
+        return dispatchRate != null && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
+                || dispatchRate.getDispatchThrottlingRateInByte() > 0);
     }
 
     public void close() {

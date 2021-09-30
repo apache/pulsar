@@ -25,16 +25,46 @@ import org.testng.annotations.Test;
 public class BacklogQuotaTest {
     @Test
     public void testBacklogQuotaIdentity() {
-        Assert.assertNotEquals(new BacklogQuota(1, RetentionPolicy.producer_exception),
-                new BacklogQuota(2, RetentionPolicy.producer_exception));
-        Assert.assertNotEquals(new BacklogQuota(1, RetentionPolicy.producer_exception),
-                new BacklogQuota(2, RetentionPolicy.consumer_backlog_eviction));
-        Assert.assertNotEquals(new BacklogQuota(2, RetentionPolicy.producer_exception),
-                new BacklogQuota(2, RetentionPolicy.consumer_backlog_eviction));
-        Assert.assertEquals(new BacklogQuota(10, RetentionPolicy.producer_exception),
-                new BacklogQuota(10, RetentionPolicy.producer_exception));
-        BacklogQuota quota1 = new BacklogQuota(10, RetentionPolicy.producer_exception);
-        BacklogQuota quota2 = new BacklogQuota(10, RetentionPolicy.producer_exception);
+        Assert.assertNotEquals(BacklogQuota.builder()
+                        .limitSize(1)
+                        .retentionPolicy(RetentionPolicy.producer_exception)
+                        .build(),
+                BacklogQuota.builder()
+                        .limitSize(2)
+                        .retentionPolicy(RetentionPolicy.producer_exception)
+                        .build());
+        Assert.assertNotEquals(BacklogQuota.builder()
+                        .limitSize(1)
+                        .retentionPolicy(RetentionPolicy.producer_exception)
+                        .build(),
+                BacklogQuota.builder()
+                        .limitSize(2)
+                        .retentionPolicy(RetentionPolicy.consumer_backlog_eviction)
+                        .build());
+        Assert.assertNotEquals(BacklogQuota.builder()
+                        .limitSize(2)
+                        .retentionPolicy(RetentionPolicy.producer_exception)
+                        .build(),
+                BacklogQuota.builder()
+                        .limitSize(1)
+                        .retentionPolicy(RetentionPolicy.consumer_backlog_eviction)
+                        .build());
+        Assert.assertEquals(BacklogQuota.builder()
+                        .limitSize(10)
+                        .retentionPolicy(RetentionPolicy.producer_exception)
+                        .build(),
+                BacklogQuota.builder()
+                        .limitSize(10)
+                        .retentionPolicy(RetentionPolicy.producer_exception)
+                        .build());
+        BacklogQuota quota1 = BacklogQuota.builder()
+                .limitSize(10)
+                .retentionPolicy(RetentionPolicy.producer_exception)
+                .build();
+        BacklogQuota quota2 = BacklogQuota.builder()
+                .limitSize(10)
+                .retentionPolicy(RetentionPolicy.producer_exception)
+                .build();
         Assert.assertEquals(quota1.hashCode(), quota2.hashCode());
     }
 }

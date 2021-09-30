@@ -107,7 +107,7 @@ public class PrometheusMetricsGenerator {
             }
 
             if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
-                TransactionCoordinatorAggregator.generate(pulsar, stream);
+                TransactionAggregator.generate(pulsar, stream, includeTopicMetrics);
             }
 
             generateBrokerBasicMetrics(pulsar, stream);
@@ -131,14 +131,16 @@ public class PrometheusMetricsGenerator {
         parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
-        // generate managedLedger metrics
-        parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
+        if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
+            // generate managedLedger metrics
+            parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
+        }
 
         if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
             // generate managedCursor metrics
             parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                    clusterName, Collector.Type.GAUGE, stream);
+                clusterName, Collector.Type.GAUGE, stream);
         }
 
         parseMetricsToPrometheusMetrics(Collections.singletonList(pulsar.getBrokerService()

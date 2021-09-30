@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.functions.api;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Schema;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 

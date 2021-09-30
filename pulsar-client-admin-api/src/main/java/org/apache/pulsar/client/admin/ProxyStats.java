@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.client.admin;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
 /**
  * Admin interface for proxy stats management.
  */
@@ -33,7 +30,7 @@ public interface ProxyStats {
      * @throws PulsarAdminException
      */
 
-    JsonArray getConnections() throws PulsarAdminException;
+    String getConnections() throws PulsarAdminException;
 
     /**
      * Returns Topics metrics.
@@ -41,5 +38,5 @@ public interface ProxyStats {
      * @return
      * @throws PulsarAdminException
      */
-    JsonObject getTopics() throws PulsarAdminException;
+    String getTopics() throws PulsarAdminException;
 }

@@ -37,7 +37,7 @@ public class OldPolicies {
     public Map<String, Integer> latency_stats_sample_rate;
 
     public OldPolicies() {
-        auth_policies = new AuthPolicies();
+        auth_policies = AuthPolicies.builder().build();
         replication_clusters = Lists.newArrayList();
         backlog_quota_map = Maps.newHashMap();
         persistence = null;

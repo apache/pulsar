@@ -22,10 +22,13 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +37,8 @@ import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.bookkeeper.common.util.SafeRunnable;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -72,7 +77,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private static final int LEADER_ELECTION_RETRY_DELAY_SECONDS = 5;
 
     LeaderElectionImpl(MetadataStoreExtended store, Class<T> clazz, String path,
-            Consumer<LeaderElectionState> stateChangesListener) {
+            Consumer<LeaderElectionState> stateChangesListener,
+                       ScheduledExecutorService executor) {
         this.path = path;
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
         this.store = store;
@@ -80,7 +86,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.leaderElectionState = LeaderElectionState.NoLeader;
         this.internalState = InternalState.Init;
         this.stateChangesListener = stateChangesListener;
-        this.executor = Executors.newScheduledThreadPool(0, new DefaultThreadFactory("leader-election-executor"));
+        this.executor = executor;
 
         store.registerListener(this::handlePathNotification);
         store.registerSessionListener(this::handleSessionNotification);
@@ -111,7 +117,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
         T existingValue;
         try {
-            existingValue = serde.deserialize(res.getValue());
+            existingValue = serde.deserialize(path, res.getValue(), res.getStat());
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -154,7 +160,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private synchronized CompletableFuture<LeaderElectionState> tryToBecomeLeader() {
         byte[] payload;
         try {
-            payload = serde.serialize(proposedValue.get());
+            payload = serde.serialize(path, proposedValue.get());
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -268,16 +274,20 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         return cache.getIfCached(path);
     }
 
-    private synchronized void handleSessionNotification(SessionEvent event) {
-        if (event == SessionEvent.SessionReestablished) {
-            if (leaderElectionState == LeaderElectionState.Leading) {
+    private void handleSessionNotification(SessionEvent event) {
+        // Ensure we're only processing one session event at a time.
+        executor.execute(SafeRunnable.safeRun(() -> {
+            if (event == SessionEvent.SessionReestablished) {
                 log.info("Revalidating leadership for {}", path);
-            }
 
-            elect().thenAccept(les -> {
-                log.info("Resynced leadership for {} - State: {}", path, les);
-            });
-        }
+                try {
+                    LeaderElectionState les = elect().get();
+                    log.info("Resynced leadership for {} - State: {}", path, les);
+                } catch (ExecutionException | InterruptedException e) {
+                    log.warn("Failure when processing session event", e);
+                }
+            }
+        }));
     }
 
     private void handlePathNotification(Notification notification) {

@@ -22,15 +22,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.beust.jcommander.internal.Maps;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -39,7 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -57,7 +55,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -65,6 +63,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -149,7 +148,11 @@ public class AntiAffinityNamespaceGroupTest {
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
         secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
         nsFactory = new NamespaceBundleFactory(pulsar1, Hashing.crc32());
-        Thread.sleep(100);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar1.getState(), PulsarService.State.Started);
+            assertEquals(pulsar2.getState(), PulsarService.State.Started);
+        });
     }
 
     @AfterMethod(alwaysRun = true)
@@ -168,7 +171,7 @@ public class AntiAffinityNamespaceGroupTest {
     private void createCluster(ZooKeeper zk, ServiceConfiguration config) throws Exception {
         ZkUtils.createFullPathOptimistic(zk, "/admin/clusters/" + config.getClusterName(),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                        new ClusterData("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get())),
+                        ClusterData.builder().serviceUrl("http://" + config.getAdvertisedAddress() + ":" + config.getWebServicePort().get()).build()),
                 Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
@@ -211,7 +214,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         pulsar1.getConfiguration().setFailureDomainsEnabled(true);
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -307,7 +310,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -402,15 +405,17 @@ public class AntiAffinityNamespaceGroupTest {
         final String namespace2 = tenant + "/" + cluster + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
 
-        FailureDomain domain1 = new FailureDomain();
-        domain1.brokers = Sets.newHashSet(broker1);
+        FailureDomain domain1 = FailureDomain.builder()
+                .brokers(Collections.singleton(broker1))
+                .build();
         admin1.clusters().createFailureDomain(cluster, "domain1", domain1);
 
-        FailureDomain domain2 = new FailureDomain();
-        domain2.brokers = Sets.newHashSet(broker2);
+        FailureDomain domain2 = FailureDomain.builder()
+                .brokers(Collections.singleton(broker2))
+                .build();
         admin1.clusters().createFailureDomain(cluster, "domain2", domain2);
 
-        admin1.tenants().createTenant(tenant, new TenantInfo(null, Sets.newHashSet(cluster)));
+        admin1.tenants().createTenant(tenant, new TenantInfoImpl(null, Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
 
@@ -418,16 +423,10 @@ public class AntiAffinityNamespaceGroupTest {
         admin1.namespaces().setNamespaceAntiAffinityGroup(namespace2, namespaceAntiAffinityGroup);
 
         // validate strategically if brokerToDomainCache updated
-        for (int i = 0; i < 5; i++) {
-            if (!isLoadManagerUpdatedDomainCache(primaryLoadManager)
-                    || !isLoadManagerUpdatedDomainCache(secondaryLoadManager)) {
-                Thread.sleep(200);
-            } else {
-                break;
-            }
-        }
-        assertTrue(isLoadManagerUpdatedDomainCache(primaryLoadManager));
-        assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(isLoadManagerUpdatedDomainCache(primaryLoadManager));
+            assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
+        });
 
         ServiceUnitId serviceUnit1 = makeBundle(tenant, cluster, "ns1");
         String selectedBroker1 = primaryLoadManager.selectBrokerForAssignment(serviceUnit1).get();
@@ -460,7 +459,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -513,7 +512,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "0x00000000_0xffffffff";
 
         admin1.tenants().createTenant("my-tenant",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;

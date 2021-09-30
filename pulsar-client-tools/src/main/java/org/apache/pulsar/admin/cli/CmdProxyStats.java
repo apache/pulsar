@@ -41,7 +41,8 @@ public class CmdProxyStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonArray stats = getAdmin().proxyStats().getConnections();
+            String json = getAdmin().proxyStats().getConnections();
+            JsonArray stats = new Gson().fromJson(json, JsonArray.class);
             printStats(stats, indent);
         }
     }
@@ -53,7 +54,8 @@ public class CmdProxyStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            JsonObject stats = getAdmin().proxyStats().getTopics();
+            String json = getAdmin().proxyStats().getTopics();
+            JsonObject stats = new Gson().fromJson(json, JsonObject.class);
             printStats(stats, indent);
         }
     }

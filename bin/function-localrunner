@@ -68,7 +68,10 @@ add_maven_deps_to_classpath() {
     f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
-	    ${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile="${f}" &> /dev/null
+    (
+      cd "${PULSAR_HOME}"
+      ${MVN} -pl distribution/server generate-sources &> /dev/null
+    )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }
@@ -82,6 +85,9 @@ fi
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
+
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 
 # Ensure we can read bigger content from ZK. (It might be
 # rarely needed when trying to list many z-nodes under a

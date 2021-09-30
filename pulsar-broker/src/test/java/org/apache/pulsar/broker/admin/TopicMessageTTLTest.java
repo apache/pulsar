@@ -19,34 +19,34 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Test(groups = "flaky")
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
-
+    private final String testCluster = "test";
     private final String testNamespace = "my-namespace";
-
     private final String myNamespace = testTenant + "/" + testNamespace;
-
     private final String testTopic = "persistent://" + myNamespace + "/test-topic-message-ttl";
 
     @BeforeMethod
@@ -58,10 +58,10 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testCluster));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testCluster));
         admin.topics().createPartitionedTopic(testTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "dummy-topic").create();
         producer.close();
@@ -72,6 +72,11 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "isV1")
+    public Object[][] isV1() {
+        return new Object[][] { { true }, { false } };
     }
 
     @Test
@@ -131,8 +136,8 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         this.conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
         admin.topics().createPartitionedTopic(testTopic, 2);
@@ -162,22 +167,36 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
-        Assert.assertEquals(method.invoke(persistentTopic), 3600);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 3600);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 10);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 10);
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 0);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 0));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 0);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 0);
 
         admin.namespaces().removeNamespaceMessageTTL(myNamespace);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>) method.invoke(persistentTopic)).join(), 3600);
+    }
+
+    @Test(dataProvider = "isV1")
+    public void testNamespaceTTL(boolean isV1) throws Exception {
+        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1"+isV1;
+        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet(testCluster));
+
+        admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
+        Awaitility.await().untilAsserted(()
+                -> Assert.assertEquals(admin.namespaces().getNamespaceMessageTTL(myNamespace).intValue(), 10));
+
+        admin.namespaces().removeNamespaceMessageTTL(myNamespace);
+        Awaitility.await().untilAsserted(()
+                -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
     }
 
     @Test(timeOut = 20000)
@@ -219,7 +238,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().removeMessageTTL(topicName);
         Awaitility.await().untilAsserted(()
                 -> Assert.assertEquals(admin.topics().getMessageTTL(topicName, true).intValue(), 3600));
-        Assert.assertEquals((int)method.invoke(persistentTopic), 3600);
+        Assert.assertEquals((int) ((CompletableFuture<Integer>)method.invoke(persistentTopic)).join(), 3600);
     }
 
 }

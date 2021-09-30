@@ -19,12 +19,12 @@
 package org.apache.pulsar.io.core;
 
 import java.util.Collection;
-
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.BaseContext;
 
 /**
  * Interface for a sink connector providing information about environment where it is running.
@@ -32,14 +32,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface SinkContext extends ConnectorContext {
-
-    /**
-     * Get a list of all input topics
-     * @return a list of all input topics
-     */
-    Collection<String> getInputTopics();
-
+public interface SinkContext extends BaseContext {
     /**
      * The name of the sink that we are executing
      * @return The Sink name
@@ -47,7 +40,15 @@ public interface SinkContext extends ConnectorContext {
     String getSinkName();
 
     /**
+     * Get a list of all input topics.
+     *
+     * @return a list of all input topics
+     */
+    Collection<String> getInputTopics();
+
+    /**
      * Get subscription type used by the source providing data for the sink
+     *
      * @return subscription type
      */
     default SubscriptionType getSubscriptionType() {
@@ -56,6 +57,7 @@ public interface SinkContext extends ConnectorContext {
 
     /**
      * Reset the subscription associated with this topic and partition to a specific message id.
+     *
      * @param topic - topic name
      * @param partition - partition id (0 for non-partitioned topics)
      * @param messageId to reset to
@@ -66,7 +68,9 @@ public interface SinkContext extends ConnectorContext {
     }
 
     /**
-     * Stop requesting new messages for given topic and partition until {@link #resume(String topic)} is called.
+     * Stop requesting new messages for given topic and partition until {@link #resume(String topic, int partition)}
+     * is called.
+     *
      * @param topic - topic name
      * @param partition - partition id (0 for non-partitioned topics)
      */

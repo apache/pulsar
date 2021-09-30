@@ -59,7 +59,7 @@ public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic).publishers.size() == 1);
+                return (admin.topics().getStats(sinkTopic).getPublishers().size() == 1);
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -78,29 +78,29 @@ public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
         retryStrategically((test) -> {
             try {
                 TopicStats sourceStats = admin.topics().getStats(sinkTopic2);
-                return sourceStats.publishers.size() == 1
-                        && sourceStats.publishers.get(0).metadata != null
-                        && sourceStats.publishers.get(0).metadata.containsKey("id")
-                        && sourceStats.publishers.get(0).metadata.get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+                return sourceStats.getPublishers().size() == 1
+                        && sourceStats.getPublishers().get(0).getMetadata() != null
+                        && sourceStats.getPublishers().get(0).getMetadata().containsKey("id")
+                        && sourceStats.getPublishers().get(0).getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
 
         TopicStats sourceStats = admin.topics().getStats(sinkTopic2);
-        assertEquals(sourceStats.publishers.size(), 1);
-        assertNotNull(sourceStats.publishers.get(0).metadata);
-        assertTrue(sourceStats.publishers.get(0).metadata.containsKey("id"));
-        assertEquals(sourceStats.publishers.get(0).metadata.get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+        assertEquals(sourceStats.getPublishers().size(), 1);
+        assertNotNull(sourceStats.getPublishers().get(0).getMetadata());
+        assertTrue(sourceStats.getPublishers().get(0).getMetadata().containsKey("id"));
+        assertEquals(sourceStats.getPublishers().get(0).getMetadata().get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic2).publishers.size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
+                return (admin.topics().getStats(sinkTopic2).getPublishers().size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
-        assertEquals(admin.topics().getStats(sinkTopic2).publishers.size(), 1);
+        assertEquals(admin.topics().getStats(sinkTopic2).getPublishers().size(), 1);
 
         String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info("prometheusMetrics: {}", prometheusMetrics);

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-file(GLOB PULSAR_SOURCES *.cc *.h lz4/*.c lz4/*.h checksum/*.cc checksum/*.h stats/*.cc stats/*.h c/*.cc c/*.h auth/*.cc auth/*.h auth/athenz/*.cc auth/athenz/*.h)
+file(GLOB PULSAR_SOURCES *.cc *.h lz4/*.cc lz4/*.h checksum/*.cc checksum/*.h stats/*.cc stats/*.h c/*.cc c/*.h auth/*.cc auth/*.h auth/athenz/*.cc auth/athenz/*.h)
 
 execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/../src/get-project-version.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PV)
 set (CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -D_PULSAR_VERSION_=\\\"${PV}\\\"")
@@ -63,6 +63,10 @@ if (BUILD_DYNAMIC_LIB)
     set_property(TARGET pulsarShared PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED})
     set_property(TARGET pulsarShared PROPERTY VERSION ${LIBRARY_VERSION})
     target_link_libraries(pulsarShared ${COMMON_LIBS} ${CMAKE_DL_LIBS})
+    if (MSVC)
+        target_include_directories(pulsarShared PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
+        target_link_options(pulsarShared PRIVATE $<$<CONFIG:DEBUG>:/NODEFAULTLIB:MSVCRT>)
+    endif()
 endif()
 
 
@@ -87,15 +91,14 @@ endif()
 
 if (BUILD_STATIC_LIB)
     add_library(pulsarStatic STATIC $<TARGET_OBJECTS:PULSAR_OBJECT_LIB>)
-    set_property(TARGET pulsarStatic PROPERTY OUTPUT_NAME ${LIB_NAME})
+    if (MSVC)
+        set_property(TARGET pulsarStatic PROPERTY OUTPUT_NAME "${LIB_NAME}-static")
+        target_include_directories(pulsarStatic PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
+    else ()
+        set_property(TARGET pulsarStatic PROPERTY OUTPUT_NAME ${LIB_NAME})
+    endif()
     set_property(TARGET pulsarStatic PROPERTY VERSION ${LIBRARY_VERSION})
     target_compile_definitions(pulsarStatic PRIVATE PULSAR_STATIC)
-endif()
-
-if (MSVC)
-    target_include_directories(pulsarStatic PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
-    target_include_directories(pulsarShared PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
-    target_link_options(pulsarShared PRIVATE $<$<CONFIG:DEBUG>:/NODEFAULTLIB:MSVCRT>)
 endif()
 
 # When linking statically, install a libpulsar.a that contains all the
@@ -147,7 +150,7 @@ elseif(BUILD_STATIC_LIB)
     # Install regular libpulsar.a
     target_link_libraries(pulsarStatic ${COMMON_LIBS})
     install(TARGETS pulsarStatic DESTINATION lib)
-endif(LINK_STATIC)
+endif()
 
 if (BUILD_STATIC_LIB)
     install(TARGETS pulsarStatic DESTINATION lib)

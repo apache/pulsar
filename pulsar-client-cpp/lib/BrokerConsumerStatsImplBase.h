@@ -25,6 +25,7 @@
 namespace pulsar {
 class BrokerConsumerStatsImplBase {
    public:
+    virtual ~BrokerConsumerStatsImplBase() = default;
     /** Returns true if the Stats are still valid **/
     virtual bool isValid() const = 0;
 

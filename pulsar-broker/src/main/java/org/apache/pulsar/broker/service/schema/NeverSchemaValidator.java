@@ -28,8 +28,8 @@ import org.slf4j.LoggerFactory;
  * An avro schema validator that always reports as incompatible, if there is an existing schema.
  */
 class NeverSchemaValidator implements SchemaValidator {
-    private final static Logger log = LoggerFactory.getLogger(NeverSchemaValidator.class);
-    final static NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
+    private static final Logger log = LoggerFactory.getLogger(NeverSchemaValidator.class);
+    static final NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
 
     @Override
     public void validate(Schema toValidate, Iterable<Schema> existing)

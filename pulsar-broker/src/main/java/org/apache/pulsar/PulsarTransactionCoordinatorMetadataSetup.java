@@ -20,8 +20,10 @@ package org.apache.pulsar;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -52,6 +54,8 @@ public class PulsarTransactionCoordinatorMetadataSetup {
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
 
+        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -62,6 +66,12 @@ public class PulsarTransactionCoordinatorMetadataSetup {
             jcommander.parse(args);
             if (arguments.help) {
                 jcommander.usage();
+                return;
+            }
+            if (arguments.generateDocs) {
+                CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+                cmd.addCommand("initialize-transaction-coordinator-metadata", arguments);
+                cmd.run(null);
                 return;
             }
         } catch (Exception e) {
@@ -82,12 +92,14 @@ public class PulsarTransactionCoordinatorMetadataSetup {
 
         try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup
                 .initMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+            PulsarResources pulsarResources = new PulsarResources(null, configStore);
             // Create system tenant
             PulsarClusterMetadataSetup
-                    .createTenantIfAbsent(configStore, NamespaceName.SYSTEM_NAMESPACE.getTenant(), arguments.cluster);
+                    .createTenantIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                            arguments.cluster);
 
             // Create system namespace
-            PulsarClusterMetadataSetup.createNamespaceIfAbsent(configStore, NamespaceName.SYSTEM_NAMESPACE,
+            PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE,
                     arguments.cluster);
 
             // Create transaction coordinator assign partitioned topic
