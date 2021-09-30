@@ -384,6 +384,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
                             cumulativeAckOfTransaction = null;
                         }
+                        // pendingAck handle next pr will fix
                         this.persistentSubscription.redeliverUnacknowledgedMessages(consumer,
                                 ((PersistentDispatcherSingleActiveConsumer) this.persistentSubscription
                                         .getDispatcher()).getConsumerEpoch());

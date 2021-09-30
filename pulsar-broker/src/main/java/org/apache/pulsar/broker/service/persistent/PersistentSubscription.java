@@ -1091,7 +1091,8 @@ public class PersistentSubscription implements Subscription {
         if (dispatcher != null) {
             return dispatcher.redeliverUnacknowledgedMessages(consumer, consumerEpoch);
         }
-        return CompletableFuture.completedFuture(null);
+        return FutureUtil.failedFuture(
+                new BrokerServiceException.ServiceUnitNotReadyException("Dispatcher not init complete!"));
     }
 
     @Override

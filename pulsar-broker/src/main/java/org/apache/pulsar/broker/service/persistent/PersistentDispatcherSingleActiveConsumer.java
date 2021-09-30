@@ -294,18 +294,21 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             this.consumerEpoch = epoch;
         } else {
             completableFuture.completeExceptionally(new BrokerServiceException("consumerId: " + consumer.consumerId()
-                    +  "redeliver fail! " + "now epoch : " + this.consumerEpoch + "epoch : " + epoch));
+                    +  "redeliver fail! " + "now epoch : " + this.consumerEpoch + " epoch : " + epoch));
             return;
         }
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
+            completableFuture.complete(null);
             return;
         }
 
         if (readOnActiveConsumerTask != null) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewinded",
                     name, consumer);
+
+            completableFuture.complete(null);
             return;
         }
 

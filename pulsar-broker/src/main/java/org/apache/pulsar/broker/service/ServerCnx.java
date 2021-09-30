@@ -1431,8 +1431,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     protected void handleRedeliverUnacknowledged(CommandRedeliverUnacknowledgedMessages redeliver) {
-
-        checkArgument(state == State.Connected);
         CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
         final boolean hasRequestId = redeliver.hasRequestId();
         final long requestId = hasRequestId ? redeliver.getRequestId() : 0;
@@ -1442,22 +1440,39 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] Received Resend Command from consumer {} , requestId {}",
                     remoteAddress, redeliver.getConsumerId(), requestId);
         }
+
+        if (state != State.Connected && hasRequestId) {
+            log.error("redeliverUnacknowledgedMessages error! " +
+                            "consumerId : {}, requestId: {}", consumerId, requestId,
+                    new ServiceUnitNotReadyException("ServerCnx don't connect!"));
+            ctx.writeAndFlush(Commands.newError(requestId,
+                    ServerError.ServiceNotReady,
+                    consumerId + " don't connect broker!"));
+
+        }
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
             if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch()).whenComplete((v, e) -> {
-                    if (e != null && hasRequestId) {
-                        ctx.writeAndFlush(Commands.newError(requestId,
-                                BrokerServiceException.getClientErrorCode(e), e.getMessage()));
-                    } else if (hasRequestId) {
-                        ctx.writeAndFlush(Commands.newSuccess(requestId));
+                    if (hasRequestId) {
+                        if (e != null) {
+                            log.error("redeliverUnacknowledgedMessages error! " +
+                                    "consumerId : {}, requestId: {}", consumerId, requestId, e);
+                            ctx.writeAndFlush(Commands.newError(requestId,
+                                    BrokerServiceException.getClientErrorCode(e), e.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newSuccess(requestId));
+                        }
                     }
                 });
             }
         } else {
             if (hasRequestId) {
+                log.error("redeliverUnacknowledgedMessages error! " +
+                        "consumerId : {}, requestId: {}", consumerId, requestId,
+                        new ServiceUnitNotReadyException("Consumer don't init complete!"));
                 ctx.writeAndFlush(Commands.newError(requestId,
                         ServerError.ServiceNotReady,
                         consumerId + " not init complete!"));
