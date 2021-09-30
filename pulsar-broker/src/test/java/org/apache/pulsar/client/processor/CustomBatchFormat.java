@@ -19,12 +19,13 @@
 package org.apache.pulsar.client.processor;
 
 import io.netty.buffer.ByteBuf;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -42,6 +43,12 @@ public class CustomBatchFormat {
     public static final String KEY = "entry.format";
     public static final String VALUE = "custom";
 
+    @AllArgsConstructor
+    @Getter
+    public static class Metadata {
+        private final int numMessages;
+    }
+
     public static ByteBuf serialize(Iterable<String> strings) {
         final ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(1024);
         buf.writeShort(0);
@@ -54,50 +61,30 @@ public class CustomBatchFormat {
         return buf;
     }
 
-    public static abstract class StringIterable implements Iterable<String> {
-
-        public abstract int size();
-    };
-
-    public static StringIterable deserialize(final ByteBuf buf) {
-        final int numMessages = buf.readShort();
-        return new StringIterable() {
-            @Override
-            public int size() {
-                return numMessages;
-            }
-
-            @Override
-            public Iterator<String> iterator() {
-                return new Iterator<String>() {
-                    int index = 0;
-
-                    @Override
-                    public boolean hasNext() {
-                        return index < numMessages;
-                    }
-
-                    @Override
-                    public String next() {
-                        index++;
-                        return readString(buf);
-                    }
-                };
-            }
-        };
-    }
-
     private static void writeString(final ByteBuf buf, final String s) {
-        final byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+        final byte[] bytes = Schema.STRING.encode(s);
         buf.writeShort(bytes.length);
         buf.writeBytes(bytes);
     }
 
-    private static String readString(final ByteBuf buf) {
+    public static Metadata readMetadata(final ByteBuf buf) {
+        return new Metadata(buf.readShort());
+    }
+
+    public static byte[] readMessage(final ByteBuf buf) {
         final short length = buf.readShort();
         final byte[] bytes = new byte[length];
         buf.readBytes(bytes);
-        return new String(bytes, StandardCharsets.UTF_8);
+        return bytes;
+    }
+
+    public static List<String> deserialize(final ByteBuf buf) {
+        final Metadata metadata = readMetadata(buf);
+        final List<String> strings = new ArrayList<>();
+        for (int i = 0; i < metadata.getNumMessages(); i++) {
+            strings.add(Schema.STRING.decode(readMessage(buf)));
+        }
+        return strings;
     }
 
     @Test
@@ -109,8 +96,7 @@ public class CustomBatchFormat {
 
         for (List<String> input : inputs) {
             final ByteBuf buf = serialize(input);
-            final List<String> parsedTokens = new ArrayList<>();
-            deserialize(buf).forEach(parsedTokens::add);
+            final List<String> parsedTokens = deserialize(buf);
 
             Assert.assertEquals(parsedTokens, input);
             Assert.assertEquals(parsedTokens.size(), input.size());
