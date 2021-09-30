@@ -35,6 +35,9 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN;
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN_V2;
+
 /**
  * Load shedding strategy that unloads any broker that exceeds the average resource utilization of all brokers by a
  * configured threshold. As a consequence, this strategy tends to distribute load among all brokers. It does this by
@@ -107,12 +110,15 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
 
             if (localData.getBundles().size() > 1) {
-                loadData.getBundleData().entrySet().stream().map((e) -> {
-                    String bundle = e.getKey();
-                    BundleData bundleData = e.getValue();
-                    TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                    double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
-                    return Pair.of(bundle, throughput);
+                loadData.getBundleData().entrySet().stream()
+                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(e.getKey()).matches()
+                        && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(e.getKey()).matches())
+                    .map((e) -> {
+                        String bundle = e.getKey();
+                        BundleData bundleData = e.getValue();
+                        TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                        double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+                        return Pair.of(bundle, throughput);
                 }).filter(e ->
                         !recentlyUnloadedBundles.containsKey(e.getLeft())
                 ).filter(e ->

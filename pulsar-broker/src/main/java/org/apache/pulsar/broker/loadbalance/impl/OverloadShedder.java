@@ -33,6 +33,9 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN;
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN_V2;
+
 /**
  * Load shedding strategy which will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose
  * maximum system resource usage exceeds loadBalancerBrokerOverloadedThresholdPercentage. To see which resources are
@@ -101,15 +104,17 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 // make up for at least the minimum throughput to offload
 
                 loadData.getBundleData().entrySet().stream()
-                        .filter(e -> localData.getBundles().contains(e.getKey()))
-                        .map((e) -> {
-                            // Map to throughput value
-                            // Consider short-term byte rate to address system resource burden
-                            String bundle = e.getKey();
-                            BundleData bundleData = e.getValue();
-                            TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                            double throughput = shortTermData.getMsgThroughputIn() + shortTermData
-                                    .getMsgThroughputOut();
+                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(e.getKey()).matches()
+                            && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(e.getKey()).matches()
+                            && localData.getBundles().contains(e.getKey()))
+                    .map((e) -> {
+                        // Map to throughput value
+                        // Consider short-term byte rate to address system resource burden
+                        String bundle = e.getKey();
+                        BundleData bundleData = e.getValue();
+                        TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                        double throughput = shortTermData.getMsgThroughputIn() + shortTermData
+                                .getMsgThroughputOut();
                     return Pair.of(bundle, throughput);
                 }).filter(e -> {
                     // Only consider bundles that were not already unloaded recently
