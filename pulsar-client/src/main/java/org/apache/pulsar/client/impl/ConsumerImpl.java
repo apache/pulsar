@@ -1104,10 +1104,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     skippedMessages.incrementAndGet();
                 }
                 executeNotifyCallback((MessageImpl<T>) message);
-            }, throwable -> {
-                log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, throwable);
-                discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
             });
+        } catch (Throwable throwable) {
+            log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, throwable);
+            discardCorruptedMessage(messageId, cnx(), ValidationError.BatchDeSerializeError);
         } finally {
             entryContext.recycle();
             payload.release(); // byteBuf.release() is called in this method

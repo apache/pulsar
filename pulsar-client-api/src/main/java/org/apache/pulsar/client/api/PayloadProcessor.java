@@ -40,14 +40,13 @@ public interface PayloadProcessor {
      * @param context the message context that contains the message format information and methods to create a message
      * @param schema the message's schema
      * @param messageConsumer the callback to consume each message
-     * @param throwableConsumer the callback to handle the exception
      * @param <T>
+     * @throws Exception
      */
     <T> void process(MessagePayload payload,
                      EntryContext context,
                      Schema<T> schema,
-                     java.util.function.Consumer<Message<T>> messageConsumer,
-                     Consumer<Throwable> throwableConsumer);
+                     Consumer<Message<T>> messageConsumer) throws Exception;
 
     // The default processor for Pulsar format payload. It should be noted getNumMessages() and isBatch() methods of
     // EntryContext only work for Pulsar format. For other formats, the message metadata might be stored in the payload.
@@ -57,19 +56,14 @@ public interface PayloadProcessor {
         public <T> void process(MessagePayload payload,
                                 EntryContext context,
                                 Schema<T> schema,
-                                Consumer<Message<T>> messageConsumer,
-                                Consumer<Throwable> throwableConsumer) {
-            try {
-                if (context.isBatch()) {
-                    final int numMessages = context.getNumMessages();
-                    for (int i = 0; i < numMessages; i++) {
-                        messageConsumer.accept(context.getMessageAt(i, numMessages, payload, true, schema));
-                    }
-                } else {
-                    messageConsumer.accept(context.asSingleMessage(payload, schema));
+                                Consumer<Message<T>> messageConsumer) {
+            if (context.isBatch()) {
+                final int numMessages = context.getNumMessages();
+                for (int i = 0; i < numMessages; i++) {
+                    messageConsumer.accept(context.getMessageAt(i, numMessages, payload, true, schema));
                 }
-            } catch (Throwable throwable) {
-                throwableConsumer.accept(throwable);
+            } else {
+                messageConsumer.accept(context.asSingleMessage(payload, schema));
             }
         }
     };
