@@ -403,33 +403,39 @@ consumer.acknowledge(messages)
 
 ```
 
-> Note:
->
-> Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
->
-> The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
->
-> ```java
+:::note
 
-> Consumer consumer = client.newConsumer()
->         .topic("my-topic")
->         .subscriptionName("my-subscription")
->         .batchReceivePolicy(BatchReceivePolicy.builder()
->              .maxNumMessages(100)
->              .maxNumBytes(1024 * 1024)
->              .timeout(200, TimeUnit.MILLISECONDS)
->              .build())
->         .subscribe();
-> ```
-> The default batch receive policy is:
-> ```java
 
-> BatchReceivePolicy.builder()
->     .maxNumMessage(-1)
->     .maxNumBytes(10 * 1024 * 1024)
->     .timeout(100, TimeUnit.MILLISECONDS)
->     .build();
-> ```
+Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
+
+The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
+
+```java
+
+Consumer consumer = client.newConsumer()
+.topic("my-topic")
+.subscriptionName("my-subscription")
+.batchReceivePolicy(BatchReceivePolicy.builder()
+.maxNumMessages(100)
+.maxNumBytes(1024 * 1024)
+.timeout(200, TimeUnit.MILLISECONDS)
+.build())
+.subscribe();
+
+```
+The default batch receive policy is:
+
+```java
+
+BatchReceivePolicy.builder()
+.maxNumMessage(-1)
+.maxNumBytes(10 * 1024 * 1024)
+.timeout(100, TimeUnit.MILLISECONDS)
+.build();
+
+```
+
+:::
 
 ### Multi-topic subscriptions
 
@@ -573,9 +579,12 @@ Consumer consumer = client.newConsumer()
 
 Only the first consumer is allowed to the subscription, other consumers receive an error. The first consumer receives all 10 messages, and the consuming order is the same as the producing order.
 
-> Note:
->
-> If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error. 
+:::note
+
+
+If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error. 
+
+:::
 
 #### Failover
 
@@ -624,9 +633,12 @@ consumer2 will receive:
 
 ```
 
-> Note:
->
-> If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers. 
+:::note
+
+
+If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers. 
+
+:::
 
 #### Shared
 
@@ -741,9 +753,12 @@ Producer producer = client.newProducer()
 
 ```
 
-> Note:
->
-> If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+:::note
+
+
+If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+
+:::
 
 ## Reader 
 
