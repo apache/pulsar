@@ -65,20 +65,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getMetricsAsync() {
         WebTarget path = adminV2BrokerStats.path("/metrics");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return getCompletableFuture(path);
     }
 
     @Override
@@ -98,20 +85,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName) {
         WebTarget path = adminV2BrokerStats.path("/allocator-stats").path(allocatorName);
-        final CompletableFuture<AllocatorStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<AllocatorStats>() {
-                    @Override
-                    public void completed(AllocatorStats allocatorStats) {
-                        future.complete(allocatorStats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return getCompletableFuture(path);
     }
 
     @Override
@@ -131,20 +105,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getMBeansAsync() {
         WebTarget path = adminV2BrokerStats.path("/mbeans");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return getCompletableFuture(path);
     }
 
     @Override
@@ -164,20 +125,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getTopicsAsync() {
         WebTarget path = adminV2BrokerStats.path("/topics");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return getCompletableFuture(path);
     }
 
     @Override
@@ -197,20 +145,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<LoadManagerReport> getLoadReportAsync() {
         WebTarget path = adminV2BrokerStats.path("/load-report");
-        final CompletableFuture<LoadManagerReport> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<LoadManagerReport>() {
-                    @Override
-                    public void completed(LoadManagerReport loadManagerReport) {
-                        future.complete(loadManagerReport);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return getCompletableFuture(path);
     }
 
     @Override
@@ -230,20 +165,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getPendingBookieOpsStatsAsync() {
         WebTarget path = adminV2BrokerStats.path("/bookieops");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return getCompletableFuture(path);
     }
 
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {

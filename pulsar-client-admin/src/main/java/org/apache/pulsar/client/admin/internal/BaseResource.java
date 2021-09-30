@@ -282,4 +282,21 @@ public abstract class BaseResource {
             }
         }
     }
+
+    public <T> CompletableFuture<T> getCompletableFuture(WebTarget path) {
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<T>() {
+                    @Override
+                    public void completed(T t) {
+                        future.complete(t);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
 }
