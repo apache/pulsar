@@ -1827,8 +1827,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
-
-        if (opReadEntry.readPosition.compareTo(opReadEntry.maxPosition) > 0) {
+        //entries that has been offloaded do not need to be restricted by TransactionBuffer`maxReadPosition
+        LedgerInfo info = ledgers.get(ledger.getId());
+        if (opReadEntry.readPosition.compareTo(opReadEntry.maxPosition) > 0
+                && !info.getOffloadContext().getComplete()) {
             opReadEntry.checkReadCompletion();
             return;
         }
@@ -1849,7 +1851,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // can read max position entryId
         if (ledger.getId() == opReadEntry.maxPosition.getLedgerId()) {
-            lastEntryInLedger = min(opReadEntry.maxPosition.getEntryId(), lastEntryInLedger);
+            if(!info.getOffloadContext().getComplete()){
+                lastEntryInLedger = min(opReadEntry.maxPosition.getEntryId(), lastEntryInLedger);
+            }
         }
 
         if (firstEntry > lastEntryInLedger) {
@@ -2226,10 +2230,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
                 && config.getLedgerOffloader().getOffloadPolicies() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
-                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0)
-        {
-            if(config.isTransactionEnable() && config.getLedgerOffloader().getOffloadFilter() == null){
-                return;
+                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+            if(config.isTransactionEnable()){
+                if(config.getLedgerOffloader().getOffloadFilter() == null || !config.getLedgerOffloader().getOffloadFilter().isTransactionBufferReady()){
+                    return;
+                }
             }
             executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
         }

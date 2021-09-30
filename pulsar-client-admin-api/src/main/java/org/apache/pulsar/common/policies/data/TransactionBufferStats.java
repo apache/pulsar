@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import javax.swing.text.Position;
-
 public class TransactionBufferStats {
 
     /** The state of this transaction buffer. */
@@ -30,11 +28,4 @@ public class TransactionBufferStats {
 
     /** The last snapshot timestamps of this transaction buffer. */
     public long lastSnapshotTimestamps;
-
-    /**
-     * The last snapshot maxReadPosition(stablePosition) of this transactionBuffer.
-     */
-    public long persistentMaxReadPositionEntryId;
-
-    public long persistentMaxReadPositionLedgerId;
 }

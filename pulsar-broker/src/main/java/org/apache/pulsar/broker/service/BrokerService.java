@@ -1232,8 +1232,10 @@ public class BrokerService implements Closeable {
                                     preCreateSubForCompaction = ((SystemTopic) persistentTopic)
                                             .preCreateSubForCompactionIfNeeded();
                                 }
-                                managedLedgerConfig.getLedgerOffloader()
-                                        .setOffloadFilter(new OffloadFilterImp(persistentTopic));
+                                if(persistentTopic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()){
+                                    managedLedgerConfig.getLedgerOffloader()
+                                            .setOffloadFilter(new OffloadFilterImp(persistentTopic));
+                                }
                                 CompletableFuture<Void> replicationFuture = persistentTopic
                                         .initialize()
                                         .thenCompose(__ -> persistentTopic.checkReplication());

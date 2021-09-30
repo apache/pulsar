@@ -66,7 +66,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final PersistentTopic topic;
 
     private volatile PositionImpl maxReadPosition = PositionImpl.latest;
-    private volatile PositionImpl persistentMaxReadPosition = PositionImpl.latest;
 
     /**
      * Ongoing transaction, map for remove txn stable position, linked for find max read position.
@@ -120,8 +119,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void handleSnapshot(TransactionBufferSnapshot snapshot) {
                         maxReadPosition = PositionImpl.get(snapshot.getMaxReadPositionLedgerId(),
                                 snapshot.getMaxReadPositionEntryId());
-                        persistentMaxReadPosition = maxReadPosition;
-                        changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
                         if (snapshot.getAborts() != null) {
                             snapshot.getAborts().forEach(abortTxnMetadata ->
                                     aborts.put(new TxnID(abortTxnMetadata.getTxnIdMostBits(),
@@ -185,15 +182,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
-        PositionImpl preMaxReadPosition = this.maxReadPosition;
         if (!ongoingTxns.containsKey(txnId) && !aborts.containsKey(txnId)) {
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             //max read position is less than first ongoing transaction message position, so entryId -1
             maxReadPosition = PositionImpl.get(firstPosition.getLedgerId(), firstPosition.getEntryId() - 1);
-            if(preMaxReadPosition != maxReadPosition){
-                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
-            }
         }
     }
 
@@ -336,13 +329,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             }
             writer.writeAsync(snapshot).thenAccept((messageId) -> {
                 this.lastSnapshotTimestamps = System.currentTimeMillis();
-                synchronized (persistentMaxReadPosition){
-                    PositionImpl newPersistentPosition = new PositionImpl(snapshot.getMaxReadPositionLedgerId(),
-                            snapshot.getMaxReadPositionEntryId());
-                    if(newPersistentPosition.compareTo(persistentMaxReadPosition) > 0){
-                        persistentMaxReadPosition = newPersistentPosition;
-                    }
-                }
                 if (log.isDebugEnabled()) {
                     log.debug("[{}]Transaction buffer take snapshot success! "
                             + "messageId : {}", topic.getName(), messageId);
@@ -429,8 +415,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
-        transactionBufferStats.persistentMaxReadPositionLedgerId = this.persistentMaxReadPosition.getLedgerId();
-        transactionBufferStats.persistentMaxReadPositionEntryId = this.persistentMaxReadPosition.getEntryId();
         return transactionBufferStats;
     }
 

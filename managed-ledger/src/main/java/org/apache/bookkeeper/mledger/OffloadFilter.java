@@ -24,7 +24,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 public interface OffloadFilter {
 
     /**
-     * Check whether this Entry needs offload
+     * Check whether this Entry needs offload.Exclude the aborted message and transaction mark
      * @return
      */
     public boolean CheckIfNeedOffload(LedgerEntry LedgerEntry);
@@ -33,5 +33,11 @@ public interface OffloadFilter {
      * PersistentMaxReadPosition is the stable Position in the snapshot
      * @return
      */
-    public PositionImpl getPersistentMaxReadPosition();
+    public PositionImpl getMaxReadPosition();
+
+    /**
+     *
+     * @return
+     */
+    public boolean isTransactionBufferReady();
 }

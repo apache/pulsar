@@ -182,7 +182,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             long ledgerId = readHandle.getId();
-            if(offloadFilter != null && ledgerId >= offloadFilter.getPersistentMaxReadPosition().getLedgerId()){
+            if(offloadFilter != null && ledgerId >= offloadFilter.getMaxReadPosition().getLedgerId()){
                 return;
             }
             String storagePath = getStoragePath(storageBasePath, extraMetadata.get(MANAGED_LEDGER_NAME));

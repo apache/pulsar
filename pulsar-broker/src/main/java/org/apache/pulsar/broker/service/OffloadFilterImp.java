@@ -33,9 +33,12 @@ public class OffloadFilterImp implements OffloadFilter {
     }
 
     @Override
-    public PositionImpl getPersistentMaxReadPosition() {
-        TransactionBufferStats transactionBufferStats = persistentTopic.getTransactionBufferStats();
-        return new PositionImpl(transactionBufferStats.persistentMaxReadPositionLedgerId,
-                transactionBufferStats.persistentMaxReadPositionEntryId);
+    public PositionImpl getMaxReadPosition() {
+        return persistentTopic.getMaxReadPosition();
+    }
+
+    @Override
+    public boolean isTransactionBufferReady() {
+        return persistentTopic.getTransactionBufferStats().state.equals("Ready") ;
     }
 }
