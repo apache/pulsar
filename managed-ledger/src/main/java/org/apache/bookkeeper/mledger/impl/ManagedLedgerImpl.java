@@ -154,6 +154,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private final ManagedCursorContainer cursors = new ManagedCursorContainer();
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
+    private final ManagedCursorContainer nonDurableActiveCursors =
+            new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
 
     // Ever increasing counter of entries added
     @VisibleForTesting
@@ -1917,6 +1919,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     void doCacheEviction(long maxTimestamp) {
+        if (entryCache.getSize() <= 0) {
+            return;
+        }
         // Always remove all entries already read by active cursors
         PositionImpl slowestReaderPos = getEarlierReadPositionForActiveCursors();
         if (slowestReaderPos != null) {
@@ -1928,17 +1933,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private PositionImpl getEarlierReadPositionForActiveCursors() {
-        PositionImpl smallest = null;
-        for (ManagedCursor cursor : activeCursors) {
-            PositionImpl p = (PositionImpl) cursor.getReadPosition();
-            if (smallest == null) {
-                smallest = p;
-            } else if (p.compareTo(smallest) < 0) {
-                smallest = p;
-            }
+        PositionImpl nonDurablePosition = nonDurableActiveCursors.getSlowestReadPositionForActiveCursors();
+        PositionImpl durablePosition = activeCursors.getSlowestReadPositionForActiveCursors();
+        if (nonDurablePosition == null) {
+            return durablePosition;
         }
-
-        return smallest;
+        if (durablePosition == null) {
+            return nonDurablePosition;
+        }
+        return durablePosition.compareTo(nonDurablePosition) > 0 ? nonDurablePosition : durablePosition;
     }
 
     void updateCursor(ManagedCursorImpl cursor, PositionImpl newPosition) {
@@ -3101,6 +3104,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (activeCursors.get(cursor.getName()) == null) {
             activeCursors.add(cursor);
         }
+        if (!cursor.isDurable() && nonDurableActiveCursors.get(cursor.getName()) == null) {
+            nonDurableActiveCursors.add(cursor);
+        }
     }
 
     public void deactivateCursor(ManagedCursor cursor) {
@@ -3116,6 +3122,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     discardEntriesFromCache((ManagedCursorImpl) activeCursors.getSlowestReader(),
                             getPreviousPosition((PositionImpl) activeCursors.getSlowestReader().getReadPosition()));
                 }
+            }
+            if (!cursor.isDurable()) {
+                nonDurableActiveCursors.removeCursor(cursor.getName());
             }
         }
     }
