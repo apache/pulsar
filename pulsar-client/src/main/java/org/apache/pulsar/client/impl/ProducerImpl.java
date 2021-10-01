@@ -902,9 +902,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void closeAndClearPendingMessages() {
-        client.cleanupProducer(this);
         synchronized (this) {
             setState(State.Closed);
+            client.cleanupProducer(this);
             PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
                     format("The producer %s of the topic %s was already closed when closing the producers",
                             producerName, topic));
