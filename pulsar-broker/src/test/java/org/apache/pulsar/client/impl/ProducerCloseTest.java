@@ -85,9 +85,9 @@ public class ProducerCloseTest extends ProducerConsumerBase {
                 .batchingMaxBytes(Integer.MAX_VALUE)
                 .enableBatching(true)
                 .create();
-        final TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage();
-        final TypedMessageBuilder<byte[]> value = messageBuilder.value("test-msg".getBytes(StandardCharsets.UTF_8));
-        final CompletableFuture<MessageId> completableFuture = value.sendAsync();
+        CompletableFuture<MessageId> completableFuture = producer.newMessage()
+            .value("test-msg".getBytes(StandardCharsets.UTF_8))
+            .sendAsync();
         // By setting the state to Failed, the close method will exit early because the previous state was not Ready.
         producer.setState(HandlerState.State.Failed);
         producer.closeAsync();
