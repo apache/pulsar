@@ -3169,7 +3169,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // for previous ledgers, LedgerInfo in ZK has the number of entries
             if (currentLedger != null && currentLedgerId == currentLedger.getId()) {
                 lastLedger = true;
-                totalEntriesInCurrentLedger = lastConfirmedEntry.getEntryId() + 1;
+                if (currentLedgerEntries > 0) {
+                    totalEntriesInCurrentLedger = lastConfirmedEntry.getEntryId() + 1;
+                } else {
+                    totalEntriesInCurrentLedger = 0;
+                }
             } else {
                 totalEntriesInCurrentLedger = ledgers.get(currentLedgerId).getEntries();
             }
@@ -3197,6 +3201,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         PositionImpl positionToReturn = getPreviousPosition(PositionImpl.get(currentLedgerId, currentEntryId));
+        if (positionToReturn.compareTo(lastConfirmedEntry) > 0) {
+            positionToReturn = lastConfirmedEntry;
+        }
         if (log.isDebugEnabled()) {
             log.debug("getPositionAfterN: Start position {}:{}, startIncluded: {}, Return position {}:{}",
                     startPosition.getLedgerId(), startPosition.getEntryId(), startRange, positionToReturn.getLedgerId(),
