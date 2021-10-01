@@ -875,9 +875,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         ClientCnx cnx = cnx();
         if (cnx == null || currentState != State.Ready) {
             log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
-            client.cleanupProducer(this);
             closeAndClearPendingMessages();
-
             return CompletableFuture.completedFuture(null);
         }
 
@@ -892,9 +890,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // connection did break in the meantime. In any case, the producer is gone.
                 log.info("[{}] [{}] Closed Producer", topic, producerName);
                 closeAndClearPendingMessages();
-
                 closeFuture.complete(null);
-                client.cleanupProducer(this);
             } else {
                 closeFuture.completeExceptionally(exception);
             }
@@ -906,8 +902,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void closeAndClearPendingMessages() {
-        setState(State.Closed);
+        client.cleanupProducer(this);
         synchronized (this) {
+            setState(State.Closed);
             PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
                     format("The producer %s of the topic %s was already closed when closing the producers",
                             producerName, topic));
