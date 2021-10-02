@@ -30,14 +30,14 @@
 <tr><td><code>inputDirectory</code></td><td>String</td><td>true</td><td>没有默认值</td><td>要拉取文件的输入目录。</td></tr>
 <tr><td><code>recurse</code></td><td>Boolean</td><td>false</td><td>true</td><td>是否从子目录上拉取文件。</td></tr>
 <tr><td><code>keepFile</code></td><td>Boolean</td><td>false</td><td>false</td><td>如果设置为 true，文件处理后不会被删除，这意味着文件可以连续被抓取。</td></tr>
-<tr><td><code>fileFilter</code></td><td>String</td><td>false</td><td>[^\.].*</td><td>已选中匹配给定正则表达式的文件。</td></tr>
-<tr><td><code>pathFilter</code></td><td>String</td><td>false</td><td>NULL</td><td>如果 <code>循环</code> 设置为真，将扫描匹配给定正则表达式的子目录。</td></tr>
-<tr><td><code>minimumFileAge</code></td><td>Integer</td><td>false</td><td>0</td><td>可以处理文件的最低年龄。 <br /><br />任何小于 <code>最小文件年龄</code> (根据上次修改日期) 的文件都被忽略。</td></tr>
-<tr><td><code>maximumFileAge</code></td><td>Long</td><td>false</td><td>Long.MAX_VALUE</td><td>可以处理文件的最大年龄。 <br /><br />任何超过 <code>最大文件时代</code> (根据上次修改日期) 的文件被忽略。</td></tr>
+<tr><td><code>fileFilter</code></td><td>String</td><td>false</td><td>[^\.].*</td><td>已选中名称匹配已给定正则表达式的文件。</td></tr>
+<tr><td><code>pathFilter</code></td><td>String</td><td>false</td><td>NULL</td><td>如果 <code>recurse</code> 设置为 true，将扫描路径匹配给定正则表达式的子目录。</td></tr>
+<tr><td><code>minimumFileAge</code></td><td>Integer</td><td>false</td><td>0</td><td>可以处理文件的最小创建时间（age）。 <br /><br />任何小于 <code>minimumFileAge</code> (根据上次修改日期) 的文件都被忽略。</td></tr>
+<tr><td><code>maximumFileAge</code></td><td>Long</td><td>false</td><td>Long.MAX_VALUE</td><td>可以处理文件的最大创建时间（age）。 <br /><br />任何早于 <code>maximumFileAge</code> (根据上次修改日期) 的文件被忽略。</td></tr>
 <tr><td><code>minimumSize</code></td><td>Integer</td><td>false</td><td>1</td><td>可以处理文件的最小大小(字节数)。</td></tr>
 <tr><td><code>maximumSize</code></td><td>Double</td><td>false</td><td>Double.MAX_VALUE</td><td>可以处理文件的最大大小(字节数)。</td></tr>
 <tr><td><code>ignoreHiddenFiles</code></td><td>Boolean</td><td>false</td><td>true</td><td>是否忽略隐藏文件。</td></tr>
-<tr><td><code>pollingInterval</code></td><td>Long</td><td>false</td><td>10000L</td><td>Indicates how long to wait before performing a directory listing.</td></tr>
+<tr><td><code>pollingInterval</code></td><td>Long</td><td>false</td><td>10000L</td><td>标出在执行目录列表前等待多长时间。</td></tr>
 <tr><td><code>numWorkers</code></td><td>Integer</td><td>false</td><td>1</td><td>处理文件的工作线程数量。<br /><br /> 这允许您同时处理更多的文件。 <br /><br />然而，设置这个值大于1，使得多个文件的数据混合在目标主题中。</td></tr>
 </tbody>
 </table>
@@ -79,7 +79,7 @@
 <h2><a class="anchor" aria-hidden="true" id="用法"></a><a href="#用法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h2>
 <p>这是一个使用文件源连接器的例子。</p>
 <ol>
-<li><p>拉取一个 Pulsar 镜像.</p>
+<li><p>拉取一个 Pulsar 镜像。</p>
 <pre><code class="hljs css language-bash">$ docker pull apachepulsar/pulsar:{version}
 </code></pre></li>
 <li><p>启动 Pulsar 单机模式。</p>
