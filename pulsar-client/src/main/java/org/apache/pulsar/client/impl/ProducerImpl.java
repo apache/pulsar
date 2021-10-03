@@ -843,78 +843,74 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> flushAndCloseFuture = new CompletableFuture<>();
-        flushAsync().thenRun(() -> {
-            final State currentState = getAndUpdateState(state -> {
-                if (state == State.Closed) {
-                    return state;
-                }
-                return State.Closing;
-            });
+        final State currentState = getAndUpdateState(state -> {
+            if (state == State.Closed) {
+                return state;
+            }
+            return State.Closing;
+        });
 
-            if (currentState == State.Closed || currentState == State.Closing) {
-                flushAndCloseFuture.complete(null);
-                return;
+        if (currentState == State.Closed || currentState == State.Closing) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        triggerFlush();
+
+        Timeout timeout = sendTimeout;
+        if (timeout != null) {
+            timeout.cancel();
+            sendTimeout = null;
+        }
+
+        ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
+        if (batchTimerTask != null) {
+            batchTimerTask.cancel(false);
+            this.batchTimerTask = null;
+        }
+
+        if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
+            keyGeneratorTask.cancel(false);
+        }
+
+        stats.cancelStatsTimeout();
+
+        ClientCnx cnx = cnx();
+        if (cnx == null || currentState != State.Ready) {
+            log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
+            synchronized (this) {
+                setState(State.Closed);
+                client.cleanupProducer(this);
+                clearPendingMessagesWhenClose();
             }
 
-            Timeout timeout = sendTimeout;
-            if (timeout != null) {
-                timeout.cancel();
-                sendTimeout = null;
-            }
+            return CompletableFuture.completedFuture(null);
+        }
 
-            ScheduledFuture<?> batchTimerTask = this.batchTimerTask;
-            if (batchTimerTask != null) {
-                batchTimerTask.cancel(false);
-                this.batchTimerTask = null;
-            }
+        long requestId = client.newRequestId();
+        ByteBuf cmd = Commands.newCloseProducer(producerId, requestId);
 
-            if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
-                keyGeneratorTask.cancel(false);
-            }
-
-            stats.cancelStatsTimeout();
-
-            ClientCnx cnx = cnx();
-            if (cnx == null || currentState != State.Ready) {
-                log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
-                synchronized (this) {
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
+            cnx.removeProducer(producerId);
+            if (exception == null || !cnx.ctx().channel().isActive()) {
+                // Either we've received the success response for the close producer command from the broker, or the
+                // connection did break in the meantime. In any case, the producer is gone.
+                synchronized (ProducerImpl.this) {
+                    log.info("[{}] [{}] Closed Producer", topic, producerName);
                     setState(State.Closed);
-                    client.cleanupProducer(this);
                     clearPendingMessagesWhenClose();
                 }
 
-                flushAndCloseFuture.complete(null);
-                return;
+                closeFuture.complete(null);
+                client.cleanupProducer(this);
+            } else {
+                closeFuture.completeExceptionally(exception);
             }
 
-            long requestId = client.newRequestId();
-            ByteBuf cmd = Commands.newCloseProducer(producerId, requestId);
-
-            cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
-                cnx.removeProducer(producerId);
-                if (exception == null || !cnx.ctx().channel().isActive()) {
-                    // Either we've received the success response for the close producer command from the broker, or the
-                    // connection did break in the meantime. In any case, the producer is gone.
-                    synchronized (ProducerImpl.this) {
-                        log.info("[{}] [{}] Closed Producer", topic, producerName);
-                        setState(State.Closed);
-                        clearPendingMessagesWhenClose();
-                    }
-
-                    flushAndCloseFuture.complete(null);
-                    client.cleanupProducer(this);
-                } else {
-                    flushAndCloseFuture.completeExceptionally(exception);
-                }
-
-                return null;
-            });
-        }).exceptionally(exception -> {
-            flushAndCloseFuture.completeExceptionally(exception);
             return null;
         });
-        return flushAndCloseFuture;
+
+        return closeFuture;
     }
 
     private void clearPendingMessagesWhenClose() {
