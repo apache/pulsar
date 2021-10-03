@@ -42,7 +42,7 @@ import org.jclouds.blobstore.BlobStore;
 import org.jclouds.domain.Credentials;
 import org.testng.Assert;
 
-public abstract class BlobStoreManagedLedgerOffloaderBase {
+public abstract class BlobStoreManagedLedgerOffloaderTestBase {
 
     public static final String BUCKET = "pulsar-unittest";
     protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
@@ -54,7 +54,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     protected TieredStorageConfiguration config;
     protected BlobStore blobStore = null;
 
-    protected BlobStoreManagedLedgerOffloaderBase() throws Exception {
+    protected BlobStoreManagedLedgerOffloaderTestBase() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(5).name("offloader").build();
         bk = new PulsarMockBookKeeper(scheduler);
         provider = getBlobStoreProvider();
