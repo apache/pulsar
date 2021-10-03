@@ -20,7 +20,6 @@ package org.apache.pulsar.policies.data.loadbalancer;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.collect.Maps;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -261,7 +260,7 @@ public class LoadReport implements LoadManagerReport {
         }
 
         NamespaceBundleStatsComparator nsc = new NamespaceBundleStatsComparator(bundleStats, resType);
-        TreeMap<String, NamespaceBundleStats> sortedBundleStats = Maps.newTreeMap(nsc);
+        TreeMap<String, NamespaceBundleStats> sortedBundleStats = new TreeMap<>(nsc);
         sortedBundleStats.putAll(bundleStats);
         return sortedBundleStats;
     }
