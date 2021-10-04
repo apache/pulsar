@@ -28,14 +28,25 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -47,6 +58,8 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
+import org.rocksdb.Snapshot;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -166,5 +179,72 @@ public class TransactionTest extends TransactionTestBase {
         txnID = transaction.getTxnID();
         Assert.assertEquals(txnID.getLeastSigBits(), 1);
         Assert.assertEquals(txnID.getMostSigBits(), 0);
+    }
+
+    public void testChangeSnapshotAfterCommonMessageSend() throws Exception{
+        String topic = "persistent://" + NAMESPACE1 + "/testSnapShot";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic).enableBatching(true)
+                .create();
+        ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
+                .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
+                .startMessageId(MessageId.latest)
+                .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        Reader<TransactionBufferSnapshot> reader= readerBuilder.create();
+        long waitSnapShotTime = getPulsarServiceList().get(0).getConfiguration()
+                .getTransactionBufferSnapshotMinTimeInMillis();
+
+        producer.newMessage(Schema.STRING).value("common message send").send();
+
+        Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
+                .until(() -> {
+                    try{
+                        Message<TransactionBufferSnapshot> message = reader.readNext();
+                        TransactionBufferSnapshot snapshot = message.getValue();
+                        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),0);
+                        return true;
+                    }catch (java.lang.AssertionError e){
+                        return false;
+                    }
+                });
+
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        for (int i = 0; i < 2; i++) {
+            producer.newMessage(transaction).value("transaction message : " + i).send();
+        }
+
+        try {
+            Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
+                    .until(() -> {
+                        try{
+                            Message<TransactionBufferSnapshot> message = reader.readNext();
+                            TransactionBufferSnapshot snapshot = message.getValue();
+                            Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),2);
+                            return true;
+                        }catch (java.lang.AssertionError e){
+                            return false;
+                        }
+                    });
+            Assert.fail("Snapshot should not change before transaction end");
+        }catch (ConditionTimeoutException e){
+            log.info("Snapshot will not change to uncommitted messages");
+        }
+        transaction.commit();
+
+        Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
+                .until(() -> {
+                    try{
+                        Message<TransactionBufferSnapshot> message = reader.readNext();
+                        TransactionBufferSnapshot snapshot = message.getValue();
+                        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),3);
+                        return true;
+                    }catch (java.lang.AssertionError e){
+                        return false;
+                    }
+                });
     }
 }
