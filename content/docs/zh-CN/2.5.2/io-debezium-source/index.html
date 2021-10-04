@@ -31,25 +31,25 @@
 <tr><td><code>database.port</code></td><td>true</td><td>null</td><td>数据库服务器的端口号。</td></tr>
 <tr><td><code>database.user</code></td><td>true</td><td>null</td><td>具有所需权限的数据库用户名称。</td></tr>
 <tr><td><code>database.password</code></td><td>true</td><td>null</td><td>具有所需权限的数据库用户的密码。</td></tr>
-<tr><td><code>database.server.id</code></td><td>true</td><td>null</td><td>连接器的标识符必须在数据库集群中唯一并类似于数据库的服务器 ID 配置属性。</td></tr>
-<tr><td><code>database.server.name</code></td><td>true</td><td>null</td><td>数据库服务器/集群的逻辑名称 它构成命名空间并用于连接器写入的 Kafka 主题的所有名称， 使用 Avro 连接器时，Kafka Connect schema 名称和相应 Avro schema 的命名空间。</td></tr>
-<tr><td><code>database.whitelist</code></td><td>false</td><td>null</td><td>由此服务器托管的所有数据库的列表，由连接器监测。<br/><br/> 这是可选的，还有其他属性用于列出数据库和表格以包含或排除在监视之外。</td></tr>
+<tr><td><code>database.server.id</code></td><td>true</td><td>null</td><td>数据库集群中的连接器标识符必须唯一，与数据库的服务器 Id（server-id）配置属性类似。</td></tr>
+<tr><td><code>database.server.name</code></td><td>true</td><td>null</td><td>数据库服务器/集群的逻辑名称，它构成命名空间并用于连接器写入的 Kafka 主题的所有名称，Kafka Connect schema 名称和使用 Avro 连接器时相应的 Avro schema 的命名空间。</td></tr>
+<tr><td><code>database.whitelist</code></td><td>false</td><td>null</td><td>由此服务器托管的所有数据库的列表，并处于连接器监测中。<br/><br/> 这是可选的，还有其他属性用于列出数据库和表格以包含或排除在监视之外。</td></tr>
 <tr><td><code>key.converter</code></td><td>true</td><td>null</td><td>The converter provided by Kafka Connect to convert record key.</td></tr>
 <tr><td><code>value.converter</code></td><td>true</td><td>null</td><td>The converter provided by Kafka Connect to convert record value.</td></tr>
 <tr><td><code>database.history</code></td><td>true</td><td>null</td><td>数据库历史类的名称。</td></tr>
-<tr><td><code>database.history.pulsar.topic</code></td><td>true</td><td>null</td><td>连接器写入并恢复 DDL 语句的数据库历史主题名称。 <br/><br/><strong>注意：本主题仅供内部使用，外部消费者不应使用。</strong></td></tr>
+<tr><td><code>database.history.pulsar.topic</code></td><td>true</td><td>null</td><td>数据库历史主题的名称，连接器在这里写入和恢复 DDL 语句。 <br/><br/><strong>注意：本主题仅供内部使用，外部消费者不应使用。</strong></td></tr>
 <tr><td><code>database.history.pulsar.service.url</code></td><td>true</td><td>null</td><td>历史主题的 Pulsar 集群服务 URL</td></tr>
 <tr><td><code>pulsar.service.url</code></td><td>true</td><td>null</td><td>Debezium 使用 offset 主题的 Pulsar 集群服务 URL。 可以使用 <code>bin/pulsar-admin --admin-url http://pulsar:8080 sources localrun --source-config-file configs/pg-pulsar-config.yaml</code> 命令指向目标 Pulsar 集群。</td></tr>
-<tr><td><code>offset.storage.topic</code></td><td>true</td><td>null</td><td>记录连接器成功完成的最后一次承付偏移。</td></tr>
+<tr><td><code>offset.storage.topic</code></td><td>true</td><td>null</td><td>记录连接器成功完成的最后一次提交 offset。</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="mongodb-configuration-name--required--default--description-------------------------------------------------------------------------------------------"></a><a href="#mongodb-configuration-name--required--default--description-------------------------------------------------------------------------------------------" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>MongoDB Configuration| Name | Required | Default | Description                                                                                           |</h3>
+<h3><a class="anchor" aria-hidden="true" id="mongodb-configuration-name--required--default--description--------------------------------------------------------------------------------------"></a><a href="#mongodb-configuration-name--required--default--description--------------------------------------------------------------------------------------" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>MongoDB Configuration| Name | Required | Default | Description                                                                                      |</h3>
 <p>| ------                                | ---------- | --------- | -------------                                                                                                                                                                        |
-| <code>mongodb.hosts</code>                       | true       | null      | MongoDB 服务器逗号分隔的主机名和端口对列表(在复制集中的 'host' 或 'host:port' 表单)。 列表包含单个主机名和端口对。 如果 mongodb.members.auto.found 设置为 false, 主机和端口对将以复制集合名称为前提(例如，rs0/localhost:27017)。                        |
-| <code>mongodb.name</code>                        | true       | null      | 指定连接器和/或 MongoDB 复制器集合或共享集群的唯一名称。 每个服务器最多应由一个 Debezium 连接器监测。 因为这个服务器名称前缀，所以所有源自 MongoDB replica 集或集群的 Kafka 话题。                                                                     |
+| <code>mongodb.hosts</code>                       | true       | null      | 复制集中的 MongoDB 服务器主机名和端口对（形式为 'host' 或 'host:port'）列表，用逗号分隔。 列表包含单个主机名和端口对。 如果 mongodb.members.auto.discover 设置为 false，主机和端口对将以复制集合名称为前缀（例如，rs0/localhost:27017)。                     |
+| <code>mongodb.name</code>                        | true       | null      | 标识连接器和/或 MongoDB 复制器集合，或该连接器监控的共享集群的唯一名称。 每台服务器应该最多受到一个 Debezium 连接器的监控，因为这个服务器名称是所有来自 MongoDB 副本集或集群的持久 Kafka 主题的前缀。                                                                |
 | <code>mongodb.user</code>                        | true       | null      | 连接到 MongoDB 时要使用的数据库用户名称。 只有当 MongoDB 被配置为使用身份验证时才需要这么做。                                                                                                                             |
 | <code>mongodb.password</code>                    | true       | null      | 连接到 MongoDB 时使用的密码。 只有当 MongoDB 被配置为使用身份验证时才需要这么做。                                                                                                                                   |
-| <code>mongodb.task.id</code>                     | true       | null      | MongoDB 连接器的任务 ID，试图为每个复制组使用一个单独的任务。                                                                                                                                                 |</p>
+| <code>mongodb.task.id</code>                     | true       | null      | MongoDB 连接器的 taskId，为每个复制集使用一个单独的任务。                                                                                                                                                 |</p>
 <h2><a class="anchor" aria-hidden="true" id="example-of-mysql"></a><a href="#example-of-mysql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example of MySQL</h2>
 <p>你需要在使用 Pulsar Debezium 连接器之前创建一个配置文件。</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration-1"></a><a href="#configuration-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
@@ -110,7 +110,7 @@
 <h3><a class="anchor" aria-hidden="true" id="用法"></a><a href="#用法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>此示例显示如何使用 Pulsar Debezium 连接器更改 MySQL 的数据。</p>
 <ol>
-<li><p>以数据库启动 MySQL 服务器，Debezium 可以从数据库中捕获更改。</p>
+<li><p>启动一个 MySQL 服务器，Debezium 可以从该数据库捕获更改。</p>
 <pre><code class="hljs css language-bash">$ docker run -it --rm \
 --name mysql \
 -p 3306:3306 \
@@ -147,7 +147,7 @@
 --rm mysql:5.7 sh \
 -c <span class="hljs-string">'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'</span>
 </code></pre></li>
-<li><p>MySQL 客户端退出.</p>
+<li><p>弹出 MySQL 客户端。</p>
 <p>使用以下命令更改表 <em>产品</em> 的数据。</p>
 <pre><code class="hljs">mysql&gt; use inventory;
 mysql&gt; <span class="hljs-keyword">show</span> <span class="hljs-keyword">tables</span>;
@@ -201,7 +201,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <h3><a class="anchor" aria-hidden="true" id="用法-1"></a><a href="#用法-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>此示例显示如何使用 Pulsar Debezium 连接器更改 PostgreSQL 表的数据。</p>
 <ol>
-<li><p>以数据库启动 PostgreSQL 服务器，Debezium 可以捕获更改的数据库。</p>
+<li><p>启动一个 PostgreSQL 服务器，Debezium 可以从该数据库捕获更改。</p>
 <pre><code class="hljs css language-bash">$ docker pull debezium/example-postgres:0.8
 $ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example-postgres:0.8
 </code></pre></li>
@@ -231,7 +231,7 @@ $ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example
 <li><p>在 Docker 中启动一个 PostgreSQL 客户端。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-postgresql /bin/bash
 </code></pre></li>
-<li><p>退出 PostgreSQL 客户端。</p>
+<li><p>弹出 PostgreSQL 客户端。</p>
 <p>使用以下命令更改表 <em>产品</em> 的数据。</p>
 <pre><code class="hljs">psql -U postgres postgres
 postgres=<span class="hljs-comment"># \c postgres;</span>
@@ -300,7 +300,7 @@ UPDATE 1
 <h3><a class="anchor" aria-hidden="true" id="用法-2"></a><a href="#用法-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>This example shows how to change the data of a MongoDB table using the Pulsar Debezium connector.</p>
 <ol>
-<li><p>以数据库启动 MongoDB 服务器，Debezium 可以捕获更改的数据库。</p>
+<li><p>启动一个 MongoDB 服务器，Debezium 可以从该数据库捕获更改。</p>
 <pre><code class="hljs css language-bash">$ docker pull debezium/example-mongodb:0.10
 $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -p 27017:27017  debezium/example-mongodb:0.10
 </code></pre>
@@ -336,7 +336,7 @@ $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGOD
 <li><p>在 docker 中启动 MongoDB 客户端。</p>
 <pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-mongodb /bin/bash
 </code></pre></li>
-<li><p>退出 MongoDB 客户端。</p>
+<li><p>弹出 MongoDB 客户端。</p>
 <pre><code class="hljs css language-bash">mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory
 db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<span class="hljs-variable">$set</span>:{weight:1.25}})
 </code></pre>
@@ -381,7 +381,7 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
 <p>如果你在同步数据时遇到上述问题，请参考<a href="https://github.com/apache/pulsar/issues/4075">这里</a>，在配置文件中添加如下配置：</p>
 <pre><code class="hljs css language-$xslt"><span class="hljs-built_in">max</span>.<span class="hljs-built_in">queue</span>.<span class="hljs-built_in">size</span>=
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#mongodb-configuration-name--required--default--description-------------------------------------------------------------------------------------------">MongoDB Configuration| Name | Required | Default | Description                                                                                           |</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li><li><a href="#postgresql-示例">PostgreSQL 示例</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#用法-1">用法</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#用法-2">用法</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#mongodb-configuration-name--required--default--description--------------------------------------------------------------------------------------">MongoDB Configuration| Name | Required | Default | Description                                                                                      |</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li><li><a href="#postgresql-示例">PostgreSQL 示例</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#用法-1">用法</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#用法-2">用法</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
