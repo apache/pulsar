@@ -57,7 +57,7 @@ public interface PulsarClient extends Closeable {
 
     /**
      * Create a producer builder that can be used to configure
-     * and construct a producer with default {@link Schema.BYTES}.
+     * and construct a producer with default {@link Schema#BYTES}.
      *
      * <p>Example:
      *
@@ -97,7 +97,7 @@ public interface PulsarClient extends Closeable {
     <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
-     * Create a consumer builder with no schema ({@link Schema.BYTES}) for subscribing to
+     * Create a consumer builder with no schema ({@link Schema#BYTES}) for subscribing to
      * one or more topics.
      *
      * <pre>{@code
@@ -147,7 +147,7 @@ public interface PulsarClient extends Closeable {
     <T> ConsumerBuilder<T> newConsumer(Schema<T> schema);
 
     /**
-     * Create a topic reader builder with no schema ({@link Schema.BYTES}) to read from the specified topic.
+     * Create a topic reader builder with no schema ({@link Schema#BYTES}) to read from the specified topic.
      *
      * <p>The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
      * subscription. A reader needs to be specified a {@link ReaderBuilder#startMessageId(MessageId)}
