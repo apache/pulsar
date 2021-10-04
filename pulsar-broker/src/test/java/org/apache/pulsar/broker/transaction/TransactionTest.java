@@ -22,24 +22,47 @@ import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImp
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.Sets;
+import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.util.Iterator;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.BKException;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -47,6 +70,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
+import org.bouncycastle.i18n.MessageBundle;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -166,5 +190,58 @@ public class TransactionTest extends TransactionTestBase {
         txnID = transaction.getTxnID();
         Assert.assertEquals(txnID.getLeastSigBits(), 1);
         Assert.assertEquals(txnID.getMostSigBits(), 0);
+    }
+
+    public void testOffloadTransactionMessage()
+            throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException,
+            NoSuchMethodException, BKException, InvocationTargetException, IllegalAccessException {
+
+
+        String topic = "persistent://" + NAMESPACE1 +"/testOffload";
+        admin.topics().createNonPartitionedTopic(topic);
+        Transaction transaction1 = pulsarClient
+                .newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        Transaction transaction2 = pulsarClient
+                .newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .producerName("testOffloadTxnMessage")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic)
+                .create();
+        MessageId messageId = null;
+        for (int i = 0; i < 10; i++) {
+            messageId = producer.newMessage().value("common message : " + i).send();
+        }
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage(transaction1).value("Txn1 message : " + i).send();
+            producer.newMessage(transaction2).value("Txn2 message : " + i).send();
+        }
+        log.info("messageId: " + messageId.toString());
+        PersistentTopic persistentTopic =
+                (PersistentTopic) getPulsarServiceList().get(0)
+                        .getBrokerService().getTopic(topic, false)
+                        .get().get();
+
+        Class<ManagedLedgerImpl> managedLedgerClass =
+                (Class<ManagedLedgerImpl>) persistentTopic.getManagedLedger().getClass();
+        Method  getLedgerHandleMethod = managedLedgerClass.getDeclaredMethod("getLedgerHandle", long.class);
+        getLedgerHandleMethod.setAccessible(true);
+
+        Future<ReadHandle> future = (Future<ReadHandle>) getLedgerHandleMethod
+                .invoke(persistentTopic.getManagedLedger(), ((MessageIdImpl)messageId).getLedgerId());
+        ReadHandle readHandle = future.get();
+
+        LedgerEntries ledgerEntries = readHandle
+                .read(((MessageIdImpl)messageId).getEntryId() - 5, ((MessageIdImpl)messageId).getEntryId());
+
+        Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
+
+        while (iterator.hasNext()){
+            log.info("read from bk: {}", iterator.next().duplicate().getEntryId() );
+        }
+
     }
 }
