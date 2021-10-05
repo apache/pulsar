@@ -485,7 +485,6 @@ public class LocalRunner implements AutoCloseable {
                     spawner.join();
                     log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
                 }
-                log.info("exiting localrun");
                 close();
             } else  {
                 synchronized (this) {

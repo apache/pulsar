@@ -410,8 +410,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     synchronized public void close() {
 
-        log.info("JavaInstanceRunnable close...");
-
         isInitialized = false;
 
         if (stats != null) {
