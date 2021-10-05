@@ -95,7 +95,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             break;
 
         default:
-            throw new IllegalArgumentException("Invalid key-shared mode: " + ksm.getKeySharedMode());
+            throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
     }
 
@@ -421,6 +421,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
+    }
+
+    public boolean isAllowOutOfOrderDelivery() {
+        return allowOutOfOrderDelivery;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
