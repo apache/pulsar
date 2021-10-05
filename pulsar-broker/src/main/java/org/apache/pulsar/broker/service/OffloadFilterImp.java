@@ -7,7 +7,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 
@@ -21,11 +20,12 @@ public class OffloadFilterImp implements OffloadFilter {
     public boolean CheckIfNeedOffload(LedgerEntry ledgerEntry) {
         MessageMetadata messageMetadata = Commands.parseMessageMetadata(ledgerEntry.getEntryBuffer());
 
-        if(messageMetadata.hasTxnidLeastBits()&&messageMetadata.hasTxnidMostBits()){
-            if(persistentTopic.isTxnAborted(new TxnID(messageMetadata.getTxnidMostBits(), messageMetadata.getTxnidLeastBits()))){
+        if (messageMetadata.hasTxnidLeastBits() && messageMetadata.hasTxnidMostBits()){
+            if (persistentTopic.isTxnAborted(new TxnID(messageMetadata.getTxnidMostBits(),
+                    messageMetadata.getTxnidLeastBits()))){
                 return false;
             }
-            if(Markers.isTxnMarker(messageMetadata)){
+            if (Markers.isTxnMarker(messageMetadata)){
                 return false;
             }
         }
@@ -39,6 +39,6 @@ public class OffloadFilterImp implements OffloadFilter {
 
     @Override
     public boolean isTransactionBufferReady() {
-        return persistentTopic.getTransactionBufferStats().state.equals("Ready") ;
+        return persistentTopic.getTransactionBufferStats().state.equals("Ready");
     }
 }
