@@ -248,11 +248,6 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean help = false;
 
     public void start() throws Exception {
-
-        if (config == null) {
-            System.exit(1);
-        }
-
         log.debug("--- setup PulsarStandaloneStarter ---");
 
         if (!this.isOnlyBroker()) {
