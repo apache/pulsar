@@ -36,7 +36,6 @@ public class MessagePayloadImpl implements MessagePayload {
             return new MessagePayloadImpl(handle);
         }
     };
-    private static final byte[] EMPTY_BYTES = new byte[0];
 
     private final Recycler.Handle<MessagePayloadImpl> recyclerHandle;
     @Getter
@@ -67,7 +66,7 @@ public class MessagePayloadImpl implements MessagePayload {
             byteBuf.getBytes(byteBuf.readerIndex(), bytes);
             return bytes;
         } else {
-            return EMPTY_BYTES;
+            return new byte[0];
         }
     }
 }
