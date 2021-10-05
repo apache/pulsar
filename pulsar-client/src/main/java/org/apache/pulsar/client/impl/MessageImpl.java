@@ -625,9 +625,8 @@ public class MessageImpl<T> implements Message<T> {
         return brokerEntryMetadata;
     }
 
-    public MessageImpl<T> setBrokerEntryMetadata(BrokerEntryMetadata brokerEntryMetadata) {
+    public void setBrokerEntryMetadata(BrokerEntryMetadata brokerEntryMetadata) {
         this.brokerEntryMetadata = brokerEntryMetadata;
-        return this;
     }
 
     public ClientCnx getCnx() {

@@ -1049,10 +1049,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     messageId.getEntryId(), getPartitionIndex(), index, numMessages, acker);
 
             final ByteBuf payloadBuffer = (singleMessagePayload != null) ? singleMessagePayload : payload;
-            return MessageImpl.create(topicName.toString(), batchMessageIdImpl,
+            final MessageImpl<U> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
                     msgMetadata, singleMessageMetadata, payloadBuffer,
                     createEncryptionContext(msgMetadata), cnx(), schema, redeliveryCount, poolMessages
-            ).setBrokerEntryMetadata(brokerEntryMetadata);
+            );
+            message.setBrokerEntryMetadata(brokerEntryMetadata);
+            return message;
         } catch (IOException | IllegalStateException e) {
             throw new IllegalStateException(e);
         } finally {
@@ -1068,9 +1070,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             final ByteBuf payload,
                                             final Schema<U> schema,
                                             final int redeliveryCount) {
-        return MessageImpl.create(topicName.toString(), messageId, messageMetadata, payload,
+        final MessageImpl<U> message = MessageImpl.create(topicName.toString(), messageId, messageMetadata, payload,
                 createEncryptionContext(messageMetadata), cnx(), schema, redeliveryCount, poolMessages
-        ).setBrokerEntryMetadata(brokerEntryMetadata);
+        );
+        message.setBrokerEntryMetadata(brokerEntryMetadata);
+        return message;
     }
 
     private void executeNotifyCallback(final MessageImpl<T> message) {
