@@ -347,10 +347,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stats.incrUserExceptions(t);
             srcRecord.fail();
         } else {
-            if (result.getResult() instanceof CompletableFuture) {
-
-            }
-
             if (result.getResult() != null) {
                 sendOutputMessage(srcRecord, result.getResult());
             } else {
