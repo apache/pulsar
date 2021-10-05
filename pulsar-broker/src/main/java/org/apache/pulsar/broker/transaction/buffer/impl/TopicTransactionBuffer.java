@@ -308,36 +308,36 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
     }
 
-    private void takeSnapshot() {
+    private CompletableFuture<Void> takeSnapshot() {
         changeMaxReadPositionAndAddAbortTimes.set(0);
-        takeSnapshotWriter.thenAccept(writer -> {
-            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
-            synchronized (TopicTransactionBuffer.this) {
-                snapshot.setTopicName(topic.getName());
-                snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-                snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
-                List<AbortTxnMetadata> list = new ArrayList<>();
-                aborts.forEach((k, v) -> {
-                    AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
-                    abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
-                    abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
-                    abortTxnMetadata.setLedgerId(v.getLedgerId());
-                    abortTxnMetadata.setEntryId(v.getEntryId());
-                    list.add(abortTxnMetadata);
+         return  takeSnapshotWriter.thenAccept(writer -> {
+                    TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+                    synchronized (TopicTransactionBuffer.this) {
+                        snapshot.setTopicName(topic.getName());
+                        snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+                        snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+                        List<AbortTxnMetadata> list = new ArrayList<>();
+                        aborts.forEach((k, v) -> {
+                            AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
+                            abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
+                            abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
+                            abortTxnMetadata.setLedgerId(v.getLedgerId());
+                            abortTxnMetadata.setEntryId(v.getEntryId());
+                            list.add(abortTxnMetadata);
+                        });
+                        snapshot.setAborts(list);
+                    }
+                    writer.writeAsync(snapshot).thenAccept((messageId) -> {
+                        this.lastSnapshotTimestamps = System.currentTimeMillis();
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}]Transaction buffer take snapshot success! "
+                                    + "messageId : {}", topic.getName(), messageId);
+                        }
+                    }).exceptionally(e -> {
+                        log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
+                        return null;
+                    });
                 });
-                snapshot.setAborts(list);
-            }
-            writer.writeAsync(snapshot).thenAccept((messageId) -> {
-                this.lastSnapshotTimestamps = System.currentTimeMillis();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}]Transaction buffer take snapshot success! "
-                            + "messageId : {}", topic.getName(), messageId);
-                }
-            }).exceptionally(e -> {
-                log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
-                return null;
-            });
-        });
     }
 
     private void clearAbortedTransactions() {
