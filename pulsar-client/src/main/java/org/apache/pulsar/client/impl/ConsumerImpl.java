@@ -1103,10 +1103,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final AtomicInteger skippedMessages = new AtomicInteger(0);
         try {
             conf.getPayloadProcessor().process(payload, entryContext, schema, message -> {
-                if (message == null) {
+                if (message != null) {
+                    executeNotifyCallback((MessageImpl<T>) message);
+                } else {
                     skippedMessages.incrementAndGet();
                 }
-                executeNotifyCallback((MessageImpl<T>) message);
             });
         } catch (Throwable throwable) {
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, throwable);
