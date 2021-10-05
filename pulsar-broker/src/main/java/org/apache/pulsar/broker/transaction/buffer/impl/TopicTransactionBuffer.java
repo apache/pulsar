@@ -119,7 +119,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void handleSnapshot(TransactionBufferSnapshot snapshot) {
                         maxReadPosition = PositionImpl.get(snapshot.getMaxReadPositionLedgerId(),
                                 snapshot.getMaxReadPositionEntryId());
-                        changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
                         if (snapshot.getAborts() != null) {
                             snapshot.getAborts().forEach(abortTxnMetadata ->
                                     aborts.put(new TxnID(abortTxnMetadata.getTxnIdMostBits(),
@@ -183,15 +182,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
-        PositionImpl preMaxReadPosition = this.maxReadPosition;
         if (!ongoingTxns.containsKey(txnId) && !aborts.containsKey(txnId)) {
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             //max read position is less than first ongoing transaction message position, so entryId -1
             maxReadPosition = PositionImpl.get(firstPosition.getLedgerId(), firstPosition.getEntryId() - 1);
-            if(preMaxReadPosition != maxReadPosition){
-                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
-            }
         }
     }
 
@@ -394,14 +389,17 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (TopicTransactionBuffer.this) {
             if (ongoingTxns.isEmpty()) {
                 maxReadPosition = position;
-                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
             }
         }
     }
 
     @Override
     public PositionImpl getMaxReadPosition() {
+        if (checkIfReady()) {
             return this.maxReadPosition;
+        } else {
+            return PositionImpl.earliest;
+        }
     }
 
     @Override
