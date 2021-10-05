@@ -19,16 +19,10 @@
 package org.apache.pulsar.client.processor;
 
 import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 /**
  * A batch message whose format is customized.
@@ -76,29 +70,5 @@ public class CustomBatchFormat {
         final byte[] bytes = new byte[length];
         buf.readBytes(bytes);
         return bytes;
-    }
-
-    @Test
-    public void testMultipleStrings() {
-        final List<List<String>> inputs = new ArrayList<>();
-        inputs.add(Collections.emptyList());
-        inputs.add(Collections.singletonList("java"));
-        inputs.add(Arrays.asList("hello", "world", "java"));
-
-        for (List<String> input : inputs) {
-            final ByteBuf buf = serialize(input);
-
-            final Metadata metadata = readMetadata(buf);
-            final List<String> parsedTokens = new ArrayList<>();
-            for (int i = 0; i < metadata.getNumMessages(); i++) {
-                parsedTokens.add(Schema.STRING.decode(readMessage(buf)));
-            }
-
-            Assert.assertEquals(parsedTokens, input);
-            Assert.assertEquals(parsedTokens.size(), input.size());
-
-            Assert.assertEquals(buf.refCnt(), 1);
-            buf.release();
-        }
     }
 }

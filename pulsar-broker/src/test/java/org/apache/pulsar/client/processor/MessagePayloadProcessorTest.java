@@ -20,9 +20,11 @@ package org.apache.pulsar.client.processor;
 
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import io.netty.buffer.ByteBuf;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -47,6 +49,7 @@ import org.testng.annotations.Test;
  * Test for {@link MessagePayloadProcessor}.
  */
 @Slf4j
+@Test(groups = "broker-impl")
 public class MessagePayloadProcessorTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -156,6 +159,30 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
             Assert.assertEquals(processor.getTotalRefCnt(), 2 * numBatches);
         } else {
             Assert.assertEquals(processor.getTotalRefCnt(), 2 * numMessages);
+        }
+    }
+
+    @Test
+    public void testCustomBatchFormat() {
+        final List<List<String>> inputs = new ArrayList<>();
+        inputs.add(Collections.emptyList());
+        inputs.add(Collections.singletonList("java"));
+        inputs.add(Arrays.asList("hello", "world", "java"));
+
+        for (List<String> input : inputs) {
+            final ByteBuf buf = CustomBatchFormat.serialize(input);
+
+            final CustomBatchFormat.Metadata metadata = CustomBatchFormat.readMetadata(buf);
+            final List<String> parsedTokens = new ArrayList<>();
+            for (int i = 0; i < metadata.getNumMessages(); i++) {
+                parsedTokens.add(Schema.STRING.decode(CustomBatchFormat.readMessage(buf)));
+            }
+
+            Assert.assertEquals(parsedTokens, input);
+            Assert.assertEquals(parsedTokens.size(), input.size());
+
+            Assert.assertEquals(buf.refCnt(), 1);
+            buf.release();
         }
     }
 
