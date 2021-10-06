@@ -29,6 +29,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.File;
@@ -48,6 +49,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import lombok.Builder;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -394,6 +397,7 @@ public class PulsarFunctionLocalRunTest {
         sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().build()));
         sinkConfig.setSourceSubscriptionName(subName);
         sinkConfig.setCleanupSubscription(true);
+        sinkConfig.setConfigs(new HashMap<>());
         return sinkConfig;
     }
     /**
@@ -1038,8 +1042,82 @@ public class PulsarFunctionLocalRunTest {
     }
 
     @Test
-    public void testPulsarSinkStatsByteBufferType() throws Throwable{
+    public void testPulsarSinkStatsByteBufferType() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName()));
+    }
+    
+    public static class TestErrorSink implements Sink<byte[]> {
+        private Map config;
+        @Override
+        public void open(Map map, final SinkContext sinkContext) throws Exception {
+            config = map;
+            if (map.containsKey("throwErrorOpen")) {
+                throw new Exception("error on open");
+            }
+        }
+
+        @Override
+        public void write(Record<byte[]> record) throws Exception {
+            if (config.containsKey("throwErrorWrite")) {
+                throw new Exception("error on write");
+            }
+            record.ack();
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (config.containsKey("throwErrorClose")) {
+                throw new Exception("error on close");
+            }
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testExitOnError() throws Throwable{
+
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/input";
+        final String sinkName = "PulsarSink-test";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("local"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // create a producer that creates a topic at broker
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+
+        sinkConfig.setClassName(TestErrorSink.class.getName());
+
+        int metricsPort = FunctionCommon.findAvailablePort();
+
+        LocalRunner.LocalRunnerBuilder localRunnerBuilder = LocalRunner.builder()
+                .clientAuthPlugin(AuthenticationTls.class.getName())
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .useTls(true)
+                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsAllowInsecureConnection(true)
+                .tlsHostNameVerificationEnabled(false)
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls())
+                .connectorsDirectory(workerConfig.getConnectorsDirectory())
+                .metricsPortStart(metricsPort)
+                .exitOnError(true);
+
+        sinkConfig.getConfigs().put("throwErrorOpen", true);
+        localRunnerBuilder.sinkConfig(sinkConfig);
+        LocalRunner localRunner = localRunnerBuilder.build();
+        localRunner.start(true);
+
+        sinkConfig.getConfigs().put("throwErrorWrite", true);
+        localRunnerBuilder.sinkConfig(sinkConfig);
+        localRunner = localRunnerBuilder.build();
+        localRunner.start(true);
     }
 
     private void runWithNarClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {
