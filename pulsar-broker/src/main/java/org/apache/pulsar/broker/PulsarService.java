@@ -583,6 +583,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         LOG.info("Starting Pulsar Broker service; version: '{}'",
                 (brokerVersion != null ? brokerVersion : "unknown"));
         LOG.info("Git Revision {}", PulsarVersion.getGitSha());
+        LOG.info("Git Branch {}", PulsarVersion.getGitBranch());
         LOG.info("Built by {} on {} at {}",
                 PulsarVersion.getBuildUser(),
                 PulsarVersion.getBuildHost(),
