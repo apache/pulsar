@@ -423,10 +423,14 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Update forcefully without validating existing partitioned topic ", required = false)
+        private boolean force;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().updatePartitionedTopic(topic, numPartitions);
+            getTopics().updatePartitionedTopic(topic, numPartitions, false, force);
         }
     }
 
