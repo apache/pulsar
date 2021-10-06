@@ -202,6 +202,8 @@ Take <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getLi
 <li><p><strong>lastMarkDeleteAdvancedTimestamp</strong>: Last MarkDelete position advanced timestamp.</p></li>
 <li><p><strong>durable</strong>: Whether the subscription is durable or ephemeral (for example, from a reader).</p></li>
 <li><p><strong>replicated</strong>: Mark that the subscription state is kept in sync across different regions.</p></li>
+<li><p><strong>allowOutOfOrderDelivery</strong>: Whether out of order delivery is allowed on the Key_Shared subscription.</p></li>
+<li><p><strong>keySharedMode</strong>: Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY.</p></li>
 <li><p><strong>consumersAfterMarkDeletePosition</strong>: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
@@ -316,6 +318,7 @@ Take <a href="https://pulsar.incubator.apache.org/admin-rest-api#operation/getLi
         <span class="hljs-attr">"connectedSince"</span> : <span class="hljs-string">"2021-06-09T17:22:45.353+08:00"</span>,
         <span class="hljs-attr">"clientVersion"</span> : <span class="hljs-string">"2.9.0-SNAPSHOT"</span>
       } ],
+      <span class="hljs-attr">"allowOutOfOrderDelivery"</span>: <span class="hljs-literal">false</span>,
       <span class="hljs-attr">"consumersAfterMarkDeletePosition"</span> : { },
       <span class="hljs-attr">"nonContiguousDeletedMessagesRanges"</span> : <span class="hljs-number">0</span>,
       <span class="hljs-attr">"nonContiguousDeletedMessagesRangesSerializedSize"</span> : <span class="hljs-number">0</span>,

@@ -203,7 +203,9 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>lastMarkDeleteAdvancedTimestamp</strong>: Last MarkDelete position advanced timestamp.</p></li>
 <li><p><strong>durable</strong>: 订阅是持久的还是短暂的(例如来自一个reader)。</p></li>
 <li><p><strong>replicated</strong>: 标记订阅状态在不同区域保持同步。</p></li>
-<li><p><strong>消费者AfterMarkDeletePosition</strong>: 这是Key_Shared 订阅的，以便在Key_Shared 订阅中获得最近加入的消费者。</p></li>
+<li><p><strong>allowOutOfOrderDelivery</strong>: Whether out of order delivery is allowed on the Key_Shared subscription.</p></li>
+<li><p><strong>keySharedMode</strong>: Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY.</p></li>
+<li><p><strong>consumersAfterMarkDeletePosition</strong>: This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription.</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRanges</strong>: The number of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>nonContiguousDeletedMessagesRangesSerializedSize</strong>: The serialized size of non-contiguous deleted messages ranges.</p></li>
 <li><p><strong>consumers</strong>：连接到此订阅的消费者列表。</p>
@@ -216,7 +218,7 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>blockedConsumerOnUnackedMsgs</strong>：验证消费者是否因达到未确认消息数的阀值而被阻塞。</p></li>
 <li><p><strong>lastConsumedTimestamp</strong>：消费者最后一次读取消息的时间戳。</p></li>
 <li><p><strong>lastAckedTimestamp</strong>：消费者最后一次确认消息的时间戳。</p></li>
-<li><p><strong>address</strong>：连接生产者所需的 IP 地址和端口号。</p></li>
+<li><p><strong>address</strong>: The IP address and source port for the connection of this consumer.</p></li>
 <li><p><strong>connectedSince</strong>: The timestamp when this consumer is created or reconnected last time.</p></li>
 <li><p><strong>clientVersion</strong>: The client library version of this consumer.</p></li>
 <li><p><strong>bytesOutCounter</strong>: Total bytes delivered to consumer.</p></li>
@@ -225,7 +227,7 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
 <li><p><strong>chunkedMessageRate</strong>: Total chunked messages dispatched.</p></li>
 <li><p><strong>avgMessagesPerEntry</strong>: Number of average messages per entry for the consumer consumed.</p></li>
 <li><p><strong>readPositionWhenJoining</strong>: The read position of the cursor when the consumer joining.</p></li>
-<li><p><strong>keyHashRanges</strong>: 如果是Key_Shared 子模式，指派给该消费者的哈希范围。</p></li>
+<li><p><strong>keyHashRanges</strong>: Hash ranges assigned to this consumer if is Key_Shared sub mode.</p></li>
 <li><p><strong>metadata</strong>: Metadata (key/value strings) associated with this consumer.</p></li>
 </ul></li>
 </ul></li>
@@ -317,6 +319,7 @@ REST API 中 <code>:schema</code> 分为 persistent（持久化）和 non-persis
         <span class="hljs-attr">"connectedSince"</span> : <span class="hljs-string">"2021-06-09T17:22:45.353+08:00"</span>,
         <span class="hljs-attr">"clientVersion"</span> : <span class="hljs-string">"2.9.0-SNAPSHOT"</span>
       } ],
+      <span class="hljs-attr">"allowOutOfOrderDelivery"</span>: <span class="hljs-literal">false</span>,
       <span class="hljs-attr">"consumersAfterMarkDeletePosition"</span> : { },
       <span class="hljs-attr">"nonContiguousDeletedMessagesRanges"</span> : <span class="hljs-number">0</span>,
       <span class="hljs-attr">"nonContiguousDeletedMessagesRangesSerializedSize"</span> : <span class="hljs-number">0</span>,
