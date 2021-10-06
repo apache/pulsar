@@ -95,6 +95,8 @@ class AdminProxyHandler extends ProxyServlet {
                 : config.getBrokerWebServiceURL();
         this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
                 : config.getFunctionWorkerWebServiceURL();
+
+        super.setTimeout(config.getHttpProxyTimeout());
     }
 
     @Override
