@@ -875,12 +875,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         ClientCnx cnx = cnx();
         if (cnx == null || currentState != State.Ready) {
             log.info("[{}] [{}] Closed Producer (not connected)", topic, producerName);
-            synchronized (this) {
-                setState(State.Closed);
-                client.cleanupProducer(this);
-                clearPendingMessagesWhenClose();
-            }
-
+            closeAndClearPendingMessages();
             return CompletableFuture.completedFuture(null);
         }
 
@@ -893,14 +888,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (exception == null || !cnx.ctx().channel().isActive()) {
                 // Either we've received the success response for the close producer command from the broker, or the
                 // connection did break in the meantime. In any case, the producer is gone.
-                synchronized (ProducerImpl.this) {
-                    log.info("[{}] [{}] Closed Producer", topic, producerName);
-                    setState(State.Closed);
-                    clearPendingMessagesWhenClose();
-                }
-
+                log.info("[{}] [{}] Closed Producer", topic, producerName);
+                closeAndClearPendingMessages();
                 closeFuture.complete(null);
-                client.cleanupProducer(this);
             } else {
                 closeFuture.completeExceptionally(exception);
             }
@@ -911,17 +901,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return closeFuture;
     }
 
-    private void clearPendingMessagesWhenClose() {
+    private synchronized void closeAndClearPendingMessages() {
+        setState(State.Closed);
+        client.cleanupProducer(this);
         PulsarClientException ex = new PulsarClientException.AlreadyClosedException(
                 format("The producer %s of the topic %s was already closed when closing the producers",
                         producerName, topic));
-        pendingMessages.forEach(msg -> {
-            client.getMemoryLimitController().releaseMemory(msg.uncompressedSize);
-            msg.sendComplete(ex);
-            msg.cmd.release();
-            msg.recycle();
-        });
-        pendingMessages.clear();
+        // Use null for cnx to ensure that the pending messages are failed immediately
+        failPendingMessages(null, ex);
     }
 
     @Override
