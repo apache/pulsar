@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -166,6 +167,12 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected void onSendAcknowledgement(Message<?> message, MessageId msgId, Throwable exception) {
         if (interceptors != null) {
             interceptors.onSendAcknowledgement(this, message, msgId, exception);
+        }
+    }
+
+    protected void onPartitionsChange(String topicName, int partitions) {
+        if (interceptors != null) {
+            interceptors.onPartitionsChange(topicName, partitions);
         }
     }
 
