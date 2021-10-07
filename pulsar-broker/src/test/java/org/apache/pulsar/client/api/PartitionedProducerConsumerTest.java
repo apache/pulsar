@@ -42,6 +42,7 @@ import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -973,7 +974,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
                     @Override
                     public void onPartitionsChange(String topicName, int partitions) {
-                        newProducerPartitions.set(partitions);
+                        newProducerPartitions.addAndGet(partitions);
                     }
                 }).messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
@@ -1011,16 +1012,15 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
                     @Override
                     public void onPartitionsChange(String topic, int partitions) {
-                        newConsumerPartitions.set(partitions);
+                        newConsumerPartitions.addAndGet(partitions);
                     }
                 }).subscribe();
 
         int newPartitions = numPartitions + 5;
         admin.topics().updatePartitionedTopic(topicName.toString(), newPartitions);
 
-        retryStrategically(
-                (test) -> newProducerPartitions.get() == newPartitions && newConsumerPartitions.get() == newPartitions,
-                10, 1000);
+        Awaitility.await().atMost(10000, TimeUnit.SECONDS).until(
+                () -> newProducerPartitions.get() == newPartitions && newConsumerPartitions.get() == newPartitions);
 
         assertEquals(newProducerPartitions.get(), newPartitions);
         assertEquals(newConsumerPartitions.get(), newPartitions);
