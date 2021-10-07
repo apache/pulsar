@@ -50,6 +50,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -240,6 +241,14 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		// Sleep for 3 seconds - wait for client auth parans to expire
 		Thread.sleep(3 * 1000);
 		proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
+
+		// Step 4: create another client and ensure that all client contexts share the same auth provider
+		@Cleanup
+		PulsarClient proxyClient2 = createPulsarClient(proxyServiceUrl, clientAuthParams, 1);
+		proxyClient2.newProducer(Schema.BYTES).topic(topicName).create();
+		proxyService.getClientCnxs().stream().forEach((cnx) -> {
+			Assert.assertSame(cnx.authenticationProvider, proxyService.getAuthenticationService().getAuthenticationProvider("BasicAuthentication"));
+		});
 	}
 
 	private void updateAdminClient() throws PulsarClientException {
