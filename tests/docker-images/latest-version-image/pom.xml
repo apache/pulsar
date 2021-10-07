@@ -45,7 +45,7 @@
           <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>com.datastax.oss</groupId>
           <artifactId>pulsar-all-docker-image</artifactId>
           <version>${project.parent.version}</version>
           <classifier>docker-info</classifier>

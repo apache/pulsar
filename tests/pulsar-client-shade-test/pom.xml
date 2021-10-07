@@ -37,14 +37,14 @@
     <dependencies>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>com.datastax.oss</groupId>
             <artifactId>pulsar-client</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>com.datastax.oss</groupId>
             <artifactId>pulsar-client-admin</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

@@ -45,7 +45,7 @@
           <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>com.datastax.oss</groupId>
           <artifactId>pulsar-server-distribution</artifactId>
           <version>${project.parent.version}</version>
           <classifier>bin</classifier>
@@ -82,7 +82,7 @@
                       <destFileName>java-test-functions.jar</destFileName>
                     </artifactItem>
                     <artifactItem>
-                      <groupId>org.apache.pulsar</groupId>
+                      <groupId>com.datastax.oss</groupId>
                       <artifactId>pulsar-server-distribution</artifactId>
                       <version>${project.parent.version}</version>
                       <classifier>bin</classifier>

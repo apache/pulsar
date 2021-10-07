@@ -23,7 +23,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.apache.pulsar</groupId>
+        <groupId>com.datastax.oss</groupId>
         <artifactId>pulsar-sql</artifactId>
         <version>2.10.1-SNAPSHOT</version>
     </parent>
@@ -122,14 +122,14 @@
         </dependency>
 
         <dependency>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>com.datastax.oss</groupId>
           <artifactId>pulsar-broker</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
 
         <dependency>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>com.datastax.oss</groupId>
           <artifactId>testmocks</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
@@ -161,10 +161,10 @@
 
                             <artifactSet>
                                 <includes>
-                                    <include>org.apache.pulsar:pulsar-client-original</include>
-                                    <include>org.apache.pulsar:pulsar-client-admin-original</include>
-                                    <include>org.apache.pulsar:managed-ledger</include>
-                                    <include>org.apache.pulsar:pulsar-metadata</include>
+                                    <include>com.datastax.oss:pulsar-client-original</include>
+                                    <include>com.datastax.oss:pulsar-client-admin-original</include>
+                                    <include>com.datastax.oss:managed-ledger</include>
+                                    <include>com.datastax.oss:pulsar-metadata</include>
 
                                     <include>org.glassfish.jersey*:*</include>
                                     <include>javax.ws.rs:*</include>
@@ -177,7 +177,7 @@
                             </artifactSet>
                             <filters>
                                 <filter>
-                                    <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                                    <artifact>com.datastax.oss:pulsar-client-original</artifact>
                                     <includes>
                                         <include>**</include>
                                     </includes>

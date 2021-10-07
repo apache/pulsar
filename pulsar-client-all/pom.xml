@@ -23,7 +23,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>com.datastax.oss</groupId>
     <artifactId>pulsar</artifactId>
     <version>2.10.1-SNAPSHOT</version>
     <relativePath>..</relativePath>
@@ -133,9 +133,9 @@
 
               <artifactSet>
                 <includes>
-                  <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-transaction-common</include>
-                  <include>org.apache.pulsar:pulsar-client-admin-original</include>
+                  <include>com.datastax.oss:pulsar-client-original</include>
+                  <include>com.datastax.oss:pulsar-transaction-common</include>
+                  <include>com.datastax.oss:pulsar-client-admin-original</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
@@ -165,7 +165,7 @@
                   <include>io.swagger:*</include>
                   <include>io.airlift:*</include>
 
-                  <include>org.apache.pulsar:pulsar-common</include>
+                  <include>com.datastax.oss:pulsar-common</include>
                   <include>org.apache.bookkeeper:*</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
@@ -192,12 +192,12 @@
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
                   <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
-                  <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
+                  <include>com.datastax.oss:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>
                 <filter>
-                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                  <artifact>com.datastax.oss:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>

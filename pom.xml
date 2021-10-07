@@ -29,7 +29,7 @@
     <version>23</version>
   </parent>
 
-  <groupId>org.apache.pulsar</groupId>
+  <groupId>com.datastax.oss</groupId>
   <artifactId>pulsar</artifactId>
 
   <version>2.10.1-SNAPSHOT</version>
@@ -1274,7 +1274,7 @@ flexible messaging model and an intuitive client API.</description>
   <dependencies>
     <!-- These dependencies are common to all the submodules -->
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>buildtools</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -1361,7 +1361,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <dependencies>
           <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>com.datastax.oss</groupId>
             <artifactId>buildtools</artifactId>
             <version>${project.version}</version>
           </dependency>
@@ -1439,7 +1439,7 @@ flexible messaging model and an intuitive client API.</description>
             <configuration>
               <property>pulsar.basedir</property>
               <project>
-                <groupId>org.apache.pulsar</groupId>
+                <groupId>com.datastax.oss</groupId>
                 <artifactId>pulsar</artifactId>
               </project>
             </configuration>
