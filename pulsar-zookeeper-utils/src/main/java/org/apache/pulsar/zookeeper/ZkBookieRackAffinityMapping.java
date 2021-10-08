@@ -76,12 +76,8 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             conf.setProperty(ZK_DATA_CACHE_BK_RACK_CONF_INSTANCE, bookieMappingCache);
         }
 
-        try {
-            BookiesRackConfiguration racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).orElseGet(BookiesRackConfiguration::new);
-            updateRacksWithHost(racks);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // A previous version of this code tried to eagerly load the cache. However, this is invalid
+        // in later versions of bookkeeper as when setConf is called, the bookieAddressResolver is not yet set
     }
 
     private void updateRacksWithHost(BookiesRackConfiguration racks) {
@@ -94,20 +90,25 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 bookies.forEach((addr, bi) -> {
                     try {
                         BookieId bookieId = BookieId.parse(addr);
-                        BookieSocketAddress bsa = getBookieAddressResolver().resolve(bookieId);
-                        newRacksWithHost.updateBookie(group, bsa.toString(), bi);
-
-                        String hostname = bsa.getSocketAddress().getHostName();
-                        newBookieInfoMap.put(hostname, bi);
-
-                        InetAddress address = bsa.getSocketAddress().getAddress();
-                        if (null != address) {
-                            String hostIp = address.getHostAddress();
-                            if (null != hostIp) {
-                                newBookieInfoMap.put(hostIp, bi);
-                            }
+                        BookieAddressResolver addressResolver = getBookieAddressResolver();
+                        if (addressResolver == null) {
+                            LOG.warn("Bookie address resolver not yet initialized, skipping resolution");
                         } else {
-                            LOG.info("Network address for {} is unresolvable yet.", addr);
+                            BookieSocketAddress bsa = addressResolver.resolve(bookieId);
+                            newRacksWithHost.updateBookie(group, bsa.toString(), bi);
+
+                            String hostname = bsa.getSocketAddress().getHostName();
+                            newBookieInfoMap.put(hostname, bi);
+
+                            InetAddress address = bsa.getSocketAddress().getAddress();
+                            if (null != address) {
+                                String hostIp = address.getHostAddress();
+                                if (null != hostIp) {
+                                    newBookieInfoMap.put(hostIp, bi);
+                                }
+                            } else {
+                                LOG.info("Network address for {} is unresolvable yet.", addr);
+                            }
                         }
                     } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
                         LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);

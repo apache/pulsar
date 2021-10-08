@@ -548,7 +548,7 @@ public class CmdPersistentTopics extends CmdBase {
 
             try {
                 MessageId lastMessageId = getPersistentTopics().terminateTopicAsync(persistentTopic).get();
-                System.out.println("Topic succesfully terminated at " + lastMessageId);
+                System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
             }

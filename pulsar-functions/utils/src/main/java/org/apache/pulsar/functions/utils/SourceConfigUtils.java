@@ -52,7 +52,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
@@ -324,7 +323,7 @@ public class SourceConfigUtils {
             sourceClass = sourceClassLoader.loadClass(sourceClassName);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(
-              String.format("Source class %s not found in class loader", sourceClassName, e));
+              String.format("Source class %s not found in class loader", sourceClassName), e);
         }
 
         if (!Source.class.isAssignableFrom(sourceClass) && !BatchSource.class.isAssignableFrom(sourceClass)) {

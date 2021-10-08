@@ -158,7 +158,7 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             if (numBundles < 0 || numBundles > MAX_BUNDLES) {
                 throw new ParameterException(
-                        "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+                        "Invalid number of bundles. Number of bundles has to be in the range of (0, 2^32].");
             }
 
             NamespaceName namespaceName = NamespaceName.get(namespace);
@@ -1175,7 +1175,7 @@ public class CmdNamespaces extends CmdBase {
         private int bookkeeperWriteQuorum;
 
         @Parameter(names = { "-a",
-                "--bookkeeper-ack-quorum" }, description = "Number of acks (garanteed copies) to wait for each entry", required = true)
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
         private int bookkeeperAckQuorum;
 
         @Parameter(names = { "-r",

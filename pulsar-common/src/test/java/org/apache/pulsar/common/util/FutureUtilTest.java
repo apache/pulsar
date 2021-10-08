@@ -44,8 +44,8 @@ public class FutureUtilTest {
         timeoutException.printStackTrace(new PrintWriter(stringWriter, true));
         assertEquals(stringWriter.toString(),
                 "org.apache.pulsar.common.util.FutureUtil$LowOverheadTimeoutException: "
-                + "hello world\n"
-                + "\tat org.apache.pulsar.common.util.FutureUtilTest.test(...)(Unknown Source)\n");
+                + "hello world" + System.lineSeparator()
+                + "\tat org.apache.pulsar.common.util.FutureUtilTest.test(...)(Unknown Source)" + System.lineSeparator());
     }
 
     @Test

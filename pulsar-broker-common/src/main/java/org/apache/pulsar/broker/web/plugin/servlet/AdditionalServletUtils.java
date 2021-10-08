@@ -132,7 +132,7 @@ public class AdditionalServletUtils {
 
         try {
             Class additionalServletClass = ncl.loadClass(def.getAdditionalServletClass());
-            Object additionalServlet = additionalServletClass.newInstance();
+            Object additionalServlet = additionalServletClass.getDeclaredConstructor().newInstance();
             if (!(additionalServlet instanceof AdditionalServlet)) {
                 throw new IOException("Class " + def.getAdditionalServletClass()
                         + " does not implement additional servlet interface");

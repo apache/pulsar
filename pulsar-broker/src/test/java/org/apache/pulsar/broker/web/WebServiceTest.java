@@ -285,8 +285,7 @@ public class WebServiceTest {
 
         // Create local cluster
         String localCluster = "test";
-        String clusterPath = PulsarWebResource.path("clusters", localCluster);
-        pulsar.getPulsarResources().getClusterResources().create(clusterPath, ClusterDataImpl.builder().build());
+        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster, ClusterDataImpl.builder().build());
         TenantInfo info2 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
@@ -409,10 +408,10 @@ public class WebServiceTest {
         pulsar.start();
 
         try {
-            pulsar.getZkClient().delete("/minApiVersion", -1);
+            pulsar.getLocalMetadataStore().delete("/minApiVersion", Optional.empty()).join();
         } catch (Exception ex) {
         }
-        pulsar.getZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
+        pulsar.getLocalMetadataStore().put("/minApiVersion", minApiVersion.getBytes(), Optional.of(-1L)).join();
 
         String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
         String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);

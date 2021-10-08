@@ -73,7 +73,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     public synchronized CompletableFuture<Void> updateValue(T newValue) {
         byte[] payload;
         try {
-            payload = serde.serialize(newValue);
+            payload = serde.serialize(path, newValue);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -160,7 +160,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private CompletableFuture<Void> acquireWithNoRevalidation() {
         byte[] payload;
         try {
-            payload = serde.serialize(value);
+            payload = serde.serialize(path, value);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -187,7 +187,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         return result;
     }
 
-    synchronized  void lockWasInvalidated() {
+    synchronized void lockWasInvalidated() {
         if (state != State.Valid) {
             // Ignore notifications while we're releasing the lock ourselves
             return;
@@ -206,7 +206,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             // We failed to revalidate the lock due to connectivity issue
                             // Continue assuming we hold the lock, until we can revalidate it, either
                             // on Reconnected or SessionReestablished events.
-                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection", path,
+                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
                                     ex.getCause().getMessage());
                         }
                     }
@@ -214,11 +214,13 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 });
     }
 
-    synchronized void revalidateIfNeededAfterReconnection() {
+    synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
         if (revalidateAfterReconnection) {
             revalidateAfterReconnection = false;
             log.warn("Revalidate lock at {} after reconnection", path);
-            revalidate();
+            return revalidate();
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -240,7 +242,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
                     T existingValue;
                     try {
-                        existingValue = serde.deserialize(optGetResult.get().getValue());
+                        existingValue = serde.deserialize(path, res.getValue(), res.getStat());
                     } catch (Throwable t) {
                         return FutureUtils.exception(t);
                     }

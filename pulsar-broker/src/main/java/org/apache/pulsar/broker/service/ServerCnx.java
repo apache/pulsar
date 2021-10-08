@@ -353,21 +353,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // ////
 
     private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, TopicOperation operation) {
+        if (!service.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
-        CompletableFuture<Boolean> isAuthorizedFuture;
-        if (service.isAuthorizationEnabled()) {
-            if (originalPrincipal != null) {
-                isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-                    topicName, operation, originalPrincipal, getAuthenticationData());
-            } else {
-                isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-            }
-            isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-                topicName, operation, authRole, authenticationData);
+        if (originalPrincipal != null) {
+            isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
+                topicName, operation, originalPrincipal, getAuthenticationData());
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-            isAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
+        CompletableFuture<Boolean> isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
+            topicName, operation, authRole, authenticationData);
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
                 log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}",
@@ -1155,12 +1152,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                                 return null;
                             } else {
-                                // There was an early request to create a producer with
-                                // same producerId. This can happen when
-                                // client
-                                // timeout is lower the broker timeouts. We need to wait
-                                // until the previous producer creation
-                                // request
+                                // There was an early request to create a producer with same producerId.
+                                // This can happen when client timeout is lower than the broker timeouts.
+                                // We need to wait until the previous producer creation request
                                 // either complete or fails.
                                 ServerError error = null;
                                 if (!existingProducerFuture.isDone()) {
@@ -1361,17 +1355,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (send.hasTxnidMostBits() && send.hasTxnidLeastBits()) {
             TxnID txnID = new TxnID(send.getTxnidMostBits(), send.getTxnidLeastBits());
             producer.publishTxnMessage(txnID, producer.getProducerId(), send.getSequenceId(),
-                    send.getHighestSequenceId(), headersAndPayload, send.getNumMessages(), send.isIsChunk());
+                    send.getHighestSequenceId(), headersAndPayload, send.getNumMessages(), send.isIsChunk(),
+                    send.isMarker());
             return;
         }
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
-                    headersAndPayload, send.getNumMessages(), send.isIsChunk());
+                    headersAndPayload, send.getNumMessages(), send.isIsChunk(), send.isMarker());
         } else {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
-                    send.getNumMessages(), send.isIsChunk());
+                    send.getNumMessages(), send.isIsChunk(), send.isMarker());
         }
     }
 
@@ -1718,12 +1713,33 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
                 if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
-                    // in this case, the ledgers been removed except the current ledger
-                    // and current ledger without any data
-                    ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                            -1, -1, partitionIndex, -1,
-                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                    persistentTopic.getCompactedTopic().readLastEntryOfCompactedLedger().thenAccept(entry -> {
+                        if (entry != null) {
+                            // in this case, all the data has been compacted, so return the last position
+                            // in the compacted ledger to the client
+                            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                            int bs = metadata.getNumMessagesInBatch();
+                            int largestBatchIndex = bs > 0 ? bs - 1 : -1;
+                            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                                    entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
+                                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                            entry.release();
+                        } else {
+                            // in this case, the ledgers been removed except the current ledger
+                            // and current ledger without any data
+                            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                                    -1, -1, partitionIndex, -1,
+                                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                        }
+                    }).exceptionally(ex -> {
+                        ctx.writeAndFlush(Commands.newError(
+                                requestId, ServerError.MetadataError,
+                                "Failed to read last entry of the compacted Ledger "
+                                        + ex.getCause().getMessage()));
+                        return null;
+                    });
                 } else {
                     ctx.writeAndFlush(Commands.newError(
                             requestId, ServerError.MetadataError,
@@ -1747,21 +1763,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private CompletableFuture<Boolean> isNamespaceOperationAllowed(NamespaceName namespaceName,
                                                                    NamespaceOperation operation) {
+        if (!service.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
-        CompletableFuture<Boolean> isAuthorizedFuture;
-        if (service.isAuthorizationEnabled()) {
-            if (originalPrincipal != null) {
-                isProxyAuthorizedFuture = service.getAuthorizationService().allowNamespaceOperationAsync(
-                        namespaceName, operation, originalPrincipal, getAuthenticationData());
-            } else {
-                isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-            }
-            isAuthorizedFuture = service.getAuthorizationService().allowNamespaceOperationAsync(
-                    namespaceName, operation, authRole, authenticationData);
+        if (originalPrincipal != null) {
+            isProxyAuthorizedFuture = service.getAuthorizationService().allowNamespaceOperationAsync(
+                    namespaceName, operation, originalPrincipal, getAuthenticationData());
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-            isAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
+        CompletableFuture<Boolean> isAuthorizedFuture = service.getAuthorizationService().allowNamespaceOperationAsync(
+                namespaceName, operation, authRole, authenticationData);
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
                 log.warn("OriginalRole {} is not authorized to perform operation {} on namespace {}",
