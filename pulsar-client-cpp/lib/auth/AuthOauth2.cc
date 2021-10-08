@@ -120,35 +120,39 @@ bool Oauth2CachedToken::isExpired() { return expiresAt_ < currentTimeMillis(); }
 Oauth2Flow::Oauth2Flow() {}
 Oauth2Flow::~Oauth2Flow() {}
 
-KeyFile KeyFile::fromParamMap(ParamMap& params) { return {params["client_id"], params["client_secret"]}; }
+KeyFile KeyFile::fromParamMap(ParamMap& params) {
+    const auto it = params.find("private_key");
+    if (it != params.cend()) {
+        return fromFile(it->second);
+    } else {
+        return {params["client_id"], params["client_secret"]};
+    }
+}
 
 // read clientId/clientSecret from passed in `credentialsFilePath`
 KeyFile KeyFile::fromFile(const std::string& credentialsFilePath) {
     boost::property_tree::ptree loadPtreeRoot;
     try {
         boost::property_tree::read_json(credentialsFilePath, loadPtreeRoot);
-    } catch (boost::property_tree::json_parser_error& e) {
-        LOG_ERROR("Failed to parse json input file for credentialsFilePath: " << credentialsFilePath
-                                                                              << "with error:" << e.what());
+    } catch (const boost::property_tree::json_parser_error& e) {
+        LOG_ERROR("Failed to parse json input file for credentialsFilePath: " << credentialsFilePath << ": "
+                                                                              << e.what());
         return {};
     }
 
-    return {loadPtreeRoot.get<std::string>("client_id", DEFAULT_NOT_FOUND_STRING),
-            loadPtreeRoot.get<std::string>("client_secret", DEFAULT_NOT_FOUND_STRING)};
+    try {
+        return {loadPtreeRoot.get<std::string>("client_id"), loadPtreeRoot.get<std::string>("client_secret")};
+    } catch (const boost::property_tree::ptree_error& e) {
+        LOG_ERROR("Failed to get client_id or client_secret in " << credentialsFilePath << ": " << e.what());
+        return {};
+    }
 }
 
-ClientCredentialFlow::ClientCredentialFlow(ParamMap& params, const KeyFile& keyFile)
+ClientCredentialFlow::ClientCredentialFlow(ParamMap& params)
     : issuerUrl_(params["issuer_url"]),
-      clientId_(keyFile.getClientId()),
-      clientSecret_(keyFile.getClientSecret()),
+      keyFile_(KeyFile::fromParamMap(params)),
       audience_(params["audience"]),
-      scope_(params["scope"]) {
-    if (clientId_ == DEFAULT_NOT_FOUND_STRING || clientSecret_ == DEFAULT_NOT_FOUND_STRING) {
-        LOG_ERROR("Not get valid clientId / clientSecret: " << clientId_ << "/" << clientSecret_);
-        return;
-    }
-    this->initialize();
-}
+      scope_(params["scope"]) {}
 
 static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void* responseDataPtr) {
     ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
@@ -156,6 +160,10 @@ static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void*
 }
 
 void ClientCredentialFlow::initialize() {
+    if (!keyFile_.isValid()) {
+        return;
+    }
+
     CURL* handle = curl_easy_init();
     CURLcode res;
     std::string responseData;
@@ -222,11 +230,15 @@ void ClientCredentialFlow::initialize() {
 void ClientCredentialFlow::close() {}
 
 std::string ClientCredentialFlow::generateJsonBody() const {
+    if (!keyFile_.isValid()) {
+        return "";
+    }
+
     // fill in the request data
     boost::property_tree::ptree pt;
     pt.put("grant_type", "client_credentials");
-    pt.put("client_id", clientId_);
-    pt.put("client_secret", clientSecret_);
+    pt.put("client_id", keyFile_.getClientId());
+    pt.put("client_secret", keyFile_.getClientSecret());
     pt.put("audience", audience_);
     if (!scope_.empty()) {
         pt.put("scope", scope_);
@@ -239,6 +251,11 @@ std::string ClientCredentialFlow::generateJsonBody() const {
 
 Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     Oauth2TokenResultPtr resultPtr = Oauth2TokenResultPtr(new Oauth2TokenResult());
+    const auto jsonBody = generateJsonBody();
+    if (jsonBody.empty()) {
+        return resultPtr;
+    }
+    LOG_DEBUG("Generate JSON body for ClientCredentialFlow: " << jsonBody);
 
     CURL* handle = curl_easy_init();
     CURLcode res;
@@ -264,9 +281,6 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
-
-    const auto jsonBody = generateJsonBody();
-    LOG_DEBUG("Generate JSON body for ClientCredentialFlow: " << jsonBody);
 
     curl_easy_setopt(handle, CURLOPT_POSTFIELDS, jsonBody.c_str());
 
@@ -314,11 +328,8 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
 
 // AuthOauth2
 
-AuthOauth2::AuthOauth2(ParamMap& params) {
-    const auto it = params.find("private_key");
-    const auto keyFile =
-        (it != params.cend()) ? KeyFile::fromFile(it->second) : KeyFile::fromParamMap(params);
-    flowPtr_.reset(new ClientCredentialFlow(params, keyFile));
+AuthOauth2::AuthOauth2(ParamMap& params) : flowPtr_(new ClientCredentialFlow(params)) {
+    flowPtr_->initialize();
 }
 
 AuthOauth2::~AuthOauth2() {}

@@ -32,23 +32,26 @@ const std::string DEFAULT_NOT_FOUND_STRING = "ClientId / Secret Not Found";
 class KeyFile {
    public:
     static KeyFile fromParamMap(ParamMap& params);
-    static KeyFile fromFile(const std::string& filename);
 
-    std::string getClientId() const noexcept { return clientId_; }
-    std::string getClientSecret() const noexcept { return clientSecret_; }
+    const std::string& getClientId() const noexcept { return clientId_; }
+    const std::string& getClientSecret() const noexcept { return clientSecret_; }
+    bool isValid() const noexcept { return valid_; }
 
    private:
     const std::string clientId_;
     const std::string clientSecret_;
+    const bool valid_;
 
-    KeyFile() : clientId_(DEFAULT_NOT_FOUND_STRING), clientSecret_(DEFAULT_NOT_FOUND_STRING) {}
-    KeyFile(const std::string& clientId, const std::string clientSecret)
-        : clientId_(clientId), clientSecret_(clientSecret) {}
+    KeyFile(const std::string& clientId, const std::string& clientSecret)
+        : clientId_(clientId), clientSecret_(clientSecret), valid_(true) {}
+    KeyFile() : valid_(false) {}
+
+    static KeyFile fromFile(const std::string& filename);
 };
 
 class ClientCredentialFlow : public Oauth2Flow {
    public:
-    ClientCredentialFlow(ParamMap& params, const KeyFile& keyFile);
+    ClientCredentialFlow(ParamMap& params);
     void initialize();
     Oauth2TokenResultPtr authenticate();
     void close();
@@ -58,8 +61,7 @@ class ClientCredentialFlow : public Oauth2Flow {
    private:
     std::string tokenEndPoint_;
     std::string issuerUrl_;
-    std::string clientId_;
-    std::string clientSecret_;
+    KeyFile keyFile_;
     std::string audience_;
     std::string scope_;
 };
