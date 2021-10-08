@@ -3396,7 +3396,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             getPreviousPosition((PositionImpl) activeCursors.getSlowestReader().getReadPosition()));
                 }
             }
-            if (!cursor.isDurable()) {
+            if (!cursor.isDurable() && nonDurableActiveCursors.get(cursor.getName()) != null) {
                 nonDurableActiveCursors.removeCursor(cursor.getName());
             }
         }
