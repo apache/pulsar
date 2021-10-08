@@ -175,8 +175,7 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "GET");
 
     // set URL: well-know endpoint
-    issuerUrl_.append("/.well-known/openid-configuration");
-    curl_easy_setopt(handle, CURLOPT_URL, issuerUrl_.c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, (issuerUrl_ + "/.well-known/openid-configuration").c_str());
 
     // Write callback
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -252,7 +251,7 @@ std::string ClientCredentialFlow::generateJsonBody() const {
 Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     Oauth2TokenResultPtr resultPtr = Oauth2TokenResultPtr(new Oauth2TokenResult());
     const auto jsonBody = generateJsonBody();
-    if (jsonBody.empty()) {
+    if (jsonBody.empty() || tokenEndPoint_.empty()) {
         return resultPtr;
     }
     LOG_DEBUG("Generate JSON body for ClientCredentialFlow: " << jsonBody);

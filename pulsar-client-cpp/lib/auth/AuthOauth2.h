@@ -59,10 +59,10 @@ class ClientCredentialFlow : public Oauth2Flow {
 
    private:
     std::string tokenEndPoint_;
-    std::string issuerUrl_;
-    KeyFile keyFile_;
-    std::string audience_;
-    std::string scope_;
+    const std::string issuerUrl_;
+    const KeyFile keyFile_;
+    const std::string audience_;
+    const std::string scope_;
 };
 
 class Oauth2CachedToken : public CachedToken {
