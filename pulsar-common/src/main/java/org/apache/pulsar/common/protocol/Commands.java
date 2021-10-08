@@ -618,7 +618,6 @@ public class Commands {
         return cmd;
     }
 
-
     private static KeySharedMode convertKeySharedMode(org.apache.pulsar.client.api.KeySharedMode mode) {
         switch (mode) {
         case AUTO_SPLIT: return KeySharedMode.AUTO_SPLIT;

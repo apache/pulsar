@@ -257,6 +257,7 @@ enum ProtocolVersion {
     v16 = 16; // Add support for broker entry metadata
     v17 = 17; // Added support ack receipt
     v18 = 18; // Add client support for broker entry metadata
+    v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
 }
 
 message CommandConnect {

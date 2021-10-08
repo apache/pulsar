@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -94,7 +95,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             break;
 
         default:
-            throw new IllegalArgumentException("Invalid key-shared mode: " + ksm.getKeySharedMode());
+            throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
     }
 
@@ -418,8 +419,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         return recentlyJoinedConsumers;
     }
 
-    public Map<String, List<String>> getConsumerKeyHashRanges() {
+    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
+    }
+
+    public boolean isAllowOutOfOrderDelivery() {
+        return allowOutOfOrderDelivery;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);

@@ -6,6 +6,29 @@ labels: PIP
 assignees: ''
 
 ---
+<!---
+Instructions for creating a PIP using this issue template:
+
+ 1. The author(s) of the proposal will create a GitHub issue ticket using this template.
+    (Optionally, it can be helpful to send a note discussing the proposal to
+    dev@pulsar.apache.org mailing list before submitting this GitHub issue. This discussion can
+    help developers gauge interest in the proposed changes before formalizing the proposal.)
+ 2. The author(s) will send a note to the dev@pulsar.apache.org mailing list
+    to start the discussion, using subject prefix `[PIP] xxx`. To determine the appropriate PIP
+    number `xxx`, inspect the mailing list (https://lists.apache.org/list.html?dev@pulsar.apache.org)
+    for the most recent PIP. Add 1 to that PIP's number to get your PIP's number.
+ 3. Based on the discussion and feedback, some changes might be applied by
+    the author(s) to the text of the proposal.
+ 4. Once some consensus is reached, there will be a vote to formally approve
+    the proposal. The vote will be held on the dev@pulsar.apache.org mailing list. Everyone
+    is welcome to vote on the proposal, though it will considered to be binding
+    only the vote of PMC members. It will be required to have a lazy majority of
+    at least 3 binding +1s votes. The vote should stay open for at least 48 hours.
+ 5. When the vote is closed, if the outcome is positive, the state of the
+    proposal is updated and the Pull Requests associated with this proposal can
+    start to get merged into the master branch.
+
+-->
 
 ## Motivation
 

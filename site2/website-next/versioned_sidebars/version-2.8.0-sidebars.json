@@ -291,6 +291,180 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-pulsar-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/administration-isolation"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-tls-keystore"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-oauth2"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-extending"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/security-bouncy-castle"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/performance-pulsar-perf"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-dotnet"
+        }
+      ]
     }
   ]
 }

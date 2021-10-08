@@ -20,9 +20,30 @@ package org.apache.pulsar.metadata.api;
 
 import java.io.IOException;
 
+/**
+ * Interface that define a serializer/deserializer implementation.
+ *
+ * @param <T>
+ */
 public interface MetadataSerde<T> {
 
-    byte[] serialize(T value) throws IOException;
+    /**
+     * Serialize the object into a byte array.
+     *
+     * @param path the path of the object on the metadata store
+     * @param value the object instance
+     * @return a byte array of the serialized version
+     * @throws IOException if the serialization fails
+     */
+    byte[] serialize(String path, T value) throws IOException;
 
-    T deserialize(byte[] content) throws IOException;
+    /**
+     * Serialize the object from a byte array.
+     * @param path the path of the object on the metadata store
+     * @param content the content as stored on metadata store
+     * @param stat the {@link Stat} metadata for the object
+     * @return the deserialized object
+     * @throws IOException if the deserialization fails
+     */
+    T deserialize(String path, byte[] content, Stat stat) throws IOException;
 }

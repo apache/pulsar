@@ -108,6 +108,72 @@
         "helm-upgrade",
         "helm-tools"
       ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        "deploy-aws",
+        "deploy-kubernetes",
+        "deploy-bare-metal",
+        "deploy-bare-metal-multi-cluster",
+        "deploy-dcos",
+        "deploy-docker",
+        "deploy-monitoring"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        "administration-zk-bk",
+        "administration-geo",
+        "administration-pulsar-manager",
+        "administration-stats",
+        "administration-load-balance",
+        "administration-proxy",
+        "administration-upgrade",
+        "administration-isolation"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        "security-overview",
+        "security-tls-transport",
+        "security-tls-authentication",
+        "security-tls-keystore",
+        "security-jwt",
+        "security-athenz",
+        "security-kerberos",
+        "security-oauth2",
+        "security-authorization",
+        "security-encryption",
+        "security-extending",
+        "security-bouncy-castle"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        "performance-pulsar-perf"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        "client-libraries",
+        "client-libraries-java",
+        "client-libraries-go",
+        "client-libraries-python",
+        "client-libraries-cpp",
+        "client-libraries-node",
+        "client-libraries-websocket",
+        "client-libraries-dotnet"
+      ]
     }
   ]
 }

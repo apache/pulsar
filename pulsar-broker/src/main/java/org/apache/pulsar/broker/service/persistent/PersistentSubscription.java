@@ -30,6 +30,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -62,6 +63,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -1019,7 +1021,7 @@ public class PersistentSubscription implements Subscription {
         subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
-            Map<String, List<String>> consumerKeyHashRanges = getType() == SubType.Key_Shared
+            Map<Consumer, List<Range>> consumerKeyHashRanges = getType() == SubType.Key_Shared
                     ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
@@ -1034,8 +1036,10 @@ public class PersistentSubscription implements Subscription {
                 subStats.lastConsumedTimestamp =
                         Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
-                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer.consumerName())) {
-                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer.consumerName());
+                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer)) {
+                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer).stream()
+                            .map(Range::toString)
+                            .collect(Collectors.toList());
                 }
             });
         }
@@ -1067,8 +1071,14 @@ public class PersistentSubscription implements Subscription {
         subStats.isReplicated = isReplicated();
         subStats.isDurable = cursor.isDurable();
         if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
-            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers =
-                    ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getRecentlyJoinedConsumers();
+            PersistentStickyKeyDispatcherMultipleConsumers keySharedDispatcher =
+                    (PersistentStickyKeyDispatcherMultipleConsumers) dispatcher;
+
+            subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
+            subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
+
+            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers = keySharedDispatcher
+                    .getRecentlyJoinedConsumers();
             if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
                 recentlyJoinedConsumers.forEach((k, v) -> {
                     subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());

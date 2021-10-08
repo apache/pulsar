@@ -279,6 +279,180 @@
       ],
       "collapsible": true,
       "collapsed": true
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/deploy-monitoring"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-pulsar-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/administration-isolation"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-tls-keystore"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-oauth2"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-extending"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/security-bouncy-castle"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/performance-pulsar-perf"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/client-libraries-dotnet"
+        }
+      ]
     }
   ]
 }
