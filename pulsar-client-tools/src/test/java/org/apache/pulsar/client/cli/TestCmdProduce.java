@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.client.cli;
 
-import org.testng.Assert;
+
+import static org.testng.Assert.assertEquals;
+
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
 
 public class TestCmdProduce {
 
@@ -33,12 +39,37 @@ public class TestCmdProduce {
     }
 
     @Test
-    public void testGetProduceBaseEndPoint() {
+    public void testGetWebSocketProduceUri() {
         String topicNameV1 = "persistent://public/cluster/default/issue-11067";
-        Assert.assertEquals(cmdProduce.getProduceBaseEndPoint(topicNameV1),
+        assertEquals(cmdProduce.getWebSocketProduceUri(topicNameV1),
                 "ws://localhost:8080/ws/producer/persistent/public/cluster/default/issue-11067");
         String topicNameV2 = "persistent://public/default/issue-11067";
-        Assert.assertEquals(cmdProduce.getProduceBaseEndPoint(topicNameV2),
+        assertEquals(cmdProduce.getWebSocketProduceUri(topicNameV2),
                 "ws://localhost:8080/ws/v2/producer/persistent/public/default/issue-11067");
+    }
+
+    @Test
+    public void testBuildSchema() {
+        // default
+        assertEquals(SchemaType.BYTES, CmdProduce.buildSchema("string", "bytes", CmdProduce.KEY_VALUE_ENCODING_TYPE_NOT_SET).getSchemaInfo().getType());
+
+        // simple key value
+        assertEquals(SchemaType.KEY_VALUE, CmdProduce.buildSchema("string", "string", "separated").getSchemaInfo().getType());
+        assertEquals(SchemaType.KEY_VALUE, CmdProduce.buildSchema("string", "string", "inline").getSchemaInfo().getType());
+
+        KeyValueSchema<?, ?> composite1 = (KeyValueSchema<?, ?>) CmdProduce.buildSchema("string",
+                "json:{\"type\": \"record\",\"namespace\": \"com.example\",\"name\": \"FullName\", \"fields\": [{ \"name\": \"a\", \"type\": \"string\" }]}",
+                "inline");
+        assertEquals(KeyValueEncodingType.INLINE, composite1.getKeyValueEncodingType());
+        assertEquals(SchemaType.STRING, composite1.getKeySchema().getSchemaInfo().getType());
+        assertEquals(SchemaType.JSON, composite1.getValueSchema().getSchemaInfo().getType());
+
+        KeyValueSchema<?, ?> composite2 = (KeyValueSchema<?, ?>) CmdProduce.buildSchema(
+                "json:{\"type\": \"record\",\"namespace\": \"com.example\",\"name\": \"FullName\", \"fields\": [{ \"name\": \"a\", \"type\": \"string\" }]}",
+                "avro:{\"type\": \"record\",\"namespace\": \"com.example\",\"name\": \"FullName\", \"fields\": [{ \"name\": \"a\", \"type\": \"string\" }]}",
+                "inline");
+        assertEquals(KeyValueEncodingType.INLINE, composite2.getKeyValueEncodingType());
+        assertEquals(SchemaType.JSON, composite2.getKeySchema().getSchemaInfo().getType());
+        assertEquals(SchemaType.AVRO, composite2.getValueSchema().getSchemaInfo().getType());
     }
 }

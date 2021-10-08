@@ -20,6 +20,7 @@
 #include <pulsar/Client.h>
 #include <pulsar/ProtobufNativeSchema.h>
 #include <stdexcept>
+#include "PaddingDemo.pb.h"
 #include "Test.pb.h"  // generated from "pulsar-client/src/test/proto/Test.proto"
 
 using namespace pulsar;
@@ -119,6 +120,24 @@ TEST(ProtobufNativeSchemaTest, testEndToEnd) {
     ASSERT_EQ(ResultOk, consumer.receive(msg, 3000));
     receivedTestMessage.ParseFromArray(msg.getData(), msg.getLength());
     ASSERT_EQ(receivedTestMessage.testenum(), ::proto::TestEnum::FAILOVER);
+
+    client.close();
+}
+
+TEST(ProtobufNativeSchemaTest, testBase64WithPadding) {
+    const auto schemaInfo = createProtobufNativeSchema(::padding::demo::Person::GetDescriptor());
+    const auto schemaJson = schemaInfo.getSchema();
+    size_t pos = schemaJson.find(R"(","rootMessageTypeName":)");
+    ASSERT_NE(pos, std::string::npos);
+    ASSERT_TRUE(pos > 0);
+    ASSERT_EQ(schemaJson[pos - 1], '=');  // the tail of fileDescriptorSet is a padding character
+
+    Client client(lookupUrl);
+
+    const std::string topic = "ProtobufSchemaTest-testBase64WithPadding";
+    Producer producer;
+    ASSERT_EQ(ResultOk,
+              client.createProducer(topic, ProducerConfiguration().setSchema(schemaInfo), producer));
 
     client.close();
 }

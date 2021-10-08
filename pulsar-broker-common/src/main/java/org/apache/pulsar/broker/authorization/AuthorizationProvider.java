@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -93,8 +94,28 @@ public interface AuthorizationProvider extends Closeable {
      *            pulsar zk configuration cache service
      * @throws IOException
      *             if the initialization fails
+     *
+     * @deprecated ConfigurationCacheService is not supported anymore as a way to get access to metadata.
+     * @see #initialize(ServiceConfiguration, PulsarResources)
      */
-    void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException;
+    @Deprecated
+    default void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+    }
+
+    /**
+     * Perform initialization for the authorization provider
+     *
+     * @param conf
+     *            broker config object
+     * @param pulsarResources
+     *            Resources component for access to metadata
+     * @throws IOException
+     *             if the initialization fails
+     */
+    default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
+        // For compatibility, call the old deprecated initialize
+        initialize(conf, (ConfigurationCacheService) null);
+    }
 
     /**
      * Check if the specified role has permission to send messages to the specified fully qualified topic name.

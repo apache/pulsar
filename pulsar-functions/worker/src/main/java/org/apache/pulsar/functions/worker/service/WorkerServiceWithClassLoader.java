@@ -65,9 +65,8 @@ public class WorkerServiceWithClassLoader implements WorkerService {
     public void initInBroker(ServiceConfiguration brokerConfig,
                              WorkerConfig workerConfig,
                              PulsarResources pulsarResources,
-                             ConfigurationCacheService configurationCacheService,
                              InternalConfigurationData internalConf) throws Exception {
-        service.initInBroker(brokerConfig, workerConfig, pulsarResources, configurationCacheService, internalConf);
+        service.initInBroker(brokerConfig, workerConfig, pulsarResources, internalConf);
     }
 
     @Override

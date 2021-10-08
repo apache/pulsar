@@ -40,7 +40,7 @@ public class MessageBuilderImpl implements MessageBuilder {
 
     @Override
     public Message<byte[]> build() {
-        return MessageImpl.create(msgMetadataBuilder, content, Schema.BYTES);
+        return MessageImpl.create(msgMetadataBuilder, content, Schema.BYTES, null);
     }
 
     @Override

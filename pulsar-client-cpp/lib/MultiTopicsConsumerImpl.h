@@ -78,6 +78,8 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void seekAsync(uint64_t timestamp, ResultCallback callback) override;
     void negativeAcknowledge(const MessageId& msgId) override;
     bool isConnected() const override;
+    uint64_t getNumberOfConnectedConsumer() override;
+
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, MultiTopicsBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
     // return first topic name when all topics name valid, or return null pointer
@@ -96,12 +98,12 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     std::map<std::string, int> topicsPartitions_;
     mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
-    MultiTopicsConsumerState state_;
-    std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
-    LookupServicePtr lookupServicePtr_;
+    MultiTopicsConsumerState state_ = Pending;
     BlockingQueue<Message> messages_;
     ExecutorServicePtr listenerExecutor_;
     MessageListener messageListener_;
+    LookupServicePtr lookupServicePtr_;
+    std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
     Promise<Result, ConsumerImplBaseWeakPtr> multiTopicsConsumerCreatedPromise_;
     UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     const std::vector<std::string>& topics_;

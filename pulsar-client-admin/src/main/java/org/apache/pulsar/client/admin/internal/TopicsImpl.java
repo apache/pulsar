@@ -25,6 +25,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,8 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -73,6 +76,8 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -100,7 +105,29 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String EVENT_TIME = "X-Pulsar-event-time";
     private static final String DELIVER_AT_TIME = "X-Pulsar-deliver-at-time";
     private static final String BROKER_ENTRY_TIMESTAMP = "X-Pulsar-Broker-Entry-METADATA-timestamp";
-    private static final String BROKER_ENTRY_INDEX =  "X-Pulsar-Broker-Entry-METADATA-index";
+    private static final String BROKER_ENTRY_INDEX = "X-Pulsar-Broker-Entry-METADATA-index";
+    private static final String PRODUCER_NAME = "X-Pulsar-producer-name";
+    private static final String SEQUENCE_ID = "X-Pulsar-sequence-id";
+    private static final String REPLICATED_FROM = "X-Pulsar-replicated-from";
+    private static final String PARTITION_KEY = "X-Pulsar-partition-key";
+    private static final String COMPRESSION = "X-Pulsar-compression";
+    private static final String UNCOMPRESSED_SIZE = "X-Pulsar-uncompressed-size";
+    private static final String ENCRYPTION_ALGO = "X-Pulsar-encryption-algo";
+    private static final String MARKER_TYPE = "X-Pulsar-marker-type";
+    private static final String TXNID_LEAST_BITS = "X-Pulsar-txnid-least-bits";
+    private static final String TXNID_MOST_BITS = "X-Pulsar-txnid-most-bits";
+    private static final String HIGHEST_SEQUENCE_ID = "X-Pulsar-highest-sequence-id";
+    private static final String UUID = "X-Pulsar-uuid";
+    private static final String NUM_CHUNKS_FROM_MSG = "X-Pulsar-num-chunks-from-msg";
+    private static final String TOTAL_CHUNK_MSG_SIZE = "X-Pulsar-total-chunk-msg-size";
+    private static final String CHUNK_ID = "X-Pulsar-chunk-id";
+    private static final String PARTITION_KEY_B64_ENCODED = "X-Pulsar-partition-key-b64-encoded";
+    private static final String NULL_PARTITION_KEY = "X-Pulsar-null-partition-key";
+    private static final String REPLICATED_TO = "X-Pulsar-replicated-to";
+    private static final String ORDERING_KEY = "X-Pulsar-Base64-ordering-key";
+    private static final String SCHEMA_VERSION = "X-Pulsar-Base64-schema-version-b64encoded";
+    private static final String ENCRYPTION_PARAM = "X-Pulsar-Base64-encryption-param";
+    private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
@@ -428,14 +455,20 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions) {
-        return updatePartitionedTopicAsync(topic, numPartitions, false);
+        return updatePartitionedTopicAsync(topic, numPartitions, false, false);
     }
 
     @Override
     public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly)
             throws PulsarAdminException {
+        updatePartitionedTopic(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly, boolean force)
+            throws PulsarAdminException {
         try {
-            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly)
+            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, force)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -450,10 +483,17 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
             boolean updateLocalTopicOnly) {
+        return updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
+            boolean updateLocalTopicOnly, boolean force) {
         checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
-        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly));
+        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly)).queryParam("force",
+                force);
         return asyncPostRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 
@@ -682,19 +722,38 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TopicStats>() {
 
-                    @Override
-                    public void completed(TopicStats response) {
-                        future.complete(response);
-                    }
+        InvocationCallback<TopicStats> persistentCB = new InvocationCallback<TopicStats>() {
+            @Override
+            public void completed(TopicStats response) {
+                future.complete(response);
+            }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        InvocationCallback<NonPersistentTopicStats> nonpersistentCB =
+                new InvocationCallback<NonPersistentTopicStats>() {
+            @Override
+            public void completed(NonPersistentTopicStats response) {
+                future.complete(response);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        if (topic.startsWith(TopicDomain.non_persistent.value())) {
+            asyncGetRequest(path, nonpersistentCB);
+        } else {
+            asyncGetRequest(path, persistentCB);
+        }
+
         return future;
     }
 
@@ -804,22 +863,45 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
         final CompletableFuture<PartitionedTopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PartitionedTopicStats>() {
 
-                    @Override
-                    public void completed(PartitionedTopicStats response) {
-                        if (!perPartition) {
-                            response.getPartitions().clear();
-                        }
-                        future.complete(response);
-                    }
+        InvocationCallback<NonPersistentPartitionedTopicStats> nonpersistentCB =
+                new InvocationCallback<NonPersistentPartitionedTopicStats>() {
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+            @Override
+            public void completed(NonPersistentPartitionedTopicStats response) {
+                if (!perPartition) {
+                    response.getPartitions().clear();
+                }
+                future.complete(response);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        InvocationCallback<PartitionedTopicStats> persistentCB = new InvocationCallback<PartitionedTopicStats>() {
+
+            @Override
+            public void completed(PartitionedTopicStats response) {
+                if (!perPartition) {
+                    response.getPartitions().clear();
+                }
+                future.complete(response);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        };
+
+        if (topic.startsWith(TopicDomain.non_persistent.value())) {
+            asyncGetRequest(path, nonpersistentCB);
+        } else {
+            asyncGetRequest(path, persistentCB);
+        }
         return future;
     }
 
@@ -1555,6 +1637,104 @@ public class TopicsImpl extends BaseResource implements Topics {
                 messageMetadata.setNullValue(Boolean.parseBoolean(tmp.toString()));
             }
 
+            tmp = headers.getFirst(PRODUCER_NAME);
+            if (tmp != null) {
+                messageMetadata.setProducerName(tmp.toString());
+            }
+            tmp = headers.getFirst(SEQUENCE_ID);
+            if (tmp != null) {
+                messageMetadata.setSequenceId(Long.parseLong(tmp.toString()));
+            }
+            tmp = headers.getFirst(REPLICATED_FROM);
+            if (tmp != null) {
+                messageMetadata.setReplicatedFrom(tmp.toString());
+            }
+            tmp = headers.getFirst(PARTITION_KEY);
+            if (tmp != null) {
+                messageMetadata.setPartitionKey(tmp.toString());
+            }
+            tmp = headers.getFirst(COMPRESSION);
+            if (tmp != null) {
+                messageMetadata.setCompression(CompressionType.valueOf(tmp.toString()));
+            }
+            tmp = headers.getFirst(UNCOMPRESSED_SIZE);
+            if (tmp != null) {
+                messageMetadata.setUncompressedSize(Integer.parseInt(tmp.toString()));
+            }
+            tmp = headers.getFirst(ENCRYPTION_ALGO);
+            if (tmp != null) {
+                messageMetadata.setEncryptionAlgo(tmp.toString());
+            }
+            tmp = headers.getFirst(PARTITION_KEY_B64_ENCODED);
+            if (tmp != null) {
+                messageMetadata.setPartitionKeyB64Encoded(Boolean.parseBoolean(tmp.toString()));
+            }
+            tmp = headers.getFirst(MARKER_TYPE);
+            if (tmp != null) {
+                messageMetadata.setMarkerType(Integer.parseInt(tmp.toString()));
+            }
+            tmp = headers.getFirst(TXNID_LEAST_BITS);
+            if (tmp != null) {
+                messageMetadata.setTxnidLeastBits(Long.parseLong(tmp.toString()));
+            }
+            tmp = headers.getFirst(TXNID_MOST_BITS);
+            if (tmp != null) {
+                messageMetadata.setTxnidMostBits(Long.parseLong(tmp.toString()));
+            }
+            tmp = headers.getFirst(HIGHEST_SEQUENCE_ID);
+            if (tmp != null) {
+                messageMetadata.setHighestSequenceId(Long.parseLong(tmp.toString()));
+            }
+            tmp = headers.getFirst(UUID);
+            if (tmp != null) {
+                messageMetadata.setUuid(tmp.toString());
+            }
+            tmp = headers.getFirst(NUM_CHUNKS_FROM_MSG);
+            if (tmp != null) {
+                messageMetadata.setNumChunksFromMsg(Integer.parseInt(tmp.toString()));
+            }
+            tmp = headers.getFirst(TOTAL_CHUNK_MSG_SIZE);
+            if (tmp != null) {
+                messageMetadata.setTotalChunkMsgSize(Integer.parseInt(tmp.toString()));
+            }
+            tmp = headers.getFirst(CHUNK_ID);
+            if (tmp != null) {
+                messageMetadata.setChunkId(Integer.parseInt(tmp.toString()));
+            }
+            tmp = headers.getFirst(NULL_PARTITION_KEY);
+            if (tmp != null) {
+                messageMetadata.setNullPartitionKey(Boolean.parseBoolean(tmp.toString()));
+            }
+            tmp = headers.getFirst(ENCRYPTION_PARAM);
+            if (tmp != null) {
+                messageMetadata.setEncryptionParam(Base64.getDecoder().decode(tmp.toString()));
+            }
+            tmp = headers.getFirst(ORDERING_KEY);
+            if (tmp != null) {
+                messageMetadata.setOrderingKey(Base64.getDecoder().decode(tmp.toString()));
+            }
+            tmp = headers.getFirst(SCHEMA_VERSION);
+            if (tmp != null) {
+                messageMetadata.setSchemaVersion(Base64.getDecoder().decode(tmp.toString()));
+            }
+            tmp = headers.getFirst(ENCRYPTION_PARAM);
+            if (tmp != null) {
+                messageMetadata.setEncryptionParam(Base64.getDecoder().decode(tmp.toString()));
+            }
+            List<Object> tmpList = headers.get(REPLICATED_TO);
+            if (tmpList != null) {
+                for (Object o : tmpList) {
+                    messageMetadata.addReplicateTo(o.toString());
+                }
+            }
+            tmpList = headers.get(ENCRYPTION_KEYS);
+            if (tmpList != null) {
+                for (Object o : tmpList) {
+                    EncryptionKeys encryptionKey = messageMetadata.addEncryptionKey();
+                    encryptionKey.parseFrom(Base64.getDecoder().decode(o.toString()));
+                }
+            }
+
             tmp = headers.getFirst(BATCH_SIZE_HEADER);
             if (tmp != null) {
                 properties.put(BATCH_SIZE_HEADER, (String) tmp);
@@ -1682,22 +1862,66 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
+    public Long getBacklogSizeByMessageId(String topic, MessageId messageId)
+            throws PulsarAdminException {
+        try {
+            return getBacklogSizeByMessageIdAsync(topic, messageId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Long> getBacklogSizeByMessageIdAsync(String topic, MessageId messageId) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "backlogSize");
+
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        try {
+            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<Long>() {
+
+                @Override
+                public void completed(Long backlogSize) {
+                    future.complete(backlogSize);
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+
+            });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
+    }
+
+    @Override
+    public void setBacklogQuota(String topic, BacklogQuota backlogQuota,
+                                BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuota");
-            request(path).post(Entity.entity(backlogQuota, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(path.queryParam("backlogQuotaType", backlogQuotaType.toString()))
+                    .post(Entity.entity(backlogQuota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public void removeBacklogQuota(String topic) throws PulsarAdminException {
+    public void removeBacklogQuota(String topic, BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "backlogQuota");
-            request(path.queryParam("backlogQuotaType", BacklogQuotaType.destination_storage.toString()))
+            request(path.queryParam("backlogQuotaType", backlogQuotaType.toString()))
                     .delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

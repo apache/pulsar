@@ -109,7 +109,7 @@ ProducerImpl::~ProducerImpl() {
     LOG_DEBUG(getName() << "~ProducerImpl");
     cancelTimers();
     printStats();
-    if (state_ == Ready) {
+    if (state_ == Ready || state_ == Pending) {
         LOG_WARN(getName() << "Destroyed producer which was not properly closed");
     }
 }
@@ -159,7 +159,11 @@ void ProducerImpl::connectionFailed(Result result) {
     // Keep a reference to ensure object is kept alive
     ProducerImplPtr ptr = shared_from_this();
 
-    if (producerCreatedPromise_.setFailed(result)) {
+    if (conf_.getLazyStartPartitionedProducers()) {
+        // if producers are lazy, then they should always try to restart
+        // so don't change the state and allow reconnections
+        return;
+    } else if (producerCreatedPromise_.setFailed(result)) {
         Lock lock(mutex_);
         state_ = Failed;
     }
@@ -169,12 +173,20 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
                                         const ResponseData& responseData) {
     LOG_DEBUG(getName() << "ProducerImpl::handleCreateProducer res: " << strResult(result));
 
+    // make sure we're still in the Pending/Ready state, closeAsync could have been invoked
+    // while waiting for this response if using lazy producers
+    Lock lock(mutex_);
+    if (state_ != Ready && state_ != Pending) {
+        LOG_DEBUG("Producer created response received but producer already closed");
+        failPendingMessages(ResultAlreadyClosed, false);
+        return;
+    }
+
     if (result == ResultOk) {
         // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
         // set the cnx pointer so that new messages will be sent immediately
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
 
-        Lock lock(mutex_);
         cnx->registerProducer(producerId_, shared_from_this());
         producerName_ = responseData.producerName;
         schemaVersion_ = responseData.schemaVersion;
@@ -197,19 +209,16 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
                                                    shared_from_this(), std::placeholders::_1));
         }
 
-        // Initialize the sendTimer only once per producer and only when producer timeout is
-        // configured. Set the timeout as configured value and asynchronously wait for the
-        // timeout to happen.
-        if (!sendTimer_ && conf_.getSendTimeout() > 0) {
-            sendTimer_ = executor_->createDeadlineTimer();
-            sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
-            sendTimer_->async_wait(
-                std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
+        // if the producer is lazy the send timeout timer is already running
+        if (!conf_.getLazyStartPartitionedProducers()) {
+            startSendTimeoutTimer();
         }
 
         producerCreatedPromise_.setValue(shared_from_this());
 
     } else {
+        lock.unlock();
+
         // Producer creation failed
         if (result == ResultTimeout) {
             // Creating the producer has timed out. We need to ensure the broker closes the producer
@@ -222,7 +231,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         if (producerCreatedPromise_.isComplete()) {
             if (result == ResultProducerBlockedQuotaExceededException) {
                 LOG_WARN(getName() << "Backlog is exceeded on topic. Sending exception to producer");
-                failPendingMessages(ResultProducerBlockedQuotaExceededException);
+                failPendingMessages(ResultProducerBlockedQuotaExceededException, true);
             } else if (result == ResultProducerBlockedQuotaExceededError) {
                 LOG_WARN(getName() << "Producer is blocked on creation because backlog is exceeded on topic");
             }
@@ -237,6 +246,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
                 scheduleReconnection(shared_from_this());
             } else {
                 LOG_ERROR(getName() << "Failed to create producer: " << strResult(result));
+                failPendingMessages(result, true);
                 producerCreatedPromise_.setFailed(result);
                 Lock lock(mutex_);
                 state_ = Failed;
@@ -276,8 +286,12 @@ std::shared_ptr<ProducerImpl::PendingCallbacks> ProducerImpl::getPendingCallback
     return getPendingCallbacksWhenFailed();
 }
 
-void ProducerImpl::failPendingMessages(Result result) {
-    getPendingCallbacksWhenFailedWithLock()->complete(result);
+void ProducerImpl::failPendingMessages(Result result, bool withLock) {
+    if (withLock) {
+        getPendingCallbacksWhenFailedWithLock()->complete(result);
+    } else {
+        getPendingCallbacksWhenFailed()->complete(result);
+    }
 }
 
 void ProducerImpl::resendMessages(ClientConnectionPtr cnx) {
@@ -320,9 +334,14 @@ void ProducerImpl::statsCallBackHandler(Result res, const MessageId& msgId, Send
 void ProducerImpl::flushAsync(FlushCallback callback) {
     if (batchMessageContainer_) {
         Lock lock(mutex_);
-        auto failures = batchMessageAndSend(callback);
-        lock.unlock();
-        failures.complete();
+
+        if (state_ == Ready) {
+            auto failures = batchMessageAndSend(callback);
+            lock.unlock();
+            failures.complete();
+        } else {
+            callback(ResultAlreadyClosed);
+        }
     } else {
         callback(ResultOk);
     }
@@ -331,9 +350,11 @@ void ProducerImpl::flushAsync(FlushCallback callback) {
 void ProducerImpl::triggerFlush() {
     if (batchMessageContainer_) {
         Lock lock(mutex_);
-        auto failures = batchMessageAndSend();
-        lock.unlock();
-        failures.complete();
+        if (state_ == Ready) {
+            auto failures = batchMessageAndSend();
+            lock.unlock();
+            failures.complete();
+        }
     }
 }
 
@@ -389,7 +410,8 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     }
 
     Lock lock(mutex_);
-    if (state_ != Ready) {
+    // producers may be lazily starting and be in the pending state
+    if (state_ != Ready && state_ != Pending) {
         lock.unlock();
         releaseSemaphore(payloadSize);
         cb(ResultAlreadyClosed, msg.getMessageId());
@@ -550,10 +572,14 @@ void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& e
         return;
     }
     LOG_DEBUG(getName() << " - Batch Message Timer expired");
+
+    // ignore if the producer is already closing/closed
     Lock lock(mutex_);
-    auto failures = batchMessageAndSend();
-    lock.unlock();
-    failures.complete();
+    if (state_ == Pending || state_ == Ready) {
+        auto failures = batchMessageAndSend();
+        lock.unlock();
+        failures.complete();
+    }
 }
 
 void ProducerImpl::printStats() {
@@ -568,16 +594,28 @@ void ProducerImpl::printStats() {
 void ProducerImpl::closeAsync(CloseCallback callback) {
     Lock lock(mutex_);
 
+    // if the producer was never started then there is nothing to clean up
+    if (state_ == NotStarted) {
+        state_ = Closed;
+        callback(ResultOk);
+        return;
+    }
+
     // Keep a reference to ensure object is kept alive
     ProducerImplPtr ptr = shared_from_this();
 
     cancelTimers();
 
-    if (state_ != Ready) {
+    // ensure any remaining send callbacks are called before calling the close callback
+    failPendingMessages(ResultAlreadyClosed, false);
+
+    if (state_ != Ready && state_ != Pending) {
+        state_ = Closed;
         lock.unlock();
         if (callback) {
             callback(ResultAlreadyClosed);
         }
+
         return;
     }
     LOG_INFO(getName() << "Closing producer for topic " << topic_);
@@ -631,6 +669,7 @@ void ProducerImpl::handleClose(Result result, ResultCallback callback, ProducerI
     } else {
         LOG_ERROR(getName() << "Failed to close producer: " << strResult(result));
     }
+
     if (callback) {
         callback(result);
     }
@@ -644,7 +683,7 @@ uint64_t ProducerImpl::getProducerId() const { return producerId_; }
 
 void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
     Lock lock(mutex_);
-    if (state_ != Ready) {
+    if (state_ != Pending && state_ != Ready) {
         return;
     }
 
@@ -786,7 +825,15 @@ void ProducerImpl::disconnectProducer() {
     scheduleReconnection(shared_from_this());
 }
 
-void ProducerImpl::start() { HandlerBase::start(); }
+void ProducerImpl::start() {
+    HandlerBase::start();
+
+    if (conf_.getLazyStartPartitionedProducers()) {
+        // we need to kick it off now as it is possible that the connection may take
+        // longer than sendTimeout to connect
+        startSendTimeoutTimer();
+    }
+}
 
 void ProducerImpl::shutdown() {
     Lock lock(mutex_);
@@ -824,6 +871,24 @@ bool ProducerImpl::isClosed() {
 bool ProducerImpl::isConnected() const {
     Lock lock(mutex_);
     return !getCnx().expired() && state_ == Ready;
+}
+
+uint64_t ProducerImpl::getNumberOfConnectedProducer() { return isConnected() ? 1 : 0; }
+
+bool ProducerImpl::isStarted() const {
+    Lock lock(mutex_);
+    return state_ != NotStarted;
+}
+void ProducerImpl::startSendTimeoutTimer() {
+    // Initialize the sendTimer only once per producer and only when producer timeout is
+    // configured. Set the timeout as configured value and asynchronously wait for the
+    // timeout to happen.
+    if (!sendTimer_ && conf_.getSendTimeout() > 0) {
+        sendTimer_ = executor_->createDeadlineTimer();
+        sendTimer_->expires_from_now(milliseconds(conf_.getSendTimeout()));
+        sendTimer_->async_wait(
+            std::bind(&ProducerImpl::handleSendTimeout, shared_from_this(), std::placeholders::_1));
+    }
 }
 
 }  // namespace pulsar

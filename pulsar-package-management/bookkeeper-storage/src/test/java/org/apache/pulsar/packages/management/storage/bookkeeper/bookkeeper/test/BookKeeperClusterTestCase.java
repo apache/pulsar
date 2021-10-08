@@ -24,32 +24,6 @@
 package org.apache.pulsar.packages.management.storage.bookkeeper.bookkeeper.test;
 
 import io.netty.buffer.ByteBufAllocator;
-import org.apache.bookkeeper.bookie.Bookie;
-import org.apache.bookkeeper.bookie.BookieException;
-import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
-import org.apache.bookkeeper.client.BookKeeperTestClient;
-import org.apache.bookkeeper.common.allocator.PoolingPolicy;
-import org.apache.bookkeeper.conf.AbstractConfiguration;
-import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.metastore.InMemoryMetaStore;
-import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.proto.BookieServer;
-import org.apache.bookkeeper.replication.AutoRecoveryMain;
-import org.apache.commons.io.FileUtils;
-import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreFactory;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -63,7 +37,28 @@ import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.bookkeeper.bookie.Bookie;
+import org.apache.bookkeeper.bookie.BookieException;
+import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
+import org.apache.bookkeeper.client.BookKeeperTestClient;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
+import org.apache.bookkeeper.conf.AbstractConfiguration;
+import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.metastore.InMemoryMetaStore;
+import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.proto.BookieServer;
+import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.test.ZooKeeperUtil;
+import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.zookeeper.KeeperException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 
 /**
  * A class runs several bookie servers for testing.
@@ -107,7 +102,7 @@ public abstract class BookKeeperClusterTestCase {
             // start zookeeper service
             startZKCluster();
 
-            metadataStore = new FaultInjectionMetadataStore(MetadataStoreFactory.create(
+            metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create(
                     zkUtil.getZooKeeperConnectString(),
                     MetadataStoreConfig.builder().build()));
 
@@ -326,7 +321,7 @@ public abstract class BookKeeperClusterTestCase {
      *
      * @param addr
      *            Socket Address
-     * @param latch
+     * @param l
      *            Latch to wait on
      * @throws InterruptedException
      * @throws IOException

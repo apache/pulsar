@@ -43,7 +43,8 @@ public class SinkConfig {
     private String name;
     private String className;
     private String sourceSubscriptionName;
-    private SubscriptionInitialPosition sourceSubscriptionPosition;
+    @Builder.Default
+    private SubscriptionInitialPosition sourceSubscriptionPosition = SubscriptionInitialPosition.Latest;
 
     private Collection<String> inputs;
 

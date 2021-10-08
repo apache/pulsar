@@ -30,7 +30,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import lombok.Getter;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -274,23 +273,24 @@ public class CompactedTopicImpl implements CompactedTopic {
                 });
     }
 
-    @Getter
-    public static class CompactedTopicContext {
-        final LedgerHandle ledger;
-        final AsyncLoadingCache<Long, MessageIdData> cache;
-
-        CompactedTopicContext(LedgerHandle ledger, AsyncLoadingCache<Long, MessageIdData> cache) {
-            this.ledger = ledger;
-            this.cache = cache;
-        }
-    }
-
     /**
      * Getter for CompactedTopicContext.
      * @return CompactedTopicContext
      */
     public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
         return compactedTopicContext == null ? Optional.empty() : Optional.of(compactedTopicContext.get());
+    }
+
+    @Override
+    public CompletableFuture<Entry> readLastEntryOfCompactedLedger() {
+        if (compactionHorizon == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return compactedTopicContext.thenCompose(context ->
+                readEntries(context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
+                        .thenCompose(entries -> entries.size() > 0
+                                ? CompletableFuture.completedFuture(entries.get(0))
+                                : CompletableFuture.completedFuture(null)));
     }
 
     private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {

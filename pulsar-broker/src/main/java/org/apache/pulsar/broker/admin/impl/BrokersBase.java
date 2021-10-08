@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.time.Duration;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +44,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService.State;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
-import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -59,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -91,8 +88,7 @@ public class BrokersBase extends PulsarWebResource {
         validateClusterOwnership(cluster);
 
         try {
-            // Add Native brokers
-            return new HashSet<>(dynamicConfigurationResources().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT));
+            return pulsar().getLoadManager().get().getAvailableBrokers();
         } catch (Exception e) {
             LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
             throw new RestException(e);
@@ -185,8 +181,7 @@ public class BrokersBase extends PulsarWebResource {
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
         validateSuperUserAccess();
         try {
-            return dynamicConfigurationResources().get(BROKER_SERVICE_CONFIGURATION_PATH)
-                    .orElseGet(() -> Collections.emptyMap());
+            return dynamicConfigurationResources().getDynamicConfiguration();
         } catch (RestException e) {
             LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
             throw e;
@@ -230,7 +225,7 @@ public class BrokersBase extends PulsarWebResource {
                 throw new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value");
             }
             if (BrokerService.isDynamicConfiguration(configName)) {
-                dynamicConfigurationResources().setWithCreate(BROKER_SERVICE_CONFIGURATION_PATH, (old) -> {
+                dynamicConfigurationResources().setDynamicConfigurationWithCreate(old -> {
                     Map<String, String> configurationMap = old.isPresent() ? old.get() : Maps.newHashMap();
                     configurationMap.put(configName, configValue);
                     return configurationMap;
@@ -310,9 +305,7 @@ public class BrokersBase extends PulsarWebResource {
         PulsarClient client;
         try {
             validateSuperUserAccess();
-            String heartbeatNamespace;
-
-            heartbeatNamespace = (topicVersion == TopicVersion.V2)
+            NamespaceName heartbeatNamespace = (topicVersion == TopicVersion.V2)
                     ?
                     NamespaceService.getHeartbeatNamespaceV2(
                             pulsar().getAdvertisedAddress(),
@@ -421,7 +414,7 @@ public class BrokersBase extends PulsarWebResource {
     private synchronized void deleteDynamicConfigurationOnZk(String configName) {
         try {
             if (BrokerService.isDynamicConfiguration(configName)) {
-                dynamicConfigurationResources().set(BROKER_SERVICE_CONFIGURATION_PATH, (old) -> {
+                dynamicConfigurationResources().setDynamicConfiguration(old -> {
                     if (old != null) {
                         old.remove(configName);
                     }

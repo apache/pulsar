@@ -25,7 +25,7 @@ There are few parameters to look at :
 4. Initially the default is to have 4 “bundles” for a namespace
 5. When the traffic increases on a given bundle, it will be split in 2 and reassigned to a different broker
 6. There are some adjustable thresholds that can be used to control when the split happens, based on number of topics/partitions, messages in/out, bytes in/out, etc..
-7. It’s also possible to specify a higher number of bundles when creating a namepsac
+7. It’s also possible to specify a higher number of bundles when creating a namespace
 8. There are the load-manager threshold that control when a broker should offload some of the bundles to other brokers
 
 ### What is the lifecycle of subscription?

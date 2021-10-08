@@ -18,33 +18,33 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import javax.ws.rs.core.Response.Status;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
-import org.apache.zookeeper.KeeperException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public abstract class ResourceQuotasBase extends NamespacesBase {
 
     public ResourceQuota getDefaultResourceQuota() throws Exception {
         validateSuperUserAccess();
         try {
-            return pulsar().getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota();
+            return pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota()
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get default resource quota", clientAppId());
             throw new RestException(e);
         }
-
     }
 
     public void setDefaultResourceQuota(ResourceQuota quota) throws Exception {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
         try {
-            pulsar().getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(quota);
+            pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get default resource quota", clientAppId());
             throw new RestException(e);
@@ -65,7 +65,8 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
 
         try {
-            return pulsar().getLocalZkCacheService().getResourceQuotaCache().getQuota(nsBundle);
+            return pulsar().getBrokerService().getBundlesQuotas().getResourceQuota(nsBundle)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("[{}] Failed to get resource quota for namespace bundle {}", clientAppId(), nsBundle.toString());
             throw new RestException(e);
@@ -87,13 +88,10 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
 
         try {
-            pulsar().getLocalZkCacheService().getResourceQuotaCache().setQuota(nsBundle, quota);
+            pulsar().getBrokerService().getBundlesQuotas().setResourceQuota(nsBundle, quota)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             log.info("[{}] Successfully set resource quota for namespace bundle {}", clientAppId(),
                     nsBundle.toString());
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to set resource quota for namespace bundle {}: concurrent modification",
-                    clientAppId(), nsBundle.toString());
-            throw new RestException(Status.CONFLICT, "Concurrent modification on namespace bundle quota");
         } catch (Exception e) {
             log.error("[{}] Failed to set resource quota for namespace bundle {}", clientAppId(), nsBundle.toString());
             throw new RestException(e);
@@ -116,19 +114,14 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
 
         try {
-            pulsar().getLocalZkCacheService().getResourceQuotaCache().unsetQuota(nsBundle);
+            pulsar().getBrokerService().getBundlesQuotas().resetResourceQuota(nsBundle)
+                    .get(config().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
             log.info("[{}] Successfully unset resource quota for namespace bundle {}", clientAppId(),
                     nsBundle.toString());
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to unset resource quota for namespace bundle {}: concurrent modification",
-                    clientAppId(), nsBundle.toString());
-            throw new RestException(Status.CONFLICT, "Concurrent modification on namespace bundle quota");
         } catch (Exception e) {
             log.error("[{}] Failed to unset resource quota for namespace bundle {}", clientAppId(),
                     nsBundle.toString());
             throw new RestException(e);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ResourceQuotasBase.class);
 }

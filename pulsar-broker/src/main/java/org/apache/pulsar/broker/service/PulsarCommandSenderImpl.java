@@ -243,8 +243,14 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 // increment ref-count of data and release at the end of process:
                 // so, we can get chance to call entry.release
                 metadataAndPayload.retain();
-                // skip raw message metadata since broker timestamp only used in broker side
-                Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
+                // skip broker entry metadata if consumer-client doesn't support broker entry metadata or the
+                // features is not enabled
+                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v18.getValue()
+                        || !cnx.supportBrokerMetadata()
+                        || !cnx.getBrokerService().getPulsar().getConfig()
+                        .isExposingBrokerEntryMetadataToClientEnabled()) {
+                    Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
+                }
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getValue()) {
                     Commands.skipChecksumIfPresent(metadataAndPayload);

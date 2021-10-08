@@ -46,21 +46,24 @@ class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
     public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
+    public static final String CONFIG_PARAM_SCOPE = "scope";
 
     private static final long serialVersionUID = 1L;
 
     private final String audience;
     private final String privateKey;
+    private final String scope;
 
     private transient ClientCredentialsExchanger exchanger;
 
     private boolean initialized = false;
 
     @Builder
-    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey) {
+    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope) {
         super(issuerUrl);
         this.audience = audience;
         this.privateKey = privateKey;
+        this.scope = scope;
     }
 
     @Override
@@ -87,6 +90,7 @@ class ClientCredentialsFlow extends FlowBase {
                 .clientId(keyFile.getClientId())
                 .clientSecret(keyFile.getClientSecret())
                 .audience(this.audience)
+                .scope(this.scope)
                 .build();
         TokenResult tr;
         if (!initialized) {
@@ -116,10 +120,13 @@ class ClientCredentialsFlow extends FlowBase {
         URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
         String audience = parseParameterString(params, CONFIG_PARAM_AUDIENCE);
         String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
+        // This is an optional parameter
+        String scope = params.get(CONFIG_PARAM_SCOPE);
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
                 .audience(audience)
                 .privateKey(privateKeyUrl)
+                .scope(scope)
                 .build();
     }
 

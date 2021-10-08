@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -41,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -56,6 +58,7 @@ import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
@@ -102,7 +105,7 @@ public class PersistentReplicator extends AbstractReplicator
     private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
-                                BrokerService brokerService) throws NamingException {
+                                BrokerService brokerService) throws NamingException, PulsarServerException {
         super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
         this.topic = topic;
         this.cursor = cursor;
@@ -358,7 +361,15 @@ public class PersistentReplicator extends AbstractReplicator
 
                 headersAndPayload.retain();
 
-                producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                getSchemaInfo(msg).thenAccept(schemaInfo -> {
+                    msg.setSchemaInfoForReplicator(schemaInfo);
+                    producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                }).exceptionally(ex -> {
+                    log.error("[{}][{} -> {}] Failed to get schema from local cluster", topicName,
+                            localCluster, remoteCluster, ex);
+                    return null;
+                });
+
                 atLeastOneMessageSentForReplication = true;
             }
         } catch (Exception e) {
@@ -377,6 +388,14 @@ public class PersistentReplicator extends AbstractReplicator
         } else {
             readMoreEntries();
         }
+    }
+
+    private CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
+        if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return client.getSchemaProviderLoadingCache().get(topicName)
+                .getSchemaByVersion(msg.getSchemaVersion());
     }
 
     public void updateCursorState() {

@@ -341,7 +341,7 @@ Once you have finished the following three things, you can install a Helm releas
 - Install dependent charts.
 - Prepare the Helm release.
 
-In this example, we name our Helm release `pulsar`.
+In this example, the Helm release is named `pulsar`.
 
 ```bash
 helm repo add apache https://pulsar.apache.org/charts

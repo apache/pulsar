@@ -73,7 +73,7 @@ boost::python::object Message_properties(const Message& msg) {
     for (const auto& item : msg.getProperties()) {
         pyProperties[item.first] = item.second;
     }
-    return pyProperties;
+    return boost::python::object(std::move(pyProperties));
 }
 
 std::string Topic_name_str(const Message& msg) {

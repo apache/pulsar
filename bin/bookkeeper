@@ -49,7 +49,7 @@ fi
 BINDIR=`dirname "$0"`
 BK_HOME=`cd -P $BINDIR/..;pwd`
 
-DEFAULT_CONF=$BK_HOME/conf/bookkeper.conf
+DEFAULT_CONF=$BK_HOME/conf/bookkeeper.conf
 DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml
 
 source $BK_HOME/conf/bkenv.sh

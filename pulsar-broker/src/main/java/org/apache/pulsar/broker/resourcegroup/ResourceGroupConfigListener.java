@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.RESOURCEGROUPS;
-import static org.apache.pulsar.common.policies.path.PolicyPath.path;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
@@ -61,7 +60,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     }
 
     private void loadAllResourceGroups() {
-        rgResources.getChildrenAsync(path(RESOURCEGROUPS)).whenCompleteAsync((rgList, ex) -> {
+        rgResources.listResourceGroupsAsync().whenCompleteAsync((rgList, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when fetching resource groups", ex);
                 return;
@@ -81,9 +80,8 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
 
             final Sets.SetView<String> addList = Sets.difference(newSet, existingSet);
             for (String rgName: addList) {
-                final String resourceGroupPath = path(RESOURCEGROUPS, rgName);
                 pulsarService.getPulsarResources().getResourcegroupResources()
-                    .getAsync(resourceGroupPath).thenAcceptAsync((optionalRg) -> {
+                    .getResourceGroupAsync(rgName).thenAcceptAsync(optionalRg -> {
                     ResourceGroup rg = optionalRg.get();
                     createResourceGroup(rgName, rg);
                 }).exceptionally((ex1) -> {
@@ -116,10 +114,8 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         }
     }
 
-    private void updateResourceGroup(String notifyPath) {
-        String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
-
-        rgResources.getAsync(notifyPath).whenComplete((optionalRg, ex) -> {
+    private void updateResourceGroup(String rgName) {
+        rgResources.getResourceGroupAsync(rgName).whenComplete((optionalRg, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when getting resource group {}", rgName, ex);
                 return;
@@ -138,18 +134,19 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     public void accept(Notification notification) {
         String notifyPath = notification.getPath();
 
-        if (!notifyPath.startsWith(path(RESOURCEGROUPS))) {
+        if (!ResourceGroupResources.isResourceGroupPath(notifyPath)) {
             return;
         }
         LOG.info("Metadata store notification: Path {}, Type {}", notifyPath, notification.getType());
 
-        String rgName = notifyPath.substring(notifyPath.lastIndexOf('/') + 1);
-        if (notification.getType() == NotificationType.ChildrenChanged) {
+        Optional<String> rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath);
+        if ((notification.getType() == NotificationType.ChildrenChanged)
+            || (notification.getType() == NotificationType.Created)) {
             loadAllResourceGroups();
-        } else if (!RESOURCEGROUPS.equals(rgName)) {
+        } else if (rgName.isPresent()) {
             switch (notification.getType()) {
             case Modified:
-                updateResourceGroup(notifyPath);
+                updateResourceGroup(rgName.get());
                 break;
             default:
                 break;

@@ -158,7 +158,7 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             if (numBundles < 0 || numBundles > MAX_BUNDLES) {
                 throw new ParameterException(
-                        "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+                        "Invalid number of bundles. Number of bundles has to be in the range of (0, 2^32].");
             }
 
             NamespaceName namespaceName = NamespaceName.get(namespace);
@@ -1095,6 +1095,9 @@ public class CmdNamespaces extends CmdBase {
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
 
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set")
+        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
@@ -1114,7 +1117,8 @@ public class CmdNamespaces extends CmdBase {
                     BacklogQuota.builder().limitSize(limit)
                             .limitTime(limitTime)
                             .retentionPolicy(policy)
-                            .build());
+                            .build(),
+                            BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
         }
     }
 
@@ -1123,10 +1127,13 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to remove")
+        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().removeBacklogQuota(namespace);
+            getAdmin().namespaces().removeBacklogQuota(namespace, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
         }
     }
 
@@ -1168,7 +1175,7 @@ public class CmdNamespaces extends CmdBase {
         private int bookkeeperWriteQuorum;
 
         @Parameter(names = { "-a",
-                "--bookkeeper-ack-quorum" }, description = "Number of acks (garanteed copies) to wait for each entry", required = true)
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
         private int bookkeeperAckQuorum;
 
         @Parameter(names = { "-r",

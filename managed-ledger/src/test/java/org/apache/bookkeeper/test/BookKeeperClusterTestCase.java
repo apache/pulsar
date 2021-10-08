@@ -55,6 +55,7 @@ import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
@@ -140,7 +141,7 @@ public abstract class BookKeeperClusterTestCase {
     protected void startZKCluster(String path) throws Exception {
         zkUtil.startServer(path);
         metadataStore = new FaultInjectionMetadataStore(
-                MetadataStoreFactory.create(zkUtil.getZooKeeperConnectString(),
+                MetadataStoreExtended.create(zkUtil.getZooKeeperConnectString(),
                 MetadataStoreConfig.builder().build()));
     }
 

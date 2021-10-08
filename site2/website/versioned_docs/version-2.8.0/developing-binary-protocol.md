@@ -413,7 +413,7 @@ messages are coming from the consumer.
 
 ##### Command ConsumerStats
 
-This command is sent by the client to retreive Subscriber and Consumer level 
+This command is sent by the client to retrieve Subscriber and Consumer level 
 stats from the broker.
 Parameters:
  * `request_id` → Id of the request, used to correlate the request 

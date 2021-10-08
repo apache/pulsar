@@ -31,7 +31,7 @@ import org.apache.pulsar.common.util.RateLimitFunction;
 import org.apache.pulsar.common.util.RateLimiter;
 
 public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimitFunction, AutoCloseable  {
-    protected volatile int publishMaxMessageRate = 0;
+    protected volatile long publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
     protected volatile boolean publishThrottlingEnabled = false;
     private volatile RateLimiter publishRateLimiterOnMessage;
@@ -76,8 +76,7 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     }
 
     public void update(BytesAndMessagesCount maxPublishRate) {
-        this.publishMaxMessageRate = (int) maxPublishRate.messages;
-        this.publishMaxByteRate = maxPublishRate.bytes;
+        update(maxPublishRate.messages, maxPublishRate.bytes);
     }
 
     public BytesAndMessagesCount getResourceGroupPublishValues() {
@@ -88,21 +87,39 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
     }
 
     public void update(ResourceGroup resourceGroup) {
+        long publishRateInMsgs = 0, publishRateInBytes = 0;
+        if (resourceGroup != null) {
+            publishRateInBytes = resourceGroup.getPublishRateInBytes();
+            publishRateInMsgs = resourceGroup.getPublishRateInMsgs();
+        }
+
+        update(publishRateInMsgs, publishRateInBytes);
+    }
+
+    public void update(long publishRateInMsgs, long publishRateInBytes) {
         replaceLimiters(() -> {
-            if (resourceGroup != null
-                && (resourceGroup.getPublishRateInMsgs() > 0 || resourceGroup.getPublishRateInBytes() > 0)) {
+            if (publishRateInMsgs > 0 || publishRateInBytes > 0) {
                 this.publishThrottlingEnabled = true;
-                this.publishMaxMessageRate = Math.max(resourceGroup.getPublishRateInMsgs(), 0);
-                this.publishMaxByteRate = Math.max(resourceGroup.getPublishRateInBytes(), 0);
+                this.publishMaxMessageRate = Math.max(publishRateInMsgs, 0);
+                this.publishMaxByteRate = Math.max(publishRateInBytes, 0);
                 if (this.publishMaxMessageRate > 0) {
-                    // TODO: pass the executor
-                    publishRateLimiterOnMessage =
-                        new RateLimiter(publishMaxMessageRate, 1, TimeUnit.SECONDS, this::apply);
+                    publishRateLimiterOnMessage = RateLimiter.builder()
+                            .scheduledExecutorService(scheduledExecutorService)
+                            .permits(publishMaxMessageRate)
+                            .rateTime(1L)
+                            .timeUnit(TimeUnit.SECONDS)
+                            .rateLimitFunction(this::apply)
+                            .build();
                 }
                 if (this.publishMaxByteRate > 0) {
-                    // TODO: pass the executor
                     publishRateLimiterOnByte =
-                        new RateLimiter(publishMaxByteRate, 1, TimeUnit.SECONDS, this::apply);
+                    RateLimiter.builder()
+                            .scheduledExecutorService(scheduledExecutorService)
+                            .permits(publishMaxByteRate)
+                            .rateTime(1L)
+                            .timeUnit(TimeUnit.SECONDS)
+                            .rateLimitFunction(this::apply)
+                            .build();
                 }
             } else {
                 this.publishMaxMessageRate = 0;
@@ -151,12 +168,24 @@ public class ResourceGroupPublishLimiter implements PublishRateLimiter, RateLimi
 
     @Override
     public void close() {
-      this.apply();
-      replaceLimiters(null);
+        // Unblock any producers, consumers waiting first.
+        // This needs to be done before replacing the filters to null
+        this.apply();
+        replaceLimiters(null);
     }
 
     @Override
     public void apply() {
+        // Make sure that both the rate limiters are applied before opening the flood gates.
+        RateLimiter currentTopicPublishRateLimiterOnMessage = publishRateLimiterOnMessage;
+        RateLimiter currentTopicPublishRateLimiterOnByte = publishRateLimiterOnByte;
+        if ((currentTopicPublishRateLimiterOnMessage != null
+                && currentTopicPublishRateLimiterOnMessage.getAvailablePermits() <= 0)
+            || (currentTopicPublishRateLimiterOnByte != null
+                && currentTopicPublishRateLimiterOnByte.getAvailablePermits() <= 0)) {
+            return;
+        }
+
         for (Map.Entry<String, RateLimitFunction> entry: rateLimitFunctionMap.entrySet()) {
             entry.getValue().apply();
         }

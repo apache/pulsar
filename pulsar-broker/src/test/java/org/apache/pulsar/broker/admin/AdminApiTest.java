@@ -71,7 +71,6 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -579,10 +578,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      * @throws Exception
      */
     @Test
-    public void testInvalidDynamicConfigContentInZK() throws Exception {
+    public void testInvalidDynamicConfigContentInMetadata() throws Exception {
         final int newValue = 10;
-        // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(),
+        // set invalid data into dynamic-config node so, broker startup fail to deserialize data
+        pulsar.getLocalMetadataStore().put("/admin/configuration", "$".getBytes(),
                 Optional.empty()).join();
         stopBroker();
 
@@ -593,7 +592,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
 
-        pulsar.getLocalMetadataStore().put(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+        pulsar.getLocalMetadataStore().put("/admin/configuration",
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated
@@ -918,12 +917,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             fail("getPartitionedTopicMetadata of " + anotherTopic + " should not succeed");
         } catch (NotFoundException expected) {
         }
-        // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
-                admin.topics().getPartitionedStats(partitionedTopicName,false).getMetadata().partitions);
 
-        assertEquals(admin.topics().getPartitionedStats(partitionedTopicName, false).getPartitions().size(),
-                0);
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName,false);
+
+                // check the getPartitionedStats for PartitionedTopic returns only partitions metadata, and no partitions info
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
+                topicStats.getMetadata().partitions);
+
+        assertEquals(topicStats.getPartitions().size(), 0);
 
         List<String> subscriptions = admin.topics().getSubscriptions(partitionedTopicName);
         assertEquals(subscriptions.size(), 0);
@@ -985,7 +986,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                         partitionedTopicName + "-partition-2", partitionedTopicName + "-partition-3"));
 
         // test cumulative stats for partitioned topic
-        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);
+        topicStats = admin.topics().getPartitionedStats(partitionedTopicName,false);
         if (isPersistent) {
             // TODO: for non-persistent topics, the subscription doesn't exist
             assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
@@ -996,7 +997,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions(), Maps.newHashMap());
 
         // test per partition stats for partitioned topic
-        topicStats = admin.topics().getPartitionedStats(partitionedTopicName, true);
+        topicStats = admin.topics().getPartitionedStats(partitionedTopicName,true);
         assertEquals(topicStats.getMetadata().partitions, 4);
         assertEquals(topicStats.getPartitions().keySet(),
                 Sets.newHashSet(partitionedTopicName + "-partition-0", partitionedTopicName + "-partition-1",
