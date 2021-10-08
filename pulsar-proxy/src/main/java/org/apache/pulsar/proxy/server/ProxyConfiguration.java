@@ -486,7 +486,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Http proxy timeout.\n\n"
                     + "The timeout value for HTTP proxy is in millisecond."
     )
-    private int httpProxyTimeout = 30 * 1000;
+    private int httpProxyTimeout = 5 * 60 * 1000;
 
     @FieldContext(
            minValue = 1,
