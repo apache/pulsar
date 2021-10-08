@@ -27,7 +27,6 @@ namespace pulsar {
 const std::string OAUTH2_TOKEN_PLUGIN_NAME = "oauth2token";
 const std::string OAUTH2_TOKEN_JAVA_PLUGIN_NAME =
     "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
-const std::string DEFAULT_NOT_FOUND_STRING = "ClientId / Secret Not Found";
 
 class KeyFile {
    public:
