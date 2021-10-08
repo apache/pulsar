@@ -27,16 +27,33 @@ namespace pulsar {
 const std::string OAUTH2_TOKEN_PLUGIN_NAME = "oauth2token";
 const std::string OAUTH2_TOKEN_JAVA_PLUGIN_NAME =
     "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
+const std::string DEFAULT_NOT_FOUND_STRING = "ClientId / Secret Not Found";
+
+class KeyFile {
+   public:
+    static KeyFile fromParamMap(ParamMap& params);
+    static KeyFile fromFile(const std::string& filename);
+
+    std::string getClientId() const noexcept { return clientId_; }
+    std::string getClientSecret() const noexcept { return clientSecret_; }
+
+   private:
+    const std::string clientId_;
+    const std::string clientSecret_;
+
+    KeyFile() : clientId_(DEFAULT_NOT_FOUND_STRING), clientSecret_(DEFAULT_NOT_FOUND_STRING) {}
+    KeyFile(const std::string& clientId, const std::string clientSecret)
+        : clientId_(clientId), clientSecret_(clientSecret) {}
+};
 
 class ClientCredentialFlow : public Oauth2Flow {
    public:
-    ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
-                         const std::string& clientSecret, const std::string& audience);
-    ClientCredentialFlow(const std::string& issuerUrl, const std::string& credentialsFilePath,
-                         const std::string& audience);
+    ClientCredentialFlow(ParamMap& params, const KeyFile& keyFile);
     void initialize();
     Oauth2TokenResultPtr authenticate();
     void close();
+
+    std::string generateJsonBody() const;
 
    private:
     std::string tokenEndPoint_;
@@ -44,6 +61,7 @@ class ClientCredentialFlow : public Oauth2Flow {
     std::string clientId_;
     std::string clientSecret_;
     std::string audience_;
+    std::string scope_;
 };
 
 class Oauth2CachedToken : public CachedToken {
