@@ -454,7 +454,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public void run(Timeout timeout) {
-        takeSnapshotByTimeout();
+        if (checkIfReady()) {
+            takeSnapshotByTimeout();
+        }
     }
 
     // we store the maxReadPosition from snapshot then open the non-durable cursor by this topic's manageLedger.
