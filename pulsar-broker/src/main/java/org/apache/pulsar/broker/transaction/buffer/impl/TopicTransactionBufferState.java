@@ -32,7 +32,8 @@ public abstract class TopicTransactionBufferState {
         None,
         Initializing,
         Ready,
-        Close
+        Close,
+        Unused
     }
 
     private static final AtomicReferenceFieldUpdater<TopicTransactionBufferState, State> STATE_UPDATER =
@@ -49,6 +50,14 @@ public abstract class TopicTransactionBufferState {
         return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.Ready));
     }
 
+    protected boolean changeToUnUsedState() {
+        return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.Unused));
+    }
+
+    protected boolean changeToReadyStateAfterUsed(){
+        return (STATE_UPDATER.compareAndSet(this, State.Unused, State.Ready));
+    }
+
     protected boolean changeToInitializingState() {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
     }
@@ -62,6 +71,8 @@ public abstract class TopicTransactionBufferState {
     public boolean checkIfReady() {
         return STATE_UPDATER.get(this) == State.Ready;
     }
+
+    public boolean checkIfUnused() { return STATE_UPDATER.get(this) == State.Unused; }
 
     public State getState() {
         return STATE_UPDATER.get(this);

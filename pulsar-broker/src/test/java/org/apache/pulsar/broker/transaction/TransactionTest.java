@@ -181,10 +181,12 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(txnID.getMostSigBits(), 0);
     }
 
-    public void testChangeSnapshotAfterCommonMessageSend() throws Exception{
+    public void testTakeSnapshotBeforeFirstTxnMessageSend() throws Exception{
         String topic = "persistent://" + NAMESPACE1 + "/testSnapShot";
         admin.topics().createNonPartitionedTopic(topic);
-
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(topic, false)
+                .get().get();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topic).enableBatching(true)
@@ -194,6 +196,7 @@ public class TransactionTest extends TransactionTestBase {
                 .startMessageId(MessageId.latest)
                 .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader= readerBuilder.create();
+
         long waitSnapShotTime = getPulsarServiceList().get(0).getConfiguration()
                 .getTransactionBufferSnapshotMinTimeInMillis();
 
@@ -202,45 +205,24 @@ public class TransactionTest extends TransactionTestBase {
         Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
                 .until(() -> {
                     try{
-                        Message<TransactionBufferSnapshot> message = reader.readNext();
-                        TransactionBufferSnapshot snapshot = message.getValue();
-                        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),0);
+                        Assert.assertFalse(reader.hasMessageAvailable());
                         return true;
                     }catch (java.lang.AssertionError e){
                         return false;
                     }
                 });
-
+        Assert.assertTrue(persistentTopic.getTransactionBufferStats().state.equals("Unused"));
         Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
-        for (int i = 0; i < 2; i++) {
-            producer.newMessage(transaction).value("transaction message : " + i).send();
-        }
 
-        try {
-            Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
-                    .until(() -> {
-                        try{
-                            Message<TransactionBufferSnapshot> message = reader.readNext();
-                            TransactionBufferSnapshot snapshot = message.getValue();
-                            Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),2);
-                            return true;
-                        }catch (java.lang.AssertionError e){
-                            return false;
-                        }
-                    });
-            Assert.fail("Snapshot should not change before transaction end");
-        }catch (ConditionTimeoutException e){
-            log.info("Snapshot will not change to uncommitted messages");
-        }
-        transaction.commit();
-
+        producer.newMessage(transaction).value("transaction message send ").send();
+        Assert.assertTrue(persistentTopic.getTransactionBufferStats().state.equals("Ready"));
         Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
                 .until(() -> {
                     try{
                         Message<TransactionBufferSnapshot> message = reader.readNext();
                         TransactionBufferSnapshot snapshot = message.getValue();
-                        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),3);
+                        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),0);
                         return true;
                     }catch (java.lang.AssertionError e){
                         return false;

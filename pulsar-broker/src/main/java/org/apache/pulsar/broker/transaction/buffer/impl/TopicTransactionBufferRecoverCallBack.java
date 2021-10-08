@@ -26,7 +26,7 @@ public interface TopicTransactionBufferRecoverCallBack {
     /**
      * Topic transaction buffer recover complete.
      */
-    void recoverComplete();
+    void recoverComplete(boolean iSRecovered);
 
     /**
      * Handle transactionBufferSnapshot.
