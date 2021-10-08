@@ -340,7 +340,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private CompletableFuture<Void> takeSnapshot() {
-        log.info("[{}]TransactionBuffer takeSnapshot", this);
         changeMaxReadPositionAndAddAbortTimes.set(0);
         return takeSnapshotWriter.thenAccept(writer -> {
                     TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
@@ -368,7 +367,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     }).exceptionally(e -> {
                         log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
                         return null;
-                    });
+                    }).join();
                 });
     }
 
