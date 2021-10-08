@@ -341,37 +341,42 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private CompletableFuture<Void> takeSnapshot() {
         changeMaxReadPositionAndAddAbortTimes.set(0);
-        return takeSnapshotWriter.thenAccept(writer -> {
-                    TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
-                    synchronized (TopicTransactionBuffer.this) {
-                        snapshot.setTopicName(topic.getName());
-                        snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
-                        snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
-                        List<AbortTxnMetadata> list = new ArrayList<>();
-                        aborts.forEach((k, v) -> {
-                            AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
-                            abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
-                            abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
-                            abortTxnMetadata.setLedgerId(v.getLedgerId());
-                            abortTxnMetadata.setEntryId(v.getEntryId());
-                            list.add(abortTxnMetadata);
-                        });
-                        snapshot.setAborts(list);
-                    }
-                    writer.writeAsync(snapshot).thenAccept((messageId) -> {
-                        this.lastSnapshotTimestamps = System.currentTimeMillis();
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}]Transaction buffer take snapshot success! "
-                                    + "messageId : {}", topic.getName(), messageId);
-                        }
-                    }).exceptionally(e -> {
-                        log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
-                        return null;
-                    }).join();
+        return takeSnapshotWriter.thenCompose(writer -> {
+            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+            synchronized (TopicTransactionBuffer.this) {
+                snapshot.setTopicName(topic.getName());
+                snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
+                snapshot.setMaxReadPositionEntryId(maxReadPosition.getEntryId());
+                List<AbortTxnMetadata> list = new ArrayList<>();
+                aborts.forEach((k, v) -> {
+                    AbortTxnMetadata abortTxnMetadata = new AbortTxnMetadata();
+                    abortTxnMetadata.setTxnIdMostBits(k.getMostSigBits());
+                    abortTxnMetadata.setTxnIdLeastBits(k.getLeastSigBits());
+                    abortTxnMetadata.setLedgerId(v.getLedgerId());
+                    abortTxnMetadata.setEntryId(v.getEntryId());
+                    list.add(abortTxnMetadata);
                 });
-    }
+                snapshot.setAborts(list);
+            }
 
-    private void clearAbortedTransactions() {
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            writer.writeAsync(snapshot).whenComplete((v, e) -> {
+                if (e != null) {
+                    completableFuture.completeExceptionally(e);
+                    log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
+                } else {
+                    this.lastSnapshotTimestamps = System.currentTimeMillis();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}]Transaction buffer take snapshot success! "
+                                + "messageId : {}", topic.getName(), v);
+                    }
+
+                    completableFuture.complete(null);
+                }
+            });
+            return completableFuture;
+        });
+    }    private void clearAbortedTransactions() {
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
             if (log.isDebugEnabled()) {
