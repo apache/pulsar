@@ -19,18 +19,16 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Lists;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.tuple.Pair;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Contains all the cursors for a ManagedLedger.
@@ -124,8 +122,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         long stamp = rwLock.writeLock();
         try {
             Item item = cursors.remove(name);
-
-            if (shouldTrackInHeap(item.cursor)) {
+            if (item != null && shouldTrackInHeap(item.cursor)) {
                 // Move the item to the right end of the heap to be removed
                 Item lastItem = heap.get(heap.size() - 1);
                 swap(item, lastItem);
