@@ -155,7 +155,7 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
-    <debezium.version>1.5.4.Final</debezium.version>
+    <debezium.version>1.7.0.Final</debezium.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.3.0</hbase.version>
