@@ -84,10 +84,10 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<ResourceLock<T>> acquireLock(String path, T value) {
-        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path, value);
+        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path);
 
         CompletableFuture<ResourceLock<T>> result = new CompletableFuture<>();
-        lock.acquire().thenRun(() -> {
+        lock.acquire(value).thenRun(() -> {
             synchronized (LockManagerImpl.this) {
                 if (state == State.Ready) {
                     locks.put(path, lock);
@@ -125,7 +125,7 @@ class LockManagerImpl<T> implements LockManager<T> {
             if (se == SessionEvent.SessionReestablished) {
                 log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
                 for (ResourceLockImpl<T> lock : locks.values()) {
-                    futures.add(lock.revalidate());
+                    futures.add(lock.revalidate(lock.getValue()));
                 }
 
             } else if (se == SessionEvent.Reconnected) {

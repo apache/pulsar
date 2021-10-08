@@ -3,7 +3,11 @@
     {
       "type": "category",
       "label": "Get Started",
-      "items": ["standalone", "standalone-docker", "kubernetes-helm"]
+      "items": [
+        "standalone",
+        "standalone-docker",
+        "kubernetes-helm"
+      ]
     },
     {
       "type": "category",
@@ -85,7 +89,13 @@
     {
       "type": "category",
       "label": "Transactions",
-      "items": ["txn-why", "txn-what", "txn-how", "txn-use", "txn-monitor"]
+      "items": [
+        "txn-why",
+        "txn-what",
+        "txn-how",
+        "txn-use",
+        "txn-monitor"
+      ]
     },
     {
       "type": "category",
@@ -142,6 +152,27 @@
         "security-encryption",
         "security-extending",
         "security-bouncy-castle"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        "performance-pulsar-perf"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        "client-libraries",
+        "client-libraries-java",
+        "client-libraries-go",
+        "client-libraries-python",
+        "client-libraries-cpp",
+        "client-libraries-node",
+        "client-libraries-websocket",
+        "client-libraries-dotnet"
       ]
     }
   ]

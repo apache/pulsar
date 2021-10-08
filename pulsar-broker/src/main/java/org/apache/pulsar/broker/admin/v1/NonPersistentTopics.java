@@ -99,12 +99,14 @@ public class NonPersistentTopics extends PersistentTopics {
                                             @PathParam("cluster") String cluster,
                                             @PathParam("namespace") String namespace,
                                             @PathParam("topic") @Encoded String encodedTopic,
-                                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+                                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                            @QueryParam("getPreciseBacklog") @DefaultValue("false")
+                                                                       boolean getPreciseBacklog) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateTopicOwnership(topicName, authoritative);
         validateTopicOperation(topicName, TopicOperation.GET_STATS);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(false, false);
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, false);
     }
 
     @GET

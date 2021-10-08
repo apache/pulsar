@@ -725,12 +725,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
         validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative);
+        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative, force);
     }
 
 
