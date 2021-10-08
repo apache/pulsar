@@ -404,6 +404,7 @@ Commands
 * `monitor-brokers`
 * `simulation-client`
 * `simulation-controller`
+* `version`
 * `help`
 
 Environment variables
@@ -661,6 +662,14 @@ Usage
 ```bash
 $ pulsar-perf help
 ```
+
+### `version`
+Get the current version of pulsar
+
+Usage
+```bash
+$ pulsar-perf version
+
 
 
 ## `bookkeeper`
