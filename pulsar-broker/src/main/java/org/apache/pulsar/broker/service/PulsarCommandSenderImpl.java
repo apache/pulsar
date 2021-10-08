@@ -296,10 +296,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendTcClientConnectResponse(long requestId) {
-        BaseCommand command = Commands.newTcClientConnectResponse(requestId, null, null);
-        safeIntercept(command, cnx);
-        ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf);
+        sendTcClientConnectResponse(requestId, null, null);
     }
 
     private void safeIntercept(BaseCommand command, ServerCnx cnx) {
