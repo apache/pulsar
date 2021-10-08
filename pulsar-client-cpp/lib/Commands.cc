@@ -644,8 +644,10 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
-        case BaseCommand::TC_CLIENT_CONNECT:
-            return "TC_CLIENT_CONNECT";
+        case BaseCommand::TC_CLIENT_CONNECT_REQUEST:
+            return "TC_CLIENT_CONNECT_REQUEST";
+        case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
+            return "TC_CLIENT_CONNECT_RESPONSE";
             break;
     };
     BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));
