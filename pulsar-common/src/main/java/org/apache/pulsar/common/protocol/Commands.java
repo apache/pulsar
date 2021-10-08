@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -590,6 +591,12 @@ public class Commands {
             convertSchema(schemaInfo, subscribe.setSchema());
         }
 
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newTcClientConnect(long tcId, long requestId) {
+        BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT);
+        cmd.setTcClientConnect().setTcId(tcId).setRequestId(requestId);
         return serializeWithSize(cmd);
     }
 
@@ -1226,10 +1233,14 @@ public class Commands {
     public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
            String errorMsg) {
         BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN_RESPONSE);
-        cmd.setAddPartitionToTxnResponse()
+        CommandAddPartitionToTxnResponse response = cmd.setAddPartitionToTxnResponse()
                 .setRequestId(requestId)
                 .setError(error)
                 .setTxnidMostBits(txnIdMostBits);
+
+        if (errorMsg != null) {
+            response.setMessage(errorMsg);
+        }
         return serializeWithSize(cmd);
     }
 

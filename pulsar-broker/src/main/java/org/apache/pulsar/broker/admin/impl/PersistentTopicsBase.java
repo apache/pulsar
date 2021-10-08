@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
+import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Lists;
@@ -130,6 +131,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -675,7 +677,11 @@ public class PersistentTopicsBase extends AdminResource {
         }
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (topicName.isPartitioned()) {
-            internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
+            if (checkTopicIsTransactionCoordinatorAssign(topicName)) {
+                internalUnloadTransactionCoordinator(asyncResponse, authoritative);
+            } else {
+                internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
+            }
         } else {
             getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                     .thenAccept(meta -> {
@@ -925,6 +931,29 @@ public class PersistentTopicsBase extends AdminResource {
                     asyncResponse.resume(ex.getCause());
                     return null;
                 });
+    }
+
+    private void internalUnloadTransactionCoordinator(AsyncResponse asyncResponse, boolean authoritative) {
+        try {
+            validateTopicOperation(topicName, TopicOperation.UNLOAD);
+        } catch (Exception e) {
+            log.error("[{}] Failed to unload tc {},{}", clientAppId(), topicName.getPartitionIndex(), e.getMessage());
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        }
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(v -> pulsar()
+                .getTransactionMetadataStoreService()
+                .removeTransactionMetadataStore(TransactionCoordinatorID.get(topicName.getPartitionIndex())))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unloaded tc {}", clientAppId(), topicName.getPartitionIndex());
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to unload tc {}, {}", clientAppId(), topicName.getPartitionIndex(),
+                    ex.getMessage());
+            asyncResponse.resume(ex.getCause());
+            return null;
+        });
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
