@@ -107,14 +107,21 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete(boolean isRecovered) {
-                        if (isRecovered && !changeToReadyState()) {
-                            log.error("[{}]Transaction buffer recover fail", topic.getName());
-                        } else if (!isRecovered && !changeToUnUsedState()){
-                            log.error("[{}]Transaction buffer recover fail", topic.getName());
+                        if (isRecovered) {
+                            if (!changeToReadyState()){
+                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                            } else {
+                                timer.newTimeout(TopicTransactionBuffer.this,
+                                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                                transactionBufferFuture.complete(null);
+                            }
                         } else {
-                            timer.newTimeout(TopicTransactionBuffer.this,
-                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                            transactionBufferFuture.complete(null);
+                            if (!changeToUnUsedState()){
+                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                            } else {
+                                transactionBufferFuture.complete(null);
+                            }
+
                         }
                     }
 
@@ -173,9 +180,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
                             handleTransactionMessage(txnId, position);
-                            if(!changeToReadyStateAfterUsed()){
+                            if (!changeToReadyStateAfterUsed()){
                                 log.error("Fail to change state when add message with transaction at the first time.");
                             }
+                            timer.newTimeout(TopicTransactionBuffer.this,
+                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                         }
                         completableFuture.complete(position);
                     }
@@ -518,7 +527,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     transactionBufferSnapshot.getMaxReadPositionEntryId());
                         }
                     }
-                    if(!hasSnapshot){
+                    if (!hasSnapshot){
                         callBack.recoverComplete(false);
                         return;
                     }

@@ -72,7 +72,9 @@ public abstract class TopicTransactionBufferState {
         return STATE_UPDATER.get(this) == State.Ready;
     }
 
-    public boolean checkIfUnused() { return STATE_UPDATER.get(this) == State.Unused; }
+    public boolean checkIfUnused() {
+        return STATE_UPDATER.get(this) == State.Unused;
+    }
 
     public State getState() {
         return STATE_UPDATER.get(this);
