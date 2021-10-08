@@ -995,13 +995,18 @@ public class ClientCnx extends PulsarHandler {
         long requestId = response.getRequestId();
         CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
 
-        if (!response.hasError()) {
-            requestFuture.complete(null);
+        if (requestFuture != null && !requestFuture.isDone()) {
+            if (!response.hasError()) {
+                requestFuture.complete(null);
+            } else {
+                ServerError error = response.getError();
+                log.error("Got tc client connect response for request: {}, error: {}, errorMessage: {}",
+                        response.getRequestId(), response.getError(), response.getMessage());
+                requestFuture.completeExceptionally(getExceptionByServerError(error, response.getMessage()));
+            }
         } else {
-            ServerError error = response.getError();
-            log.error("Got tc client connect response for request: {}, error: {}, errorMessage: {}",
-                    response.getRequestId(), response.getError(), response.getMessage());
-            requestFuture.completeExceptionally(getExceptionByServerError(error, response.getMessage()));
+            log.warn("Tc client connect command has been completed and get response for request: {}",
+                    response.getRequestId());
         }
     }
 
