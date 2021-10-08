@@ -36,10 +36,8 @@ import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
@@ -94,28 +92,70 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 .setMandatoryStop(100, TimeUnit.MILLISECONDS)
                 .create(),
             this);
-        this.connectionHandler.grabCnx();
         this.connectFuture = connectFuture;
+        this.connectionHandler.grabCnx();
     }
 
     @Override
     public void connectionFailed(PulsarClientException exception) {
         LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
             transactionCoordinatorId, exception);
-        setState(State.Failed);
-        this.connectFuture.completeExceptionally(exception);
+        if (!this.connectFuture.isDone()) {
+            this.connectFuture.completeExceptionally(exception);
+        }
     }
 
     @Override
     public void connectionOpened(ClientCnx cnx) {
         LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
             transactionCoordinatorId);
+
+        if (getState() == State.Closing || getState() == State.Closed) {
+            setState(State.Closed);
+            failPendingRequest();
+            this.pendingRequests.clear();
+            return;
+        }
+
         connectionHandler.setClientCnx(cnx);
         cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-        if (!changeToReadyState()) {
-            cnx.channel().close();
-        }
-        this.connectFuture.complete(null);
+        long requestId = client.newRequestId();
+        ByteBuf request = Commands.newTcClientConnect(transactionCoordinatorId, requestId);
+
+        cnx.sendRequestWithId(request, requestId).thenRun(() -> {
+            LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
+            if (!changeToReadyState()) {
+                setState(State.Closed);
+                cnx.channel().close();
+            }
+
+            if (!this.connectFuture.isDone()) {
+                this.connectFuture.complete(null);
+            }
+            this.connectionHandler.resetBackoff();
+        }).exceptionally((e) -> {
+            LOG.error("Transaction coordinator client connect fail! tcId : {}", transactionCoordinatorId, e.getCause());
+            if (getState() == State.Closing || getState() == State.Closed
+                    || e.getCause() instanceof PulsarClientException.NotAllowedException) {
+                setState(State.Closed);
+                cnx.channel().close();
+            } else {
+                connectionHandler.reconnectLater(e.getCause());
+            }
+            return null;
+        });
+    }
+
+    private void failPendingRequest() {
+        pendingRequests.keys().forEach(k -> {
+            OpBase<?> op = pendingRequests.remove(k);
+            if (op != null && !op.callback.isDone()) {
+                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                        "Could not get response from transaction meta store when " +
+                                "the transaction meta store has already close."));
+                onResponse(op);
+            }
+        });
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
@@ -146,6 +186,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             return;
         }
+
         if (!response.hasError()) {
             TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
             if (LOG.isDebugEnabled()) {
@@ -153,12 +194,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             op.callback.complete(txnID);
         } else {
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
-                connectionHandler.reconnectLater(
-                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
-            }
             LOG.error("Got new txn for request {} error {}", response.getRequestId(), response.getError());
-            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+            handleTransactionFailOp(response.getError(), response.getMessage(), op);
         }
 
         onResponse(op);
@@ -193,18 +230,15 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             return;
         }
+
         if (!response.hasError()) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Add publish partition for request {} success.", response.getRequestId());
             }
             op.callback.complete(null);
         } else {
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
-                connectionHandler.reconnectLater(
-                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
-            }
             LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
-            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+            handleTransactionFailOp(response.getError(), response.getMessage(), op);
         }
 
         onResponse(op);
@@ -239,19 +273,16 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             return;
         }
+
         if (!response.hasError()) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Add subscription to txn success for request {}.", response.getRequestId());
             }
             op.callback.complete(null);
         } else {
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
-                connectionHandler.reconnectLater(
-                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
-            }
             LOG.error("Add subscription to txn failed for request {} error {}.",
                     response.getRequestId(), response.getError());
-            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+            handleTransactionFailOp(response.getError(), response.getMessage(), op);
         }
         onResponse(op);
     }
@@ -285,21 +316,29 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             }
             return;
         }
+
         if (!response.hasError()) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Got end txn response success for request {}", response.getRequestId());
             }
             op.callback.complete(null);
         } else {
-            if (response.getError() == ServerError.TransactionCoordinatorNotFound) {
-                connectionHandler.reconnectLater(
-                        new TransactionCoordinatorClientException.CoordinatorNotFoundException(response.getMessage()));
-            }
             LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
-            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+            handleTransactionFailOp(response.getError(), response.getMessage(), op);
         }
 
         onResponse(op);
+    }
+
+    private void handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
+        if (error == ServerError.TransactionCoordinatorNotFound && getState() != State.Connecting) {
+            connectionHandler.reconnectLater(new TransactionCoordinatorClientException
+                    .CoordinatorNotFoundException(message));
+        }
+
+        if (op != null) {
+            op.callback.completeExceptionally(getExceptionByServerError(error, message));
+        }
     }
 
     private static abstract class OpBase<T> {

@@ -455,14 +455,20 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions) {
-        return updatePartitionedTopicAsync(topic, numPartitions, false);
+        return updatePartitionedTopicAsync(topic, numPartitions, false, false);
     }
 
     @Override
     public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly)
             throws PulsarAdminException {
+        updatePartitionedTopic(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly, boolean force)
+            throws PulsarAdminException {
         try {
-            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly)
+            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, force)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -477,10 +483,17 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
             boolean updateLocalTopicOnly) {
+        return updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
+            boolean updateLocalTopicOnly, boolean force) {
         checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
-        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly));
+        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly)).queryParam("force",
+                force);
         return asyncPostRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 

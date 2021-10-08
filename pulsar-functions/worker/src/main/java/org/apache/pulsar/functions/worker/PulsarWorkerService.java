@@ -561,6 +561,14 @@ public class PulsarWorkerService implements WorkerService {
                         });
             }
 
+            if (workerConfig.getWorkerListProbeIntervalSec() > 0) {
+                clusterServiceCoordinator.addTask("drain-worker-list-probe-periodic-check",
+                        workerConfig.getWorkerListProbeIntervalSec() * 1000,
+                        () -> {
+                                schedulerManager.updateWorkerDrainMap();
+                        });
+            }
+
             log.info("/** Starting Cluster Service Coordinator **/");
             clusterServiceCoordinator.start();
 

@@ -84,7 +84,7 @@ public class RuntimeSpawner implements AutoCloseable {
             processLivenessCheckTimer = InstanceCache.getInstanceCache().getScheduledExecutorService().scheduleAtFixedRate(() -> {
                 Runtime runtime = RuntimeSpawner.this.runtime;
                 if (runtime != null && !runtime.isAlive()) {
-                    log.error("{}/{}/{}-{} Function Container is dead with exception.. restarting", details.getTenant(),
+                    log.error("{}/{}/{} Function Container is dead with following exception. Restarting.", details.getTenant(),
                             details.getNamespace(), details.getName(), runtime.getDeathException());
                     // Just for the sake of sanity, just destroy the runtime
                     try {

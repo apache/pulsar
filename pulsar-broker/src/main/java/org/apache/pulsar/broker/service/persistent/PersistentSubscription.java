@@ -1071,8 +1071,14 @@ public class PersistentSubscription implements Subscription {
         subStats.isReplicated = isReplicated();
         subStats.isDurable = cursor.isDurable();
         if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
-            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers =
-                    ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getRecentlyJoinedConsumers();
+            PersistentStickyKeyDispatcherMultipleConsumers keySharedDispatcher =
+                    (PersistentStickyKeyDispatcherMultipleConsumers) dispatcher;
+
+            subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
+            subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
+
+            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers = keySharedDispatcher
+                    .getRecentlyJoinedConsumers();
             if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
                 recentlyJoinedConsumers.forEach((k, v) -> {
                     subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());

@@ -91,6 +91,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.BundlesQuotas;
@@ -160,6 +161,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1675,6 +1677,17 @@ public class BrokerService implements Closeable {
                                 : CompletableFuture.completedFuture(null)));
             }
         });
+        if (getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && serviceUnit.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
+            TransactionMetadataStoreService metadataStoreService =
+                    this.getPulsar().getTransactionMetadataStoreService();
+            // if the store belongs to this bundle, remove and close the store
+            this.getPulsar().getTransactionMetadataStoreService().getStores().values().stream().filter(store ->
+                    serviceUnit.includes(TopicName.TRANSACTION_COORDINATOR_ASSIGN
+                            .getPartition((int) (store.getTransactionCoordinatorID().getId()))))
+                    .map(TransactionMetadataStore::getTransactionCoordinatorID)
+                    .forEach(tcId -> closeFutures.add(metadataStoreService.removeTransactionMetadataStore(tcId)));
+        }
 
         return FutureUtil.waitForAll(closeFutures).thenApply(v -> closeFutures.size());
     }

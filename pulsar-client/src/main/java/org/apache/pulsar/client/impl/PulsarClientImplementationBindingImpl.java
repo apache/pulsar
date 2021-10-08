@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -379,4 +380,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return new KeyBasedBatcherBuilder();
     }
 
+    public MessagePayloadFactory newDefaultMessagePayloadFactory() {
+        return new MessagePayloadFactoryImpl();
+    }
 }

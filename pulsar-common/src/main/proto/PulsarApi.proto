@@ -762,6 +762,11 @@ enum TxnAction {
     ABORT = 1;
 }
 
+message CommandTcClientConnect {
+    required uint64 request_id = 1;
+    required uint64 tc_id = 2 [default = 0];
+}
+
 message CommandNewTxn {
     required uint64 request_id = 1;
     optional uint64 txn_ttl_seconds = 2 [default = 0];
@@ -941,6 +946,7 @@ message BaseCommand {
 
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
+        TC_CLIENT_CONNECT = 62;
 
     }
 
@@ -1016,4 +1022,5 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+    optional CommandTcClientConnect tcClientConnect = 62;
 }
