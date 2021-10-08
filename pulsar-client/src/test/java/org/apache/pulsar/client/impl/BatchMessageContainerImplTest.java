@@ -48,7 +48,7 @@ public class BatchMessageContainerImplTest {
     public void recoveryAfterOom() throws Exception {
         final ByteBufAllocatorImpl mockAllocator = PowerMockito.mock(ByteBufAllocatorImpl.class);
         PowerMockito.whenNew(ByteBufAllocatorImpl.class).withAnyArguments().thenReturn(mockAllocator);
-        PowerMockito.when(mockAllocator.buffer(Mockito.anyInt(), Mockito.anyInt())).thenThrow(new OutOfMemoryError("test"));
+        PowerMockito.when(mockAllocator.buffer(Mockito.anyInt(), Mockito.anyInt())).thenThrow(new OutOfMemoryError("test")).thenReturn(null);
         final ProducerImpl producer = Mockito.mock(ProducerImpl.class);
         final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setCompressionType(CompressionType.NONE);
@@ -62,7 +62,6 @@ public class BatchMessageContainerImplTest {
         ByteBuffer payload1 = ByteBuffer.wrap("payload1".getBytes(StandardCharsets.UTF_8));
         final MessageImpl<byte[]> message1 = MessageImpl.create(messageMetadata1, payload1, Schema.BYTES, null);
         batchMessageContainer.add(message1, null);
-        PowerMockito.when(mockAllocator.buffer(Mockito.anyInt(), Mockito.anyInt())).thenReturn(null);
         MessageMetadata messageMetadata2 = new MessageMetadata();
         messageMetadata2.setSequenceId(1L);
         messageMetadata2.setProducerName("producer1");
