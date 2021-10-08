@@ -120,7 +120,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         connectionHandler.setClientCnx(cnx);
         cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
         long requestId = client.newRequestId();
-        ByteBuf request = Commands.newTcClientConnect(transactionCoordinatorId, requestId);
+        ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
 
         cnx.sendRequestWithId(request, requestId).thenRun(() -> {
             LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
@@ -401,7 +401,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         };
     }
 
-    private TransactionCoordinatorClientException getExceptionByServerError(ServerError serverError, String msg) {
+    public static TransactionCoordinatorClientException getExceptionByServerError(ServerError serverError, String msg) {
         switch (serverError) {
             case TransactionCoordinatorNotFound:
                 return new TransactionCoordinatorClientException.CoordinatorNotFoundException(msg);
