@@ -164,7 +164,7 @@ public class LookupImpl extends BaseResource implements Lookup {
         TopicName topicName = TopicName.get(topic);
         String prefix = topicName.isV2() ? "/topic" : "/destination";
         WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
-        return getCompletableFuture(path);
+        return asyncGetRequest(path);
     }
 
 }

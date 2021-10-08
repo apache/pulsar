@@ -283,7 +283,7 @@ public abstract class BaseResource {
         }
     }
 
-    public <T> CompletableFuture<T> getCompletableFuture(WebTarget path) {
+    public <T> CompletableFuture<T> asyncGetRequest(WebTarget path) {
         final CompletableFuture<T> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<T>() {

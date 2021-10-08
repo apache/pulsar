@@ -65,7 +65,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getMetricsAsync() {
         WebTarget path = adminV2BrokerStats.path("/metrics");
-        return getCompletableFuture(path);
+        return asyncGetRequest(path);
     }
 
     @Override
@@ -85,7 +85,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName) {
         WebTarget path = adminV2BrokerStats.path("/allocator-stats").path(allocatorName);
-        return getCompletableFuture(path);
+        return asyncGetRequest(path);
     }
 
     @Override
@@ -105,7 +105,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getMBeansAsync() {
         WebTarget path = adminV2BrokerStats.path("/mbeans");
-        return getCompletableFuture(path);
+        return asyncGetRequest(path);
     }
 
     @Override
@@ -125,7 +125,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getTopicsAsync() {
         WebTarget path = adminV2BrokerStats.path("/topics");
-        return getCompletableFuture(path);
+        return asyncGetRequest(path);
     }
 
     @Override
@@ -145,7 +145,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<LoadManagerReport> getLoadReportAsync() {
         WebTarget path = adminV2BrokerStats.path("/load-report");
-        return getCompletableFuture(path);
+        return asyncGetRequest(path);
     }
 
     @Override
@@ -165,7 +165,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<String> getPendingBookieOpsStatsAsync() {
         WebTarget path = adminV2BrokerStats.path("/bookieops");
-        return getCompletableFuture(path);
+        return asyncGetRequest(path);
     }
 
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {
