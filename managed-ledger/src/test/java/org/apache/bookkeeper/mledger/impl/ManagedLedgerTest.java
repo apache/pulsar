@@ -2126,6 +2126,58 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(mlInfo.stream().allMatch(ledgerInfo -> ledgerInfo.hasTimestamp()));
     }
 
+
+
+    @Test
+    public void testGetPositionAfterN() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(5);
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetPositionAfterN", managedLedgerConfig);
+
+        // open cursor to prevent ledger to be deleted when ledger rollover
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) managedLedger.openCursor("cursor");
+        Position positionMarkDelete = null;
+        for (int i = 0; i < 10; i ++) {
+            if (i == 3) {
+                positionMarkDelete = managedLedger.addEntry(("entry-" + i).getBytes(Encoding));
+                continue;
+            }
+            managedLedger.addEntry(("entry-" + i).getBytes(Encoding));
+        }
+
+        managedCursor.markDelete(positionMarkDelete);
+
+        //trigger ledger rollover and wait for the new ledger created
+        managedLedger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> assertEquals(managedLedger.getLedgersInfo().size(), 3));
+        assertEquals(5, managedLedger.getLedgersInfoAsList().get(0).getEntries());
+        assertEquals(5, managedLedger.getLedgersInfoAsList().get(1).getEntries());
+        assertEquals(0, managedLedger.getLedgersInfoAsList().get(2).getEntries());
+        log.info("### ledgers {}", managedLedger.getLedgersInfo());
+
+        long firstLedger = managedLedger.getLedgersInfo().firstKey();
+        long secondLedger = managedLedger.getLedgersInfoAsList().get(1).getLedgerId();
+
+        PositionImpl startPosition = new PositionImpl(firstLedger, 0);
+
+        PositionImpl targetPosition = managedLedger.getPositionAfterN(startPosition, 1, ManagedLedgerImpl.PositionBound.startExcluded);
+        assertEquals(targetPosition.getLedgerId(), firstLedger);
+        assertEquals(targetPosition.getEntryId(), 1);
+
+        targetPosition = managedLedger.getPositionAfterN(startPosition, 4, ManagedLedgerImpl.PositionBound.startExcluded);
+        assertEquals(targetPosition.getLedgerId(), firstLedger);
+        assertEquals(targetPosition.getEntryId(), 4);
+
+        // test for expiry situation
+        PositionImpl searchPosition = managedLedger.getNextValidPosition((PositionImpl) managedCursor.getMarkDeletedPosition());
+        long length = managedCursor.getNumberOfEntriesInStorage();
+        // return the last confirm entry position if searchPosition is exceed the last confirm entry
+        targetPosition = managedLedger.getPositionAfterN(searchPosition, length, ManagedLedgerImpl.PositionBound.startExcluded);
+        log.info("Target position is {}", targetPosition);
+        assertEquals(targetPosition.getLedgerId(), secondLedger);
+        assertEquals(targetPosition.getEntryId(), 4);
+    }
+
     @Test
     public void testEstimatedBacklogSize() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testEstimatedBacklogSize");
