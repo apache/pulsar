@@ -285,15 +285,10 @@ public class TransactionTest extends TransactionTestBase {
         producer.newMessage(transaction).value("transaction message send ").send();
         Assert.assertTrue(persistentTopic.getTransactionBufferStats().state.equals("Ready"));
         Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
-                .until(() -> {
-                    try{
-                        Message<TransactionBufferSnapshot> message = reader.readNext();
-                        TransactionBufferSnapshot snapshot = message.getValue();
-                        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),0);
-                        return true;
-                    }catch (java.lang.AssertionError e){
-                        return false;
-                    }
+                .untilAsserted(() -> {
+                    Message<TransactionBufferSnapshot> message = reader.readNext();
+                    TransactionBufferSnapshot snapshot = message.getValue();
+                    Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),0);
                 });
     }
 }

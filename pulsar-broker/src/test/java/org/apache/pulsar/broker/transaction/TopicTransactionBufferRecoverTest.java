@@ -282,10 +282,12 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         tnx1.commit().get();
         // wait timeout take snapshot
 
-        TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId1).getEntryId() + 1);
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
-        assertFalse(reader.hasMessageAvailable());
+        Awaitility.await().untilAsserted(() -> {
+            TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId1).getEntryId() + 1);
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
+            assertFalse(reader.hasMessageAvailable());
+        });
 
         // take snapshot by change times
         MessageId messageId2 = producer.newMessage(tnx2).value("test").send();
@@ -303,7 +305,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         MessageId messageId4 = producer.newMessage(abortTxn).value("test").send();
         abortTxn.abort().get();
 
-        transactionBufferSnapshot = reader.readNext().getValue();
+        TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
         assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId4).getEntryId() + 1);
         assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId4).getLedgerId());
         assertEquals(transactionBufferSnapshot.getAborts().size(), 1);
