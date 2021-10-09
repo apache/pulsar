@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -594,12 +595,28 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newTcClientConnect(long tcId, long requestId) {
-        BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT);
-        cmd.setTcClientConnect().setTcId(tcId).setRequestId(requestId);
+    public static ByteBuf newTcClientConnectRequest(long tcId, long requestId) {
+        BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT_REQUEST);
+        cmd.setTcClientConnectRequest().setTcId(tcId).setRequestId(requestId);
         return serializeWithSize(cmd);
     }
 
+    public static BaseCommand newTcClientConnectResponse(long requestId, ServerError error, String message) {
+        BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT_RESPONSE);
+
+        CommandTcClientConnectResponse response = cmd.setTcClientConnectResponse()
+                .setRequestId(requestId);
+
+        if (error != null) {
+            response.setError(error);
+        }
+
+        if (message != null) {
+            response.setMessage(message);
+        }
+
+        return cmd;
+    }
 
     private static KeySharedMode convertKeySharedMode(org.apache.pulsar.client.api.KeySharedMode mode) {
         switch (mode) {

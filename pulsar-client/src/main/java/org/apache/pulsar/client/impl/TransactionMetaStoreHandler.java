@@ -31,6 +31,7 @@ import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandNewTxnResponse;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -119,31 +120,41 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         connectionHandler.setClientCnx(cnx);
         cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-        long requestId = client.newRequestId();
-        ByteBuf request = Commands.newTcClientConnect(transactionCoordinatorId, requestId);
 
-        cnx.sendRequestWithId(request, requestId).thenRun(() -> {
-            LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
+        // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
+        if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
+            long requestId = client.newRequestId();
+            ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
+
+            cnx.sendRequestWithId(request, requestId).thenRun(() -> {
+                LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
+                if (!changeToReadyState()) {
+                    setState(State.Closed);
+                    cnx.channel().close();
+                }
+
+                if (!this.connectFuture.isDone()) {
+                    this.connectFuture.complete(null);
+                }
+                this.connectionHandler.resetBackoff();
+            }).exceptionally((e) -> {
+                LOG.error("Transaction coordinator client connect fail! tcId : {}",
+                        transactionCoordinatorId, e.getCause());
+                if (getState() == State.Closing || getState() == State.Closed
+                        || e.getCause() instanceof PulsarClientException.NotAllowedException) {
+                    setState(State.Closed);
+                    cnx.channel().close();
+                } else {
+                    connectionHandler.reconnectLater(e.getCause());
+                }
+                return null;
+            });
+        } else {
             if (!changeToReadyState()) {
-                setState(State.Closed);
                 cnx.channel().close();
             }
-
-            if (!this.connectFuture.isDone()) {
-                this.connectFuture.complete(null);
-            }
-            this.connectionHandler.resetBackoff();
-        }).exceptionally((e) -> {
-            LOG.error("Transaction coordinator client connect fail! tcId : {}", transactionCoordinatorId, e.getCause());
-            if (getState() == State.Closing || getState() == State.Closed
-                    || e.getCause() instanceof PulsarClientException.NotAllowedException) {
-                setState(State.Closed);
-                cnx.channel().close();
-            } else {
-                connectionHandler.reconnectLater(e.getCause());
-            }
-            return null;
-        });
+            this.connectFuture.complete(null);
+        }
     }
 
     private void failPendingRequest() {
@@ -401,7 +412,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         };
     }
 
-    private TransactionCoordinatorClientException getExceptionByServerError(ServerError serverError, String msg) {
+    public static TransactionCoordinatorClientException getExceptionByServerError(ServerError serverError, String msg) {
         switch (serverError) {
             case TransactionCoordinatorNotFound:
                 return new TransactionCoordinatorClientException.CoordinatorNotFoundException(msg);
