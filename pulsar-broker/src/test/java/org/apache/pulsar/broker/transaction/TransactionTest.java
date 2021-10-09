@@ -254,7 +254,7 @@ public class TransactionTest extends TransactionTestBase {
 
     }
 
-
+    @Test
     public void testTakeSnapshotBeforeFirstTxnMessageSend() throws Exception{
         String topic = "persistent://" + NAMESPACE1 + "/testSnapShot";
         admin.topics().createNonPartitionedTopic(topic);
@@ -277,14 +277,7 @@ public class TransactionTest extends TransactionTestBase {
         producer.newMessage(Schema.STRING).value("common message send").send();
 
         Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
-                .until(() -> {
-                    try{
-                        Assert.assertFalse(reader.hasMessageAvailable());
-                        return true;
-                    }catch (java.lang.AssertionError e){
-                        return false;
-                    }
-                });
+                .untilAsserted(() -> Assert.assertFalse(reader.hasMessageAvailable()));
         Assert.assertTrue(persistentTopic.getTransactionBufferStats().state.equals("Unused"));
         Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();

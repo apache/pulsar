@@ -106,22 +106,22 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.topic.getBrokerService().getPulsar().getTransactionReplayExecutor()
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
-                    public void recoverComplete(boolean isRecovered) {
-                        if (isRecovered) {
-                            if (!changeToReadyState()){
-                                log.error("[{}]Transaction buffer recover fail", topic.getName());
-                            } else {
-                                timer.newTimeout(TopicTransactionBuffer.this,
-                                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                                transactionBufferFuture.complete(null);
-                            }
+                    public void recoverComplete() {
+                        if (!changeToReadyState()){
+                            log.error("[{}]Transaction buffer recover fail", topic.getName());
                         } else {
-                            if (!changeToUnUsedState()){
-                                log.error("[{}]Transaction buffer recover fail", topic.getName());
-                            } else {
-                                transactionBufferFuture.complete(null);
-                            }
+                            timer.newTimeout(TopicTransactionBuffer.this,
+                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                            transactionBufferFuture.complete(null);
+                        }
+                    }
 
+                    @Override
+                    public void noNeedToRecover() {
+                        if (!changeToUnUsedState()){
+                            log.error("[{}]Transaction buffer recover fail", topic.getName());
+                        } else {
+                            transactionBufferFuture.complete(null);
                         }
                     }
 
@@ -175,16 +175,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         if (checkIfUnused()){
             takeSnapshot().thenAccept(ignore -> {
+                if (!changeToReadyStateAfterUsed()){
+                    log.error("Fail to change state when add message with transaction at the first time.");
+                }
+                timer.newTimeout(TopicTransactionBuffer.this,
+                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                 topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
                     @Override
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
                             handleTransactionMessage(txnId, position);
-                            if (!changeToReadyStateAfterUsed()){
-                                log.error("Fail to change state when add message with transaction at the first time.");
-                            }
-                            timer.newTimeout(TopicTransactionBuffer.this,
-                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                         }
                         completableFuture.complete(position);
                     }
@@ -385,7 +385,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             });
             return completableFuture;
         });
-    }    private void clearAbortedTransactions() {
+    }
+    private void clearAbortedTransactions() {
         while (!aborts.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(aborts.get(aborts.firstKey()).getLedgerId())) {
             if (log.isDebugEnabled()) {
@@ -528,7 +529,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         }
                     }
                     if (!hasSnapshot){
-                        callBack.recoverComplete(false);
+                        callBack.noNeedToRecover();
                         return;
                     }
                 } catch (PulsarClientException pulsarClientException) {
@@ -581,7 +582,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 }
 
                 closeCursor(managedCursor);
-                callBack.recoverComplete(true);
+                callBack.recoverComplete();
             }).exceptionally(e -> {
                 callBack.recoverExceptionally(new Exception(e));
                 log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
