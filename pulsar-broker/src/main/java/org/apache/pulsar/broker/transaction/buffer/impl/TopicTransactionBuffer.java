@@ -174,51 +174,51 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         if (checkIfUnused()){
+            buffer.retain();
             takeSnapshot().thenAccept(ignore -> {
-                if (!changeToReadyStateAfterUsed()){
-                    log.error("Fail to change state when add message with transaction at the first time.");
-                }
-                timer.newTimeout(TopicTransactionBuffer.this,
-                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
-                    @Override
-                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                        synchronized (TopicTransactionBuffer.this) {
-                            handleTransactionMessage(txnId, position);
+                try {
+                    if (!changeToReadyStateAfterUsed()){
+                        if (!checkIfReady()){
+                            log.error("Fail to change state when add message with transaction at the first time.");
                         }
-                        completableFuture.complete(position);
+                    } else {
+                        timer.newTimeout(TopicTransactionBuffer.this,
+                                takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                     }
-
-                    @Override
-                    public void addFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("Failed to append buffer to txn {}", txnId, exception);
-                        completableFuture.completeExceptionally(new PersistenceException(exception));
+                    if (checkIfReady()){
+                        addTxnEntry(completableFuture, txnId, buffer);
                     }
-                }, null);
-
+                } finally {
+                    buffer.release();
+                }
             }).exceptionally(exception -> {
+                buffer.release();
                 log.error("Fail to takeSnapshot before adding the first message with transaction", exception);
                 completableFuture.completeExceptionally(exception);
                 return null;
             });
         } else {
-            topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    synchronized (TopicTransactionBuffer.this) {
-                        handleTransactionMessage(txnId, position);
-                    }
-                    completableFuture.complete(position);
-                }
-
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Failed to append buffer to txn {}", txnId, exception);
-                    completableFuture.completeExceptionally(new PersistenceException(exception));
-                }
-            }, null);
+            addTxnEntry(completableFuture, txnId, buffer);
         }
         return completableFuture;
+    }
+
+    private void addTxnEntry(CompletableFuture<Position> completableFuture, TxnID txnId, ByteBuf buffer){
+        topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                synchronized (TopicTransactionBuffer.this) {
+                    handleTransactionMessage(txnId, position);
+                }
+                completableFuture.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Failed to append buffer to txn {}", txnId, exception);
+                completableFuture.completeExceptionally(new PersistenceException(exception));
+            }
+        }, null);
     }
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
@@ -242,7 +242,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             log.debug("Transaction {} commit on topic {}.", txnID.toString(), topic.getName());
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-
+        if (!checkIfReady()){
+            log.error("No message with transaction has been successfully sent, so commit is meaningless");
+            completableFuture.complete(null);
+            return completableFuture;
+        }
         ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
                 txnID.getLeastSigBits());
 
@@ -277,6 +281,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             log.debug("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (!checkIfReady()){
+           log.error("No message with transaction has been successfully sent, so abort is meaningless");
+           completableFuture.complete(null);
+           return completableFuture;
+        }
 
         ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L, txnID.getMostSigBits(), txnID.getLeastSigBits());
         try {
