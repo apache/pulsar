@@ -271,7 +271,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             TxnID firstTxn = ongoingTxns.firstKey();
             if (firstTxn.getMostSigBits() == txnID.getMostSigBits() && lowWaterMark >= firstTxn.getLeastSigBits()) {
                 ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L,
-                        txnID.getMostSigBits(), txnID.getLeastSigBits());
+                        firstTxn.getMostSigBits(), firstTxn.getLeastSigBits());
                 try {
                     topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
                         @Override
