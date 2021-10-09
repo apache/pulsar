@@ -578,8 +578,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    cursor.asyncReadEntries(100, this,
-                            System.nanoTime(), PositionImpl.latest);
+                    cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.latest);
                 }
             }
         }

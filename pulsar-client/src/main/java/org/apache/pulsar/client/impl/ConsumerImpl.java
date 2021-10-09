@@ -1721,9 +1721,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 long requestId = client.newRequestId();
                 cnx.newRedeliverUnacknowledgedMessages(
                         Commands.newRedeliverUnacknowledgedMessages(consumerId,
-                                requestId, consumerEpoch.get()), requestId).thenRunAsync(() -> {
-                                    completableFuture.complete(null);
-                }).exceptionally(e -> {
+                                requestId, consumerEpoch.get()), requestId).thenRunAsync(() ->
+                        completableFuture.complete(null)).exceptionally(e -> {
                     completableFuture.completeExceptionally(e.getCause());
                     return null;
                 });

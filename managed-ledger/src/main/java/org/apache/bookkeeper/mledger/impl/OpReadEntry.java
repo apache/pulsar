@@ -44,7 +44,6 @@ class OpReadEntry implements ReadEntriesCallback {
     private List<Entry> entries;
     private PositionImpl nextReadPosition;
     PositionImpl maxPosition;
-    private long epoch;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {

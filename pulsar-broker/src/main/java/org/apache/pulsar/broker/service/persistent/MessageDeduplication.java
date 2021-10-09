@@ -51,8 +51,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Class that contains all the logic to control and perform the deduplication on the broker side.
  */
-public class
-MessageDeduplication {
+public class MessageDeduplication {
 
     private final PulsarService pulsar;
     private final PersistentTopic topic;

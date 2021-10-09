@@ -152,8 +152,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
         ReadEntriesCallBackWrapper readEntriesCallBackWrapper = (ReadEntriesCallBackWrapper) obj;
-        Consumer readConsumer = readEntriesCallBackWrapper.consumer;
-        long epoch = readEntriesCallBackWrapper.epoch;
+        Consumer readConsumer = readEntriesCallBackWrapper.getConsumer();
+        long epoch = readEntriesCallBackWrapper.getEpoch();
         readEntriesCallBackWrapper.recycle();
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
