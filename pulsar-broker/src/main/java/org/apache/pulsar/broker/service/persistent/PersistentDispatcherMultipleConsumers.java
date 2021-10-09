@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
+import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -269,7 +269,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 havePendingRead = true;
                 cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
-                        ReadType.Normal, topic.getMaxReadPosition(), DEFAULT_READ_EPOCH);
+                        ReadType.Normal, topic.getMaxReadPosition());
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
             }
@@ -444,7 +444,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
+    public synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
         ReadType readType = (ReadType) ctx;
         if (readType == ReadType.Normal) {
             havePendingRead = false;

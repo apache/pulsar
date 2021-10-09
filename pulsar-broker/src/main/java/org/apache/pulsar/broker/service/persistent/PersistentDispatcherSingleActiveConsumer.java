@@ -19,23 +19,21 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
+import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import io.netty.util.Recycler;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import io.netty.util.Recycler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
-import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
@@ -153,7 +151,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
-        Consumer readConsumer = (Consumer) obj;
+        ReadEntriesCallBackWrapper readEntriesCallBackWrapper = (ReadEntriesCallBackWrapper) obj;
+        Consumer readConsumer = readEntriesCallBackWrapper.consumer;
+        long epoch = readEntriesCallBackWrapper.epoch;
+        readEntriesCallBackWrapper.recycle();
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
         }
@@ -365,8 +366,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
                         this, consumer);
             } else {
+                ReadEntriesCallBackWrapper readEntriesCallBackWrapper =
+                        ReadEntriesCallBackWrapper.create(consumer, consumerEpoch);
                 cursor.asyncReadEntriesOrWait(messagesToRead,
-                        bytesToRead, this, consumer, topic.getMaxReadPosition());
+                        bytesToRead, this, readEntriesCallBackWrapper, topic.getMaxReadPosition());
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -599,12 +602,46 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 
-    class ReadEntriesCallBackWrapper {
-        private static final Recycler<ReadEntriesCallBackWrapper> RECYCLER = new Recycler<ReadEntriesCallBackWrapper>() {
+    static class ReadEntriesCallBackWrapper {
+
+        private Consumer consumer;
+        private long epoch;
+
+        private final Recycler.Handle<ReadEntriesCallBackWrapper> recyclerHandle;
+
+        private ReadEntriesCallBackWrapper(Recycler.Handle<ReadEntriesCallBackWrapper> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+        private static final Recycler<ReadEntriesCallBackWrapper> RECYCLER =
+                new Recycler<ReadEntriesCallBackWrapper>() {
             @Override
             protected ReadEntriesCallBackWrapper newObject(Recycler.Handle<ReadEntriesCallBackWrapper> recyclerHandle) {
                 return new ReadEntriesCallBackWrapper(recyclerHandle);
             }
         };
+
+        public static ReadEntriesCallBackWrapper create(Consumer consumer, long epoch) {
+            ReadEntriesCallBackWrapper wrapper = RECYCLER.get();
+            wrapper.consumer = consumer;
+            wrapper.epoch = epoch;
+            if (log.isDebugEnabled()) {
+                log.debug("Created new ReadEntriesCallBackWrapper {}", wrapper);
+            }
+            return wrapper;
+        }
+
+        Consumer getConsumer() {
+            return consumer;
+        }
+
+        long getEpoch() {
+            return epoch;
+        }
+
+        public void recycle() {
+            consumer = null;
+            epoch = 0;
+            recyclerHandle.recycle(this);
+        }
     }
 }

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
+import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;

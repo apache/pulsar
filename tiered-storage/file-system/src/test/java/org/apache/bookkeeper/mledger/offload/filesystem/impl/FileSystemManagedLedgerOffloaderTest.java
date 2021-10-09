@@ -58,7 +58,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private LedgerHandle lh;
     private ReadHandle toWrite;
     private final int numberOfEntries = 601;
-    private  Map<String, String> map = new HashMap<>();
+    private  Map<String, String>  map = new HashMap<>();
 
     public FileSystemManagedLedgerOffloaderTest() throws Exception {
         this.bk = new PulsarMockBookKeeper(scheduler);

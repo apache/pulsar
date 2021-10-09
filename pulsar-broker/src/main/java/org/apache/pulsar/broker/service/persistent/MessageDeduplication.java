@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.HashMap;
@@ -160,7 +159,7 @@ MessageDeduplication {
     private void replayCursor(CompletableFuture<Void> future) {
         managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
 
                 for (Entry entry : entries) {
                     ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
@@ -187,7 +186,7 @@ MessageDeduplication {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 future.completeExceptionally(exception);
             }
-        }, null, PositionImpl.latest, DEFAULT_READ_EPOCH);
+        }, null, PositionImpl.latest);
     }
 
     public Status getStatus() {

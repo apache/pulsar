@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
+import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;

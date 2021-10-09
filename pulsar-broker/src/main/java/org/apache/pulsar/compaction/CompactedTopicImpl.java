@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ComparisonChain;
@@ -97,7 +96,7 @@ public class CompactedTopicImpl implements CompactedTopic {
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback,
-                        consumer, PositionImpl.latest, DEFAULT_READ_EPOCH);
+                        consumer, PositionImpl.latest);
             } else {
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -106,33 +105,33 @@ public class CompactedTopicImpl implements CompactedTopic {
                             // the cursor just needs to be set to the compaction horizon
                             if (startPoint == COMPACT_LEDGER_EMPTY) {
                                 cursor.seek(compactionHorizon.getNext());
-                                callback.readEntriesComplete(Collections.emptyList(), consumer, DEFAULT_READ_EPOCH);
+                                callback.readEntriesComplete(Collections.emptyList(), consumer);
                                 return CompletableFuture.completedFuture(null);
                             }
                             if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
                                 cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer,
-                                        PositionImpl.latest, DEFAULT_READ_EPOCH);
+                                        PositionImpl.latest);
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 long endPoint = Math.min(context.ledger.getLastAddConfirmed(),
                                                          startPoint + numberOfEntriesToRead);
                                 if (startPoint == NEWER_THAN_COMPACTED) {
                                     cursor.seek(compactionHorizon.getNext());
-                                    callback.readEntriesComplete(Collections.emptyList(), consumer, DEFAULT_READ_EPOCH);
+                                    callback.readEntriesComplete(Collections.emptyList(), consumer);
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 return readEntries(context.ledger, startPoint, endPoint)
                                     .thenAccept((entries) -> {
                                         Entry lastEntry = entries.get(entries.size() - 1);
                                         cursor.seek(lastEntry.getPosition().getNext());
-                                        callback.readEntriesComplete(entries, consumer, DEFAULT_READ_EPOCH);
+                                        callback.readEntriesComplete(entries, consumer);
                                     });
                             }
                         }))
                     .exceptionally((exception) -> {
                         if (exception.getCause() instanceof NoSuchElementException) {
                             cursor.seek(compactionHorizon.getNext());
-                            callback.readEntriesComplete(Collections.emptyList(), consumer, DEFAULT_READ_EPOCH);
+                            callback.readEntriesComplete(Collections.emptyList(), consumer);
                         } else {
                             callback.readEntriesFailed(new ManagedLedgerException(exception), consumer);
                         }

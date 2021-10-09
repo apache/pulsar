@@ -176,7 +176,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         entries.add(EntryImpl.create(1, 6, createMessage("message5", 5)));
 
         try {
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal, 0L);
+            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
@@ -221,7 +221,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         try {
             //Should success,see issue #8960
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal, 0L);
+            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
@@ -245,11 +245,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
             doAnswer(invocationOnMock -> {
                 ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal, 0L);
+                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any(), anyLong());
+                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }
@@ -397,7 +397,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                     .collect(Collectors.toList());
             if (!entries.isEmpty()) {
                 ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(1))
-                        .readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay, anyLong());
+                        .readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay);
             }
             return Collections.emptySet();
         }).when(cursorMock).asyncReplayEntries(anySet(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
@@ -406,11 +406,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // Mock Cursor#asyncReadEntriesOrWait
         doAnswer(invocationOnMock -> {
             ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                    .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal, anyLong());
+                    .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
             return null;
         }).when(cursorMock).asyncReadEntriesOrWait(anyInt(), anyLong(),
                 any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any(), anyLong());
+                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
 
         // (1) Run sendMessagesToConsumers
         // (2) Attempts to send message1 to consumer1 but skipped because availablePermits is 0

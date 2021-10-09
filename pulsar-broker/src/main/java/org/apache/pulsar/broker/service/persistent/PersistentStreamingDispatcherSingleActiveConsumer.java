@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import com.google.common.collect.Lists;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
