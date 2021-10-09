@@ -126,7 +126,7 @@ public class SchemasResourceBase extends AdminResource {
                                 .build());
                     } else {
                         log.error("[{}] Failed to delete schema for topic {}", clientAppId(), topicName, error);
-                        response.resume(error);
+                        response.resume(new RestException(error));
                     }
                     return null;
                 });
@@ -166,7 +166,7 @@ public class SchemasResourceBase extends AdminResource {
                                     error.getMessage()).build());
                         } else {
                             log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                            response.resume(Response.serverError().build());
+                            response.resume(new RestException(error));
                         }
                         return null;
                     });
@@ -178,7 +178,7 @@ public class SchemasResourceBase extends AdminResource {
                         .build());
             } else {
                 log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                response.resume(Response.serverError().build());
+                response.resume(new RestException(error));
             }
             return null;
         });
@@ -209,7 +209,7 @@ public class SchemasResourceBase extends AdminResource {
                                 .schemaCompatibilityStrategy(schemaCompatibilityStrategy.name()).build())
                         .build()))
                 .exceptionally(error -> {
-                    response.resume(Response.serverError().build());
+                    response.resume(new RestException(error));
                     return null;
                 });
     }
@@ -230,7 +230,7 @@ public class SchemasResourceBase extends AdminResource {
                         .entity(LongSchemaVersionResponse.builder().version(version).build()).build()))
                 .exceptionally(error -> {
                     log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, error);
-                    response.resume(Response.serverError().build());
+                    response.resume(new RestException(error));
                     return null;
                 });
     }
@@ -265,7 +265,7 @@ public class SchemasResourceBase extends AdminResource {
             }
         } else {
             log.error("Failed to get schema", error);
-            response.resume(error);
+            response.resume(new RestException(error));
         }
 
     }
@@ -286,7 +286,7 @@ public class SchemasResourceBase extends AdminResource {
             }
         } else {
             log.error("Failed to get all schemas", error);
-            response.resume(error);
+            response.resume(new RestException(error));
         }
     }
 
