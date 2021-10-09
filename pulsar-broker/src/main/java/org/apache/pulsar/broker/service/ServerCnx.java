@@ -114,7 +114,7 @@ import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.CommandTcClientConnect;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -1934,7 +1934,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handleTcClientConnect(CommandTcClientConnect command) {
+    protected void handleTcClientConnectRequest(CommandTcClientConnectRequest command) {
         final long requestId = command.getRequestId();
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
         if (log.isDebugEnabled()) {
@@ -1954,11 +1954,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.debug("Handle tc client connect request {} to transaction meta store {} from {} success.",
                         requestId, tcId, remoteAddress);
             }
-            commandSender.sendSuccessResponse(requestId);
+            commandSender.sendTcClientConnectResponse(requestId);
         }).exceptionally(e -> {
             log.error("Handle tc client connect request {} to transaction meta store {} from {} fail.",
                     requestId, tcId, remoteAddress, e.getCause());
-            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(e), e.getMessage());
+            commandSender.sendTcClientConnectResponse(requestId,
+                    BrokerServiceException.getClientErrorCode(e), e.getMessage());
             return null;
         });
     }

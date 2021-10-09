@@ -257,6 +257,7 @@ enum ProtocolVersion {
     v16 = 16; // Add support for broker entry metadata
     v17 = 17; // Added support ack receipt
     v18 = 18; // Add client support for broker entry metadata
+    v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
 }
 
 message CommandConnect {
@@ -762,9 +763,15 @@ enum TxnAction {
     ABORT = 1;
 }
 
-message CommandTcClientConnect {
+message CommandTcClientConnectRequest {
     required uint64 request_id = 1;
     required uint64 tc_id = 2 [default = 0];
+}
+
+message CommandTcClientConnectResponse {
+    required uint64 request_id = 1;
+    optional ServerError error  = 2;
+    optional string message     = 3;
 }
 
 message CommandNewTxn {
@@ -946,7 +953,8 @@ message BaseCommand {
 
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
-        TC_CLIENT_CONNECT = 62;
+        TC_CLIENT_CONNECT_REQUEST = 62;
+        TC_CLIENT_CONNECT_RESPONSE = 63;
 
     }
 
@@ -1022,5 +1030,6 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
-    optional CommandTcClientConnect tcClientConnect = 62;
+    optional CommandTcClientConnectRequest tcClientConnectRequest = 62;
+    optional CommandTcClientConnectResponse tcClientConnectResponse = 63;
 }
