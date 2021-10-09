@@ -94,6 +94,7 @@ public class LocalRunner implements AutoCloseable {
     private final File narExtractionDirectoryCreated;
     private final String connectorsDir;
     private final Thread shutdownHook;
+    private final int instanceLivenessCheck;
     private ClassLoader userCodeClassLoader;
     private boolean userCodeClassLoaderCreated;
     private RuntimeFactory runtimeFactory;
@@ -178,6 +179,8 @@ public class LocalRunner implements AutoCloseable {
     protected String secretsProviderConfig;
     @Parameter(names = "--metricsPortStart", description = "The starting port range for metrics server. When running instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
     protected Integer metricsPortStart;
+    @Parameter(names = "--exitOnError", description = "The starting port range for metrics server. When running instances as threads, one metrics server is used to host the stats for all instances.", hidden = true)
+    protected boolean exitOnError;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
     private static final String DEFAULT_WEB_SERVICE_URL = "http://localhost:8080";
@@ -203,7 +206,7 @@ public class LocalRunner implements AutoCloseable {
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
                        String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
                        String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory,
-                       String connectorsDirectory, Integer metricsPortStart) {
+                       String connectorsDirectory, Integer metricsPortStart, boolean exitOnError) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -236,6 +239,8 @@ public class LocalRunner implements AutoCloseable {
             this.connectorsDir = Paths.get(pulsarHome, "connectors").toString();
         }
         this.metricsPortStart = metricsPortStart;
+        this.exitOnError = exitOnError;
+        this.instanceLivenessCheck = exitOnError ? 0 : 30000;
         shutdownHook = new Thread(() -> {
             try {
                 LocalRunner.this.close();
@@ -259,13 +264,16 @@ public class LocalRunner implements AutoCloseable {
             stop();
         } finally {
             if (narExtractionDirectoryCreated != null) {
-                FileUtils.deleteFile(narExtractionDirectoryCreated, true);
+                if (narExtractionDirectoryCreated.exists()) {
+                    FileUtils.deleteFile(narExtractionDirectoryCreated, true);
+                }
             }
         }
     }
 
     public synchronized void stop() {
         if (running.compareAndSet(true, false)) {
+            this.notify();
             try {
                 Runtime.getRuntime().removeShutdownHook(shutdownHook);
             } catch (IllegalStateException e) {
@@ -472,9 +480,18 @@ public class LocalRunner implements AutoCloseable {
         }
 
         if (blocking) {
-            for (RuntimeSpawner spawner : local) {
-                spawner.join();
-                log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
+            if (exitOnError) {
+                for (RuntimeSpawner spawner : local) {
+                    spawner.join();
+                    log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
+                }
+                close();
+            } else  {
+                synchronized (this) {
+                    while (running.get()) {
+                        this.wait();
+                    }
+                }
             }
         }
     }
@@ -523,12 +540,13 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig.setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
             }
+
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
                     null,
                     runtimeFactory,
-                    30000);
+                    instanceLivenessCheck);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
         }
@@ -629,7 +647,7 @@ public class LocalRunner implements AutoCloseable {
                     userCodeFile,
                     null,
                     runtimeFactory,
-                    30000);
+                    instanceLivenessCheck);
             spawners.add(runtimeSpawner);
             runtimeSpawner.start();
         }

@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -312,7 +311,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                                 cursor.asyncReadEntries(2, new ReadEntriesCallback() {
                                     @Override
-                                    public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
+                                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
                                         ManagedCursor cursor = (ManagedCursor) ctx;
 
                                         assertEquals(entries.size(), 1);
@@ -343,7 +342,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                                         fail(exception.getMessage());
                                     }
-                                }, cursor, PositionImpl.latest, DEFAULT_READ_EPOCH);
+                                }, cursor, PositionImpl.latest);
                             }
 
                             @Override
@@ -2682,7 +2681,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, readPositionRef, 1, new ReadEntriesCallback() {
 
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
             }
 
             @Override
@@ -2691,7 +2690,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 responseException2.set(exception);
             }
 
-        }, null, PositionImpl.latest, DEFAULT_READ_EPOCH);
+        }, null, PositionImpl.latest);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.earliest.getEntryId(), PositionImpl.earliest.getEntryId(),
                 false, opReadEntry, ctxStr);
         retryStrategically((test) -> {

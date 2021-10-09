@@ -661,7 +661,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.metricsServlet = new PrometheusMetricsServlet(
                     this, config.isExposeTopicLevelMetricsInPrometheus(),
                     config.isExposeConsumerLevelMetricsInPrometheus(),
-                    config.isExposeProducerLevelMetricsInPrometheus());
+                    config.isExposeProducerLevelMetricsInPrometheus(),
+                    config.isSplitTopicAndPartitionLabelInPrometheus());
             if (pendingMetricsProviders != null) {
                 pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
                 this.pendingMetricsProviders = null;
@@ -712,7 +713,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
                         transactionBufferClient, transactionTimer);
-                transactionMetadataStoreService.start();
 
                 transactionBufferProvider = TransactionBufferProvider
                         .newProvider(config.getTransactionBufferProviderClassName());

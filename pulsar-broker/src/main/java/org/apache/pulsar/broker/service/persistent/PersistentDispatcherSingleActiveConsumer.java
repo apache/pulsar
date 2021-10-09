@@ -27,12 +27,15 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import io.netty.util.Recycler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
+import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
@@ -143,13 +146,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public void readEntriesComplete(final List<Entry> entries, Object obj, long epoch) {
+    public void readEntriesComplete(final List<Entry> entries, Object obj) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            internalReadEntriesComplete(entries, obj, epoch);
+            internalReadEntriesComplete(entries, obj);
         }));
     }
 
-    public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj, long epoch) {
+    public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
         Consumer readConsumer = (Consumer) obj;
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Got messages: {}", name, readConsumer, entries.size());
@@ -363,7 +366,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                         this, consumer);
             } else {
                 cursor.asyncReadEntriesOrWait(messagesToRead,
-                        bytesToRead, this, consumer, topic.getMaxReadPosition(), consumerEpoch);
+                        bytesToRead, this, consumer, topic.getMaxReadPosition());
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -595,4 +598,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
+
+    class ReadEntriesCallBackWrapper {
+        private static final Recycler<ReadEntriesCallBackWrapper> RECYCLER = new Recycler<ReadEntriesCallBackWrapper>() {
+            @Override
+            protected ReadEntriesCallBackWrapper newObject(Recycler.Handle<ReadEntriesCallBackWrapper> recyclerHandle) {
+                return new ReadEntriesCallBackWrapper(recyclerHandle);
+            }
+        };
+    }
 }

@@ -2045,6 +2045,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
 
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable splitting topic and partition label in Prometheus.\n" +
+                    " If enabled, a topic name will split into 2 parts, one is topic name without partition index,\n" +
+                    " another one is partition index, e.g. (topic=xxx, partition=0).\n" +
+                    " If the topic is a non-partitioned topic, -1 will be used for the partition index.\n" +
+                    " If disabled, one label to represent the topic and partition, e.g. (topic=xxx-partition-0)\n" +
+                    " Default is false."
+    )
+    private boolean splitTopicAndPartitionLabelInPrometheus = false;
+
     /**** --- Functions --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,

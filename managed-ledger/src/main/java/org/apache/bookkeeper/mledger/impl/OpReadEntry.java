@@ -47,7 +47,7 @@ class OpReadEntry implements ReadEntriesCallback {
     private long epoch;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition, long epoch) {
+            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
         OpReadEntry op = RECYCLER.get();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
         op.cursor = cursor;
@@ -60,12 +60,11 @@ class OpReadEntry implements ReadEntriesCallback {
         op.maxPosition = maxPosition;
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
-        op.epoch = epoch;
         return op;
     }
 
     @Override
-    public void readEntriesComplete(List<Entry> returnedEntries, Object ctx, long epoch) {
+    public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
         long entriesSize = 0;
@@ -96,7 +95,7 @@ class OpReadEntry implements ReadEntriesCallback {
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
             cursor.ledger.getExecutor().execute(safeRun(() -> {
-                callback.readEntriesComplete(entries, ctx, epoch);
+                callback.readEntriesComplete(entries, ctx);
                 recycle();
             }));
         } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
@@ -155,7 +154,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
             } finally {
                 cursor.ledger.getExecutor().executeOrdered(cursor.ledger.getName(), safeRun(() -> {
-                    callback.readEntriesComplete(entries, ctx, epoch);
+                    callback.readEntriesComplete(entries, ctx);
                     recycle();
                 }));
             }

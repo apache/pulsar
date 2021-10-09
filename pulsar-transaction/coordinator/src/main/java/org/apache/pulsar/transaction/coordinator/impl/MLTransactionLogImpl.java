@@ -48,8 +48,6 @@ import org.jctools.queues.SpscArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
-
 public class MLTransactionLogImpl implements TransactionLog {
 
     private static final Logger log = LoggerFactory.getLogger(MLTransactionLogImpl.class);
@@ -126,7 +124,7 @@ public class MLTransactionLogImpl implements TransactionLog {
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
         cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback,
-                System.nanoTime(), PositionImpl.latest, DEFAULT_READ_EPOCH);
+                System.nanoTime(), PositionImpl.latest);
     }
 
     @Override
@@ -296,7 +294,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         }
 
         @Override
-        public void readEntriesComplete(List<Entry> entries, Object ctx, long epoch) {
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
             entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
                 private int i = 0;
                 @Override

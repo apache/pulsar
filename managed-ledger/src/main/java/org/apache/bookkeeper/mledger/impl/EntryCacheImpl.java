@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_READ_EPOCH;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 
 import com.google.common.collect.Lists;
@@ -290,7 +289,7 @@ public class EntryCacheImpl implements EntryCache {
                         lastEntry);
             }
 
-            callback.readEntriesComplete((List) entriesToReturn, ctx, DEFAULT_READ_EPOCH);
+            callback.readEntriesComplete((List) entriesToReturn, ctx);
 
         } else {
             if (!cachedEntries.isEmpty()) {
@@ -330,7 +329,7 @@ public class EntryCacheImpl implements EntryCache {
                             manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
                             ml.getMBean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 
-                            callback.readEntriesComplete((List) entriesToReturn, ctx, DEFAULT_READ_EPOCH);
+                            callback.readEntriesComplete((List) entriesToReturn, ctx);
                         } finally {
                             ledgerEntries.close();
                         }
