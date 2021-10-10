@@ -41,7 +41,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BrokerData;
@@ -81,13 +80,14 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Notification> {
+public class ModularLoadManagerImpl implements ModularLoadManager {
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
 
     // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
@@ -182,6 +182,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
 
     private Map<String, String> brokerToFailureDomainMap;
 
+    private SessionEvent lastMetadataSessionEvent = SessionEvent.Reconnected;
+
     // record load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
     // record bundle unload metrics
@@ -239,7 +241,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         bundlesCache = pulsar.getLocalMetadataStore().getMetadataCache(BundleData.class);
         resourceQuotaCache = pulsar.getLocalMetadataStore().getMetadataCache(ResourceQuota.class);
         timeAverageBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(TimeAverageBrokerData.class);
-        pulsar.getLocalMetadataStore().registerListener(this);
+        pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
+        pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
 
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
@@ -271,8 +274,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         loadSheddingPipeline.add(createLoadSheddingStrategy());
     }
 
-    @Override
-    public void accept(Notification t) {
+    public void handleDataNotification(Notification t) {
         if (t.getPath().startsWith(LoadManager.LOADBALANCE_BROKERS_ROOT)) {
             brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
                     .thenAccept(brokers -> {
@@ -285,6 +287,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
                 // Executor is shutting down
             }
         }
+    }
+
+    private void handleMetadataSessionEvent(SessionEvent e) {
+        lastMetadataSessionEvent = e;
     }
 
     private LoadSheddingStrategy createLoadSheddingStrategy() {
@@ -956,7 +962,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, Consumer<Noti
         lock.lock();
         try {
             updateLocalBrokerData();
-            if (needBrokerDataUpdate() || force) {
+
+            // Do not attempt to write if not connected
+            if (lastMetadataSessionEvent != null
+                    && lastMetadataSessionEvent.isConnected()
+                    && (needBrokerDataUpdate() || force)) {
                 localData.setLastUpdate(System.currentTimeMillis());
 
                 brokerDataLock.updateValue(localData).join();

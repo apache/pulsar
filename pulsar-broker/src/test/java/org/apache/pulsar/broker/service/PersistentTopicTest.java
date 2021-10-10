@@ -117,6 +117,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
@@ -2193,6 +2194,48 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         producer.disconnect();
         verify(serverCnx).execute(any());
     };
+
+    @Test
+    public void testKeySharedMetadataExposedToStats() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub1 = new PersistentSubscription(topic, "key-shared-stats1", cursorMock, false);
+        PersistentSubscription sub2 = new PersistentSubscription(topic, "key-shared-stats2", cursorMock, false);
+        PersistentSubscription sub3 = new PersistentSubscription(topic, "key-shared-stats3", cursorMock, false);
+
+        Consumer consumer1 = new Consumer(sub1, SubType.Key_Shared, topic.getName(), 1, 0, "Cons1", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT).setAllowOutOfOrderDelivery(false),
+                MessageId.latest);
+        sub1.addConsumer(consumer1);
+        consumer1.close();
+
+        SubscriptionStatsImpl stats1 = sub1.getStats(false, false);
+        assertEquals(stats1.keySharedMode, "AUTO_SPLIT");
+        assertFalse(stats1.allowOutOfOrderDelivery);
+
+        Consumer consumer2 = new Consumer(sub2, SubType.Key_Shared, topic.getName(), 2, 0, "Cons2", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT).setAllowOutOfOrderDelivery(true),
+                MessageId.latest);
+        sub2.addConsumer(consumer2);
+        consumer2.close();
+
+        SubscriptionStatsImpl stats2 = sub2.getStats(false, false);
+        assertEquals(stats2.keySharedMode, "AUTO_SPLIT");
+        assertTrue(stats2.allowOutOfOrderDelivery);
+
+        KeySharedMeta ksm =  new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
+                .setAllowOutOfOrderDelivery(false);
+        ksm.addHashRange().setStart(0).setEnd(65535);
+        Consumer consumer3 = new Consumer(sub3, SubType.Key_Shared, topic.getName(), 3, 0, "Cons3", 50000, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, InitialPosition.Latest, ksm, MessageId.latest);
+        sub3.addConsumer(consumer3);
+        consumer3.close();
+
+        SubscriptionStatsImpl stats3 = sub3.getStats(false, false);
+        assertEquals(stats3.keySharedMode, "STICKY");
+        assertFalse(stats3.allowOutOfOrderDelivery);
+    }
 
     private ByteBuf getMessageWithMetadata(byte[] data) {
         MessageMetadata messageData = new MessageMetadata()

@@ -30,13 +30,14 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -61,6 +62,13 @@ public class TransactionMetricsTest extends BrokerTestBase {
         ServiceConfiguration serviceConfiguration = getDefaultConf();
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
         super.baseSetup(serviceConfiguration);
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                TenantInfo.builder()
+                        .adminRoles(Sets.newHashSet("appid1"))
+                        .allowedClusters(Sets.newHashSet("test"))
+                        .build());
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -72,12 +80,13 @@ public class TransactionMetricsTest extends BrokerTestBase {
     @Test
     public void testTransactionCoordinatorMetrics() throws Exception{
         long timeout = 10000;
-        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(1);
-        TransactionCoordinatorID transactionCoordinatorIDTwo = TransactionCoordinatorID.get(2);
-        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
-        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDTwo);
+        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
+        TransactionCoordinatorID transactionCoordinatorIDTwo = TransactionCoordinatorID.get(1);
+        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
+        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDTwo);
 
-        Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
+        Awaitility.await().until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
         pulsar.getTransactionMetadataStoreService().getStores()
                 .get(transactionCoordinatorIDOne).newTransaction(timeout).get();
@@ -92,7 +101,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_txn_active_count");
         assertEquals(metric.size(), 2);
         metric.forEach(item -> {
-            if ("1".equals(item.tags.get("coordinator_id"))) {
+            if ("0".equals(item.tags.get("coordinator_id"))) {
                 assertEquals(item.value, 1);
             } else {
                 assertEquals(item.value, 2);
@@ -102,24 +111,36 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
     @Test
     public void testTransactionCoordinatorRateMetrics() throws Exception{
-        long timeout = 10000;
         int txnCount = 120;
         String ns1 = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns1);
         String topic = "persistent://" + ns1 + "/test_coordinator_metrics";
         String subName = "test_coordinator_metrics";
-        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(1);
-        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
+        TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
+        admin.lookups().lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
         Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
 
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .subscriptionName(subName).topic(topic).subscribe();
+
         List<TxnID> list = new ArrayList<>();
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
         for (int i = 0; i < txnCount; i++) {
-            TxnID txnID = pulsar.getTransactionMetadataStoreService().getStores()
-                    .get(transactionCoordinatorIDOne).newTransaction(timeout).get();
+            TransactionImpl transaction =
+                    (TransactionImpl) pulsarClient.newTransaction()
+                            .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            TxnID txnID = new TxnID(transaction.getTxnIdMostBits(), transaction.getTxnIdLeastBits());
             list.add(txnID);
+            if (i == 1) {
+                pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+                consumer.acknowledgeAsync(new MessageIdImpl(1000, 1000, -1), transaction).get();
+                continue;
+            }
 
             if (i % 2 == 0) {
                 pulsar.getTransactionMetadataStoreService().addProducedPartitionToTxn(list.get(i), Collections.singletonList(topic)).get();
@@ -196,16 +217,11 @@ public class TransactionMetricsTest extends BrokerTestBase {
         String topic = "persistent://" + ns1 + "/test_managed_ledger_metrics";
         String subName = "test_managed_ledger_metrics";
         admin.topics().createNonPartitionedTopic(topic);
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                TenantInfo.builder()
-                        .adminRoles(Sets.newHashSet("appid1"))
-                        .allowedClusters(Sets.newHashSet("test"))
-                        .build());
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
-        pulsar.getTransactionMetadataStoreService().addTransactionMetadataStore(transactionCoordinatorIDOne);
+        pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne).get();
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
+
         Awaitility.await().atMost(2000,  TimeUnit.MILLISECONDS).until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 1);
 
