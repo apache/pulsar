@@ -213,6 +213,8 @@ func TestMetricsServer(t *testing.T) {
 	assert.Equal(t, nil, err)
 	assert.NotEmpty(t, body)
 	resp.Body.Close()
+	gi.close()
+	metricsServicer.close()
 }
 
 // nolint
@@ -246,10 +248,12 @@ func TestUserMetrics(t *testing.T) {
 	assert.NotEmpty(t, body)
 
 	for labelname, value := range testUserMetricValues {
-		for _, quantile := range []string{"0.5", "0.9", "0.99", "0.999", "balls"} {
+		for _, quantile := range []string{"0.5", "0.9", "0.99", "0.999"} {
 			assert.Containsf(t, string(body), fmt.Sprintf("\n"+`pulsar_function_user_metric{cluster="pulsar-function-go",fqfn="//go-function",instance_id="pulsar-function",metric="%s",name="go-function",namespace="/",tenant="",quantile="%s"} %d`+"\n", labelname, quantile, value), "user metric %q quantile %s not found with value %d", labelname, quantile, value)
 		}
 	}
 
 	resp.Body.Close()
+	gi.close()
+	metricsServicer.close()
 }

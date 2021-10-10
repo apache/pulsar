@@ -356,7 +356,9 @@ func (s *MetricsServicer) serve() {
 		// create a listener on metrics port
 		log.Infof("Starting metrics server on port %d", s.goInstance.context.GetMetricsPort())
 		err := s.server.ListenAndServe()
-		if err != nil {
+		switch err {
+		case nil, http.ErrServerClosed:
+		default:
 			log.Fatalf("failed to start metrics server: %v", err)
 		}
 	}()
