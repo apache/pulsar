@@ -177,7 +177,6 @@ CLOSE:
 
 			gi.stats.processTimeEnd()
 			gi.processResult(msgInput, output)
-			gi.stats.incrTotalProcessedSuccessfully()
 		case <-idleTimer.C:
 			close(channel)
 			break CLOSE
