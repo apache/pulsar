@@ -2653,7 +2653,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     boolean shouldCloseLedger(LedgerHandle lh) {
         long now = clock.millis();
-        if ((lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
+        if (ledger.factory.isMetadataServiceAvailable() &&
+                (lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
                 || lastLedgerSwitchTimestamp < (now - config.getLedgerRolloverTimeout() * 1000))
                 && (STATE_UPDATER.get(this) != State.Closed && STATE_UPDATER.get(this) != State.Closing)) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that

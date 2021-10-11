@@ -103,6 +103,10 @@ public class MetadataStoreException extends IOException {
      * Failed to de-serialize the metadata.
      */
     public static class ContentDeserializationException extends MetadataStoreException {
+        public ContentDeserializationException(String msg, Throwable t) {
+            super(msg, t);
+        }
+
         public ContentDeserializationException(Throwable t) {
             super(t);
         }

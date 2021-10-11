@@ -277,18 +277,19 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     /**
      * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
      * 
-     * @param ledger
+     * @param lh
      */
-    void handleAddFailure(final LedgerHandle ledger) {
+    void handleAddFailure(final LedgerHandle lh) {
         // If we get a write error, we will try to create a new ledger and re-submit the pending writes. If the
-        // ledger creation fails (persistent bk failure, another instanche owning the ML, ...), then the writes will
+        // ledger creation fails (persistent bk failure, another instance owning the ML, ...), then the writes will
         // be marked as failed.
-        ml.mbean.recordAddEntryError();
+        ManagedLedgerImpl finalMl = this.ml;
+        finalMl.mbean.recordAddEntryError();
 
-        ml.getExecutor().executeOrdered(ml.getName(), SafeRun.safeRun(() -> {
+        finalMl.getExecutor().executeOrdered(finalMl.getName(), SafeRun.safeRun(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
-            ml.ledgerClosed(ledger);
+            finalMl.ledgerClosed(lh);
         }));
     }
 

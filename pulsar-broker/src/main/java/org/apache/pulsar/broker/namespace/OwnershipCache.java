@@ -104,6 +104,8 @@ public class OwnershipCache {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
+                                    log.info("Resource lock for {} has expired", rl.getPath());
+                                    namespaceService.unloadNamespaceBundle(namespaceBundle);
                                     ownedBundlesCache.synchronous().invalidate(namespaceBundle);
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
                                 });

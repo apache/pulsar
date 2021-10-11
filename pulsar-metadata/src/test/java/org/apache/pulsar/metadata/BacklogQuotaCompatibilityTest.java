@@ -44,7 +44,7 @@ public class BacklogQuotaCompatibilityTest {
 
         JSONMetadataSerdeSimpleType jsonMetadataSerdeSimpleType = new JSONMetadataSerdeSimpleType(
                 TypeFactory.defaultInstance().constructSimpleType(Policies.class, null));
-        Policies policies = (Policies) jsonMetadataSerdeSimpleType.deserialize(oldPolicyStr.getBytes());
+        Policies policies = (Policies) jsonMetadataSerdeSimpleType.deserialize(null, oldPolicyStr.getBytes(), null);
         assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
                 1001);
         assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTime(),

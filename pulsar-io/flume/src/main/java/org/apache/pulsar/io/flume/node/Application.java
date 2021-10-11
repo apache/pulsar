@@ -217,7 +217,7 @@ public class Application {
                     //Not a known type, use FQCN
                     klass = (Class<? extends MonitorService>) Class.forName(monitorType);
                 }
-                this.monitorServer = klass.newInstance();
+                this.monitorServer = klass.getDeclaredConstructor().newInstance();
                 Context context = new Context();
                 for (String key : keys) {
                     if (key.startsWith(CONF_MONITOR_PREFIX)) {

@@ -22,8 +22,6 @@ import static org.testng.Assert.assertEquals;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -139,14 +137,15 @@ public class PulsarTestClient extends PulsarClientImpl {
         return new ProducerImpl<T>(this, topic, conf, producerCreatedFuture, partitionIndex, schema,
                 interceptors) {
             @Override
-            protected BlockingQueue<OpSendMsg> createPendingMessagesQueue() {
-                return new ArrayBlockingQueue<OpSendMsg>(conf.getMaxPendingMessages()) {
+            protected OpSendMsgQueue createPendingMessagesQueue() {
+                return new OpSendMsgQueue() {
                     @Override
-                    public void put(OpSendMsg opSendMsg) throws InterruptedException {
-                        super.put(opSendMsg);
+                    public boolean add(OpSendMsg opSendMsg) {
+                        boolean added = super.add(opSendMsg);
                         if (pendingMessageCallback != null) {
                             pendingMessageCallback.accept(opSendMsg);
                         }
+                        return added;
                     }
                 };
             }

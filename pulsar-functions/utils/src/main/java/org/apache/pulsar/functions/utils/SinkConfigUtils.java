@@ -34,7 +34,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -55,6 +54,7 @@ import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 
@@ -286,6 +286,11 @@ public class SinkConfigUtils {
             sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
         sinkConfig.setAutoAck(functionDetails.getAutoAck());
+
+        // Set subscription position
+        sinkConfig.setSourceSubscriptionPosition(
+                convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
+
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
         }
@@ -393,7 +398,7 @@ public class SinkConfigUtils {
             sinkClass = sinkClassLoader.loadClass(sinkClassName);
         } catch (ClassNotFoundException e) {
             throw new IllegalArgumentException(
-                    String.format("Sink class %s not found in class loader", sinkClassName, e));
+                    String.format("Sink class %s not found in class loader", sinkClassName), e);
         }
 
         // extract type from sink class

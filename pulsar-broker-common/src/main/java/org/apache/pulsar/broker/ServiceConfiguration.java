@@ -970,11 +970,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean disableBrokerInterceptors = true;
 
     @FieldContext(
-        doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
-        + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
-        + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
+        doc = "There are two policies to apply when broker metadata session expires: session expired happens, \"shutdown\" or \"reconnect\". \n\n"
+        + " With \"shutdown\", the broker will be restarted.\n\n"
+        + " With \"reconnect\", the broker will keep serving the topics, while attempting to recreate a new session."
     )
-    private String zookeeperSessionExpiredPolicy = "shutdown";
+    private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.shutdown;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1352,6 +1352,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
     private String bookkeeperTLSTrustCertsFilePath;
 
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Tls cert refresh duration at bookKeeper-client in seconds (0 to disable check)")
+    private int bookkeeperTlsCertFilesRefreshDurationSeconds = 300;
+
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
     private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
 
@@ -1677,7 +1680,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerSheddingIntervalMinutes = 1;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
-        doc = "Prevent the same topics to be shed and moved to other broker more that"
+        doc = "Prevent the same topics to be shed and moved to other broker more than"
             + " once within this timeframe"
     )
     private long loadBalancerSheddingGracePeriodMinutes = 30;
@@ -2041,6 +2044,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     " Locking is used for fetching the status so default to false."
     )
     private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable splitting topic and partition label in Prometheus.\n" +
+                    " If enabled, a topic name will split into 2 parts, one is topic name without partition index,\n" +
+                    " another one is partition index, e.g. (topic=xxx, partition=0).\n" +
+                    " If the topic is a non-partitioned topic, -1 will be used for the partition index.\n" +
+                    " If disabled, one label to represent the topic and partition, e.g. (topic=xxx-partition-0)\n" +
+                    " Default is false."
+    )
+    private boolean splitTopicAndPartitionLabelInPrometheus = false;
 
     /**** --- Functions --- ****/
     @FieldContext(

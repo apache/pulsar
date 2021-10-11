@@ -57,7 +57,7 @@ public class CmdGenerateDocsTest {
                     + "    -h, --help\n"
                     + "      Display help information\n"
                     + "      Default: false\n"
-                    + "\n";
+                    + System.lineSeparator();
             assertEquals(rightMsg, message);
         } finally {
             System.setOut(oldStream);
@@ -98,7 +98,7 @@ public class CmdGenerateDocsTest {
                     + "|---|---|---|\n"
                     + "| `-n, --name` | Name|null|\n"
                     + "| `-h, --help` | Show this help message|false|\n"
-                    + "\n";
+                    + System.lineSeparator();
             assertEquals(rightMsg, message);
         } finally {
             System.setOut(oldStream);

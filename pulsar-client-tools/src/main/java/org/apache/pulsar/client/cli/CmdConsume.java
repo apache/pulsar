@@ -24,6 +24,7 @@ import static org.apache.pulsar.client.internal.PulsarClientImplementationBindin
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.Gson;
@@ -138,7 +139,7 @@ public class CmdConsume {
     @Parameter(names = { "-st", "--schema-type"}, description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     private String schematype = "bytes";
 
-    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message")
+    @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
     private boolean poolMessages = true;
 
     private ClientBuilder clientBuilder;
@@ -365,30 +366,43 @@ public class CmdConsume {
     }
 
     @SuppressWarnings("deprecation")
+    @VisibleForTesting
+    public String getWebSocketConsumeUri(String topic) {
+        String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
+                serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
+
+        TopicName topicName = TopicName.get(topic);
+        String wsTopic;
+        if (topicName.isV2()) {
+            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                    topicName.getNamespacePortion(), topicName.getLocalName());
+        } else {
+            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
+        }
+
+        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/")
+                + "consumer/%s/%s?subscriptionType=%s&subscriptionMode=%s";
+        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic, subscriptionName,
+                subscriptionType.toString(), subscriptionMode.toString());
+    }
+
+    @SuppressWarnings("deprecation")
     private int consumeFromWebSocket(String topic) {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
-        TopicName topicName = TopicName.get(topic);
+        URI consumerUri = URI.create(getWebSocketConsumeUri(topic));
 
-        String wsTopic = String.format(
-                "%s/%s/" + (StringUtils.isEmpty(topicName.getCluster()) ? "" : topicName.getCluster() + "/")
-                        + "%s/%s/%s?subscriptionType=%s&subscriptionMode=%s",
-                topicName.getDomain(), topicName.getTenant(), topicName.getNamespacePortion(), topicName.getLocalName(),
-                subscriptionName, subscriptionType.toString(), subscriptionMode.toString());
-
-        String consumerBaseUri = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/consumer/" + wsTopic;
-        URI consumerUri = URI.create(consumerBaseUri);
-
-        WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
-        ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+        WebSocketClient consumeClient = new WebSocketClient(new SslContextFactory(true));
+        ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
         try {
             if (authentication != null) {
                 authentication.start();
                 AuthenticationDataProvider authData = authentication.getAuthData();
                 if (authData.hasDataForHttp()) {
                     for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
-                        produceRequest.setHeader(kv.getKey(), kv.getValue());
+                        consumeRequest.setHeader(kv.getKey(), kv.getValue());
                     }
                 }
             }
@@ -399,7 +413,7 @@ public class CmdConsume {
         CompletableFuture<Void> connected = new CompletableFuture<>();
         ConsumerSocket consumerSocket = new ConsumerSocket(connected);
         try {
-            produceClient.start();
+            consumeClient.start();
         } catch (Exception e) {
             LOG.error("Failed to start websocket-client", e);
             return -1;
@@ -407,7 +421,7 @@ public class CmdConsume {
 
         try {
             LOG.info("Trying to create websocket session..{}",consumerUri);
-            produceClient.connect(consumerSocket, consumerUri, produceRequest);
+            consumeClient.connect(consumerSocket, consumerUri, consumeRequest);
             connected.get();
         } catch (Exception e) {
             LOG.error("Failed to create web-socket session", e);

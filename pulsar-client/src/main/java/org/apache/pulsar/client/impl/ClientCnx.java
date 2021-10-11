@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.pulsar.client.impl.TransactionMetaStoreHandler.getExceptionByServerError;
+
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -55,8 +57,11 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
@@ -957,7 +962,6 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleEndTxnOnPartitionResponse(CommandEndTxnOnPartitionResponse command) {
-        log.info("handleEndTxnOnPartitionResponse");
         TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
         if (handler != null) {
             handler.handleEndTxnOnTopicResponse(command.getRequestId(), command);
@@ -977,6 +981,32 @@ public class ClientCnx extends PulsarHandler {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {
             handler.handleEndTxnResponse(command);
+        }
+    }
+
+    @Override
+    protected void handleTcClientConnectResponse(CommandTcClientConnectResponse response) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received tc client connect response "
+                    + "from server: {}", ctx.channel(), response.getRequestId());
+        }
+        long requestId = response.getRequestId();
+        CompletableFuture<?> requestFuture = pendingRequests.remove(requestId);
+
+        if (requestFuture != null && !requestFuture.isDone()) {
+            if (!response.hasError()) {
+                requestFuture.complete(null);
+            } else {
+                ServerError error = response.getError();
+                log.error("Got tc client connect response for request: {}, error: {}, errorMessage: {}",
+                        response.getRequestId(), response.getError(), response.getMessage());
+                requestFuture.completeExceptionally(getExceptionByServerError(error, response.getMessage()));
+            }
+        } else {
+            log.warn("Tc client connect command has been completed and get response for request: {}",
+                    response.getRequestId());
         }
     }
 

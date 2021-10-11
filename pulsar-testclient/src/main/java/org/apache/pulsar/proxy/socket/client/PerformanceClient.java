@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.testclient.PositiveNumberParameterValidator;
 import org.apache.pulsar.testclient.PerfClientUtils;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -64,9 +65,10 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PerformanceClient {
 
-    static AtomicInteger msgSent = new AtomicInteger(0);
     private static final LongAdder messagesSent = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
+    private static final LongAdder totalMessagesSent = new LongAdder();
+    private static final LongAdder totalBytesSent = new LongAdder();
     private JCommander jc;
 
     @Parameters(commandDescription = "Test pulsar websocket producer performance.")
@@ -90,7 +92,7 @@ public class PerformanceClient {
         @Parameter(names = { "-s", "--size" }, description = "Message size in byte")
         public int msgSize = 1024;
 
-        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics")
+        @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
@@ -104,14 +106,14 @@ public class PerformanceClient {
         public String authParams;
 
         @Parameter(names = { "-m",
-                "--num-messages" }, description = "Number of messages to publish in total. If 0, it will keep publishing")
+                "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep publishing")
         public long numMessages = 0;
 
         @Parameter(names = { "-f", "--payload-file" }, description = "Use payload from a file instead of empty buffer")
         public String payloadFilename = null;
 
         @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
+                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
         public long testTime = 0;
     }
 
@@ -263,6 +265,8 @@ public class PerformanceClient {
                         producersMap.get(topic).getSocket().sendMsg(String.valueOf(totalSent++), sizeOfMessage);
                         messagesSent.increment();
                         bytesSent.add(sizeOfMessage);
+                        totalMessagesSent.increment();
+                        totalBytesSent.add(sizeOfMessage);
                     }
                 }
 
@@ -297,14 +301,17 @@ public class PerformanceClient {
             long now = System.nanoTime();
             double elapsed = (now - oldTime) / 1e9;
 
+            long total = totalMessagesSent.sum();
             double rate = messagesSent.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
-                    "Throughput produced: {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - 99.99pct: {} ms",
-                    throughputFormat.format(rate), throughputFormat.format(throughput),
+                    "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - 99.99pct: {} ms",
+                    intFormat.format(total),
+                    throughputFormat.format(rate),
+                    throughputFormat.format(throughput),
                     dec.format(reportHistogram.getMean() / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
@@ -328,6 +335,11 @@ public class PerformanceClient {
         PerformanceClient test = new PerformanceClient();
         Arguments arguments = test.loadArguments(args);
         PerfClientUtils.printJVMInformation(log);
+        long start = System.nanoTime();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            printAggregatedThroughput(start);
+            printAggregatedStats();
+        }));
         test.runPerformanceTest(arguments.numMessages, arguments.msgRate, arguments.numTopics, arguments.msgSize,
                 arguments.proxyURL, arguments.topics.get(0), arguments.authPluginClassName, arguments.authParams);
     }
@@ -350,8 +362,32 @@ public class PerformanceClient {
 
     }
 
+    private static void printAggregatedThroughput(long start) {
+        double elapsed = (System.nanoTime() - start) / 1e9;
+        double rate = totalMessagesSent.sum() / elapsed;
+        double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
+        log.info(
+                "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
+                totalMessagesSent,
+                totalFormat.format(rate),
+                totalFormat.format(throughput));
+    }
+
+    private static void printAggregatedStats() {
+        Histogram reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram();
+
+        log.info(
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
+    }
+
     static final DecimalFormat throughputFormat = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
+    static final DecimalFormat totalFormat = new DecimalFormat("0.000");
+    static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
     private static final Logger log = LoggerFactory.getLogger(PerformanceClient.class);
 
 }

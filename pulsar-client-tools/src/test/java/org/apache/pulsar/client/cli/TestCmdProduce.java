@@ -39,12 +39,12 @@ public class TestCmdProduce {
     }
 
     @Test
-    public void testGetProduceBaseEndPoint() {
+    public void testGetWebSocketProduceUri() {
         String topicNameV1 = "persistent://public/cluster/default/issue-11067";
-        assertEquals(cmdProduce.getProduceBaseEndPoint(topicNameV1),
+        assertEquals(cmdProduce.getWebSocketProduceUri(topicNameV1),
                 "ws://localhost:8080/ws/producer/persistent/public/cluster/default/issue-11067");
         String topicNameV2 = "persistent://public/default/issue-11067";
-        assertEquals(cmdProduce.getProduceBaseEndPoint(topicNameV2),
+        assertEquals(cmdProduce.getWebSocketProduceUri(topicNameV2),
                 "ws://localhost:8080/ws/v2/producer/persistent/public/default/issue-11067");
     }
 

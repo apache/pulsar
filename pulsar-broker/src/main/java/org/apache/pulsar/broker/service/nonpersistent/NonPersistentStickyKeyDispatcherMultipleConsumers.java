@@ -18,28 +18,67 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.protocol.Commands;
 
 public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersistentDispatcherMultipleConsumers {
 
     private final StickyKeyConsumerSelector selector;
+    private final KeySharedMode keySharedMode;
 
     public NonPersistentStickyKeyDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription,
+                                                             KeySharedMeta ksm) {
+        super(topic, subscription);
+        this.keySharedMode = ksm.getKeySharedMode();
+        switch (this.keySharedMode) {
+            case STICKY:
+                this.selector = new HashRangeExclusiveStickyKeyConsumerSelector();
+                break;
+
+            case AUTO_SPLIT:
+            default:
+                ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
+                if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
+                    this.selector = new ConsistentHashingStickyKeyConsumerSelector(
+                            conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+                } else {
+                    this.selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+                }
+                break;
+        }
+    }
+
+    @VisibleForTesting
+    NonPersistentStickyKeyDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription,
                                                              StickyKeyConsumerSelector selector) {
         super(topic, subscription);
+        if (selector instanceof HashRangeExclusiveStickyKeyConsumerSelector) {
+            keySharedMode = KeySharedMode.STICKY;
+        } else if (selector instanceof ConsistentHashingStickyKeyConsumerSelector
+                || selector instanceof HashRangeAutoSplitStickyKeyConsumerSelector) {
+            keySharedMode = KeySharedMode.AUTO_SPLIT;
+        } else {
+            keySharedMode = null;
+        }
         this.selector = selector;
     }
 
@@ -120,5 +159,9 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                 });
             }
         }
+    }
+
+    public KeySharedMode getKeySharedMode() {
+        return keySharedMode;
     }
 }

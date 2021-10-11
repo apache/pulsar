@@ -18,23 +18,29 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.testng.AssertJUnit.assertTrue;
 import com.google.common.collect.Sets;
+import java.util.Random;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServerTestBase {
 
     private static final String TENANT = "ownership";
     private static final String NAMESPACE = TENANT + "/ns1";
-    private static final String TOPIC_TEST = NAMESPACE + "/test";
+    private static final Random RANDOM = new Random();
 
     @BeforeMethod
     protected void setup() throws Exception {
@@ -45,7 +51,6 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);
-        admin.topics().createNonPartitionedTopic(TOPIC_TEST);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -55,12 +60,36 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
 
     @Test
     public void testOwnershipForCurrentServer() throws Exception {
-        NamespaceService[] namespaceServices = new NamespaceService[getPulsarServiceList().size()];
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
-            namespaceServices[i] = getPulsarServiceList().get(i).getNamespaceService();
-            NamespaceBundle bundle = namespaceServices[i].getBundle(TopicName.get(TOPIC_TEST));
-            Assert.assertEquals(namespaceServices[i].getOwnerAsync(bundle).get().get().getNativeUrl(),
-                    namespaceServices[i].getOwnerAsync(bundle).get().get().getNativeUrl());
+            String topicName = newTopicName();
+            admin.topics().createNonPartitionedTopic(topicName);
+            NamespaceService namespaceService = getPulsarServiceList().get(i).getNamespaceService();
+            NamespaceBundle bundle = namespaceService.getBundle(TopicName.get(topicName));
+            Assert.assertEquals(namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl(),
+                    namespaceService.getOwnerAsync(bundle).get().get().getNativeUrl());
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testCreateTopicWithNotTopicNsOwnedBroker() {
+        String topicName = newTopicName();
+        int verifiedBrokerNum = 0;
+        for (PulsarService pulsarService : this.getPulsarServiceList()) {
+            BrokerService bs = pulsarService.getBrokerService();
+            if (bs.isTopicNsOwnedByBroker(TopicName.get(topicName))) {
+                continue;
+            }
+            verifiedBrokerNum ++;
+            try {
+                bs.getOrCreateTopic(topicName).get();
+            } catch (Exception ex) {
+                assertTrue(ex.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+            }
+        }
+        assertTrue(verifiedBrokerNum > 0);
+    }
+
+    protected String newTopicName() {
+        return "persistent://" + NAMESPACE + "/topic-" + Long.toHexString(RANDOM.nextLong());
     }
 }
