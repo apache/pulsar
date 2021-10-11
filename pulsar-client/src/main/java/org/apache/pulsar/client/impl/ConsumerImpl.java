@@ -1138,17 +1138,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void messageReceived(CommandMessage cmdMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
         List<Long> ackSet = Collections.emptyList();
-        int redeliveryCount = cmdMessage.getRedeliveryCount();
-        MessageIdData messageId = cmdMessage.getMessageId();
-        boolean hasConsumerEpoch = cmdMessage.hasConsumerEpoch();
-        long consumerEpoch = cmdMessage.getConsumerEpoch();
-
         if (cmdMessage.getAckSetsCount() > 0) {
             ackSet = new ArrayList<>(cmdMessage.getAckSetsCount());
             for (int i = 0; i < cmdMessage.getAckSetsCount(); i++) {
                 ackSet.add(cmdMessage.getAckSetAt(i));
             }
         }
+        int redeliveryCount = cmdMessage.getRedeliveryCount();
+        MessageIdData messageId = cmdMessage.getMessageId();
+        boolean hasConsumerEpoch = cmdMessage.hasConsumerEpoch();
+        long consumerEpoch = cmdMessage.getConsumerEpoch();
+
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
                     messageId.getEntryId());
@@ -1707,34 +1707,34 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public CompletableFuture<Void> redeliverUnacknowledgedMessages() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        internalPinnedExecutor.execute(() -> {
-            if (conf.getSubscriptionType() == SubscriptionType.Failover
-                    || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
-                this.consumerEpoch.getAndIncrement();
-            }
-            ClientCnx cnx = cnx();
-            if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
-                int currentSize = 0;
+        if (conf.getSubscriptionType() == SubscriptionType.Failover
+                || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
+            this.consumerEpoch.getAndIncrement();
+        }
+        ClientCnx cnx = cnx();
+        if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
+            int currentSize = 0;
+            synchronized (this) {
                 currentSize = incomingMessages.size();
                 clearIncomingMessages();
                 unAckedMessageTracker.clear();
-                long requestId = client.newRequestId();
-                cnx.newRedeliverUnacknowledgedMessages(
-                        Commands.newRedeliverUnacknowledgedMessages(consumerId,
-                                requestId, consumerEpoch.get()), requestId).thenRunAsync(() ->
-                        completableFuture.complete(null)).exceptionally(e -> {
-                    completableFuture.completeExceptionally(e.getCause());
-                    return null;
-                });
-                if (currentSize > 0) {
-                    increaseAvailablePermits(cnx, currentSize);
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
-                            consumerName, currentSize);
-                }
-                return;
             }
+            long requestId = client.newRequestId();
+            cnx.newRedeliverUnacknowledgedMessages(
+                    Commands.newRedeliverUnacknowledgedMessages(consumerId,
+                            requestId, consumerEpoch.get()), requestId).thenRun(() ->
+                    completableFuture.complete(null)).exceptionally(e -> {
+                completableFuture.completeExceptionally(e.getCause());
+                return null;
+            });
+            if (currentSize > 0) {
+                increaseAvailablePermits(cnx, currentSize);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] [{}] Redeliver unacked messages and send {} permits", subscription, topic,
+                        consumerName, currentSize);
+            }
+        } else {
             if (cnx == null || (getState() == State.Connecting)) {
                 String errorMessage = this
                         + "Client Connection needs to be established for redelivery of unacknowledged messages";
@@ -1746,7 +1746,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 cnx.ctx().close();
                 completableFuture.completeExceptionally(new PulsarClientException.ConnectException(errorMessage));
             }
-        });
+        }
 
         return completableFuture;
     }

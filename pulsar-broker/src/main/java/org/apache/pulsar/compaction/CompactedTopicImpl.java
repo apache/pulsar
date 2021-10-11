@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.broker.service.Consumer.DEFAULT_READ_EPOCH;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ComparisonChain;
@@ -42,6 +43,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer.ReadEntriesCallBackWrapper;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
@@ -93,10 +95,10 @@ public class CompactedTopicImpl implements CompactedTopic {
             } else {
                 cursorPosition = (PositionImpl) cursor.getReadPosition();
             }
+            ReadEntriesCallBackWrapper wrapper = ReadEntriesCallBackWrapper.create(consumer, DEFAULT_READ_EPOCH);
             if (compactionHorizon == null
                 || compactionHorizon.compareTo(cursorPosition) < 0) {
-                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback,
-                        consumer, PositionImpl.latest);
+                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, wrapper, PositionImpl.latest);
             } else {
                 compactedTopicContext.thenCompose(
                     (context) -> findStartPoint(cursorPosition, context.ledger.getLastAddConfirmed(), context.cache)
@@ -105,11 +107,11 @@ public class CompactedTopicImpl implements CompactedTopic {
                             // the cursor just needs to be set to the compaction horizon
                             if (startPoint == COMPACT_LEDGER_EMPTY) {
                                 cursor.seek(compactionHorizon.getNext());
-                                callback.readEntriesComplete(Collections.emptyList(), consumer);
+                                callback.readEntriesComplete(Collections.emptyList(), wrapper);
                                 return CompletableFuture.completedFuture(null);
                             }
                             if (startPoint == NEWER_THAN_COMPACTED && compactionHorizon.compareTo(cursorPosition) < 0) {
-                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, consumer,
+                                cursor.asyncReadEntriesOrWait(numberOfEntriesToRead, callback, wrapper,
                                         PositionImpl.latest);
                                 return CompletableFuture.completedFuture(null);
                             } else {
@@ -117,23 +119,23 @@ public class CompactedTopicImpl implements CompactedTopic {
                                                          startPoint + numberOfEntriesToRead);
                                 if (startPoint == NEWER_THAN_COMPACTED) {
                                     cursor.seek(compactionHorizon.getNext());
-                                    callback.readEntriesComplete(Collections.emptyList(), consumer);
+                                    callback.readEntriesComplete(Collections.emptyList(), wrapper);
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 return readEntries(context.ledger, startPoint, endPoint)
                                     .thenAccept((entries) -> {
                                         Entry lastEntry = entries.get(entries.size() - 1);
                                         cursor.seek(lastEntry.getPosition().getNext());
-                                        callback.readEntriesComplete(entries, consumer);
+                                        callback.readEntriesComplete(entries, wrapper);
                                     });
                             }
                         }))
                     .exceptionally((exception) -> {
                         if (exception.getCause() instanceof NoSuchElementException) {
                             cursor.seek(compactionHorizon.getNext());
-                            callback.readEntriesComplete(Collections.emptyList(), consumer);
+                            callback.readEntriesComplete(Collections.emptyList(), wrapper);
                         } else {
-                            callback.readEntriesFailed(new ManagedLedgerException(exception), consumer);
+                            callback.readEntriesFailed(new ManagedLedgerException(exception), wrapper);
                         }
                         return null;
                     });

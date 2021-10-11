@@ -602,7 +602,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
 
-    static class ReadEntriesCallBackWrapper {
+    public static class ReadEntriesCallBackWrapper {
 
         private Consumer consumer;
         private long epoch;
