@@ -177,9 +177,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         if (checkIfReady()){
             addTxnEntry(completableFuture, txnId, buffer);
-        }else {
+        } else {
             if (checkIfUnused()){
-                if(changeToReadyStateAfterUsed()){
+                if (changeToReadyStateAfterUsed()){
                     buffer.retain();
                     takeSnapshot().thenAccept(ignore -> {
                         addTxnEntry(completableFuture, txnId, buffer);
