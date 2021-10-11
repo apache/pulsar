@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar dashboard · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; **Note**  "/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar dashboard · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&gt; **Note**  "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar dashboard · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; **注**  "/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar dashboard · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&gt; **注**  "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -19,8 +19,8 @@
           }
         });
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar dashboard</h1></header><article><div><span><blockquote>
-<p><strong>Note</strong>  <br>
-Pulsar dashboard is deprecated. We recommend you use <a href="/docs/zh-CN/next/administration-pulsar-manager">Pulsar Manager</a> to manage and monitor the stats of your topics.</p>
+<p><strong>注</strong>  <br>
+Pulsar仪表盘已经不再使用。我们推荐使用<a href="/docs/zh-CN/next/administration-pulsar-manager">中Pulsar 管理员</a>来管理监控你主题的统计信息。</p>
 </blockquote>
 <p>Pulsar dashboard 是一个网络应用程序，支持用户以表格形式监控所有 <a href="/docs/zh-CN/next/reference-terminology#topic">topic</a> 的当前统计信息。</p>
 <p>Dashboard 是一个数据收集器，可以从单个 Pulsar 实例（跨多个集群）的所有 broker 中轮询统计信息，并将信息存储在 <a href="https://www.postgresql.org/">PostgreSQL</a> 数据库中。</p>
@@ -47,12 +47,12 @@ Pulsar dashboard is deprecated. We recommend you use <a href="/docs/zh-CN/next/a
   -e JWT_TOKEN=$JWT_TOKEN \
   apachepulsar/pulsar-dashboard
 </code></pre>
-<p>You need to specify only one service URL for a Pulsar cluster. 在内部实现中，收集器会理清当前所有集群和 broker，即收集器 metrics 的来源。 如果将 dashboard 连接到本地运行的 Pulsar，默认情况下 URL 是 <code>http://&lt;broker-ip&gt;:8080</code>。 <code>&lt;broker-ip&gt;</code> is the IP address or hostname of the machine that runs Pulsar standalone. The IP address or hostname should be accessible from the running dashboard in the docker instance.</p>
-<p>Once the Docker container starts, the web dashboard is accessible via <code>localhost</code> or whichever host that Docker uses.</p>
+<p>You need to specify only one service URL for a Pulsar cluster. 在内部实现中，收集器会理清当前所有集群和 broker，即收集器 metrics 的来源。 如果将 dashboard 连接到本地运行的 Pulsar，默认情况下 URL 是 <code>http://&lt;broker-ip&gt;:8080</code>。 <code>&lt;broker-ip&gt;</code>是运行单机版Pulsar机器的IP地址或主机名。 IP地址或主机名应该能从运行在docker上的仪表盘访问到。</p>
+<p>Docker容器启动后，可以通过<code>hostname</code>或者任何一个部署docker的宿主机访问到网页仪表盘。</p>
 <blockquote>
-<p>The <code>SERVICE_URL</code> that the dashboard uses needs to be reachable from inside the Docker container.</p>
+<p>仪表盘用到的<code>SERVICE_URL</code>应该可以从docker容器内部访问到。</p>
 </blockquote>
-<p>If the Pulsar service runs in standalone mode in <code>localhost</code>, the <code>SERVICE_URL</code> has to be the IP address of the machine.</p>
+<p>如果Pulsar服务以单机版部署在<code>localhost</code>，<code>SERVICE_URL</code>必须是宿主机的IP地址。</p>
 <p>Similarly, given the Pulsar standalone advertises itself with localhost by default, you need to explicitly set the advertise address to the host IP address. For example:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar standalone --advertised-address 1.2.3.4</span>
 </code></pre>

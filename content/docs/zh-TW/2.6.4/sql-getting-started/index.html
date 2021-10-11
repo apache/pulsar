@@ -172,15 +172,42 @@ Splits: 19 total, 19 <span class="hljs-keyword">done</span> (100.00%)
 <p>你可以查詢到這些模擬數據。</p>
 <h2><a class="anchor" aria-hidden="true" id="查詢自己的數據"></a><a href="#查詢自己的數據" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查詢自己的數據</h2>
 <p>If you want to query your own data, you need to ingest your own data first. You can write a simple producer and write custom defined data to Pulsar. The following is an example.</p>
-<pre><code class="hljs css language-java">public class Test {
+<pre><code class="hljs css language-java">public class TestProducer {
 
-     public static class Foo {
+    public static class Foo {
         private int field1 = 1;
         private String field2;
         private long field3;
-     }
 
-     public static void main(String[] args) throws Exception {
+        public Foo() {
+        }
+
+        public int getField1() {
+            return field1;
+        }
+
+        public void setField1(int field1) {
+            this.field1 = field1;
+        }
+
+        public String getField2() {
+            return field2;
+        }
+
+        public void setField2(String field2) {
+            this.field2 = field2;
+        }
+
+        public long getField3() {
+            return field3;
+        }
+
+        public void setField3(long field3) {
+            this.field3 = field3;
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         Producer&lt;Foo&gt; producer = pulsarClient.newProducer(AvroSchema.of(Foo.class)).topic("test_topic").create();
 
@@ -193,7 +220,7 @@ Splits: 19 total, 19 <span class="hljs-keyword">done</span> (100.00%)
         }
         producer.close();
         pulsarClient.close();
-     }
+    }
 }
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.6.4/sql-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/2.6.4/sql-deployment-configurations"><span> 配置和部署</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#requirements">Requirements</a></li><li><a href="#使用-pulsar-sql-查詢資料">使用 Pulsar SQL 查詢資料</a></li><li><a href="#查詢自己的數據">查詢自己的數據</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
