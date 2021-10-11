@@ -249,6 +249,10 @@ public class CmdTopics extends CmdBase {
             cmdUsageFormatter.addDeprecatedCommand("get-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("set-maxProducers");
             cmdUsageFormatter.addDeprecatedCommand("remove-maxProducers");
+
+            cmdUsageFormatter.addDeprecatedCommand("get-retention");
+            cmdUsageFormatter.addDeprecatedCommand("set-retention");
+            cmdUsageFormatter.addDeprecatedCommand("remove-retention");
         }
     }
 
@@ -1422,10 +1426,6 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
-
-        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously")
-        private boolean global = false;
 
         @Override
         void run() throws PulsarAdminException {

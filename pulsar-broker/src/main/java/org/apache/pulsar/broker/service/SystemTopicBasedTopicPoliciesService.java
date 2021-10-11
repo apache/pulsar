@@ -82,6 +82,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
+    public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName, boolean isGlobal) {
+        return sendTopicPolicyEvent(topicName, ActionType.DELETE, TopicPolicies.builder().isGlobal(true).build());
+    }
+
+    @Override
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
         return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
     }
@@ -122,7 +127,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                     }
                                 }
                             });
-                    })
+                        })
                 );
             }
         });
@@ -130,7 +135,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
-        return PulsarEvent.builder()
+        PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
+        if (policies != null && policies.isGlobalPolicies()) {
+            builder.properties(ImmutableMap.of(IS_GLOBAL, IS_GLOBAL));
+        }
+        return builder
                 .actionType(actionType)
                 .eventType(EventType.TOPIC_POLICY)
                 .topicPoliciesEvent(
@@ -265,12 +274,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         removeOwnedNamespaceBundleAsync(bundle);
                     }
 
-            @Override
-            public boolean test(NamespaceBundle namespaceBundle) {
-                return true;
-            }
+                    @Override
+                    public boolean test(NamespaceBundle namespaceBundle) {
+                        return true;
+                    }
 
-        });
+                });
     }
 
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
@@ -338,7 +347,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {
         // delete policies
         if (msg.getValue() == null) {
-            policiesCache.remove(TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName()));
+            TopicName topicName = TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
+            System.out.println("refreshTopicPoliciesCache:" + msg.getProperties() + " " + msg.getProperty(IS_GLOBAL));
+            if (IS_GLOBAL.equals(msg.getProperty(IS_GLOBAL))) {
+                globalPoliciesCache.remove(topicName);
+            } else {
+                policiesCache.remove(topicName);
+            }
             return;
         }
         if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
@@ -347,13 +362,19 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
             switch (msg.getValue().getActionType()) {
                 case INSERT:
-                    TopicPolicies old = policiesCache.putIfAbsent(topicName, event.getPolicies());
+                    TopicPolicies old = event.getPolicies().isGlobalPolicies()
+                            ? globalPoliciesCache.putIfAbsent(topicName, event.getPolicies())
+                            : policiesCache.putIfAbsent(topicName, event.getPolicies());
                     if (old != null) {
                         log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
                     }
                     break;
                 case UPDATE:
-                    policiesCache.put(topicName, event.getPolicies());
+                    if (event.getPolicies().isGlobalPolicies()) {
+                        globalPoliciesCache.put(topicName, event.getPolicies());
+                    } else {
+                        policiesCache.put(topicName, event.getPolicies());
+                    }
                     break;
                 case DELETE:
                     // Since PR #11928, this branch is no longer needed.

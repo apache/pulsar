@@ -47,6 +47,14 @@ public interface TopicPoliciesService {
     CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
 
     /**
+     * Delete policies for a topic async.
+     * @param topicName
+     * @param isGlobal
+     * @return
+     */
+    CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName, boolean isGlobal);
+
+    /**
      * Update policies for a topic async.
      *
      * @param topicName topic name
@@ -76,7 +84,7 @@ public interface TopicPoliciesService {
      * @return CompletableFuture<Optional<TopicPolicies>>
      */
     default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
-              final Backoff backoff, ScheduledExecutorService scheduledExecutorService) {
+              final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
         CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
         Backoff usedBackoff = backoff == null ? new BackoffBuilder()
                 .setInitialTime(500, TimeUnit.MILLISECONDS)
@@ -86,7 +94,8 @@ public interface TopicPoliciesService {
         try {
             RetryUtil.retryAsynchronously(() -> {
                 try {
-                    return Optional.ofNullable(getTopicPolicies(topicName));
+                    return Optional.ofNullable(isGlobal ?
+                            getGlobalTopicPolicies(topicName) : getTopicPolicies(topicName));
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
                     throw new RuntimeException(exception);
                 }
@@ -140,6 +149,11 @@ public interface TopicPoliciesService {
         @Override
         public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
             return FutureUtil.failedFuture(new UnsupportedOperationException("Topic policies service is disabled."));
+        }
+
+        @Override
+        public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName, boolean isGlobal) {
+            return null;
         }
 
         @Override

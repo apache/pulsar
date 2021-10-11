@@ -97,13 +97,19 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public MessageId delete(PulsarEvent event) throws PulsarClientException {
             validateActionType(event);
-            return producer.newMessage().key(getEventKey(event)).value(null).send();
+            return producer.newMessage()
+                    .key(getEventKey(event))
+                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
+                    .value(null).send();
         }
 
         @Override
         public CompletableFuture<MessageId> deleteAsync(PulsarEvent event) {
             validateActionType(event);
-            return producer.newMessage().key(getEventKey(event)).value(null).sendAsync();
+            return producer.newMessage()
+                    .key(getEventKey(event))
+                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
+                    .value(null).sendAsync();
         }
 
         private String getEventKey(PulsarEvent event) {

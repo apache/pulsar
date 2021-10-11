@@ -238,7 +238,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 .setMax(1000, TimeUnit.MILLISECONDS)
                 .create();
         try {
-            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor()).get();
+            service.getTopicPoliciesAsyncWithRetry(TOPIC1, backoff, pulsar.getExecutor(), false).get();
         } catch (Exception e) {
             assertTrue(e.getCause().getCause() instanceof TopicPoliciesCacheNotInitException);
         }

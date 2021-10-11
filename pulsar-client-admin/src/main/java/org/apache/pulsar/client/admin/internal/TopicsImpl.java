@@ -2584,14 +2584,8 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void setRetention(String topic, RetentionPolicies retention) throws PulsarAdminException {
-        setRetention(topic, retention, false);
-    }
-
-    @Override
-    public void setRetention(String topic, RetentionPolicies retention
-            , boolean global) throws PulsarAdminException {
         try {
-            setRetentionAsync(topic, retention, global).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            setRetentionAsync(topic, retention).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -2604,15 +2598,8 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> setRetentionAsync(String topic, RetentionPolicies retention) {
-        return setRetentionAsync(topic, retention, false);
-    }
-
-    @Override
-    public CompletableFuture<Void> setRetentionAsync(String topic, RetentionPolicies retention
-            , boolean global) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "retention");
-        path = path.queryParam("global", global);
         return asyncPostRequest(path, Entity.entity(retention, MediaType.APPLICATION_JSON));
     }
 

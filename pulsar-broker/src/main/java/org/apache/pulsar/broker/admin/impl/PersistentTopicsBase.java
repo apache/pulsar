@@ -2838,8 +2838,10 @@ public class PersistentTopicsBase extends AdminResource {
         return retentionPolicies;
     }
 
-    protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
+    protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
+        CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture = isGlobal ?
+                getGlobalTopicPoliciesAsyncWithRetry(topicName) : getTopicPoliciesAsyncWithRetry(topicName);
+        return topicPoliciesFuture
             .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {
                 if (applied) {
                     RetentionPolicies policies = getNamespacePolicies(namespaceName).retention_policies;
@@ -2851,7 +2853,7 @@ public class PersistentTopicsBase extends AdminResource {
             }));
     }
 
-    protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention, boolean global) {
+    protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention, boolean isGlobal) {
         if (retention == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -2875,21 +2877,13 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }
                 topicPolicies.setRetentionPolicies(retention);
-                topicPolicies.setIsGlobal(global);
+                topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
     }
 
-    protected CompletableFuture<Void> internalRemoveRetention(boolean global) {
-        return getTopicPoliciesAsyncWithRetry(topicName)
-            .thenCompose(op -> {
-                if (!op.isPresent()) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                op.get().setRetentionPolicies(null);
-                op.get().setIsGlobal(global);
-                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
-            });
+    protected CompletableFuture<Void> internalRemoveRetention(boolean isGlobal) {
+        return pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(topicName, isGlobal);
     }
 
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied) {
