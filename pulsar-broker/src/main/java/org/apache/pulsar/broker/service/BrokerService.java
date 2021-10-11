@@ -972,45 +972,57 @@ public class BrokerService implements Closeable {
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
-            @Override
-            public void deleteLedgerComplete(Object ctx) {
-                deleteTopicAuthenticationWithRetry(topic);
-                future.complete(null);
-            }
 
-            @Override
-            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(exception);
+        CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
+        deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
+        deleteTopicAuthenticationFuture.whenComplete((v, ex) -> {
+            if (ex != null) {
+                future.completeExceptionally(ex);
+                return;
             }
-        }, null);
+            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
+                @Override
+                public void deleteLedgerComplete(Object ctx) {
+                    future.complete(null);
+                }
+
+                @Override
+                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                    future.completeExceptionally(exception);
+                }
+            }, null);
+        });
+
 
         return future;
     }
 
-    public CompletableFuture<Void> deleteTopicAuthenticationWithRetry(String topic) {
-        AtomicReference<CompletableFuture<Void>> result = new AtomicReference<>(new CompletableFuture<>());
+    public void deleteTopicAuthenticationWithRetry(String topic, CompletableFuture<Void> future, int count) {
+        if (count == 0) {
+            log.error("The number of retries has exhausted for topic {}", topic);
+            future.completeExceptionally(new RuntimeException("The number of retries has exhausted"));
+            return;
+        }
         pulsar.getPulsarResources().getNamespaceResources()
                 .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
                     p.auth_policies.getTopicAuthentication().remove(topic);
                     return p;
                 }).thenAccept(v -> {
                     log.info("Successfully delete authentication policies for topic {}", topic);
-                    result.get().complete(null);
+                    future.complete(null);
                 }).exceptionally(ex1 -> {
                     if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
                         log.warn(
                                 "Failed to delete authentication policies because of bad version. "
                                         + "Retry to delete authentication policies for topic {}",
                                 topic);
-                        result.set(deleteTopicAuthenticationWithRetry(topic));
+                        deleteTopicAuthenticationWithRetry(topic, future, count - 1);
                     } else {
                         log.error("Failed to delete authentication policies for topic {}", topic, ex1);
-                        result.get().completeExceptionally(ex1);
+                        future.completeExceptionally(ex1);
                     }
                     return null;
                 });
-        return result.get();
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {

@@ -638,45 +638,45 @@ public class PersistentTopicsBase extends AdminResource {
             }
             // Only tries to delete the authentication policies for partitioned topic when all its partitions are
             // successfully deleted
-            pulsar().getBrokerService().deleteTopicAuthenticationWithRetry(topicName.toString())
-                    .whenComplete((r1, ex1) -> {
-                        if (ex1 != null) {
-                            asyncResponse.resume(new RestException(ex1));
-                            return;
-                        }
-                        // Only tries to delete the znode for partitioned topic when its authentication policies are
-                        // successfully deleted
-                        try {
-                            namespaceResources().getPartitionedTopicResources()
-                                    .deletePartitionedTopicAsync(topicName).thenAccept(r2 -> {
-                                        log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
-                                        asyncResponse.resume(Response.noContent().build());
-                                    }).exceptionally(ex2 -> {
-                                        log.error("[{}] Failed to delete partitioned topic {}", clientAppId(),
-                                                topicName,
-                                                ex2.getCause());
-                                        if (ex2.getCause()
-                                                instanceof MetadataStoreException.NotFoundException) {
-                                            asyncResponse.resume(new RestException(
-                                                    new RestException(Status.NOT_FOUND, "Partitioned topic does not "
-                                                            + "exist")));
-                                        } else if (ex2
-                                                .getCause()
-                                                instanceof MetadataStoreException.BadVersionException) {
-                                            asyncResponse.resume(
-                                                    new RestException(
-                                                            new RestException(Status.CONFLICT, "Concurrent "
-                                                            + "modification")));
-                                        } else {
-                                            asyncResponse.resume(new RestException((ex2.getCause())));
-                                        }
-                                        return null;
-                                    });
-                        } catch (Exception e1) {
-                            log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e1);
-                            asyncResponse.resume(new RestException(e1));
-                        }
-                    });
+            CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
+            pulsar().getBrokerService()
+                    .deleteTopicAuthenticationWithRetry(topicName.toString(), deleteTopicAuthenticationFuture, 5);
+            deleteTopicAuthenticationFuture.whenComplete((r1, ex1) -> {
+                if (ex1 != null) {
+                    asyncResponse.resume(new RestException(ex1));
+                    return;
+                }
+                // Only tries to delete the znode for partitioned topic when its authentication policies are
+                // successfully deleted
+                try {
+                    namespaceResources().getPartitionedTopicResources()
+                            .deletePartitionedTopicAsync(topicName).thenAccept(r2 -> {
+                                log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
+                                asyncResponse.resume(Response.noContent().build());
+                            }).exceptionally(ex2 -> {
+                                log.error("[{}] Failed to delete partitioned topic {}", clientAppId(),
+                                        topicName,
+                                        ex2.getCause());
+                                if (ex2.getCause()
+                                        instanceof MetadataStoreException.NotFoundException) {
+                                    asyncResponse.resume(new RestException(
+                                            new RestException(Status.NOT_FOUND, "Partitioned topic does not exist")));
+                                } else if (ex2
+                                        .getCause()
+                                        instanceof MetadataStoreException.BadVersionException) {
+                                    asyncResponse.resume(
+                                            new RestException(
+                                                    new RestException(Status.CONFLICT, "Concurrent modification")));
+                                } else {
+                                    asyncResponse.resume(new RestException((ex2.getCause())));
+                                }
+                                return null;
+                            });
+                } catch (Exception e1) {
+                    log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e1);
+                    asyncResponse.resume(new RestException(e1));
+                }
+            });
         });
     }
 
