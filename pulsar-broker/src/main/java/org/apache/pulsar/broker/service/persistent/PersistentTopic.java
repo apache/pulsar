@@ -1127,6 +1127,7 @@ public class PersistentTopic extends AbstractTopic
                             deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null);
 
                     deleteSchemaFuture.thenAccept(__ -> deleteTopicPolicies())
+                            .thenAccept(__ -> brokerService.deleteTopicAuthenticationWithRetry(topic))
                             .thenCompose(__ -> transactionBuffer.clearSnapshot()).whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
@@ -1154,7 +1155,6 @@ public class PersistentTopic extends AbstractTopic
                                             brokerService.pulsar().getTopicPoliciesService()
                                                     .clean(TopicName.get(topic));
 
-                                            brokerService.deleteTopicAuthenticationWithRetry(topic);
                                             log.info("[{}] Topic deleted", topic);
                                             deleteFuture.complete(null);
                                         }

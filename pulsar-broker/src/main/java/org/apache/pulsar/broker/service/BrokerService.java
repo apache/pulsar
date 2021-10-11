@@ -988,26 +988,29 @@ public class BrokerService implements Closeable {
         return future;
     }
 
-    public void deleteTopicAuthenticationWithRetry(String topic) {
+    public CompletableFuture<Void> deleteTopicAuthenticationWithRetry(String topic) {
+        AtomicReference<CompletableFuture<Void>> result = new AtomicReference<>(new CompletableFuture<>());
         pulsar.getPulsarResources().getNamespaceResources()
                 .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
                     p.auth_policies.getTopicAuthentication().remove(topic);
                     return p;
-                }).thenAccept(r2 -> {
+                }).thenAccept(v -> {
                     log.info("Successfully delete authentication policies for topic {}", topic);
+                    result.get().complete(null);
                 }).exceptionally(ex1 -> {
                     if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
                         log.warn(
                                 "Failed to delete authentication policies because of bad version. "
                                         + "Retry to delete authentication policies for topic {}",
                                 topic);
-                        deleteTopicAuthenticationWithRetry(topic);
+                        result.set(deleteTopicAuthenticationWithRetry(topic));
                     } else {
-                        log.error("Failed to delete authentication policies for topic {}", topic);
-                        ex1.printStackTrace();
+                        log.error("Failed to delete authentication policies for topic {}", topic, ex1);
+                        result.get().completeExceptionally(ex1);
                     }
                     return null;
                 });
+        return result.get();
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
