@@ -45,7 +45,7 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
 
     @Test
     public void testDefaultConfig() throws Exception {
-        System.setProperty("pulsar.allocator.fall_back_to_heap", "false");
+        System.setProperty("pulsar.allocator.out_of_memory_policy", "ThrowException");
         final ByteBufAllocatorImpl mockAllocator = PowerMockito.mock(ByteBufAllocatorImpl.class);
         PowerMockito.whenNew(ByteBufAllocatorImpl.class).withAnyArguments().thenReturn(mockAllocator);
         final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
