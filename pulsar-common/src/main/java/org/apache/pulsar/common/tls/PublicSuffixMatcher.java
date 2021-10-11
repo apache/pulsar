@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * An up-to-date list of suffixes can be obtained from
  * <a href="http://publicsuffix.org/">publicsuffix.org</a>
  *
- * @see org.apache.pulsar.client.impl.tls.PublicSuffixList
+ * @see org.apache.pulsar.common.tls.PublicSuffixList
  *
  * @since 4.4
  */

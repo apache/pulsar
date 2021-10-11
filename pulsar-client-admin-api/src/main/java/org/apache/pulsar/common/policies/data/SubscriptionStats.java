@@ -97,6 +97,12 @@ public interface SubscriptionStats {
     /** Mark that the subscription state is kept in sync across different regions. */
     boolean isReplicated();
 
+    /** Whether out of order delivery is allowed on the Key_Shared subscription. */
+    boolean isAllowOutOfOrderDelivery();
+
+    /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
+    String getKeySharedMode();
+
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     Map<String, String> getConsumersAfterMarkDeletePosition();
 

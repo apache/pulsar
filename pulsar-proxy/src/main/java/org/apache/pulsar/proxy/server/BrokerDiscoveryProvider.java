@@ -28,16 +28,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.resources.MetadataStoreCacheLoader;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,8 +51,10 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
- *
+ * This is an API used by Proxy Extensions.
  */
+@InterfaceStability.Evolving
+@InterfaceAudience.LimitedPrivate
 public class BrokerDiscoveryProvider implements Closeable {
 
     final MetadataStoreCacheLoader metadataStoreCacheLoader;
@@ -74,6 +79,16 @@ public class BrokerDiscoveryProvider implements Closeable {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Access the list of available brokers.
+     * Used by Protocol Handlers
+     * @return the list of available brokers
+     * @throws PulsarServerException
+     */
+    public List<? extends ServiceLookupData> getAvailableBrokers() throws PulsarServerException {
+        return metadataStoreCacheLoader.getAvailableBrokers();
     }
 
     /**

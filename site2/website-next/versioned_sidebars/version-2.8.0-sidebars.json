@@ -420,6 +420,54 @@
     },
     {
       "type": "category",
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/performance-pulsar-perf"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/client-libraries-dotnet"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Admin API",
       "items": [
         {

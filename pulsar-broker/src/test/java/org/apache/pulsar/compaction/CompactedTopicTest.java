@@ -419,5 +419,22 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         MessageId messageId = ((ReaderImpl<String>) reader).getConsumer().getLastMessageId();
         Assert.assertEquals(messageId, received.getMessageId());
         Assert.assertFalse(reader.hasMessageAvailable());
+        reader.close();
+
+        // Unload the topic again to simulate entry ID with -1 after all data has been compacted.
+        admin.topics().unload(topic);
+        PersistentTopicInternalStats stats2 = admin.topics().getInternalStats(topic);
+        Assert.assertTrue(stats2.lastConfirmedEntry.endsWith(":-1"));
+        Assert.assertTrue(stats2.compactedLedger.ledgerId > 0);
+
+        reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test")
+                .readCompacted(true)
+                .startMessageId(MessageId.earliest)
+                .create();
+        Assert.assertTrue(reader.hasMessageAvailable());
+        reader.readNext();
+        Assert.assertFalse(reader.hasMessageAvailable());
     }
 }

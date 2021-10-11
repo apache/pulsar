@@ -161,7 +161,14 @@ module.exports = {
       // theme: lightCodeTheme,
       // darkTheme: darkCodeTheme,
       theme: require("prism-react-renderer/themes/dracula"),
-      additionalLanguages: ["powershell", "java"],
+      additionalLanguages: [
+        "powershell",
+        "java",
+        "go",
+        "c",
+        "cpp",
+        "python",
+      ],
     },
   },
   presets: [

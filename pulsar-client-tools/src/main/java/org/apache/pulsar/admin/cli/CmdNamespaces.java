@@ -573,8 +573,10 @@ public class CmdNamespaces extends CmdBase {
                             "Possible values: (partitioned, non-partitioned)");
                 }
 
-                if (TopicType.PARTITIONED.toString().equals(type) && !(defaultNumPartitions > 0)) {
-                    throw new ParameterException("Must specify num-partitions > 0 for partitioned topic type.");
+                if (TopicType.PARTITIONED.toString().equals(type)
+                        && (defaultNumPartitions == null || !(defaultNumPartitions > 0))) {
+                    throw new ParameterException("Must specify num-partitions or num-partitions > 0 " +
+                            "for partitioned topic type.");
                 }
             }
             getAdmin().namespaces().setAutoTopicCreation(namespace,
