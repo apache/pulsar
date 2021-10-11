@@ -491,6 +491,24 @@
           "id": "version-2.7.3/admin-api-functions"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-storm"
+        }
+      ]
     }
   ]
 }
