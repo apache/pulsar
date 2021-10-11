@@ -303,11 +303,18 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                     break;
                 }
 
-                resultPtr->setAccessToken(root.get<std::string>("access_token"));
-                resultPtr->setExpiresIn(root.get<uint32_t>("expires_in"));
+                resultPtr->setAccessToken(root.get<std::string>("access_token", ""));
+                resultPtr->setExpiresIn(
+                    root.get<uint32_t>("expires_in", Oauth2TokenResult::undefined_expiration));
+                resultPtr->setIdToken(root.get<std::string>("refresh_token", ""));
+                resultPtr->setIdToken(root.get<std::string>("id_token", ""));
 
-                LOG_DEBUG("access_token: " << resultPtr->getAccessToken()
-                                           << " expires_in: " << resultPtr->getExpiresIn());
+                if (!resultPtr->getAccessToken().empty()) {
+                    LOG_DEBUG("access_token: " << resultPtr->getAccessToken()
+                                               << " expires_in: " << resultPtr->getExpiresIn());
+                } else {
+                    LOG_ERROR("Response doesn't contain access_token, the response is: " << responseData);
+                }
             } else {
                 LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". response Code "
                                                            << response_code << " passedin: " << jsonBody);
