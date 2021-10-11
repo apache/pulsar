@@ -43,6 +43,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferInitialUseException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferStatusException;
 import org.apache.pulsar.broker.transaction.buffer.matadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Message;
@@ -173,32 +175,31 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        if (checkIfUnused()){
-            buffer.retain();
-            takeSnapshot().thenAccept(ignore -> {
-                try {
-                    if (!changeToReadyStateAfterUsed()){
-                        if (!checkIfReady()){
-                            log.error("Fail to change state when add message with transaction at the first time.");
-                        }
-                    } else {
-                        timer.newTimeout(TopicTransactionBuffer.this,
-                                takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                    }
-                    if (checkIfReady()){
-                        addTxnEntry(completableFuture, txnId, buffer);
-                    }
-                } finally {
-                    buffer.release();
-                }
-            }).exceptionally(exception -> {
-                buffer.release();
-                log.error("Fail to takeSnapshot before adding the first message with transaction", exception);
-                completableFuture.completeExceptionally(exception);
-                return null;
-            });
-        } else {
+        if (checkIfReady()){
             addTxnEntry(completableFuture, txnId, buffer);
+        }else {
+            if (checkIfUnused()){
+                if(changeToReadyStateAfterUsed()){
+                    buffer.retain();
+                    takeSnapshot().thenAccept(ignore -> {
+                        addTxnEntry(completableFuture, txnId, buffer);
+                        buffer.release();
+                    }).exceptionally(exception -> {
+                        changeBackToUnUsedState();
+                        buffer.release();
+                        log.error("Fail to takeSnapshot before adding the first message with transaction", exception);
+                        completableFuture.completeExceptionally(exception);
+                        return null;
+                    });
+                } else {
+                    completableFuture.completeExceptionally(new TransactionBufferInitialUseException("Fail to change "
+                            + "TransactionBufferState from Unused to Ready When the first message with transaction "
+                            + "was sent"));
+                }
+            } else {
+                completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
+                        State.Unused, getState()));
+            }
         }
         return completableFuture;
     }
@@ -243,7 +244,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (!checkIfReady()){
-            log.error("No message with transaction has been successfully sent, so commit is meaningless");
+            log.warn("No message with transaction has been successfully sent, so commit is meaningless");
             completableFuture.complete(null);
             return completableFuture;
         }
@@ -282,7 +283,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (!checkIfReady()){
-           log.error("No message with transaction has been successfully sent, so abort is meaningless");
+           log.warn("No message with transaction has been successfully sent, so abort is meaningless");
            completableFuture.complete(null);
            return completableFuture;
         }
