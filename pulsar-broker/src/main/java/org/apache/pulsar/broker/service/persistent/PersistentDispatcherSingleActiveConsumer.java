@@ -34,7 +34,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
@@ -395,38 +394,46 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
         }
 
-        MutablePair<Integer, Long> calculateToRead = MutablePair.of(messagesToRead, bytesToRead);
-
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
         // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
         // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
             if (topic.getBrokerDispatchRateLimiter().isPresent()) {
                 DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(brokerRateLimiter, calculateToRead)) {
+                if (reachDispatchRateLimit(brokerRateLimiter)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
                                 brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
                     return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            updateMessagesToRead(brokerRateLimiter, messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
                 }
             }
 
             if (topic.getDispatchRateLimiter().isPresent()) {
                 DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                if (reachDispatchRateLimit(topicRateLimiter, calculateToRead)) {
+                if (reachDispatchRateLimit(topicRateLimiter)) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
                                 topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
                     return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            updateMessagesToRead(topicRateLimiter, messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
                 }
             }
 
             if (dispatchRateLimiter.isPresent()) {
-                if (reachDispatchRateLimit(dispatchRateLimiter.get(), calculateToRead)) {
+                if (reachDispatchRateLimit(dispatchRateLimiter.get())) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
                                 name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
@@ -434,14 +441,19 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                                 MESSAGE_RATE_BACKOFF_MS);
                     }
                     return Pair.of(-1, -1L);
+                } else {
+                    Pair<Integer, Long> calculateToRead =
+                            updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
                 }
             }
         }
 
         // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-        calculateToRead.setLeft(Math.max(calculateToRead.getLeft(), 1));
-        calculateToRead.setRight(Math.max(calculateToRead.getRight(), 1));
-        return calculateToRead;
+        messagesToRead = Math.max(messagesToRead, 1);
+        bytesToRead = Math.max(bytesToRead, 1);
+        return Pair.of(messagesToRead, bytesToRead);
     }
 
     @Override

@@ -336,7 +336,7 @@ public class DispatchRateLimiter {
      * @return
      */
     public DispatchRate getPoliciesDispatchRate(BrokerService brokerService) {
-        if (type == Type.BROKER) {
+        if (topicName == null) {
             return null;
         }
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
