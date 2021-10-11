@@ -27,7 +27,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -240,23 +239,22 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected abstract void reScheduleRead();
 
-    protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter,
-                                             MutablePair<Integer, Long> calculateToRead) {
+    protected boolean reachDispatchRateLimit(DispatchRateLimiter dispatchRateLimiter) {
         if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
             if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
                 reScheduleRead();
                 return true;
-            } else {
-                // update messagesToRead according to available dispatch rate limit.
-                Pair<Integer, Long> calculateResult = computeReadLimits(calculateToRead.getLeft(),
-                        (int) dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg(),
-                        calculateToRead.getRight(),
-                        dispatchRateLimiter.getAvailableDispatchRateLimitOnByte());
-                calculateToRead.setLeft(calculateResult.getLeft());
-                calculateToRead.setRight(calculateResult.getRight());
             }
         }
         return false;
+    }
+
+    protected Pair<Integer, Long> updateMessagesToRead(DispatchRateLimiter dispatchRateLimiter,
+                                                       int messagesToRead, long bytesToRead) {
+        // update messagesToRead according to available dispatch rate limit.
+        return computeReadLimits(messagesToRead,
+                (int) dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg(),
+                bytesToRead, dispatchRateLimiter.getAvailableDispatchRateLimitOnByte());
     }
 
     protected static Pair<Integer, Long> computeReadLimits(int messagesToRead, int availablePermitsOnMsg,
