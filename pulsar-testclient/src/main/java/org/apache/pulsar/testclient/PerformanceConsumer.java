@@ -201,7 +201,7 @@ public class PerformanceConsumer {
 
         @Parameter(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
                 + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
-        public long transactionTimeout = 5;
+        public long transactionTimeout = 10;
 
         @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
                 description = "The number of messages acknowledged by a transaction. "
@@ -212,12 +212,12 @@ public class PerformanceConsumer {
         public boolean isEnableTransaction = false;
 
         @Parameter(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
-                + "(After --txn-enable setting to true, -ntxn takes effect.")
+                + "(After --txn-enable setting to true, -ntxn takes effect.)")
         public long totalNumTxn = 0;
 
-        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (After --txn-enable "
-                + "setting to true, -commit takes effect)")
-        public boolean isCommitTransaction = true;
+        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
+                + "setting to true, -abort takes effect)")
+        public boolean isAbortTransaction = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -414,7 +414,7 @@ public class PerformanceConsumer {
                 if (arguments.isEnableTransaction
                         && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
                     Transaction transaction = atomicReference.get();
-                    if (arguments.isCommitTransaction) {
+                    if (!arguments.isAbortTransaction) {
                         transaction.commit()
                                 .thenRun(() -> {
                                     totalEndTxnOpSuccessNum.increment();

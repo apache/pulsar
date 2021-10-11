@@ -179,12 +179,12 @@ public class PerformanceTransaction {
                         + "If transaction disabled, it means the number of messages consumed in a task.")
         public int numMessagesReceivedPerTransaction = 1;
 
-        @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable transaction")
-        public boolean isEnableTransaction = true;
+        @Parameter(names = {"--txn-disEnable"}, description = "Disable transaction")
+        public boolean isDisEnableTransaction = false;
 
-        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (After --txn-enable "
-                + "setting to true, -commit takes effect)")
-        public boolean isCommitTransaction = true;
+        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
+                + "setting to false, -abort takes effect)")
+        public boolean isAbortTransaction = false;
 
         @Parameter(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
         public int openTxnRate = 0;
@@ -274,7 +274,7 @@ public class PerformanceTransaction {
         }
 
         PulsarClient client =
-                PulsarClient.builder().enableTransaction(arguments.isEnableTransaction)
+                PulsarClient.builder().enableTransaction(!arguments.isDisEnableTransaction)
                         .serviceUrl(arguments.serviceURL)
                         .connectionsPerBroker(arguments.maxConnections)
                         .statsInterval(0, TimeUnit.SECONDS)
@@ -290,7 +290,7 @@ public class PerformanceTransaction {
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (arguments.isEnableTransaction) {
+            if (!arguments.isDisEnableTransaction) {
                 printTxnAggregatedThroughput(startTime);
             } else {
                 printAggregatedThroughput(startTime);
@@ -320,7 +320,7 @@ public class PerformanceTransaction {
                         PerfClientUtils.exit(-1);
                     }
                     AtomicReference<Transaction> atomicReference = buildTransaction(client,
-                            arguments.isEnableTransaction, arguments.transactionTimeout);
+                            !arguments.isDisEnableTransaction, arguments.transactionTimeout);
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //0the executorService
                     while (true) {
@@ -354,7 +354,7 @@ public class PerformanceTransaction {
                                             executorService.shutdownNow();
                                         }
                                         long receiveTime = System.nanoTime();
-                                        if (arguments.isEnableTransaction) {
+                                        if (!arguments.isDisEnableTransaction) {
                                             consumer.acknowledgeAsync(message.getMessageId(), transaction)
                                                     .thenRun(() -> {
                                                         long latencyMicros = NANOSECONDS.toMicros(
@@ -397,7 +397,7 @@ public class PerformanceTransaction {
                         for(Producer<byte[]> producer : producers){
                             for (int j = 0; j < arguments.numMessagesProducedPerTransaction; j++) {
                                 long sendTime = System.nanoTime();
-                                if (arguments.isEnableTransaction) {
+                                if (!arguments.isDisEnableTransaction) {
                                     producer.newMessage(transaction).value(payloadBytes)
                                             .sendAsync().thenRun(() -> {
                                         long latencyMicros = NANOSECONDS.toMicros(
@@ -436,8 +436,8 @@ public class PerformanceTransaction {
                         if(rateLimiter != null){
                             rateLimiter.tryAcquire();
                         }
-                        if (arguments.isEnableTransaction) {
-                            if (arguments.isCommitTransaction) {
+                        if (!arguments.isDisEnableTransaction) {
+                            if (!arguments.isAbortTransaction) {
                                 transaction.commit()
                                         .thenRun(() -> {
                                             numTxnOpSuccess.increment();
@@ -484,6 +484,10 @@ public class PerformanceTransaction {
                                         totalNumTxnOpenTxnFail.increment();
                                     }
                             }
+                        } else {
+                            totalNumTxnOpenTxnSuccess.increment();
+                            totalNumEndTxnOpSuccess.increment();
+                            numTxnOpSuccess.increment();
                         }
                     }
                 });
@@ -519,7 +523,7 @@ public class PerformanceTransaction {
             double rate = numTxnOpSuccess.sumThenReset() / elapsed;
             reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
             reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
-            String txnOrTaskLog = arguments.isEnableTransaction
+            String txnOrTaskLog = !arguments.isDisEnableTransaction
                     ? "Throughput transaction: {} transaction executes --- {} transaction/s"
                     : "Throughput task: {} task executes --- {} task/s";
             log.info(

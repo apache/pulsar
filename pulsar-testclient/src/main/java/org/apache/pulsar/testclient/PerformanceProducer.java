@@ -269,16 +269,16 @@ public class PerformanceProducer {
         public long transactionTimeout = 10;
 
         @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
-                description = "The number of messages send by a transaction. "
-                        + "(After --txn-enable setting to true, -nmt takes effect")
+                description = "The number of messages sent by a transaction. "
+                        + "(After --txn-enable setting to true, -nmt takes effect)")
         public int numMessagesPerTransaction = 50;
 
         @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (After --txn-enable "
-                + "setting to true, -commit takes effect)")
-        public boolean isCommitTransaction = true;
+        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
+                + "setting to true, -abort takes effect)")
+        public boolean isAbortTransaction = false;
     }
 
     public static void main(String[] args) throws Exception {
@@ -737,7 +737,7 @@ public class PerformanceProducer {
                     });
                     if (arguments.isEnableTransaction
                             && numMessageSend.incrementAndGet() == arguments.numMessagesPerTransaction) {
-                        if (arguments.isCommitTransaction) {
+                        if (!arguments.isAbortTransaction) {
                             transaction.commit()
                                     .thenRun(() -> {
                                         log.info("Committed transaction {}",
