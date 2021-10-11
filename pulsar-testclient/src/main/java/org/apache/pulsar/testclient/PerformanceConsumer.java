@@ -107,7 +107,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
         public String subscriberName;
 
-        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
+        @Parameter(names = { "-ss", "--subscriptions" }, description = "A list of subscriptions to consume (for example, sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
         @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
@@ -187,7 +187,7 @@ public class PerformanceConsumer {
         public long testTime = 0;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers, default is 1 thread")
+                "used for handling connections to brokers. The default value is 1.")
         public int ioThreads = 1;
 
         @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
@@ -200,23 +200,23 @@ public class PerformanceConsumer {
         public boolean enableBusyWait = false;
 
         @Parameter(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
-                + " and the TimeUnit is second. (Only --txn-enable true can it take effect)")
+                + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
         public long transactionTimeout = 5;
 
-        @Parameter(names = {"-nmt", "---numMessage-perTransaction"},
-                description = "The number of messages per transaction acknowledgment. "
-                + "(Only --txn-enable true can it take effect")
+        @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
+                description = "The number of messages acknowledged by a transaction. "
+                + "(After --txn-enable setting to true, -numMessage-perTransaction takes effect")
         public int numMessagesPerTransaction = 50;
 
         @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-ntxn"}, description = "The number of transaction will be opened, if 0, it will keep open."
-                + "(Only --txn-enable true can it  take effect.")
+        @Parameter(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
+                + "(After --txn-enable setting to true, -ntxn takes effect.")
         public long totalNumTxn = 0;
 
-        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
-                + "true can it take effect)")
+        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (After --txn-enable "
+                + "setting to true, -commit takes effect)")
         public boolean isCommitTransaction = true;
     }
 

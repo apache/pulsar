@@ -114,9 +114,9 @@ public class PerformanceTransaction {
         public List<String> producerTopic = Collections.singletonList("test-produce");
 
         @Parameter(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
-                + "This thread is for new transaction and ack the consumerTopic message and produce message to "
-                + "producerTopic then commit or abort this transaction. "
-                + "Increasing the number of threads will increase the parallelism of the performance test, "
+                + "This thread is for a new transaction to ack messages from consumer topics and produce message to "
+                + "producer topics, and then commit or abort this transaction. "
+                + "Increasing the number of threads increases the parallelism of the performance test, "
                 + "thereby increasing the intensity of the stress test.")
         public int numTestThreads = 1;
 
@@ -127,8 +127,8 @@ public class PerformanceTransaction {
         public String serviceURL;
 
         @Parameter(names = {"-np",
-                "--partitions"}, description = "Create partitioned topics with the given number of partitions, set 0 "
-                + "to not try to create the topic")
+                "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
+                + "not trying to create a topic")
         public Integer partitions = null;
 
         @Parameter(names = {"-c",
@@ -136,15 +136,15 @@ public class PerformanceTransaction {
         public int maxConnections = 100;
 
         @Parameter(names = {"-time",
-                "--test-duration"}, description = "Test duration in secs. If 0, it will keep publishing")
+                "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
         public long testTime = 0;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers, default is 1 thread")
+                "used for handling connections to brokers. The default value is 1.")
         public int ioThreads = 1;
 
         @Parameter(names = {"-ss",
-                "--subscriptions"}, description = "A list of subscriptions to consume on (e.g. sub1,sub2)")
+                "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
         public List<String> subscriptions = Collections.singletonList("sub");
 
         @Parameter(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
@@ -160,33 +160,33 @@ public class PerformanceTransaction {
         public int receiverQueueSize = 1000;
 
         @Parameter(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
-                + " and the TimeUnit is second. (Only --txn-enable true can it take effect) ")
+                + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
         public long transactionTimeout = 5;
 
         @Parameter(names = {"-ntxn",
-                "--number-txn"}, description = "Set the number of transaction, if 0, it will keep opening."
-                + "If transaction disable, it means the number of task. The task or transaction will produce or "
-                + "consume a specified number of messages.")
+                "--number-txn"}, description = "Set the number of transaction. 0 means keeping open."
+                + "If transaction disabled, it means the number of tasks. The task or transaction produces or "
+                + "consumes a specified number of messages.")
         public long numTransactions = 0;
 
         @Parameter(names = {"-nmp", "--numMessage-perTransaction-produce"},
                 description = "Set the number of messages produced in  a transaction."
-                        + "If transaction disable, it means the number of messages produced in a task.")
+                        + "If transaction disabled, it means the number of messages produced in a task.")
         public int numMessagesProducedPerTransaction = 1;
 
         @Parameter(names = {"-nmc", "--numMessage-perTransaction-consume"},
-                description = "Set the number of messages consumed in  a transaction."
-                        + "if transaction disable, it means the number of message consumed in a task.")
+                description = "Set the number of messages consumed in a transaction."
+                        + "If transaction disabled, it means the number of messages consumed in a task.")
         public int numMessagesReceivedPerTransaction = 1;
 
         @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable transaction")
         public boolean isEnableTransaction = true;
 
-        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
-                + "true can it take effect)")
+        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (After --txn-enable "
+                + "setting to true, -commit takes effect)")
         public boolean isCommitTransaction = true;
 
-        @Parameter(names = "-txnRate", description = "Set the rate of transaction/task open, if 0, it will don`t limit")
+        @Parameter(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
         public int openTxnRate = 0;
     }
 

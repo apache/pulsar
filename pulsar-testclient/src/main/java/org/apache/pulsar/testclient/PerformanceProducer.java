@@ -248,7 +248,7 @@ public class PerformanceProducer {
         public String messageKeyGenerationMode = null;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers, default is 1 thread")
+                "used for handling connections to brokers. The default value is 1.")
         public int ioThreads = 1;
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
@@ -265,19 +265,19 @@ public class PerformanceProducer {
         public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
 
         @Parameter(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
-                + " and the TimeUnit is second. (Only --txn-enable true can it take effect) ")
+                + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
         public long transactionTimeout = 10;
 
         @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
-                description = "The number of messages per transaction send. "
-                        + "(Only --txn-enable true can it take effect")
+                description = "The number of messages send by a transaction. "
+                        + "(After --txn-enable setting to true, -nmt takes effect")
         public int numMessagesPerTransaction = 50;
 
         @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
         public boolean isEnableTransaction = false;
 
-        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (Only --txn-enable "
-                + "true can it take effect)")
+        @Parameter(names = {"-commit"}, description = "Whether to commit or abort the transaction. (After --txn-enable "
+                + "setting to true, -commit takes effect)")
         public boolean isCommitTransaction = true;
     }
 
