@@ -43,7 +43,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size {} --", MESSAGE_SIZE);
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
@@ -77,7 +77,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size {} --", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
@@ -88,7 +88,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
-            log.info("first test success: without certs set, meet exception {}", ex);
+            log.info("first test success: without certs set, meet exception ", ex);
         }
 
         // Test 2 - Using TLS on binary protocol - sending certs
@@ -107,7 +107,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size {} --", MESSAGE_SIZE);
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure
@@ -118,7 +118,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
-            log.info("first test success: without certs set, meet exception {}", ex);
+            log.info("first test success: without certs set, meet exception ", ex);
         }
 
         // Test 2 - Using TLS on https - sending certs

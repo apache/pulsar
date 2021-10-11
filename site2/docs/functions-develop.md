@@ -683,7 +683,7 @@ To customize the function log level, create or update `functions_log4j2.xml` in 
             <name>Console</name>
             <target>SYSTEM_OUT</target>
             <PatternLayout>
-                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+                <Pattern>%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n</Pattern>
             </PatternLayout>
         </Console>
         <RollingFile>
@@ -692,7 +692,7 @@ To customize the function log level, create or update `functions_log4j2.xml` in 
             <filePattern>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}-%d{MM-dd-yyyy}-%i.log.gz</filePattern>
             <immediateFlush>true</immediateFlush>
             <PatternLayout>
-                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+                <Pattern>%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n</Pattern>
             </PatternLayout>
             <Policies>
                 <TimeBasedTriggeringPolicy>
@@ -725,7 +725,7 @@ To customize the function log level, create or update `functions_log4j2.xml` in 
             <filePattern>${sys:pulsar.function.log.dir}/${sys:pulsar.function.log.file}.bk-%d{MM-dd-yyyy}-%i.log.gz</filePattern>
             <immediateFlush>true</immediateFlush>
             <PatternLayout>
-                <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+                <Pattern>%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n</Pattern>
             </PatternLayout>
             <Policies>
                 <TimeBasedTriggeringPolicy>
@@ -830,7 +830,7 @@ The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
   <name>Console</name>
   <target>SYSTEM_OUT</target>
   <PatternLayout>
-    <Pattern>%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Pattern>
+    <Pattern>%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n</Pattern>
   </PatternLayout>
 </Console>
 ```

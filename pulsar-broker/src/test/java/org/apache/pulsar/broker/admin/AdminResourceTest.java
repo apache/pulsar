@@ -57,6 +57,41 @@ public class AdminResourceTest extends BrokerTestBase {
         };
     }
 
+    private static AdminResource mockNonPersistentResource() {
+        return new AdminResource() {
+
+            @Override
+            protected String domain() {
+                return "non-persistent";
+            }
+        };
+    }
+
+    @Test
+    public void testValidatePersistentTopicNameSuccess() {
+        String tenant = "test-tenant";
+        String namespace = "test-namespace";
+        String topic = Codec.encode("test-topic");
+
+        AdminResource resource = mockResource();
+        resource.validatePersistentTopicName(tenant, namespace, topic);
+    }
+
+    @Test
+    public void testValidatePersistentTopicNameInvalid() {
+        String tenant = "test-tenant";
+        String namespace = "test-namespace";
+        String topic = Codec.encode("test-topic");
+
+        AdminResource nPResource = mockNonPersistentResource();
+        try {
+            nPResource.validatePersistentTopicName(tenant, namespace, topic);
+            fail("Should fail validation on non-persistent topic");
+        } catch (RestException e) {
+            assertEquals(Status.NOT_ACCEPTABLE.getStatusCode(), e.getResponse().getStatus());
+        }
+    }
+
     @Test
     public void testValidatePartitionedTopicNameSuccess() {
         String tenant = "test-tenant";

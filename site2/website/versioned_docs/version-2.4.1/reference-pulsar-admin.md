@@ -987,7 +987,7 @@ $ pulsar-admin namespaces set-persistence tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-a`, `--bookkeeper-ack-quorom`|The number of acks (guaranteed copies) to wait for each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|The number of acks (guaranteed copies) to wait for each entry|0|
 |`-e`, `--bookkeeper-ensemble`|The number of bookies to use for a topic|0|
 |`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
 |`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
@@ -1657,11 +1657,11 @@ Options
 
 
 ### `terminate`
-Terminate a topic (disallow further messages from being published on the topic)
+Terminate a persistent topic (disallow further messages from being published on the topic)
 
 Usage
 ```bash
-$ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/topic
+$ pulsar-admin topics terminate persistent://tenant/namespace/topic
 ```
 
 ### `permissions`

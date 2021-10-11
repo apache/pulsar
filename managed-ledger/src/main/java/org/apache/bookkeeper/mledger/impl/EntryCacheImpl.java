@@ -76,7 +76,6 @@ public class EntryCacheImpl implements EntryCache {
             PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
             PooledByteBufAllocator.defaultPageSize(), // pageSize
             PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
-            PooledByteBufAllocator.defaultTinyCacheSize(), // tinyCacheSize
             PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
             PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
             true // Use cache for all threads

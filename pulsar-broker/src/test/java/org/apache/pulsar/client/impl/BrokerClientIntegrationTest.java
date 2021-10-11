@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
-import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -648,14 +647,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
 
         // (3) restart broker with invalid config value
-
-        MetadataCache<Map<String, String>> dynamicConfigurationCache = pulsar.getBrokerService()
-                .getDynamicConfigurationCache();
-        Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH).get().get();
-        configurationMap.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
-        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-        dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-        mockZooKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
+        pulsar.getPulsarResources().getDynamicConfigResources()
+                .setDynamicConfiguration(m -> {
+                    m.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
+                    return m;
+                });
     }
 
     static class TimestampEntryCount {

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.Api;
@@ -94,19 +93,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the list of all the namespaces for a certain property on single cluster.",
             response = String.class, responseContainer = "Set")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster doesn't exist")})
-    public List<String> getNamespacesForCluster(@PathParam("property") String property,
+            @ApiResponse(code = 404, message = "Tenant or cluster doesn't exist")})
+    public List<String> getNamespacesForCluster(@PathParam("property") String tenant,
             @PathParam("cluster") String cluster) {
-        validateTenantOperation(property, TenantOperation.LIST_NAMESPACES);
+        validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
         List<String> namespaces = Lists.newArrayList();
         if (!clusters().contains(cluster)) {
-            log.warn("[{}] Failed to get namespace list for property: {}/{} - Cluster does not exist", clientAppId(),
-                    property, cluster);
+            log.warn("[{}] Failed to get namespace list for tenant: {}/{} - Cluster does not exist", clientAppId(),
+                    tenant, cluster);
             throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
         }
         try {
-            for (String namespace : clusterResources().getChildren(path(POLICIES, property, cluster))) {
-                namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
+            for (String namespace : clusterResources().getNamespacesForCluster(tenant, cluster)) {
+                namespaces.add(NamespaceName.get(tenant, cluster, namespace).toString());
             }
         } catch (NotFoundException e) {
             // NoNode means there are no namespaces for this property on the specified cluster, returning empty list
@@ -332,7 +331,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Get the message TTL for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public int getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public Integer getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.TTL, PolicyOperation.READ);
@@ -351,6 +350,18 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace, int messageTTL) {
         validateNamespaceName(property, cluster, namespace);
         internalSetNamespaceMessageTTL(messageTTL);
+    }
+
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid TTL") })
+    public void removeNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetNamespaceMessageTTL(null);
     }
 
     @GET

@@ -455,14 +455,20 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions) {
-        return updatePartitionedTopicAsync(topic, numPartitions, false);
+        return updatePartitionedTopicAsync(topic, numPartitions, false, false);
     }
 
     @Override
     public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly)
             throws PulsarAdminException {
+        updatePartitionedTopic(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly, boolean force)
+            throws PulsarAdminException {
         try {
-            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly)
+            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, force)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -477,10 +483,17 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
             boolean updateLocalTopicOnly) {
+        return updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions,
+            boolean updateLocalTopicOnly, boolean force) {
         checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
-        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly));
+        path = path.queryParam("updateLocalTopicOnly", Boolean.toString(updateLocalTopicOnly)).queryParam("force",
+                force);
         return asyncPostRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 
@@ -1846,6 +1859,48 @@ public class TopicsImpl extends BaseResource implements Topics {
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+    @Override
+    public Long getBacklogSizeByMessageId(String topic, MessageId messageId)
+            throws PulsarAdminException {
+        try {
+            return getBacklogSizeByMessageIdAsync(topic, messageId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Long> getBacklogSizeByMessageIdAsync(String topic, MessageId messageId) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "backlogSize");
+
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        try {
+            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<Long>() {
+
+                @Override
+                public void completed(Long backlogSize) {
+                    future.complete(backlogSize);
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+
+            });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     @Override

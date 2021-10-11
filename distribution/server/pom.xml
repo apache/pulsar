@@ -42,12 +42,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-discovery-service</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-proxy</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -62,6 +56,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-auth-sasl</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jline</groupId>
+      <artifactId>jline</artifactId>
+      <version>${jline.version}</version>
     </dependency>
 
     <dependency>
@@ -158,6 +158,13 @@
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_log4j2</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>bouncy-castle-bc</artifactId>
+      <version>${project.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 
     <!-- function examples -->

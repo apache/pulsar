@@ -108,8 +108,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.66.Final</netty.version>
-    <netty-tc-native.version>2.0.40.Final</netty-tc-native.version>
+    <netty.version>4.1.68.Final</netty.version>
+    <netty-tc-native.version>2.0.42.Final</netty-tc-native.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -155,7 +155,7 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>332</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
-    <debezium.version>1.5.4.Final</debezium.version>
+    <debezium.version>1.7.0.Final</debezium.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <hbase.version>2.3.0</hbase.version>
@@ -179,6 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
+    <jline.version>2.14.6</jline.version>
     <hppc.version>0.7.3</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.18.1</assertj-core.version>
@@ -203,6 +204,8 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.15.3</testcontainers.version>
+    <hamcrest.version>2.2</hamcrest.version>
+
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.2.8</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
@@ -275,6 +278,13 @@ flexible messaging model and an intuitive client API.</description>
                 <artifactId>*</artifactId>
             </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.hamcrest</groupId>
+        <artifactId>hamcrest</artifactId>
+        <version>${hamcrest.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -1955,7 +1965,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-athenz</module>
@@ -2019,7 +2028,6 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
-        <module>pulsar-discovery-service</module>
         <module>pulsar-zookeeper-utils</module>
         <module>pulsar-testclient</module>
         <module>pulsar-broker-auth-sasl</module>

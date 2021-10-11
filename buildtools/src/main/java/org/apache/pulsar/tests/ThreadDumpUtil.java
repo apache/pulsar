@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests;
 
+import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.management.LockInfo;
@@ -68,7 +70,8 @@ public class ThreadDumpUtil {
         // fallback to using JMX for creating the thread dump
         StringBuilder dump = new StringBuilder();
 
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss,SSS");
+        DateFormat dateFormat = new SimpleDateFormat(
+            FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
         dump.append(String.format("Timestamp: %s", dateFormat.format(new Date())));
         dump.append("\n\n");
 

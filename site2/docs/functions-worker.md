@@ -119,7 +119,7 @@ To run function-worker separately, you have to configure the following parameter
 #### Function metadata parameter
 
 - `pulsarServiceUrl`: The Pulsar service URL for your broker cluster.
-- `pulsarWebServiceUrl`: The Pulser web service URL for your broker cluster.
+- `pulsarWebServiceUrl`: The Pulsar web service URL for your broker cluster.
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the broker configuration).
 
 If authentication is enabled for your broker cluster, you *should* configure the authentication plugin and parameters for the functions worker to communicate with the brokers.

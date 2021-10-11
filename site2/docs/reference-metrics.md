@@ -35,18 +35,19 @@ The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a
 
 | Name | Type | Description |
 |---|---|---|
-| zookeeper_server_znode_count | Gauge | The number of z-nodes stored. |
-| zookeeper_server_data_size_bytes | Gauge | The total size of all of z-nodes stored. |
-| zookeeper_server_connections | Gauge | The number of currently opened connections. |
-| zookeeper_server_watches_count | Gauge | The number of watchers registered. |
-| zookeeper_server_ephemerals_count | Gauge | The number of ephemeral z-nodes. |
+| znode_count | Gauge | The number of z-nodes stored. |
+| approximate_data_size | Gauge | The approximate size of all of z-nodes stored. |
+| num_alive_connections | Gauge | The number of currently lived connections. |
+| watch_count | Gauge | The number of watchers registered. |
+| ephemerals_count | Gauge | The number of ephemeral z-nodes. |
 
 ### Request metrics
 
 | Name | Type | Description |
 |---|---|---|
-| zookeeper_server_requests | Counter | The total number of requests received by a particular server. |
-| zookeeper_server_requests_latency_ms | Summary | The requests latency calculated in milliseconds. <br> Available labels: *type* (write, read). <br> <ul><li>*write*: the requests that write data to ZooKeeper.</li><li>*read*: the requests that read data from ZooKeeper.</li></ul>|
+| request_commit_queued | Counter | The total number of requests already committed by a particular server. |
+| updatelatency | Summary | The update requests latency calculated in milliseconds. |
+| readlatency | Summary | The read requests latency calculated in milliseconds. |
 
 ## BookKeeper
 
@@ -200,20 +201,19 @@ All the topic metrics are labelled with the following labels:
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
-| pulsar_in_bytes_total | Counter | The total number of bytes received for this topic |
-| pulsar_in_messages_total | Counter | The total number of messages received for this topic |
-| pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
-| pulsar_out_messages_total | Counter | The total number of messages read from this topic |
-| pulsar_compaction_removed_event_count | Gauge | The removed event count of compaction |
-| pulsar_compaction_succeed_count | Gauge | The succeed count of compaction |
-| pulsar_compaction_failed_count | Gauge | The failed count of compaction |
-| pulsar_compaction_duration_time_in_mills | Gauge | The duration time of compaction |
-| pulsar_compaction_read_throughput | Gauge | The read throughput of compaction |
-| pulsar_compaction_write_throughput | Gauge | The write throughput of compaction |
+| pulsar_in_bytes_total | Counter | The total number of messages in bytes received for this topic. |
+| pulsar_in_messages_total | Counter | The total number of messages received for this topic. |
+| pulsar_out_bytes_total | Counter | The total number of messages in bytes read from this topic. |
+| pulsar_out_messages_total | Counter | The total number of messages read from this topic. |
+| pulsar_compaction_removed_event_count | Gauge | The total number of removed events of the compaction. |
+| pulsar_compaction_succeed_count | Gauge | The total number of successes of the compaction. |
+| pulsar_compaction_failed_count | Gauge | The total number of failures of the compaction. |
+| pulsar_compaction_duration_time_in_mills | Gauge | The duration time of the compaction. |
+| pulsar_compaction_read_throughput | Gauge | The read throughput of the compaction. |
+| pulsar_compaction_write_throughput | Gauge | The write throughput of the compaction. |
 | pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
-| pulsar_compaction_compacted_entries_count | Gauge | The compacted entries count |
-| pulsar_compaction_compacted_entries_size |Gauge  | The compacted entries size |
-
+| pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
+| pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
 
 #### Replication metrics
 
@@ -244,7 +244,6 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
 | pulsar_ml_cache_pool_active_allocations_small | Gauge | The number of currently active small allocations in direct arena |
-| pulsar_ml_cache_pool_active_allocations_tiny | Gauge | The number of currently active tiny allocations in direct arena |
 | pulsar_ml_cache_pool_allocated | Gauge | The total allocated memory of chunk lists in direct arena |
 | pulsar_ml_cache_pool_used | Gauge | The total used memory of chunk lists in direct arena |
 | pulsar_ml_cache_used_size | Gauge | The size in byte used to store the entries payloads |

@@ -38,6 +38,7 @@ class SchemaTest(TestCase):
             blue = 3
 
         class Example(Record):
+            _sorted_fields = True
             a = String()
             b = Integer()
             c = Array(String())
@@ -78,11 +79,13 @@ class SchemaTest(TestCase):
 
     def test_complex(self):
         class MySubRecord(Record):
+            _sorted_fields = True
             x = Integer()
             y = Long()
             z = String()
 
         class Example(Record):
+            _sorted_fields = True
             a = String()
             sub = MySubRecord     # Test with class
             sub2 = MySubRecord()  # Test with instance
@@ -347,6 +350,34 @@ class SchemaTest(TestCase):
         r2 = s.decode(data)
         self.assertEqual(r2.__class__.__name__, 'Example')
         self.assertEqual(r2, r)
+
+    def test_non_sorted_fields(self):
+        class T1(Record):
+            a = Integer()
+            b = Integer()
+            c = Double()
+            d = String()
+
+        class T2(Record):
+            b = Integer()
+            a = Integer()
+            d = String()
+            c = Double()
+
+        self.assertNotEqual(T1.schema()['fields'], T2.schema()['fields'])
+
+    def test_sorted_fields(self):
+        class T1(Record):
+            _sorted_fields = True
+            a = Integer()
+            b = Integer()
+
+        class T2(Record):
+            _sorted_fields = True
+            b = Integer()
+            a = Integer()
+
+        self.assertEqual(T1.schema()['fields'], T2.schema()['fields'])
 
     def test_schema_version(self):
         class Example(Record):
@@ -691,6 +722,7 @@ class SchemaTest(TestCase):
 
     def test_avro_required_default(self):
         class MySubRecord(Record):
+            _sorted_fields = True
             x = Integer()
             y = Long()
             z = String()
@@ -707,7 +739,9 @@ class SchemaTest(TestCase):
             i = Map(String())
             j = MySubRecord()
 
+
         class ExampleRequiredDefault(Record):
+            _sorted_fields = True
             a = Integer(required_default=True)
             b = Boolean(required=True, required_default=True)
             c = Long(required_default=True)
@@ -879,10 +913,12 @@ class SchemaTest(TestCase):
 
     def test_serialize_schema_complex(self):
         class NestedObj1(Record):
+            _sorted_fields = True
             na1 = String()
             nb1 = Double()
 
         class NestedObj2(Record):
+            _sorted_fields = True
             na2 = Integer()
             nb2 = Boolean()
             nc2 = NestedObj1()
@@ -891,6 +927,8 @@ class SchemaTest(TestCase):
             na3 = Integer()
 
         class NestedObj4(Record):
+            _avro_namespace = 'xxx4'
+            _sorted_fields = True
             na4 = String()
             nb4 = Integer()
 
@@ -900,6 +938,8 @@ class SchemaTest(TestCase):
             blue = 3
 
         class ComplexRecord(Record):
+            _avro_namespace = 'xxx.xxx'
+            _sorted_fields = True
             a = Integer()
             b = Integer()
             color = Color
@@ -914,16 +954,17 @@ class SchemaTest(TestCase):
         print('complex schema: ', ComplexRecord.schema())
         self.assertEqual(ComplexRecord.schema(), {
             "name": "ComplexRecord",
+            "namespace": "xxx.xxx",
             "type": "record",
             "fields": [
                 {"name": "a", "type": ["null", "int"]},
                 {'name': 'arrayNested', 'type': ['null', {'type': 'array', 'items':
-                    {'name': 'NestedObj4', 'type': 'record', 'fields': [
+                    {'name': 'NestedObj4', 'namespace': 'xxx4', 'type': 'record', 'fields': [
                         {'name': 'na4', 'type': ['null', 'string']},
                         {'name': 'nb4', 'type': ['null', 'int']}
                     ]}}
                 ]},
-                {'name': 'arrayNested2', 'type': ['null', {'type': 'array', 'items': 'NestedObj4'}]},
+                {'name': 'arrayNested2', 'type': ['null', {'type': 'array', 'items': 'xxx4.NestedObj4'}]},
                 {"name": "b", "type": ["null", "int"]},
                 {'name': 'color', 'type': ['null', {'type': 'enum', 'name': 'Color', 'symbols': [
                     'red', 'green', 'blue']}]},
@@ -1103,6 +1144,13 @@ class SchemaTest(TestCase):
         produce_consume_test('json')
 
         client.close()
+
+    def test(self):
+        class NamespaceDemo(Record):
+            _namespace = 'xxx.xxx.xxx'
+            x = String()
+            y = Integer()
+        print('schema: ', NamespaceDemo.schema())
 
 if __name__ == '__main__':
     main()

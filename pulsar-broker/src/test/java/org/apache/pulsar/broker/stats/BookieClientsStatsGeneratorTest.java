@@ -63,7 +63,6 @@ public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
                 1, // nDirectArena
                 8192, // pageSize
                 11, // maxOrder
-                64, // tinyCacheSize
                 32, // smallCacheSize
                 8, // normalCacheSize
                 true // Cache all threads

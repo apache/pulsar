@@ -200,7 +200,7 @@ public class CLITest extends PulsarTestSuite {
             "topics",
             "terminate",
             topicName);
-        assertTrue(result.getStdout().contains("Topic succesfully terminated at"));
+        assertTrue(result.getStdout().contains("Topic successfully terminated at"));
 
         // try to produce should fail
         try {

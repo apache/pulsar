@@ -38,6 +38,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -77,6 +78,8 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +109,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     //indicate whether shutdown() is called.
     private volatile boolean closed;
 
+    /**
+     * Keep a flag to indicate whether we're currently connected to the metadata service
+     */
+    @Getter
+    private boolean metadataServiceAvailable;
+
     private static class PendingInitializeManagedLedger {
 
         private final ManagedLedgerImpl ledger;
@@ -118,31 +127,31 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, ClientConfiguration bkClientConfiguration)
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration)
             throws Exception {
         this(metadataStore, bkClientConfiguration, new ManagedLedgerFactoryConfig());
     }
 
     @SuppressWarnings("deprecation")
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, ClientConfiguration bkClientConfiguration,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
                 true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, BookKeeper bookKeeper)
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper)
             throws Exception {
         this(metadataStore, bookKeeper, new ManagedLedgerFactoryConfig());
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore, BookKeeper bookKeeper,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, (policyConfig) -> bookKeeper, config);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
@@ -150,7 +159,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 config, NullStatsLogger.INSTANCE);
     }
 
-    public ManagedLedgerFactoryImpl(MetadataStore metadataStore,
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger)
             throws Exception {
@@ -158,7 +167,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 config, statsLogger);
     }
 
-    private ManagedLedgerFactoryImpl(MetadataStore metadataStore,
+    private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                      BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                      boolean isBookkeeperManaged,
                                      ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
@@ -170,7 +179,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .build();
         cacheEvictionExecutor = Executors
                 .newSingleThreadExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
-
+        this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
         this.metadataStore = metadataStore;
@@ -190,6 +199,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         cacheEvictionExecutor.execute(this::cacheEvictionTask);
         closed = false;
+
+        metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
     }
 
     static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
@@ -205,6 +216,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         public BookKeeper get(EnsemblePlacementPolicyConfig policy) {
             return bkClient;
         }
+    }
+
+    private synchronized void handleMetadataStoreNotification(SessionEvent e) {
+        log.info("Received MetadataStore session event: {}", e);
+        metadataServiceAvailable = e.isConnected();
     }
 
     private synchronized void flushCursors() {

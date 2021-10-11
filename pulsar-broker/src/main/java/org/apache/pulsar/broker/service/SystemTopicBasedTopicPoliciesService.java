@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCach
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
@@ -99,8 +100,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             if (ex != null) {
                 result.completeExceptionally(ex);
             } else {
-                writer.writeAsync(
-                        getPulsarEvent(topicName, actionType, policies)).whenComplete(((messageId, e) -> {
+                PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
+                CompletableFuture<MessageId> actionFuture =
+                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(event) : writer.writeAsync(event);
+                actionFuture.whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
                             } else {
@@ -127,11 +130,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
-        PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
-        if (policies.getIsGlobal() != null && policies.getIsGlobal()) {
-            builder.properties(ImmutableMap.of(IS_GLOBAL, IS_GLOBAL));
-        }
-        return builder.actionType(actionType)
+        return PulsarEvent.builder()
+                .actionType(actionType)
                 .eventType(EventType.TOPIC_POLICY)
                 .topicPoliciesEvent(
                         TopicPoliciesEvent.builder()
@@ -336,34 +336,39 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {
+        // delete policies
+        if (msg.getValue() == null) {
+            policiesCache.remove(TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName()));
+            return;
+        }
         if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
             TopicPoliciesEvent event = msg.getValue().getTopicPoliciesEvent();
             TopicName topicName =
                     TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
             switch (msg.getValue().getActionType()) {
                 case INSERT:
-                    if (event.getPolicies().isGlobalPolicies()) {
-                        globalPoliciesCache.putIfAbsent(topicName, event.getPolicies());
-                    } else {
-                        TopicPolicies old = policiesCache.putIfAbsent(topicName, event.getPolicies());
-                        if (old != null) {
-                            log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
-                        }
+                    TopicPolicies old = policiesCache.putIfAbsent(topicName, event.getPolicies());
+                    if (old != null) {
+                        log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
                     }
                     break;
                 case UPDATE:
-                    if (event.getPolicies().isGlobalPolicies()) {
-                        globalPoliciesCache.put(topicName, event.getPolicies());
-                    } else {
-                        policiesCache.put(topicName, event.getPolicies());
-                    }
+                    policiesCache.put(topicName, event.getPolicies());
                     break;
                 case DELETE:
-                    if (event.getPolicies().isGlobalPolicies()) {
-                        globalPoliciesCache.remove(topicName);
-                    } else {
-                        policiesCache.remove(topicName);
-                    }
+                    // Since PR #11928, this branch is no longer needed.
+                    // However, due to compatibility, it is temporarily retained here
+                    // and can be deleted in the future.
+                    policiesCache.remove(topicName);
+                    SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                            .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
+                    systemTopicClient.newWriterAsync().thenAccept(writer
+                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null))
+                            .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
+                                if (ex != null) {
+                                    log.error("close writer failed ", ex);
+                                }
+                            })));
                     break;
                 case NONE:
                     break;

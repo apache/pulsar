@@ -94,6 +94,10 @@ public interface Topic {
         default long getNumberOfMessages() {
             return  1L;
         }
+
+        default boolean isMarkerMessage() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();

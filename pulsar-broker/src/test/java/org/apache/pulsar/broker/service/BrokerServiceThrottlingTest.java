@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
@@ -33,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -311,14 +311,10 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     }
 
     private void upsertLookupPermits(int permits) throws Exception {
-        Map<String, String> throttlingMap = Maps.newHashMap();
-        throttlingMap.put("maxConcurrentLookupRequest", Integer.toString(permits));
-        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(throttlingMap);
-        if (mockZooKeeper.exists(BROKER_SERVICE_CONFIGURATION_PATH, false) != null) {
-            mockZooKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
-        } else {
-            ZkUtils.createFullPathOptimistic(mockZooKeeper, BROKER_SERVICE_CONFIGURATION_PATH, content,
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        }
+        pulsar.getPulsarResources().getDynamicConfigResources().setDynamicConfigurationWithCreate(optMap -> {
+            Map<String, String> map = optMap.orElse(new TreeMap<>());
+            map.put("maxConcurrentLookupRequest", Integer.toString(permits));
+            return map;
+        });
     }
 }

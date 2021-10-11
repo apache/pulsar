@@ -20,8 +20,10 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
 import io.prometheus.client.Summary;
+import java.util.Collections;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
+import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -31,9 +33,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -103,8 +105,8 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             //      NonPersistentTopicNamesDifferentTenantAndNsRGs[].
             // If the number of RGs is == 1, the "same tenant/NS" topics names and the
             // "different tenant/NS" topic names coincide; so, there's no need to run them distinctly.
-            if (NumRGs == 1 && (topicSet % 2 == 1)) {
-                log.info("NumRGs={}; skipping repetition of test for topic-set {}", NumRGs, topicSet);
+            if (NUM_RESOURCE_GROUPS == 1 && (topicSet % 2 == 1)) {
+                log.info("NumRGs={}; skipping repetition of test for topic-set {}", NUM_RESOURCE_GROUPS, topicSet);
             } else {
                 testProduceConsumeUsageOnRG(topicStrings);
                 log.info("Done with topic-set {}", topicSet);
@@ -129,7 +131,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             producerId = prodId;
             numMesgsToProduce = nMesgs;
             topicStrings = topics;
-            myProduceTopic = topicStrings[producerId % NumTopics];
+            myProduceTopic = topicStrings[producerId % NUM_TOPICS];
         }
 
         public int getNumBytesSent() {
@@ -209,7 +211,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         private int recvdNumMsgs = 0;
         private int numExceptions = 0;
         private volatile boolean allMessagesReceived = false;
-        private boolean consumerIsReady = false;
+        private volatile boolean consumerIsReady = false;
 
         consumeMessages(int consId, int nMesgs, int totalMesgs, SubscriptionType subType, String[] topics) {
             consumerId = consId;
@@ -239,6 +241,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
 
         public void closeConsumer() {
             try {
+                consumerIsReady = false;
                 consumer.close();
             } catch (PulsarClientException p) {
                 numExceptions++;
@@ -287,7 +290,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
 
             Message<byte[]> message = null;
             consumerIsReady = true;
-            while (!allMessagesReceived) {
+            while (consumerIsReady && !allMessagesReceived) {
                 log.debug("Consumer={} waiting for mesgnum={}", consumerId, recvdNumMsgs);
                 try {
                     message = consumer.receive(recvTimeoutMilliSecs, TimeUnit.MILLISECONDS);
@@ -361,7 +364,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             final TopicName topic = TopicName.get(topicStr);
             final String tenantRG = TopicToTenantRGName(topic);
             final String namespaceRG = TopicToNamespaceRGName(topic);
-            final String tenantAndNamespace = topic.getNamespace();
+            final NamespaceName ns = topic.getNamespaceObject();
 
             // The tenant name and namespace name parts of the topic are the same as their corresponding RG-names.
             // Hence, the arguments to register look a little odd.
@@ -370,7 +373,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 registeredTenants.add(tenantRG);
             }
             if (!registeredNamespaces.contains(namespaceRG)) {
-                this.rgservice.registerNameSpace(namespaceRG, tenantAndNamespace);
+                this.rgservice.registerNameSpace(namespaceRG, ns);
                 registeredNamespaces.add(namespaceRG);
             }
         }
@@ -390,7 +393,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 registeredTenants.remove(tenantRG);
             }
             if (registeredNamespaces.contains(namespaceRG)) {
-                this.rgservice.unRegisterNameSpace(namespaceRG, tenantAndNamespace);
+                this.rgservice.unRegisterNameSpace(namespaceRG, NamespaceName.get(tenantAndNamespace));
                 registeredNamespaces.remove(namespaceRG);
             }
         }
@@ -404,13 +407,13 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         // createTopics(topicStrings);
         registerTenantsAndNamespaces(topicStrings);
 
-        final int TotalExpectedMessagesToSend = NumTotalMessages;
+        final int TotalExpectedMessagesToSend = NUM_TOTAL_MESSAGES;
         final int TotalExpectedMessagesToReceive = TotalExpectedMessagesToSend;
 
         final SubscriptionType consumeSubscriptionType = SubscriptionType.Shared;  // Shared, or Exclusive
 
-        producerWithThread prodThr[] = new producerWithThread[NumProducers];
-        consumerWithThread consThr[] = new consumerWithThread[NumConsumers];
+        producerWithThread prodThr[] = new producerWithThread[NUM_PRODUCERS];
+        consumerWithThread consThr[] = new consumerWithThread[NUM_CONSUMERS];
         int sentNumBytes = 0;
         int sentNumMsgs = 0;
         int numProducerExceptions = 0;
@@ -419,9 +422,9 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
 //        this.verfyRGProdConsStats(topicStrings, 0, 0, 0, 0,true, true);
 
         // Fork some consumers to receive the messages.
-        for (int ix = 0; ix < NumConsumers; ix++) {
+        for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
             consThr[ix] = new consumerWithThread();
-            consumeMessages cm = new consumeMessages(ix, NumMessagesPerConsumer, TotalExpectedMessagesToReceive,
+            consumeMessages cm = new consumeMessages(ix, NUM_MESSAGES_PER_CONSUMER, TotalExpectedMessagesToReceive,
                                                      consumeSubscriptionType, topicStrings);
             Thread thr = new Thread(cm);
             thr.start();
@@ -434,18 +437,18 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         do {
             Thread.sleep(500);
             numReadyConsumers = 0;
-            for (int ix = 0; ix < NumConsumers; ix++) {
+            for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
                 if (consThr[ix].consumer.isConsumerReady()) {
                     numReadyConsumers++;
                 }
             }
-            log.debug("{} consumers are not yet ready", NumConsumers - numReadyConsumers);
-        } while (numReadyConsumers < NumConsumers);
+            log.debug("{} consumers are not yet ready", NUM_CONSUMERS - numReadyConsumers);
+        } while (numReadyConsumers < NUM_CONSUMERS);
 
         // Fork some producers to send the messages.
-        for (int ix = 0; ix < NumProducers; ix++) {
+        for (int ix = 0; ix < NUM_PRODUCERS; ix++) {
             prodThr[ix] = new producerWithThread();
-            produceMessages pm = new produceMessages(ix, NumMessagesPerProducer, topicStrings);
+            produceMessages pm = new produceMessages(ix, NUM_MESSAGES_PER_PRODUCER, topicStrings);
             Thread thr = new Thread(pm);
             thr.start();
             prodThr[ix].producer = pm;
@@ -454,7 +457,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
 
         // Wait for the producers to complete.
         int sentMsgs, sentBytes;
-        for (int ix = 0; ix < NumProducers; ix++) {
+        for (int ix = 0; ix < NUM_PRODUCERS; ix++) {
             prodThr[ix].thread.join();
             sentBytes = prodThr[ix].producer.getNumBytesSent();
             sentMsgs = prodThr[ix].producer.getNumMessagesSent();
@@ -476,7 +479,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             Thread.sleep(2000);
             recvdNumMsgs = 0;
             int consNumMesgsRecvd;
-            for (int ix = 0; ix < NumConsumers; ix++) {
+            for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
                 consNumMesgsRecvd = consThr[ix].consumer.getNumMessagesRecvd();
                 recvdNumMsgs += consNumMesgsRecvd;
                 log.debug("consumer={} received {} messages (current total {}, expected {})",
@@ -485,12 +488,12 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         } while (recvdNumMsgs < TotalExpectedMessagesToReceive);
 
         // Tell the consumers that all expected messages have been received (but don't close them yet).
-        for (int ix = 0; ix < NumConsumers; ix++) {
+        for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
             consThr[ix].consumer.setAllMessagesReceived();
             log.debug("consumer={} told to stop", ix);
         }
 
-        boolean[] joinedConsumers = new boolean[NumConsumers];
+        boolean[] joinedConsumers = new boolean[NUM_CONSUMERS];
         for (boolean b : joinedConsumers) {
             b = false;
         }
@@ -498,8 +501,8 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         recvdNumMsgs = recvdNumBytes = 0;
         int numConsumersDone = 0;
         int recvdMsgs, recvdBytes;
-        while (numConsumersDone < NumConsumers) {
-            for (int ix = 0; ix < NumConsumers; ix++) {
+        while (numConsumersDone < NUM_CONSUMERS) {
+            for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
                 if (joinedConsumers[ix] == false)  {
                     recvdBytes = consThr[ix].consumer.getNumBytesRecvd();
                     recvdMsgs = consThr[ix].consumer.getNumMessagesRecvd();
@@ -518,7 +521,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         }
 
         // Close the consumers.
-        for (int ix = 0; ix < NumConsumers; ix++) {
+        for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
             consThr[ix].consumer.closeConsumer();
         }
 
@@ -573,7 +576,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         // tenant RG, and again on the namespace RG. This double-counting is avoided if tenant-RG == NS-RG.
         // This is a known (and discussed) artifact in the implementation.
         // 'ScaleFactor' is a way to incorporate that effect in the verification.
-        final int ScaleFactor = tenantRGEqualsNsRG ? 1 : 2;
+        final int ScaleFactor = 1; // tenantRGEqualsNsRG ? 1 : 2;
 
         // Following sleep is to get the broker-service to gather stats on the topics.
         // [There appears to be some asynchrony there.]
@@ -659,14 +662,14 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
 
         if (checkProduce) {
             prodCounts = ResourceGroup.accumulateBMCount(totalTenantRGProdCounts, totalNsRGProdCounts);
-            Assert.assertEquals(prodCounts.messages, sentNumMsgs * ScaleFactor);
-            Assert.assertTrue(prodCounts.bytes >= ExpectedNumBytesSent * ScaleFactor);
+            Assert.assertEquals(prodCounts.messages, sentNumMsgs);
+            Assert.assertTrue(prodCounts.bytes >= ExpectedNumBytesSent);
         }
 
         if (checkConsume) {
             consCounts = ResourceGroup.accumulateBMCount(totalTenantRGConsCounts, totalNsRGConsCounts);
-            Assert.assertEquals(consCounts.messages, recvdNumMsgs * ScaleFactor);
-            Assert.assertTrue(consCounts.bytes >= ExpectedNumBytesReceived * ScaleFactor);
+            Assert.assertEquals(consCounts.messages, recvdNumMsgs);
+            Assert.assertTrue(consCounts.bytes >= ExpectedNumBytesReceived);
         }
     }
 
@@ -689,12 +692,6 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         long[] totalUsedMessages = new long[ResourceGroupMonitoringClass.values().length];
         long[] totalUsageReportCounts = new long[ResourceGroupMonitoringClass.values().length];
         long totalUpdates = 0;
-
-        // If the tenant and NS are on different RGs, the bytes/messages get counted once on the
-        // tenant RG, and again on the namespace RG. This double-counting is avoided if tenant-RG == NS-RG.
-        // This is a known (and discussed) artifact in the implementation.
-        // 'ScaleFactor' is a way to incorporate that effect in the verification.
-        final int ScaleFactor = tenantRGEqualsNsRG ? 1 : 2;
 
         // Hack to ensure aggregator calculation without waiting for a period of aggregation.
         // [aggregateResourceGroupLocalUsages() is idempotent when there's no new traffic flowing.]
@@ -728,8 +725,8 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
                 totalTenantRegisters, totalTenantUnRegisters, totalNamespaceRegisters, totalNamespaceUnRegisters);
 
         // On each run, there will be 'NumRGs' registrations
-        Assert.assertEquals(totalTenantRegisters - residualTenantRegs, NumRGs);
-        Assert.assertEquals(totalNamespaceRegisters - residualNamespaceRegs, NumRGs);
+        Assert.assertEquals(totalTenantRegisters - residualTenantRegs, NUM_RESOURCE_GROUPS);
+        Assert.assertEquals(totalNamespaceRegisters - residualNamespaceRegs, NUM_RESOURCE_GROUPS);
 
         // The unregisters will lag the registers by one round (because verifyRGMetrics() is called
         // prior to unregister). In other words, their numbers will equal the residuals for the registers.
@@ -751,14 +748,14 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             // So, we take the residuals into account when comparing against the expected.
             if (checkProduce && mc == ResourceGroupMonitoringClass.Publish) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualSentNumMessages,
-                                                                                sentNumMsgs * ScaleFactor);
+                                                                                sentNumMsgs);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualSentNumBytes
-                                                                                >= ExpectedNumBytesSent * ScaleFactor);
+                                                                                >= ExpectedNumBytesSent);
             } else if (checkConsume && mc == ResourceGroupMonitoringClass.Dispatch) {
                 Assert.assertEquals(totalUsedMessages[mcIdx] - residualRecvdNumMessages,
-                                                                                recvdNumMsgs * ScaleFactor);
+                                                                                recvdNumMsgs);
                 Assert.assertTrue(totalUsedBytes[mcIdx] - residualRecvdNumBytes
-                                                                            >= ExpectedNumBytesReceived * ScaleFactor);
+                                                                            >= ExpectedNumBytesReceived);
             }
 
             long perClassUsageReports = numLocalUsageReports / ResourceGroupMonitoringClass.values().length;
@@ -766,10 +763,10 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         }
 
         // Update the residuals for next round of tests.
-        residualSentNumBytes += sentNumBytes * ScaleFactor;
-        residualSentNumMessages += sentNumMsgs * ScaleFactor;
-        residualRecvdNumBytes += recvdNumBytes * ScaleFactor;
-        residualRecvdNumMessages += recvdNumMsgs * ScaleFactor;
+        residualSentNumBytes += sentNumBytes;
+        residualSentNumMessages += sentNumMsgs;
+        residualRecvdNumBytes += recvdNumBytes;
+        residualRecvdNumMessages += recvdNumMsgs;
 
         Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
 
@@ -794,26 +791,26 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(RGUsageMTAggrWaitForAllMesgsTest.class);
 
     // Empirically, there appears to be a 45-byte overhead for metadata, imposed by Pulsar runtime.
-    private final int PER_MESSAGE_METADATA_OHEAD = 45;
+    private static final int PER_MESSAGE_METADATA_OHEAD = 45;
 
     private static final int PUBLISH_INTERVAL_SECS = 10;
-    private final int NumProducers = 32;
-    private final int NumConsumers = 64;
-    private final int NumMessagesPerProducer = 100;
-    private final int NumTopics = 32;  // Set == NumProducers, so each producer can send on its own topic
-    private final int NumRGs = 16; // arbitrarily, half of NumTopics, so 2 topics map to each RG
-    private final int NumTotalMessages = NumMessagesPerProducer * NumProducers;
-    private final int NumMessagesPerConsumer = NumTotalMessages / NumConsumers;
+    private static final int NUM_PRODUCERS = 4;
+    private static final int NUM_CONSUMERS = 4;
+    private static final int NUM_MESSAGES_PER_PRODUCER = 100;
+    private static final int NUM_TOPICS = 8;  // Set == NumProducers, so each producer can send on its own topic
+    private static final int NUM_RESOURCE_GROUPS = 4; // arbitrarily, half of NumTopics, so 2 topics map to each RG
+    private static final int NUM_TOTAL_MESSAGES = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
+    private static  final int NUM_MESSAGES_PER_CONSUMER = NUM_TOTAL_MESSAGES / NUM_CONSUMERS;
     private final org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
                                                             new org.apache.pulsar.common.policies.data.ResourceGroup();
     private ResourceGroupService rgservice;
-    private ResourceGroup[] resGroups = new ResourceGroup[NumRGs];
+    private ResourceGroup[] resGroups = new ResourceGroup[NUM_RESOURCE_GROUPS];
 
     private final String clusterName = "test";
     private final String BaseRGName = "rg-";
     private final String BaseTestTopicName = "rgusage-topic-";
 
-    private String[] RGNames = new String[NumRGs];
+    private String[] RGNames = new String[NUM_RESOURCE_GROUPS];
 
     // The number of times we pretend to have not suppressed sending a local usage report.
     private long numLocalUsageReports;
@@ -823,31 +820,34 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
     // [This is required to test the special case of "tenant and NS refer to the same RG", because in that case
     // we don't double-count the usage.]
     // Same-order mapping: e.g., rg-0/rg-0 (for 0th entry)
-    private String[] TenantAndNsNameSameOrder = new String[NumRGs];
+    private String[] TenantAndNsNameSameOrder = new String[NUM_RESOURCE_GROUPS];
 
     // Opposite order mapping: e.g., rg-0/rg-49 (for 0th entry with 50 RGs)
-    private String[] TenantAndNsNameOppositeOrder = new String[NumRGs];
+    private String[] TenantAndNsNameOppositeOrder = new String[NUM_RESOURCE_GROUPS];
 
     // Similar to above (same and opposite order) for topics.
     // E.g., rg-0/rg-0/rgusage-topic0 for 0-th topic in "same order"
     // and rg-0/rg-49/rgusage-topic0 for 0-th topic in "opposite order", with 50 RGs
-    private String[] TopicNamesSameTenantAndNsRGs = new String[NumTopics];
-    private String[] TopicNamesDifferentTenantAndNsRGs = new String[NumTopics];
+    private String[] TopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
+    private String[] TopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
 
     // Persistent and non-persistent topic strings with the above names.
-    private String[] PersistentTopicNamesSameTenanatAndNsRGs = new String[NumTopics];
-    private String[] PersistentTopicNamesDifferentTenantAndNsRGs = new String[NumTopics];
-    private String[] NonPersistentTopicNamesSameTenantAndNsRGs = new String[NumTopics];
-    private String[] NonPersistentTopicNamesDifferentTenantAndNsRGs = new String[NumTopics];
+    private String[] PersistentTopicNamesSameTenanatAndNsRGs = new String[NUM_TOPICS];
+    private String[] PersistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
+    private String[] NonPersistentTopicNamesSameTenantAndNsRGs = new String[NUM_TOPICS];
+    private String[] NonPersistentTopicNamesDifferentTenantAndNsRGs = new String[NUM_TOPICS];
 
     private List<String[]> AllTopicNames = Arrays.asList(
             PersistentTopicNamesSameTenanatAndNsRGs,
             PersistentTopicNamesDifferentTenantAndNsRGs,
             NonPersistentTopicNamesSameTenantAndNsRGs,
-            NonPersistentTopicNamesDifferentTenantAndNsRGs);
+            NonPersistentTopicNamesDifferentTenantAndNsRGs
+    );
+
+
 
     // We don't periodically report to a remote broker in this test. So, we will use cumulative stats.
-    private final boolean getCumulativeUsageStats = true;
+    private final ResourceGroupUsageStatsType getCumulativeUsageStats = ResourceGroupUsageStatsType.Cumulative;
 
     // Keep track of the namespaces that were created, so we don't dup and get exceptions
     HashSet<String> createdNamespaces = new HashSet<>();
@@ -919,18 +919,18 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         // Check for a few invariants which allow easier mapping of structures in the test.
 
         // Ensure that the number of consumers is a multiple of the number of producers.
-        Assert.assertTrue(NumConsumers >= NumProducers && NumConsumers % NumProducers == 0);
+        Assert.assertTrue(NUM_CONSUMERS >= NUM_PRODUCERS && NUM_CONSUMERS % NUM_PRODUCERS == 0);
 
         // Number of messages is a multiple of the number of topics.
-        Assert.assertEquals(NumTotalMessages % NumTopics,  0);
+        Assert.assertEquals(NUM_TOTAL_MESSAGES % NUM_TOPICS,  0);
 
         // Ensure that the number of topics is a multiple of the number of RGs.
-        Assert.assertEquals(NumTopics % NumRGs,  0);
+        Assert.assertEquals(NUM_TOPICS % NUM_RESOURCE_GROUPS,  0);
 
         // Ensure that the messages-per-consumer is an integral multiple of the number of consumers.
-        final int NumConsumerMessages = NumMessagesPerConsumer * NumConsumers;
-        final int NumProducerMessages = NumMessagesPerProducer * NumProducers;
-        Assert.assertTrue(NumMessagesPerConsumer > 0 && NumConsumerMessages == NumProducerMessages);
+        final int NumConsumerMessages = NUM_MESSAGES_PER_CONSUMER * NUM_CONSUMERS;
+        final int NumProducerMessages = NUM_MESSAGES_PER_PRODUCER * NUM_PRODUCERS;
+        Assert.assertTrue(NUM_MESSAGES_PER_CONSUMER > 0 && NumConsumerMessages == NumProducerMessages);
 
         rgConfig.setPublishRateInBytes(1500);
         rgConfig.setPublishRateInMsgs(100);
@@ -938,25 +938,25 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         rgConfig.setDispatchRateInMsgs(500);
 
         // Set up the RG names; creation of RGs will be done elsewhere.
-        for (int ix = 0; ix < NumRGs; ix++) {
+        for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
             RGNames[ix] = BaseRGName + ix;
         }
 
         // Create all the tenants
         final TenantInfo configInfo =
                 new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName));
-        for (int ix = 0; ix < NumRGs; ix++) {
+        for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
             admin.tenants().createTenant(RGNames[ix], configInfo);
         }
 
         // Set up the tenant-and-nsname mapping strings, for same and opposite order of RGs.
-        for (int ix = 0; ix < NumRGs; ix++) {
+        for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
             TenantAndNsNameSameOrder[ix] = RGNames[ix] + "/" + RGNames[ix];
-            TenantAndNsNameOppositeOrder[ix] = RGNames[ix] + "/" + RGNames[NumRGs - (ix+1)];
+            TenantAndNsNameOppositeOrder[ix] = RGNames[ix] + "/" + RGNames[NUM_RESOURCE_GROUPS - (ix+1)];
         }
 
         // Create all the namespaces
-        for (int ix = 0; ix < NumRGs; ix++) {
+        for (int ix = 0; ix < NUM_RESOURCE_GROUPS; ix++) {
             if (!createdNamespaces.contains(TenantAndNsNameSameOrder[ix])) {
                 admin.namespaces().createNamespace(TenantAndNsNameSameOrder[ix]);
                 admin.namespaces().setNamespaceReplicationClusters(
@@ -973,19 +973,20 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         }
 
         // Create all the topic name strings
-        for (int ix = 0; ix < NumTopics; ix++) {
+        for (int ix = 0; ix < NUM_TOPICS; ix++) {
             TopicNamesSameTenantAndNsRGs[ix] =
-                    TenantAndNsNameSameOrder[ix % NumRGs] + "/" + BaseTestTopicName + ix;
+                    TenantAndNsNameSameOrder[ix % NUM_RESOURCE_GROUPS] + "/" + BaseTestTopicName + ix;
             TopicNamesDifferentTenantAndNsRGs[ix] =
-                    TenantAndNsNameOppositeOrder[ix % NumRGs] + "/" + BaseTestTopicName + ix;
+                    TenantAndNsNameOppositeOrder[ix % NUM_RESOURCE_GROUPS] + "/" + BaseTestTopicName + ix;
         }
 
         // Create all the persistent and non-persistent topic strings
-        for (int ix = 0; ix < NumTopics; ix++) {
+        for (int ix = 0; ix < NUM_TOPICS; ix++) {
             PersistentTopicNamesSameTenanatAndNsRGs[ix] =
                     "persistent://" + TopicNamesSameTenantAndNsRGs[ix];
             PersistentTopicNamesDifferentTenantAndNsRGs[ix] =
                     "persistent://" + TopicNamesDifferentTenantAndNsRGs[ix];
+
             NonPersistentTopicNamesSameTenantAndNsRGs[ix] =
                     "non-persistent://" + TopicNamesSameTenantAndNsRGs[ix];
             NonPersistentTopicNamesDifferentTenantAndNsRGs[ix] =

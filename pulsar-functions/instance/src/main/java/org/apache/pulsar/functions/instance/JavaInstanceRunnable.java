@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.instance;
 
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 
@@ -27,9 +28,12 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -239,6 +243,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarAdmin, clientBuilder);
     }
 
+    public interface AsyncResultConsumer  {
+        void accept(Record record, JavaExecutionResult javaExecutionResult) throws Exception;
+    }
+
     /**
      * The core logic that initialize the instance thread and executes the function.
      */
@@ -248,6 +256,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             setup();
 
             Thread currentThread = Thread.currentThread();
+            Consumer<Throwable> asyncErrorHandler = throwable -> currentThread.interrupt();
+            AsyncResultConsumer asyncResultConsumer = (record, javaExecutionResult) -> handleResult(record, javaExecutionResult);
 
             while (true) {
                 currentRecord = readInput();
@@ -274,8 +284,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
                 result = javaInstance.handleMessage(
-                    currentRecord, currentRecord.getValue(), this::handleResult,
-                    cause -> currentThread.interrupt());
+                        currentRecord,
+                        currentRecord.getValue(),
+                        asyncResultConsumer,
+                        asyncErrorHandler);
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
@@ -327,11 +339,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processAsyncResults() throws InterruptedException {
-
-    }
-
-    private void handleResult(Record srcRecord, JavaExecutionResult result) {
+    private void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             Exception t = result.getUserException();
             log.warn("Encountered exception when processing message {}",
@@ -352,7 +360,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void sendOutputMessage(Record srcRecord, Object output) {
+    private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
@@ -363,6 +371,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stats.incrSinkExceptions(e);
             // fail the source record
             srcRecord.fail();
+            throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
@@ -675,14 +684,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
 
-            switch (sourceSpec.getSubscriptionPosition()) {
-                case EARLIEST:
-                    pulsarSourceConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
-                    break;
-                default:
-                    pulsarSourceConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
-                    break;
-            }
+            pulsarSourceConfig.setSubscriptionPosition(
+                    convertFromFunctionDetailsSubscriptionPosition(sourceSpec.getSubscriptionPosition())
+            );
 
             Preconditions.checkNotNull(contextImpl.getSubscriptionType());
             pulsarSourceConfig.setSubscriptionType(contextImpl.getSubscriptionType());

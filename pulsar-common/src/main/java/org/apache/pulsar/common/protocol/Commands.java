@@ -45,6 +45,8 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -504,6 +506,10 @@ public class Commands {
             send.setIsChunk(true);
         }
 
+        if (messageData.hasMarkerType()) {
+            send.setMarker(true);
+        }
+
         return serializeCommandSendWithSize(cmd, checksumType, messageData, payload);
     }
 
@@ -589,6 +595,28 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    public static ByteBuf newTcClientConnectRequest(long tcId, long requestId) {
+        BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT_REQUEST);
+        cmd.setTcClientConnectRequest().setTcId(tcId).setRequestId(requestId);
+        return serializeWithSize(cmd);
+    }
+
+    public static BaseCommand newTcClientConnectResponse(long requestId, ServerError error, String message) {
+        BaseCommand cmd = localCmd(Type.TC_CLIENT_CONNECT_RESPONSE);
+
+        CommandTcClientConnectResponse response = cmd.setTcClientConnectResponse()
+                .setRequestId(requestId);
+
+        if (error != null) {
+            response.setError(error);
+        }
+
+        if (message != null) {
+            response.setMessage(message);
+        }
+
+        return cmd;
+    }
 
     private static KeySharedMode convertKeySharedMode(org.apache.pulsar.client.api.KeySharedMode mode) {
         switch (mode) {
@@ -1222,10 +1250,14 @@ public class Commands {
     public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
            String errorMsg) {
         BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN_RESPONSE);
-        cmd.setAddPartitionToTxnResponse()
+        CommandAddPartitionToTxnResponse response = cmd.setAddPartitionToTxnResponse()
                 .setRequestId(requestId)
                 .setError(error)
                 .setTxnidMostBits(txnIdMostBits);
+
+        if (errorMsg != null) {
+            response.setMessage(errorMsg);
+        }
         return serializeWithSize(cmd);
     }
 
