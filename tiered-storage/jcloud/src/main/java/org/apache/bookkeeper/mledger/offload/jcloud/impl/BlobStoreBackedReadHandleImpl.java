@@ -53,6 +53,13 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private final DataInputStream dataStream;
     private final ExecutorService executor;
 
+    enum State {
+        Opened,
+        Closed
+    }
+
+    private State state = null;
+
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream,
                                           ExecutorService executor) {
@@ -61,6 +68,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
+        state = State.Opened;
     }
 
     @Override
@@ -80,6 +88,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 try {
                     index.close();
                     inputStream.close();
+                    state = State.Closed;
                     promise.complete(null);
                 } catch (IOException t) {
                     promise.completeExceptionally(t);
@@ -93,6 +102,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.submit(() -> {
+            List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
+            try {
                 if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
@@ -100,49 +111,64 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     return;
                 }
                 long entriesToRead = (lastEntry - firstEntry) + 1;
-                List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
                 long nextExpectedId = firstEntry;
-                try {
-                    while (entriesToRead > 0) {
-                        int length = dataStream.readInt();
-                        if (length < 0) { // hit padding or new block
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
-                        }
-                        long entryId = dataStream.readLong();
 
-                        if (entryId == nextExpectedId) {
-                            ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
-                            entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
-                            int toWrite = length;
-                            while (toWrite > 0) {
-                                toWrite -= buf.writeBytes(dataStream, toWrite);
-                            }
-                            entriesToRead--;
-                            nextExpectedId++;
-                        } else if (entryId > nextExpectedId) {
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
-                        } else if (entryId < nextExpectedId
-                                && !index.getIndexEntryForEntry(nextExpectedId).equals(
-                                index.getIndexEntryForEntry(entryId)))  {
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
-                        } else if (entryId > lastEntry) {
-                            log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                     nextExpectedId, entryId, lastEntry);
-                            throw new BKException.BKUnexpectedConditionException();
-                        } else {
-                            inputStream.skip(length);
-                        }
+                // seek the position to the first entry position, otherwise we will get the unexpected entry ID when doing
+                // the first read, that would cause read an unexpected entry id which is out of range between firstEntry
+                // and lastEntry
+                // for example, when we get 1-10 entries at first, then the next request is get 2-9, the following code
+                // will read the entry id from the stream and that is not the correct entry id, so it will seek to the
+                // correct position then read the stream as normal. But the entry id may exceed the last entry id, that
+                // will cause we are hardly to know the edge of the request range.
+                inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
+
+                while (entriesToRead > 0) {
+                    if (state == State.Closed) {
+                        log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
+                        throw new BKException.BKUnexpectedConditionException();
                     }
+                    int length = dataStream.readInt();
+                    if (length < 0) { // hit padding or new block
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        continue;
+                    }
+                    long entryId = dataStream.readLong();
 
-                    promise.complete(LedgerEntriesImpl.create(entries));
-                } catch (Throwable t) {
-                    promise.completeExceptionally(t);
-                    entries.forEach(LedgerEntry::close);
+                    if (entryId == nextExpectedId) {
+                        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
+                        entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
+                        int toWrite = length;
+                        while (toWrite > 0) {
+                            toWrite -= buf.writeBytes(dataStream, toWrite);
+                        }
+                        entriesToRead--;
+                        nextExpectedId++;
+                    } else if (entryId > nextExpectedId && entryId < lastEntry) {
+                        log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
+                            + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        continue;
+                    } else if (entryId < nextExpectedId
+                        && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
+                        log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
+                        + ", seeking to the right position", entries, nextExpectedId);
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        continue;
+                    } else if (entryId > lastEntry) {
+                        log.info("Expected to read {}, but read {}, which is greater than last entry {}",
+                            nextExpectedId, entryId, lastEntry);
+                        throw new BKException.BKUnexpectedConditionException();
+                    } else {
+                        long ignore = inputStream.skip(length);
+                    }
                 }
-            });
+
+                promise.complete(LedgerEntriesImpl.create(entries));
+            } catch (Throwable t) {
+                promise.completeExceptionally(t);
+                entries.forEach(LedgerEntry::close);
+            }
+        });
         return promise;
     }
 
@@ -200,5 +226,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             index.getDataObjectLength(),
             readBufferSize);
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
+    }
+
+    // for testing
+    State getState() {
+        return this.state;
     }
 }
