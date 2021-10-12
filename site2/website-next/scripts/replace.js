@@ -192,9 +192,9 @@ doReplace(options);
 // TODO activate and test when first version of docs are cut
 // replaces versions
 for (v of versions) {
-  if (v === latestVersion) {
-    continue;
-  }
+  // if (v === latestVersion) {
+  //   continue;
+  // }
   const vWithoutIncubating = v.replace("-incubating", "");
   const opts = {
     files: [
