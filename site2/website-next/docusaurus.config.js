@@ -95,8 +95,8 @@ module.exports = {
   onBrokenLinks: "ignore",
   onBrokenMarkdownLinks: "ignore",
   favicon: "img/favicon.ico",
-  organizationName: "Apache",
-  projectName: "Pulsar",
+  organizationName: "apache",
+  projectName: "pulsar",
   themeConfig: {
     navbar: {
       title: "",
@@ -161,14 +161,7 @@ module.exports = {
       // theme: lightCodeTheme,
       // darkTheme: darkCodeTheme,
       theme: require("prism-react-renderer/themes/dracula"),
-      additionalLanguages: [
-        "powershell",
-        "java",
-        "go",
-        "c",
-        "cpp",
-        "python",
-      ],
+      additionalLanguages: ["powershell", "java", "go", "c", "cpp", "python"],
     },
   },
   presets: [
