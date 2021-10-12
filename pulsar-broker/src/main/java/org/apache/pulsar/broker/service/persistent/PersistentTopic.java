@@ -1971,7 +1971,8 @@ public class PersistentTopic extends AbstractTopic
 
         stats.ledgers = Lists.newArrayList();
         List<CompletableFuture<String>> futures = includeLedgerMetadata ? Lists.newArrayList() : null;
-        CompletableFuture<Set<String>> availableBookiesFuture = brokerService.pulsar().getAvailableBookiesAsync();
+        CompletableFuture<Set<String>> availableBookiesFuture =
+                brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
         availableBookiesFuture.whenComplete((bookies, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to fetch available bookies.", topic, e);
@@ -2256,20 +2257,9 @@ public class PersistentTopic extends AbstractTopic
             getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
                     .thenAccept((metadata -> {
                         // make sure all sub partitions were deleted
-                        String managedPath = String.format("/managed-ledgers/%s/%s", topicName.getNamespace()
-                                , topicName.getDomain().value());
-                        Set<String> cache = null;
-                        try {
-                            cache = brokerService.pulsar().getLocalZkCacheService()
-                                    .managedLedgerListCache().get(managedPath);
-                        } catch (Exception e) {
-                            deleteMetadataFuture.completeExceptionally(e);
-                        }
-                        if (cache == null) {
-                            return;
-                        }
                         for (int i = 0; i < metadata.partitions; i++) {
-                            if (cache.contains(topicName.getPartition(i).getLocalName())) {
+                            if (brokerService.getPulsar().getPulsarResources().getTopicResources()
+                                    .persistentTopicExists(topicName.getPartition(i)).join()) {
                                 throw new UnsupportedOperationException();
                             }
                         }

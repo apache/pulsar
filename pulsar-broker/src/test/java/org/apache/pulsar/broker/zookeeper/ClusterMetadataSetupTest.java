@@ -79,7 +79,7 @@ public class ClusterMetadataSetupTest {
     @Test
     public void testSetupClusterInChrootMode() throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
-                "admin", "bookies", "ledgers", "managed-ledgers", "namespace", "pulsar", "stream"
+                "bookies", "ledgers", "pulsar", "stream", "admin"
         ));
         String rootPath = "/test-prefix";
         String[] args = {

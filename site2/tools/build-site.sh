@@ -58,7 +58,7 @@ function workaround_crowdin_problem_by_copying_files() {
 
 set -x -e
 
-export NODE_OPTIONS="--max-old-space-size=2048" #increase to 2gb, default is 512mb
+export NODE_OPTIONS="--max-old-space-size=4096" #increase to 4GB, default is 512MB
 ${ROOT_DIR}/site2/tools/generate-api-docs.sh
 cd ${ROOT_DIR}/site2/website
 yarn

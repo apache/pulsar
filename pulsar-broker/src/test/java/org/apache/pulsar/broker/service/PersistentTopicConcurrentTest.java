@@ -98,9 +98,6 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         mlFactoryMock = factory;
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
-        ZooKeeper mockZk = TransactionTestBase.createMockZooKeeper();
-        doReturn(mockZk).when(pulsar).getZkClient();
-
         brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
         doReturn(brokerService).when(pulsar).getBrokerService();
 

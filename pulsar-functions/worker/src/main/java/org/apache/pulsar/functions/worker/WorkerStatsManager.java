@@ -52,6 +52,7 @@ public class WorkerStatsManager {
   private static final String REBALANCE_STRATEGY_EXEC_TIME = "rebalance_strategy_execution_time_ms";
   private static final String STOPPING_INSTANCE_PROCESS_TIME = "stop_instance_process_time_ms";
   private static final String STARTING_INSTANCE_PROCESS_TIME = "start_instance_process_time_ms";
+  private static final String DRAIN_TOTAL_EXEC_TIME = "drain_execution_time_total_ms";
   private static final String IS_LEADER = "is_leader";
 
 
@@ -80,6 +81,7 @@ public class WorkerStatsManager {
   private final Summary rebalanceStrategyExecutionTime;
   private final Summary stopInstanceProcessTime;
   private final Summary startInstanceProcessTime;
+  private final Summary drainTotalExecutionTime;
 
   // As an optimization
   private final Summary.Child _statWorkerStartupTime;
@@ -90,6 +92,7 @@ public class WorkerStatsManager {
   private final Summary.Child _rebalanceStrategyExecutionTime;
   private final Summary.Child _stopInstanceProcessTime;
   private final Summary.Child _startInstanceProcessTime;
+  private final Summary.Child _drainTotalExecutionTime;
 
   public WorkerStatsManager(WorkerConfig workerConfig, boolean runAsStandalone) {
 
@@ -169,6 +172,16 @@ public class WorkerStatsManager {
       .register(collectorRegistry);
     _startInstanceProcessTime = startInstanceProcessTime.labels(metricsLabels);
 
+    drainTotalExecutionTime = Summary.build()
+            .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + DRAIN_TOTAL_EXEC_TIME)
+            .help("Total execution time of a drain in milliseconds.")
+            .labelNames(metricsLabelNames)
+            .quantile(0.5, 0.01)
+            .quantile(0.9, 0.01)
+            .quantile(1, 0.01)
+            .register(collectorRegistry);
+    _drainTotalExecutionTime = drainTotalExecutionTime.labels(metricsLabels);
+
     if (runAsStandalone) {
       Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Gauge.Child() {
         @Override
@@ -243,6 +256,18 @@ public class WorkerStatsManager {
     if (rebalanceStrategyExecTimeStart != null) {
       double endTimeMs = ((double) System.nanoTime() - rebalanceStrategyExecTimeStart) / 1.0E6D;
       _rebalanceStrategyExecutionTime.observe(endTimeMs);
+    }
+  }
+
+  private Long drainTotalExecTimeStart;
+  public void drainTotalExecTimeStart() {
+    drainTotalExecTimeStart = System.nanoTime();
+  }
+
+  public void drainTotalExecTimeEnd() {
+    if (drainTotalExecTimeStart != null) {
+      double endTimeMs = ((double) System.nanoTime() - drainTotalExecTimeStart) / 1.0E6D;
+      _drainTotalExecutionTime.observe(endTimeMs);
     }
   }
 

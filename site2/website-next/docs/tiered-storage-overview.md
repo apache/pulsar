@@ -10,33 +10,26 @@ import TabItem from '@theme/TabItem';
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be moved from BookKeeper to long term and cheaper storage, while still allowing clients to access the backlog as if nothing has changed. 
 
-- Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/) and [GCS (Google Cloud Storage)](https://cloud.google.com/storage/) for long term storage. 
+* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/) and [GCS (Google Cloud Storage)](https://cloud.google.com/storage/) for long term storage. 
 
     With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
-
-    
 
 :::tip
 
 For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws.md).
- 
 For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs.md).
 
 :::
 
-
-- Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
 
     With Hadoop, it is easy to add support for more filesystems in the future.
-
-    
 
 :::tip
 
 For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem.md).
 
 :::
-
 
 ## When to use tiered storage?
 

@@ -23,6 +23,7 @@
 #include <boost/algorithm/string.hpp>
 #include <thread>
 #include <lib/LogUtils.h>
+#include <lib/auth/AuthOauth2.h>
 
 #include "lib/Future.h"
 #include "lib/Utils.h"
@@ -387,4 +388,35 @@ TEST(AuthPluginTest, testOauth2CredentialFile) {
     ASSERT_EQ(data->hasDataForHttp(), true);
     ASSERT_EQ(data->hasDataFromCommand(), true);
     ASSERT_EQ(data->getCommandData().length(), expectedTokenLength);
+}
+
+TEST(AuthPluginTest, testOauth2RequestBody) {
+    ParamMap params;
+    params["issuer_url"] = "https://dev-kt-aa9ne.us.auth0.com";
+    params["client_id"] = "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x";
+    params["client_secret"] = "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb";
+    params["audience"] = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
+
+    std::string expectedJson = R"({
+    "grant_type": "client_credentials",
+    "client_id": "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
+    "client_secret": "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb",
+    "audience": "https:\/\/dev-kt-aa9ne.us.auth0.com\/api\/v2\/"
+}
+)";
+
+    ClientCredentialFlow flow1(params);
+    ASSERT_EQ(flow1.generateJsonBody(), expectedJson);
+
+    params["scope"] = "test-scope";
+    expectedJson = R"({
+    "grant_type": "client_credentials",
+    "client_id": "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
+    "client_secret": "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb",
+    "audience": "https:\/\/dev-kt-aa9ne.us.auth0.com\/api\/v2\/",
+    "scope": "test-scope"
+}
+)";
+    ClientCredentialFlow flow2(params);
+    ASSERT_EQ(flow2.generateJsonBody(), expectedJson);
 }

@@ -130,7 +130,7 @@ class ProtocolHandlerUtils {
 
         try {
             Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
-            Object handler = handlerClass.newInstance();
+            Object handler = handlerClass.getDeclaredConstructor().newInstance();
             if (!(handler instanceof ProtocolHandler)) {
                 throw new IOException("Class " + phDef.getHandlerClass()
                     + " does not implement protocol handler interface");

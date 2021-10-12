@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,6 +100,16 @@ public class ProducerInterceptors implements Closeable {
                 interceptor.onSendAcknowledgement(producer, message, msgId, exception);
             } catch (Throwable e) {
                 log.warn("Error executing interceptor onSendAcknowledgement callback ", e);
+            }
+        }
+    }
+
+    public void onPartitionsChange(String topicName, int partitions) {
+        for (ProducerInterceptor interceptor : interceptors) {
+            try {
+                interceptor.onPartitionsChange(topicName, partitions);
+            } catch (Throwable e) {
+                log.warn("Error executing interceptor onPartitionsChange callback ", e);
             }
         }
     }

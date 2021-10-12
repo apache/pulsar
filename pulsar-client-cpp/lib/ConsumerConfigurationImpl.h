@@ -35,6 +35,8 @@ struct ConsumerConfigurationImpl {
     ConsumerType consumerType{ConsumerExclusive};
     MessageListener messageListener;
     bool hasMessageListener{false};
+    ConsumerEventListenerPtr eventListener;
+    bool hasConsumerEventListener{false};
     int receiverQueueSize{1000};
     int maxTotalReceiverQueueSizeAcrossPartitions{50000};
     std::string consumerName;
@@ -46,6 +48,7 @@ struct ConsumerConfigurationImpl {
     int patternAutoDiscoveryPeriod{60};
     bool replicateSubscriptionStateEnabled{false};
     std::map<std::string, std::string> properties;
+    int priorityLevel{0};
     KeySharedPolicy keySharedPolicy;
 };
 }  // namespace pulsar

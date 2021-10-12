@@ -18,25 +18,20 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
-import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -649,7 +649,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         checkArgument(messageIds.stream().findFirst().get() instanceof TopicMessageIdImpl);
 
-        if (conf.getSubscriptionType() != SubscriptionType.Shared) {
+        if (conf.getSubscriptionType() != SubscriptionType.Shared
+                && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
             return;
@@ -1308,7 +1309,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         return subFuture;
                     })
                     .collect(Collectors.toList());
-
+                // call interceptor
+                onPartitionsChange(topicName, currentPartitionNumber);
                 // wait for all partitions subscribe future complete, then startReceivingMessages
                 return FutureUtil.waitForAll(futureList)
                     .thenAccept(finalFuture -> {

@@ -942,7 +942,6 @@ public class ClustersBase extends PulsarWebResource {
         validateClusterExists(cluster);
 
         try {
-            final String failureDomainRootPath = pulsar().getConfigurationCache().CLUSTER_FAILURE_DOMAIN_ROOT;
             return clusterResources().getFailureDomainResources().getFailureDomain(cluster, domainName)
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Domain " + domainName + " for cluster " + cluster + " does not exist"));

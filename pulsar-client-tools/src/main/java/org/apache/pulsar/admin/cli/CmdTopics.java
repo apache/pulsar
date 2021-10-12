@@ -225,6 +225,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
 
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
+        jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
 
         initDeprecatedCommands();
     }
@@ -422,10 +423,14 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Update forcefully without validating existing partitioned topic ", required = false)
+        private boolean force;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().updatePartitionedTopic(topic, numPartitions);
+            getTopics().updatePartitionedTopic(topic, numPartitions, false, force);
         }
     }
 
@@ -807,7 +812,7 @@ public class CmdTopics extends CmdBase {
 
             try {
                 MessageId lastMessageId = getTopics().terminateTopicAsync(persistentTopic).get();
-                System.out.println("Topic succesfully terminated at " + lastMessageId);
+                System.out.println("Topic successfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
             }
@@ -1667,7 +1672,7 @@ public class CmdTopics extends CmdBase {
         private int bookkeeperWriteQuorum;
 
         @Parameter(names = { "-a",
-                "--bookkeeper-ack-quorum" }, description = "Number of acks (garanteed copies) to wait for each entry", required = true)
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
         private int bookkeeperAckQuorum;
 
         @Parameter(names = { "-r",
@@ -2424,5 +2429,28 @@ public class CmdTopics extends CmdBase {
 
     private Topics getTopics() {
         return getAdmin().topics();
+    }
+
+    @Parameters(commandDescription = "Calculate backlog size by a message ID (in bytes).")
+    private class GetBacklogSizeByMessageId extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId used to calculate backlog size. It can be (ledgerId:entryId).", required = false)
+        private String messagePosition = "-1:-1";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            MessageId messageId;
+            if("-1:-1".equals(messagePosition)) {
+                messageId = MessageId.earliest;
+            } else {
+                messageId = validateMessageIdString(messagePosition);
+            }
+            print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
+
+        }
     }
 }

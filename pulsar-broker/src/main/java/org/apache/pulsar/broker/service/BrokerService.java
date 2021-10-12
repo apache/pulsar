@@ -91,6 +91,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.BundlesQuotas;
@@ -160,6 +161,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,6 +193,9 @@ public class BrokerService implements Closeable {
     // Namespace --> Bundle --> topicName --> topic
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
             multiLayerTopicsMap;
+    // Keep track of topics and partitions served by this broker for fast lookup.
+    @Getter
+    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics;
     private int numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
@@ -271,6 +276,7 @@ public class BrokerService implements Closeable {
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
 
         this.multiLayerTopicsMap = new ConcurrentOpenHashMap<>();
+        this.owningTopics = new ConcurrentOpenHashMap<>();
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
@@ -448,9 +454,9 @@ public class BrokerService implements Closeable {
         this.startDeduplicationSnapshotMonitor();
     }
 
-    protected void startStatsUpdater(int statsUpdateInitailDelayInSecs, int statsUpdateFrequencyInSecs) {
+    protected void startStatsUpdater(int statsUpdateInitialDelayInSecs, int statsUpdateFrequencyInSecs) {
         statsUpdater.scheduleAtFixedRate(safeRun(this::updateRates),
-                statsUpdateInitailDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
+            statsUpdateInitialDelayInSecs, statsUpdateFrequencyInSecs, TimeUnit.SECONDS);
 
         // Ensure the broker starts up with initial stats
         updateRates();
@@ -1175,6 +1181,9 @@ public class BrokerService implements Closeable {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
                     }
+                }).exceptionally(ex -> {
+                    topicFuture.completeExceptionally(ex.getCause());
+                    return null;
                 });
 
         return topicFuture;
@@ -1668,6 +1677,17 @@ public class BrokerService implements Closeable {
                                 : CompletableFuture.completedFuture(null)));
             }
         });
+        if (getPulsar().getConfig().isTransactionCoordinatorEnabled()
+                && serviceUnit.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
+            TransactionMetadataStoreService metadataStoreService =
+                    this.getPulsar().getTransactionMetadataStoreService();
+            // if the store belongs to this bundle, remove and close the store
+            this.getPulsar().getTransactionMetadataStoreService().getStores().values().stream().filter(store ->
+                    serviceUnit.includes(TopicName.TRANSACTION_COORDINATOR_ASSIGN
+                            .getPartition((int) (store.getTransactionCoordinatorID().getId()))))
+                    .map(TransactionMetadataStore::getTransactionCoordinatorID)
+                    .forEach(tcId -> closeFutures.add(metadataStoreService.removeTransactionMetadataStore(tcId)));
+        }
 
         return FutureUtil.waitForAll(closeFutures).thenApply(v -> closeFutures.size());
     }
@@ -2226,8 +2246,7 @@ public class BrokerService implements Closeable {
         }
 
         final String topic = pendingTopic.getLeft();
-        try {
-            checkTopicNsOwnership(topic);
+        checkTopicNsOwnership(topic).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getRight();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
@@ -2240,14 +2259,14 @@ public class BrokerService implements Closeable {
                 createPendingLoadTopic();
                 return null;
             });
-        } catch (Exception e) {
+        }).exceptionally(e -> {
             log.error("Failed to create pending topic {}", topic, e);
             pendingTopic.getRight()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
-            inactivityMonitor.schedule(() -> createPendingLoadTopic(), 100, TimeUnit.MILLISECONDS);
-        }
-
+            inactivityMonitor.schedule(this::createPendingLoadTopic, 100, TimeUnit.MILLISECONDS);
+            return null;
+        });
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(

@@ -57,15 +57,13 @@ public interface WorkerService {
      *
      * @param brokerConfig broker config
      * @param workerConfig worker config
-     * @param MetadataStore configuration metadata-store
-     * @param configurationCacheService configuration cache
+     * @param PulsarResources configuration metadata-store
      * @param internalConf pulsar internal configuration data
      * @throws Exception when failed to initialize the worker service in broker.
      */
     void initInBroker(ServiceConfiguration brokerConfig,
                       WorkerConfig workerConfig,
                       PulsarResources pulsarResources,
-                      ConfigurationCacheService configurationCacheService,
                       InternalConfigurationData internalConf) throws Exception;
 
     /**

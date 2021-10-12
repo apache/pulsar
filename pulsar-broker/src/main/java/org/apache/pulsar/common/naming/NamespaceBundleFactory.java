@@ -20,8 +20,6 @@ package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
@@ -42,12 +40,10 @@ import java.util.concurrent.Executor;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.stats.CacheMetricsCollector;
@@ -80,18 +76,17 @@ public class NamespaceBundleFactory {
     }
 
     private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
-        String path = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
         if (LOG.isDebugEnabled()) {
             LOG.debug("Loading cache with bundles for {}", namespace);
         }
 
-        if (pulsar == null || pulsar.getConfigurationCache() == null) {
+        if (pulsar == null) {
             return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
         }
 
         CompletableFuture<NamespaceBundles> future = new CompletableFuture<>();
         // Read the static bundle data from the policies
-        pulsar.getLocalMetadataStore().get(path).thenAccept(result -> {
+        pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesWithVersion(namespace).thenAccept(result -> {
 
             if (result.isPresent()) {
                 try {
@@ -116,9 +111,8 @@ public class NamespaceBundleFactory {
         return future;
     }
 
-    private NamespaceBundles readBundles(NamespaceName namespace, byte[] value, long version) throws IOException {
-        LocalPolicies localPolicies = ObjectMapperFactory.getThreadLocal().readValue(value, LocalPolicies.class);
-
+    private NamespaceBundles readBundles(NamespaceName namespace, LocalPolicies localPolicies, long version)
+            throws IOException {
         NamespaceBundles namespaceBundles = getBundles(namespace,
                 Optional.of(Pair.of(localPolicies, version)));
         if (LOG.isDebugEnabled()) {
@@ -131,7 +125,8 @@ public class NamespaceBundleFactory {
     }
 
     private CompletableFuture<NamespaceBundles> copyToLocalPolicies(NamespaceName namespace) {
-        return policiesCache.get(AdminResource.path(POLICIES, namespace.toString()))
+
+        return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                 .thenCompose(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
@@ -142,22 +137,15 @@ public class NamespaceBundleFactory {
                             null,
                             null);
 
-                    String localPath = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
-                    byte[] value;
-                    try {
-                        value = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(localPolicies);
-                    } catch (IOException e) {
-                        return FutureUtil.failedFuture(e);
-                    }
-
-                    return pulsar.getLocalMetadataStore().put(localPath, value, Optional.of(-1L))
+                    return pulsar.getPulsarResources().getLocalPolicies()
+                            .createLocalPoliciesAsync(namespace, localPolicies)
                             .thenApply(stat -> getBundles(namespace,
-                                    Optional.of(Pair.of(localPolicies, stat.getVersion()))));
+                                    Optional.of(Pair.of(localPolicies, 0L))));
                 });
     }
 
     private void handleMetadataStoreNotification(Notification n) {
-        if (n.getPath().startsWith(LOCAL_POLICIES_ROOT)) {
+        if (LocalPoliciesResources.isLocalPoliciesPath(n.getPath())) {
             try {
                 final Optional<NamespaceName> namespace = NamespaceName.getIfValid(
                         getNamespaceFromPoliciesPath(n.getPath()));

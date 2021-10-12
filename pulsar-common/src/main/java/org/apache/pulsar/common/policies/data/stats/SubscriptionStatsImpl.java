@@ -103,6 +103,12 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Mark that the subscription state is kept in sync across different regions. */
     public boolean isReplicated;
 
+    /** Whether out of order delivery is allowed on the Key_Shared subscription. */
+    public boolean allowOutOfOrderDelivery;
+
+    /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
+    public String keySharedMode;
+
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
 
@@ -165,6 +171,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
                 this.consumers.get(i).add(stats.consumers.get(i));
             }
         }
+        this.allowOutOfOrderDelivery |= stats.allowOutOfOrderDelivery;
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;

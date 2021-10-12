@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.Getter;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
 
 public class ClusterResources extends BaseResources<ClusterData> {
 
@@ -51,6 +48,10 @@ public class ClusterResources extends BaseResources<ClusterData> {
 
     public Optional<ClusterData> getCluster(String clusterName) throws MetadataStoreException {
         return get(joinPath(BASE_CLUSTERS_PATH, clusterName));
+    }
+
+    public CompletableFuture<Optional<ClusterData>> getClusterAsync(String clusterName) {
+        return getAsync(joinPath(BASE_CLUSTERS_PATH, clusterName));
     }
 
     public List<String> getNamespacesForCluster(String tenant, String clusterName) throws MetadataStoreException {
@@ -136,6 +137,16 @@ public class ClusterResources extends BaseResources<ClusterData> {
                                                Function<Optional<FailureDomainImpl>, FailureDomainImpl> createFunction)
                 throws MetadataStoreException {
             setWithCreate(joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName), createFunction);
+        }
+
+        public void registerListener(Consumer<Notification> listener) {
+            getStore().registerListener(n -> {
+                // Prefilter the notification just for failure domains
+                if (n.getPath().startsWith(BASE_CLUSTERS_PATH) &&
+                        n.getPath().contains("/" + FAILURE_DOMAIN)) {
+                    listener.accept(n);
+                }
+            });
         }
     }
 }

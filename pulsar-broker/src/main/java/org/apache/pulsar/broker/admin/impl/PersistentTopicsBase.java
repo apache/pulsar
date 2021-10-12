@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
+import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Lists;
@@ -130,6 +131,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -389,12 +391,12 @@ public class PersistentTopicsBase extends AdminResource {
      * @param numPartitions
      */
     protected void internalUpdatePartitionedTopic(int numPartitions,
-                                                  boolean updateLocalTopicOnly, boolean authoritative) {
+                                                  boolean updateLocalTopicOnly, boolean authoritative,
+                                                  boolean force) {
         validateTopicOwnership(topicName, authoritative);
         validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
-
         // Only do the validation if it's the first hop.
-        if (!updateLocalTopicOnly) {
+        if (!updateLocalTopicOnly && !force) {
             validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
         }
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
@@ -459,7 +461,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
         try {
             tryCreatePartitionsAsync(numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-            updatePartitionedTopic(topicName, numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
+            updatePartitionedTopic(topicName, numPartitions, force).get(DEFAULT_OPERATION_TIMEOUT_SEC,
+                    TimeUnit.SECONDS);
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e.getCause();
@@ -507,7 +510,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             results.add(pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics()
                     .updatePartitionedTopicAsync(topicName.toString(),
-                            numPartitions, true));
+                            numPartitions, true, false));
         });
         return FutureUtil.waitForAll(results);
     }
@@ -674,7 +677,11 @@ public class PersistentTopicsBase extends AdminResource {
         }
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (topicName.isPartitioned()) {
-            internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
+            if (checkTopicIsTransactionCoordinatorAssign(topicName)) {
+                internalUnloadTransactionCoordinator(asyncResponse, authoritative);
+            } else {
+                internalUnloadNonPartitionedTopic(asyncResponse, authoritative);
+            }
         } else {
             getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                     .thenAccept(meta -> {
@@ -924,6 +931,29 @@ public class PersistentTopicsBase extends AdminResource {
                     asyncResponse.resume(ex.getCause());
                     return null;
                 });
+    }
+
+    private void internalUnloadTransactionCoordinator(AsyncResponse asyncResponse, boolean authoritative) {
+        try {
+            validateTopicOperation(topicName, TopicOperation.UNLOAD);
+        } catch (Exception e) {
+            log.error("[{}] Failed to unload tc {},{}", clientAppId(), topicName.getPartitionIndex(), e.getMessage());
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+            return;
+        }
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(v -> pulsar()
+                .getTransactionMetadataStoreService()
+                .removeTransactionMetadataStore(TransactionCoordinatorID.get(topicName.getPartitionIndex())))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unloaded tc {}", clientAppId(), topicName.getPartitionIndex());
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to unload tc {}, {}", clientAppId(), topicName.getPartitionIndex(),
+                    ex.getMessage());
+            asyncResponse.resume(ex.getCause());
+            return null;
+        });
     }
 
     protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
@@ -2668,6 +2698,53 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    protected void internalGetBacklogSizeByMessageId(AsyncResponse asyncResponse,
+                                                     MessageIdImpl messageId, boolean authoritative) {
+        if (topicName.isGlobal()) {
+            try {
+                validateGlobalNamespaceOwnership(namespaceName);
+            } catch (Exception e) {
+                log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
+            }
+        }
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName,
+                authoritative, false);
+        if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+            log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
+                    clientAppId(), topicName);
+            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "calculate backlog size is not allowed for partitioned-topic"));
+        } else {
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, TopicOperation.GET_BACKLOG_SIZE);
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            PositionImpl pos = new PositionImpl(messageId.getLedgerId(), messageId.getEntryId());
+            if (topic == null) {
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+                return;
+            }
+            try {
+                ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
+                if (messageId.getLedgerId() == -1) {
+                    asyncResponse.resume(managedLedger.getTotalSize());
+                } else {
+                    asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos));
+                }
+            } catch (WebApplicationException wae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to get backlog size for topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, wae);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, wae);
+            } catch (Exception e) {
+                log.error("[{}] Failed to get backlog size for topic {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+            }
+        }
+    }
+
     protected CompletableFuture<Void> internalSetBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType,
                                            BacklogQuotaImpl backlogQuota) {
         validateTopicPolicyOperation(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE);
@@ -3604,34 +3681,39 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions) {
-        return createSubscriptions(topicName, numPartitions)
-                .thenCompose(__ -> {
-                    CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
-                            .updatePartitionedTopicAsync(topicName,
-                                    p -> new PartitionedTopicMetadata(numPartitions));
-                    future.exceptionally(ex -> {
-                        // If the update operation fails, clean up the partitions that were created
-                        getPartitionedTopicMetadataAsync(topicName, false, false)
-                                .thenAccept(metadata -> {
-                                    int oldPartition = metadata.partitions;
-                                    for (int i = oldPartition; i < numPartitions; i++) {
-                                        topicResources().deletePersistentTopicAsync(topicName.getPartition(i))
-                                                .exceptionally(ex1 -> {
-                                                    log.warn("[{}] Failed to clean up managedLedger {}",
-                                                            clientAppId(),
-                                                            topicName, ex1.getCause());
-                                                    return null;
-                                                });
-                                    }
-                                }).exceptionally(e -> {
-                                    log.warn("[{}] Failed to clean up managedLedger", topicName, e);
-                                    return null;
-                                });
-                        return null;
-                    });
-                    return future;
+
+    private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions, boolean force) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        createSubscriptions(topicName, numPartitions).thenCompose(__ -> {
+            CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
+                    .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions));
+            future.exceptionally(ex -> {
+                // If the update operation fails, clean up the partitions that were created
+                getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                    int oldPartition = metadata.partitions;
+                    for (int i = oldPartition; i < numPartitions; i++) {
+                        topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
+                            log.warn("[{}] Failed to clean up managedLedger {}", clientAppId(), topicName,
+                                    ex1.getCause());
+                            return null;
+                        });
+                    }
+                }).exceptionally(e -> {
+                    log.warn("[{}] Failed to clean up managedLedger", topicName, e);
+                    return null;
                 });
+                return null;
+            });
+            return future;
+        }).thenAccept(__ -> result.complete(null)).exceptionally(ex -> {
+            if (force && ex.getCause() instanceof PulsarAdminException.ConflictException) {
+                result.complete(null);
+                return null;
+            }
+            result.completeExceptionally(ex);
+            return null;
+        });
+        return result;
     }
 
     /**
