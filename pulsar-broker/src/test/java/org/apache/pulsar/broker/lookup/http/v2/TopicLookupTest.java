@@ -25,6 +25,8 @@ import org.apache.pulsar.broker.web.PulsarWebResourceTest;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.spy;
@@ -39,6 +41,18 @@ public class TopicLookupTest extends PulsarWebResourceTest {
     private static final String TOPIC_PATH = "/v2/topic/persistent/public/testns/testtopic";
 
     private TestableTopicLookup resource;
+
+    @BeforeMethod(alwaysRun = true)
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    @Override
+    public void tearDown() throws Exception {
+        super.tearDown();
+    }
 
     @Override
     protected ResourceConfig configure() {
