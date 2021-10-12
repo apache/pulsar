@@ -87,11 +87,19 @@ public class PrometheusMetricsGenerator {
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
         boolean includeProducerMetrics, OutputStream out) throws IOException {
-        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, out, null);
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics, false, out, null);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-        boolean includeProducerMetrics, OutputStream out, List<PrometheusRawMetricsProvider> metricsProviders)
+        boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
+        OutputStream out) throws IOException {
+        generate(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
+                splitTopicAndPartitionIndexLabel, out, null);
+    }
+
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+        boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel, OutputStream out,
+        List<PrometheusRawMetricsProvider> metricsProviders)
         throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
@@ -100,7 +108,7 @@ public class PrometheusMetricsGenerator {
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                    includeProducerMetrics, stream);
+                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, stream);
 
             if (pulsar.getWorkerServiceOpt().isPresent()) {
                 pulsar.getWorkerService().generateFunctionsStats(stream);

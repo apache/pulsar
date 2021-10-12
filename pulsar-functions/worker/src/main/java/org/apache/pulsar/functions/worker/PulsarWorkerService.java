@@ -298,7 +298,6 @@ public class PulsarWorkerService implements WorkerService {
     public void initInBroker(ServiceConfiguration brokerConfig,
                              WorkerConfig workerConfig,
                              PulsarResources pulsarResources,
-                             ConfigurationCacheService configurationCacheService,
                              InternalConfigurationData internalConf) throws Exception {
 
         String namespace = workerConfig.getPulsarFunctionsNamespace();
@@ -559,6 +558,14 @@ public class PulsarWorkerService implements WorkerService {
                             } catch (Exception e) {
                                 log.warn("Encountered error when running scheduled rebalance", e);
                             }
+                        });
+            }
+
+            if (workerConfig.getWorkerListProbeIntervalSec() > 0) {
+                clusterServiceCoordinator.addTask("drain-worker-list-probe-periodic-check",
+                        workerConfig.getWorkerListProbeIntervalSec() * 1000,
+                        () -> {
+                                schedulerManager.updateWorkerDrainMap();
                         });
             }
 

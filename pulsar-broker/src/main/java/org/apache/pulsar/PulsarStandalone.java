@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
@@ -25,11 +26,13 @@ import com.google.common.collect.Sets;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -248,6 +251,7 @@ public class PulsarStandalone implements AutoCloseable {
     public void start() throws Exception {
 
         if (config == null) {
+            log.error("Failed to load configuration");
             System.exit(1);
         }
 
@@ -296,11 +300,12 @@ public class PulsarStandalone implements AutoCloseable {
         broker.start();
 
         final String cluster = config.getClusterName();
-
         if (!config.isTlsEnabled()) {
-            URL webServiceUrl = new URL(
-                    String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort().get()));
-            String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
+            URL webServiceUrl = new URL(String.format("http://%s:%d",
+                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
+                    config.getWebServicePort().get()));
+            String brokerServiceUrl = String.format("pulsar://%s:%d",
+                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
                     config.getBrokerServicePort().get());
             admin = PulsarAdmin.builder().serviceHttpUrl(
                     webServiceUrl.toString()).authentication(
@@ -312,9 +317,13 @@ public class PulsarStandalone implements AutoCloseable {
                     .build();
             createSampleNameSpace(clusterData, cluster);
         } else {
-            URL webServiceUrlTls = new URL(
-                    String.format("https://%s:%d", config.getAdvertisedAddress(), config.getWebServicePortTls().get()));
-            String brokerServiceUrlTls = String.format("pulsar+ssl://%s:%d", config.getAdvertisedAddress(),
+            checkArgument(config.getWebServicePortTls().isPresent(), "webServicePortTls must be present");
+            checkArgument(config.getBrokerServicePortTls().isPresent(), "brokerServicePortTls must be present");
+            URL webServiceUrlTls = new URL(String.format("https://%s:%d",
+                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
+                    config.getWebServicePortTls().get()));
+            String brokerServiceUrlTls = String.format("pulsar+ssl://%s:%d",
+                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
                     config.getBrokerServicePortTls().get());
             PulsarAdminBuilder builder = PulsarAdmin.builder()
                     .serviceHttpUrl(webServiceUrlTls.toString())
@@ -381,16 +390,14 @@ public class PulsarStandalone implements AutoCloseable {
         final String globalCluster = "global";
         final String namespace = tenant + "/ns1";
         try {
-            if (!admin.clusters().getClusters().contains(cluster)) {
+            List<String> clusters = admin.clusters().getClusters();
+            if (!clusters.contains(cluster)) {
                 admin.clusters().createCluster(cluster, clusterData);
             } else {
                 admin.clusters().updateCluster(cluster, clusterData);
             }
-
             // Create marker for "global" cluster
-            try {
-                admin.clusters().getCluster(globalCluster);
-            } catch (PulsarAdminException.NotFoundException ex) {
+            if (!clusters.contains(globalCluster)) {
                 admin.clusters().createCluster(globalCluster, ClusterData.builder().build());
             }
 

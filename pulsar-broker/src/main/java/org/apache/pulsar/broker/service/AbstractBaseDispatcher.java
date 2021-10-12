@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
@@ -30,7 +29,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -203,8 +201,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     .orElse(null);
             if (maxConsumersPerSubscription == null) {
                 // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                        .getPoliciesIfCached(TopicName.get(topic).getNamespaceObject()).orElse(null);
             }
         } catch (Exception e) {
             log.debug("Get topic or namespace policies fail", e);

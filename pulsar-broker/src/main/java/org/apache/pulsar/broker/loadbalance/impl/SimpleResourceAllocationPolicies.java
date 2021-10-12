@@ -18,28 +18,23 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadReport;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.ServiceUnit;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SimpleResourceAllocationPolicies {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleResourceAllocationPolicies.class);
-    private final ZooKeeperDataCache<NamespaceIsolationPolicies> namespaceIsolationPolicies;
     private final PulsarService pulsar;
 
     public SimpleResourceAllocationPolicies(PulsarService pulsar) {
-        this.namespaceIsolationPolicies = pulsar.getConfigurationCache().namespaceIsolationPoliciesCache();
         this.pulsar = pulsar;
     }
 
@@ -50,8 +45,8 @@ public class SimpleResourceAllocationPolicies {
 
     private Optional<NamespaceIsolationPolicies> getIsolationPolicies(String clusterName) {
         try {
-            return namespaceIsolationPolicies
-                    .get(AdminResource.path("clusters", clusterName, NAMESPACE_ISOLATION_POLICIES));
+            return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
+                    .getIsolationDataPolicies(clusterName);
         } catch (Exception e) {
             LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies", e);
             return Optional.empty();

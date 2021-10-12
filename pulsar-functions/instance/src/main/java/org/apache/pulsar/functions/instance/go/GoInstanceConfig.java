@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.instance.go;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.functions.proto.Function;
 
 @Setter
 @Getter
@@ -50,6 +51,7 @@ public class GoInstanceConfig {
     private long timeoutMs;
     private String subscriptionName = "";
     private boolean cleanupSubscription;
+    private int subscriptionPosition = Function.SubscriptionPosition.LATEST.getNumber();
 
     private String sourceSpecsTopic = "";
     private String sourceSchemaType = "";

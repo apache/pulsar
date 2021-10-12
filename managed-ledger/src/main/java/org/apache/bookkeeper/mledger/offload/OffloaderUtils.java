@@ -71,7 +71,7 @@ public class OffloaderUtils {
             Thread loadingThread = new Thread(() -> {
                 Thread.currentThread().setContextClassLoader(ncl);
                 try {
-                    Object offloader = factoryClass.newInstance();
+                    Object offloader = factoryClass.getDeclaredConstructor().newInstance();
                     if (!(offloader instanceof LedgerOffloaderFactory)) {
                         throw new IOException("Class " + conf.getOffloaderFactoryClass() + " does not implement interface "
                             + LedgerOffloaderFactory.class.getName());

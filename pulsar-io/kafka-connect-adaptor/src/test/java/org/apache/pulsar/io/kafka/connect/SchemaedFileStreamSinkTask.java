@@ -21,7 +21,9 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.file.FileStreamSinkTask;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.testng.collections.Maps;
@@ -51,7 +53,19 @@ public class SchemaedFileStreamSinkTask extends FileStreamSinkTask {
             recOut.put("keySchema", record.keySchema().type().toString());
             recOut.put("valueSchema", record.valueSchema().type().toString());
             recOut.put("key", record.key());
-            recOut.put("value", val);
+            if (val instanceof Struct) {
+                Map<String, Object> map = Maps.newHashMap();
+                Struct struct = (Struct)val;
+
+                // no recursion needed for tests
+                for (Field f: struct.schema().fields()) {
+                    map.put(f.name(), struct.get(f));
+                }
+
+                recOut.put("value", map);
+            } else {
+                recOut.put("value", val);
+            }
 
             ObjectMapper om = new ObjectMapper();
             try {

@@ -32,7 +32,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ProducerMessages {
     // Version of schema used for messages.
-    private long schemaVersion;
+    private long schemaVersion = -1;
 
     // Base64 encoded serialized schema for key
     private String keySchema;

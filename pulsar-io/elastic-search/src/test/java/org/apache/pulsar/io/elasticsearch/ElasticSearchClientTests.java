@@ -257,7 +257,7 @@ public class ElasticSearchClientTests {
             long start = System.currentTimeMillis();
             for (int i = 6; i <= 15; i++) {
                 client.bulkIndex(mockRecord, Pair.of(Integer.toString(i), "{\"a\":" + i + "}"));
-                log.info("{} index [}", System.currentTimeMillis(), i);
+                log.info("{} index {}", System.currentTimeMillis(), i);
             }
             long elapsed = System.currentTimeMillis() - start;
             log.info("elapsed = {}", elapsed);

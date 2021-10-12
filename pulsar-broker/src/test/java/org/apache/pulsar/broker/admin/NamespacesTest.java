@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -95,13 +94,10 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
-import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
-import org.apache.zookeeper.ZooDefs;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
@@ -533,8 +529,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // Sometimes watcher event consumes scheduled exception, so set to always fail to ensure exception is
         // thrown for api call.
         mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
-        pulsar.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, this.testTenant,
-                "global", this.testGlobalNamespaces.get(0).getLocalName()));
+
         try {
             namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
@@ -584,8 +579,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return op == MockZooKeeper.Op.GET
                     && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
             });
-
-        pulsar.getConfigurationCache().policiesCache().clear();
 
         policiesCache.invalidateAll();
         store.invalidateAll();
@@ -765,8 +758,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(namespaces.getTenantNamespaces(this.testTenant), nsList);
 
         testNs = this.testLocalNamespaces.get(1);
-        // ensure refreshed topics list in the cache
-        pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         // setup ownership to localhost
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
@@ -1006,16 +997,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testValidateAdminAccessOnTenant() throws Exception {
         try {
-            final String property = "prop";
+            final String tenant = "prop";
             pulsar.getConfiguration().setAuthenticationEnabled(true);
             pulsar.getConfiguration().setAuthorizationEnabled(true);
-            final String path = PulsarWebResource.path(POLICIES, property);
-            final String data = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            pulsar.getPulsarResources().getTenantResources().createTenant(tenant,
                     new TenantInfoImpl(Sets.newHashSet(namespaces.clientAppId()), Sets.newHashSet("use")));
-            ZkUtils.createFullPathOptimistic(pulsar.getConfigurationCache().getZooKeeper(), path, data.getBytes(),
-                    ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-            namespaces.validateTenantOperation(property, null);
+            namespaces.validateTenantOperation(tenant, null);
         } finally {
             pulsar.getConfiguration().setAuthenticationEnabled(false);
             pulsar.getConfiguration().setAuthorizationEnabled(false);

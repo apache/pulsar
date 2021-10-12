@@ -118,7 +118,7 @@ public class SecurityUtility {
     private static Provider loadConscryptProvider() {
         Provider provider;
         try {
-            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).newInstance();
+            provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
             log.warn("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
             return null;
@@ -179,7 +179,7 @@ public class SecurityUtility {
             clazz = Class.forName(BC_FIPS_PROVIDER_CLASS);
         }
 
-        Provider provider = (Provider) clazz.newInstance();
+        Provider provider = (Provider) clazz.getDeclaredConstructor().newInstance();
         Security.addProvider(provider);
         if (log.isDebugEnabled()) {
             log.debug("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
