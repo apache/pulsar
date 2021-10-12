@@ -574,8 +574,8 @@ public class PerformanceConsumer {
             totalEndTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = (totalEndTxnSuccess + totalEndTxnFail) / elapsed;
             totalnumMessageAckFailed = totalMessageAckFailed.sum();
-            numTransactionOpenFailed = totalNumTxnOpenSuccess.sum();
-            numTransactionOpenSuccess = totalNumTxnOpenFail.sum();
+            numTransactionOpenFailed = totalNumTxnOpenFail.sum();
+            numTransactionOpenSuccess = totalNumTxnOpenSuccess.sum();
             log.info("-- Transaction: {}  transaction end successfully --- {} transaction end failed "
                             + "--- {} transaction open successfully --- {} transaction open failed "
                             + "--- {} Txn/s ",

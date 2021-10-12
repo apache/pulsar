@@ -179,8 +179,8 @@ public class PerformanceTransaction {
                         + "If transaction disabled, it means the number of messages consumed in a task.")
         public int numMessagesReceivedPerTransaction = 1;
 
-        @Parameter(names = {"--txn-disEnable"}, description = "Disable transaction")
-        public boolean isDisEnableTransaction = false;
+        @Parameter(names = {"--txn-disable"}, description = "Disable transaction")
+        public boolean isDisableTransaction = false;
 
         @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
                 + "setting to false, -abort takes effect)")
@@ -274,7 +274,7 @@ public class PerformanceTransaction {
         }
 
         PulsarClient client =
-                PulsarClient.builder().enableTransaction(!arguments.isDisEnableTransaction)
+                PulsarClient.builder().enableTransaction(!arguments.isDisableTransaction)
                         .serviceUrl(arguments.serviceURL)
                         .connectionsPerBroker(arguments.maxConnections)
                         .statsInterval(0, TimeUnit.SECONDS)
@@ -290,7 +290,7 @@ public class PerformanceTransaction {
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if (!arguments.isDisEnableTransaction) {
+            if (!arguments.isDisableTransaction) {
                 printTxnAggregatedThroughput(startTime);
             } else {
                 printAggregatedThroughput(startTime);
@@ -320,9 +320,9 @@ public class PerformanceTransaction {
                         PerfClientUtils.exit(-1);
                     }
                     AtomicReference<Transaction> atomicReference = buildTransaction(client,
-                            !arguments.isDisEnableTransaction, arguments.transactionTimeout);
+                            !arguments.isDisableTransaction, arguments.transactionTimeout);
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
-                    //0the executorService
+                    //the executorService
                     while (true) {
                         if (arguments.numTransactions > 0) {
                             if (totalNumEndTxnOpFailed.sum()
@@ -330,6 +330,7 @@ public class PerformanceTransaction {
                                 log.info("------------------- DONE -----------------------");
                                 executing.compareAndSet(true, false);
                                 executorService.shutdownNow();
+                                PerfClientUtils.exit(0);
                                 break;
                             }
                         }
@@ -338,6 +339,7 @@ public class PerformanceTransaction {
                                 log.info("------------------- DONE -----------------------");
                                 executing.compareAndSet(true, false);
                                 executorService.shutdownNow();
+                                PerfClientUtils.exit(0);
                                 break;
                             }
                         }
@@ -352,9 +354,10 @@ public class PerformanceTransaction {
                                         } catch (PulsarClientException e) {
                                             log.error("Receive message failed", e);
                                             executorService.shutdownNow();
+                                            PerfClientUtils.exit(-1);
                                         }
                                         long receiveTime = System.nanoTime();
-                                        if (!arguments.isDisEnableTransaction) {
+                                        if (!arguments.isDisableTransaction) {
                                             consumer.acknowledgeAsync(message.getMessageId(), transaction)
                                                     .thenRun(() -> {
                                                         long latencyMicros = NANOSECONDS.toMicros(
@@ -397,7 +400,7 @@ public class PerformanceTransaction {
                         for(Producer<byte[]> producer : producers){
                             for (int j = 0; j < arguments.numMessagesProducedPerTransaction; j++) {
                                 long sendTime = System.nanoTime();
-                                if (!arguments.isDisEnableTransaction) {
+                                if (!arguments.isDisableTransaction) {
                                     producer.newMessage(transaction).value(payloadBytes)
                                             .sendAsync().thenRun(() -> {
                                         long latencyMicros = NANOSECONDS.toMicros(
@@ -433,10 +436,10 @@ public class PerformanceTransaction {
                             }
                         }
 
-                        if(rateLimiter != null){
+                        if (rateLimiter != null){
                             rateLimiter.tryAcquire();
                         }
-                        if (!arguments.isDisEnableTransaction) {
+                        if (!arguments.isDisableTransaction) {
                             if (!arguments.isAbortTransaction) {
                                 transaction.commit()
                                         .thenRun(() -> {
@@ -523,7 +526,7 @@ public class PerformanceTransaction {
             double rate = numTxnOpSuccess.sumThenReset() / elapsed;
             reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
             reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
-            String txnOrTaskLog = !arguments.isDisEnableTransaction
+            String txnOrTaskLog = !arguments.isDisableTransaction
                     ? "Throughput transaction: {} transaction executes --- {} transaction/s"
                     : "Throughput task: {} task executes --- {} task/s";
             log.info(

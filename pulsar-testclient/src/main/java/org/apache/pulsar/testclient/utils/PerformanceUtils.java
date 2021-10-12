@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient.utils;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -32,6 +33,8 @@ public class PerformanceUtils {
 
     public static AtomicReference<Transaction> buildTransaction(PulsarClient pulsarClient, boolean isEnableTransaction,
                                                                 long transactionTimeout) {
+
+        AtomicLong numBuildTxnFailed = new AtomicLong();
         if (isEnableTransaction) {
             while(true) {
                 AtomicReference atomicReference = null;
@@ -39,9 +42,14 @@ public class PerformanceUtils {
                     atomicReference = new AtomicReference(pulsarClient.newTransaction()
                             .withTransactionTimeout(transactionTimeout, TimeUnit.SECONDS).build().get());
                 } catch (Exception e) {
-                    log.error("Failed to new transaction", e);
+                    numBuildTxnFailed.incrementAndGet();
+                    if(numBuildTxnFailed.get()%10 == 0){
+                        log.error("Failed to new a transaction with {} times", numBuildTxnFailed.get(), e);
+                    }
                 }
                 if(atomicReference != null && atomicReference.get() != null){
+                    log.info("After {} failures, the transaction was created successfully for the first time",
+                            numBuildTxnFailed.get());
                     return atomicReference;
                 }
             }
