@@ -65,13 +65,11 @@ public class BacklogQuotaManager {
     }
 
     public BacklogQuota getBacklogQuota(String namespace, String policyPath) {
-        try {
-            return zkCache.get(policyPath)
-                    .map(p -> p.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota))
-                    .orElse(defaultQuota);
-        } catch (Exception e) {
-            log.warn("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
-            return this.defaultQuota;
+        Policies policies = zkCache.getDataIfPresent(policyPath);
+        if (policies != null) {
+            return policies.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota);
+        } else {
+            return defaultQuota;
         }
     }
 

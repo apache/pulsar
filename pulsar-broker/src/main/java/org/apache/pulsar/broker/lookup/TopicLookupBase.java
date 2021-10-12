@@ -163,37 +163,14 @@ public class TopicLookupBase extends PulsarWebResource {
      * @param authoritative
      * @param clientAppId
      * @param requestId
-     * @return
-     */
-    public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
-            boolean authoritative, String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
-        return lookupTopicAsync(pulsarService, topicName, authoritative, clientAppId, authenticationData, requestId, null);
-    }
-
-    /**
-     *
-     * Lookup broker-service address for a given namespace-bundle which contains given topic.
-     *
-     * a. Returns broker-address if namespace-bundle is already owned by any broker
-     * b. If current-broker receives lookup-request and if it's not a leader then current broker redirects request
-     *    to leader by returning leader-service address.
-     * c. If current-broker is leader then it finds out least-loaded broker to own namespace bundle and redirects request
-     *    by returning least-loaded broker.
-     * d. If current-broker receives request to own the namespace-bundle then it owns a bundle and returns success(connect)
-     *    response to client.
-     *
-     * @param pulsarService
-     * @param topicName
-     * @param authoritative
-     * @param clientAppId
-     * @param requestId
      * @param advertisedListenerName
      * @return
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
                                                               boolean authoritative, String clientAppId,
                                                               AuthenticationDataSource authenticationData, long requestId,
-                                                              final String advertisedListenerName) {
+                                                              final String advertisedListenerName,
+                                                              boolean isAlreadyAuthorized) {
 
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
@@ -213,7 +190,9 @@ public class TopicLookupBase extends PulsarWebResource {
             } else {
                 // (2) authorize client
                 try {
-                    checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
+                    if (!isAlreadyAuthorized) {
+                        checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
+                    }
                 } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
                     validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,

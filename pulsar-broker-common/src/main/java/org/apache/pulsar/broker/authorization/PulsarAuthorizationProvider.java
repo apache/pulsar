@@ -338,13 +338,13 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
-            boolean remove) {
+                                                                      boolean remove) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
             result.completeExceptionally(e);
+            return result;
         }
 
         ZooKeeper globalZk = configCache.getZooKeeper();

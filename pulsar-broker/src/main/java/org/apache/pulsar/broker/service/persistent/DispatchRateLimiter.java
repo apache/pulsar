@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -28,6 +25,7 @@ import java.util.function.Supplier;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -171,7 +169,7 @@ public class DispatchRateLimiter {
             return true;
         }
 
-        policies = policies.isPresent() ? policies : getPolicies(brokerService, topicName);
+        policies = policies.isPresent() ? policies :  getPolicies(brokerService, topicName);
         return isDispatchRateNeeded(serviceConfig, policies, topicName, type);
     }
 
@@ -302,13 +300,12 @@ public class DispatchRateLimiter {
 
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
-        final String path = path(POLICIES, namespace.toString());
         Optional<Policies> policies = Optional.empty();
         try {
             ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
             if (configurationCacheService != null) {
-                policies = configurationCacheService.policiesCache().getAsync(path)
-                        .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                return Optional.ofNullable(configurationCacheService.policiesCache()
+                        .getDataIfPresent(AdminResource.path(POLICIES, namespace.toString())));
             }
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);
