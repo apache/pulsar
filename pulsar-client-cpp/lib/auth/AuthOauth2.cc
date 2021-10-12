@@ -120,42 +120,39 @@ bool Oauth2CachedToken::isExpired() { return expiresAt_ < currentTimeMillis(); }
 Oauth2Flow::Oauth2Flow() {}
 Oauth2Flow::~Oauth2Flow() {}
 
-ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
-                                           const std::string& clientSecret, const std::string& audience) {
-    issuerUrl_ = issuerUrl;
-    clientId_ = clientId;
-    clientSecret_ = clientSecret;
-    audience_ = audience;
-    this->initialize();
+KeyFile KeyFile::fromParamMap(ParamMap& params) {
+    const auto it = params.find("private_key");
+    if (it != params.cend()) {
+        return fromFile(it->second);
+    } else {
+        return {params["client_id"], params["client_secret"]};
+    }
 }
 
 // read clientId/clientSecret from passed in `credentialsFilePath`
-ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl,
-                                           const std::string& credentialsFilePath,
-                                           const std::string& audience) {
-    issuerUrl_ = issuerUrl;
-    audience_ = audience;
-
+KeyFile KeyFile::fromFile(const std::string& credentialsFilePath) {
     boost::property_tree::ptree loadPtreeRoot;
     try {
         boost::property_tree::read_json(credentialsFilePath, loadPtreeRoot);
-    } catch (boost::property_tree::json_parser_error& e) {
-        LOG_ERROR("Failed to parse json input file for credentialsFilePath: " << credentialsFilePath
-                                                                              << "with error:" << e.what());
-        return;
+    } catch (const boost::property_tree::json_parser_error& e) {
+        LOG_ERROR("Failed to parse json input file for credentialsFilePath: " << credentialsFilePath << ": "
+                                                                              << e.what());
+        return {};
     }
 
-    const std::string defaultNotFoundString = "Client Id / Secret Not Found";
-
-    clientId_ = loadPtreeRoot.get<std::string>("client_id", defaultNotFoundString);
-    clientSecret_ = loadPtreeRoot.get<std::string>("client_secret", defaultNotFoundString);
-
-    if (clientId_ == defaultNotFoundString || clientSecret_ == defaultNotFoundString) {
-        LOG_ERROR("Not get valid clientId / clientSecret: " << clientId_ << "/" << clientSecret_);
-        return;
+    try {
+        return {loadPtreeRoot.get<std::string>("client_id"), loadPtreeRoot.get<std::string>("client_secret")};
+    } catch (const boost::property_tree::ptree_error& e) {
+        LOG_ERROR("Failed to get client_id or client_secret in " << credentialsFilePath << ": " << e.what());
+        return {};
     }
-    this->initialize();
 }
+
+ClientCredentialFlow::ClientCredentialFlow(ParamMap& params)
+    : issuerUrl_(params["issuer_url"]),
+      keyFile_(KeyFile::fromParamMap(params)),
+      audience_(params["audience"]),
+      scope_(params["scope"]) {}
 
 static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void* responseDataPtr) {
     ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
@@ -163,6 +160,10 @@ static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void*
 }
 
 void ClientCredentialFlow::initialize() {
+    if (!keyFile_.isValid()) {
+        return;
+    }
+
     CURL* handle = curl_easy_init();
     CURLcode res;
     std::string responseData;
@@ -174,8 +175,7 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "GET");
 
     // set URL: well-know endpoint
-    issuerUrl_.append("/.well-known/openid-configuration");
-    curl_easy_setopt(handle, CURLOPT_URL, issuerUrl_.c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, (issuerUrl_ + "/.well-known/openid-configuration").c_str());
 
     // Write callback
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -228,8 +228,33 @@ void ClientCredentialFlow::initialize() {
 }
 void ClientCredentialFlow::close() {}
 
+std::string ClientCredentialFlow::generateJsonBody() const {
+    if (!keyFile_.isValid()) {
+        return "";
+    }
+
+    // fill in the request data
+    boost::property_tree::ptree pt;
+    pt.put("grant_type", "client_credentials");
+    pt.put("client_id", keyFile_.getClientId());
+    pt.put("client_secret", keyFile_.getClientSecret());
+    pt.put("audience", audience_);
+    if (!scope_.empty()) {
+        pt.put("scope", scope_);
+    }
+
+    std::ostringstream ss;
+    boost::property_tree::json_parser::write_json(ss, pt);
+    return ss.str();
+}
+
 Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     Oauth2TokenResultPtr resultPtr = Oauth2TokenResultPtr(new Oauth2TokenResult());
+    const auto jsonBody = generateJsonBody();
+    if (jsonBody.empty() || tokenEndPoint_.empty()) {
+        return resultPtr;
+    }
+    LOG_DEBUG("Generate JSON body for ClientCredentialFlow: " << jsonBody);
 
     CURL* handle = curl_easy_init();
     CURLcode res;
@@ -256,24 +281,10 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
-    // fill in the request data
-    boost::property_tree::ptree pt;
-    pt.put("grant_type", "client_credentials");
-    pt.put("client_id", clientId_);
-    pt.put("client_secret", clientSecret_);
-    pt.put("audience", audience_);
-
-    std::stringstream ss;
-    boost::property_tree::json_parser::write_json(ss, pt);
-    std::string ssString = ss.str();
-
-    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, ssString.c_str());
+    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, jsonBody.c_str());
 
     // Make get call to server
     res = curl_easy_perform(handle);
-
-    LOG_DEBUG("issuerUrl_ " << issuerUrl_ << " clientid: " << clientId_ << " client_secret " << clientSecret_
-                            << " audience " << audience_ << " ssstring " << ssString);
 
     switch (res) {
         case CURLE_OK:
@@ -288,7 +299,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                     boost::property_tree::read_json(stream, root);
                 } catch (boost::property_tree::json_parser_error& e) {
                     LOG_ERROR("Failed to parse json of Oauth2 response: "
-                              << e.what() << "\nInput Json = " << responseData << " passedin: " << ssString);
+                              << e.what() << "\nInput Json = " << responseData << " passedin: " << jsonBody);
                     break;
                 }
 
@@ -299,12 +310,12 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                                            << " expires_in: " << resultPtr->getExpiresIn());
             } else {
                 LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". response Code "
-                                                           << response_code << " passedin: " << ssString);
+                                                           << response_code << " passedin: " << jsonBody);
             }
             break;
         default:
             LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". Error Code " << res
-                                                       << " passedin: " << ssString);
+                                                       << " passedin: " << jsonBody);
             break;
     }
     // Free header list
@@ -316,17 +327,8 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
 
 // AuthOauth2
 
-AuthOauth2::AuthOauth2(ParamMap& params) {
-    std::map<std::string, std::string>::iterator it;
-    it = params.find("private_key");
-
-    if (it != params.end()) {
-        flowPtr_ = FlowPtr(
-            new ClientCredentialFlow(params["issuer_url"], params["private_key"], params["audience"]));
-    } else {
-        flowPtr_ = FlowPtr(new ClientCredentialFlow(params["issuer_url"], params["client_id"],
-                                                    params["client_secret"], params["audience"]));
-    }
+AuthOauth2::AuthOauth2(ParamMap& params) : flowPtr_(new ClientCredentialFlow(params)) {
+    flowPtr_->initialize();
 }
 
 AuthOauth2::~AuthOauth2() {}

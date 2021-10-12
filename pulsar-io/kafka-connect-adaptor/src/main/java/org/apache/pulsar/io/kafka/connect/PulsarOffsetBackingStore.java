@@ -67,7 +67,7 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         checkArgument(!isBlank(topic), "Offset storage topic must be specified");
         this.data = new HashMap<>();
 
-        log.info("Configure offset backing store on pulsar topic {} at cluster {}", topic);
+        log.info("Configure offset backing store on pulsar topic {}", topic);
     }
 
     void readToEnd(CompletableFuture<Void> future) {

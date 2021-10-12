@@ -25,7 +25,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import java.io.Closeable;
 import java.io.File;
@@ -43,7 +42,7 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -138,7 +137,7 @@ public class PulsarFunctionTlsTest {
         functionsWorkerService.init(workerConfig, null, false);
 
         AuthenticationService authenticationService = new AuthenticationService(config);
-        AuthorizationService authorizationService = new AuthorizationService(config, mock(ConfigurationCacheService.class));
+        AuthorizationService authorizationService = new AuthorizationService(config, mock(PulsarResources.class));
         when(functionsWorkerService.getAuthenticationService()).thenReturn(authenticationService);
         when(functionsWorkerService.getAuthorizationService()).thenReturn(authorizationService);
         when(functionsWorkerService.isInitialized()).thenReturn(true);

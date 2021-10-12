@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN;
+import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN_V2;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.HashMap;
@@ -35,6 +37,18 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Load shedding strategy that unloads any broker that exceeds the average resource utilization of all brokers by a
+ * configured threshold. As a consequence, this strategy tends to distribute load among all brokers. It does this by
+ * first computing the average resource usage per broker for the whole cluster. The resource usage for each broker is
+ * calculated using the following method: {@link LocalBrokerData#getMaxResourceUsageWithWeight)}. The weights for each
+ * resource are configurable. Historical observations are included in the running average based on the broker's
+ * setting for loadBalancerHistoryResourcePercentage. Once the average resource usage is calculated, a broker's
+ * current/historical usage is compared to the average broker usage. If a broker's usage is greater than the average
+ * usage per broker plus the loadBalancerBrokerThresholdShedderPercentage, this load shedder proposes removing
+ * enough bundles to bring the unloaded broker 5% below the current average broker usage. Note that recently
+ * unloaded bundles are not unloaded again.
+ */
 public class ThresholdShedder implements LoadSheddingStrategy {
     private static final Logger log = LoggerFactory.getLogger(ThresholdShedder.class);
 
@@ -95,12 +109,15 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
 
             if (localData.getBundles().size() > 1) {
-                loadData.getBundleData().entrySet().stream().map((e) -> {
-                    String bundle = e.getKey();
-                    BundleData bundleData = e.getValue();
-                    TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                    double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
-                    return Pair.of(bundle, throughput);
+                loadData.getBundleData().entrySet().stream()
+                    .filter(e -> !HEARTBEAT_NAMESPACE_PATTERN.matcher(e.getKey()).matches()
+                        && !HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(e.getKey()).matches())
+                    .map((e) -> {
+                        String bundle = e.getKey();
+                        BundleData bundleData = e.getValue();
+                        TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                        double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+                        return Pair.of(bundle, throughput);
                 }).filter(e ->
                         !recentlyUnloadedBundles.containsKey(e.getLeft())
                 ).filter(e ->
@@ -118,10 +135,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             } else if (localData.getBundles().size() == 1) {
                 log.warn(
                         "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                                + "No Load Shadding will be done on this broker",
+                                + "No Load Shedding will be done on this broker",
                         localData.getBundles().iterator().next(), broker);
             } else {
-                log.warn("Broker {} is overloaded despit having no bundles", broker);
+                log.warn("Broker {} is overloaded despite having no bundles", broker);
             }
         });
 
