@@ -160,6 +160,10 @@ static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void*
 }
 
 void ClientCredentialFlow::initialize() {
+    if (issuerUrl_.empty()) {
+        LOG_ERROR("Failed to initialize ClientCredentialFlow: issuer_url is not set");
+        return;
+    }
     if (!keyFile_.isValid()) {
         return;
     }
