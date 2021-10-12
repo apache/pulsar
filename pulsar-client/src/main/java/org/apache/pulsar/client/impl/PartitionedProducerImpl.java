@@ -355,6 +355,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                     if (conf.isLazyStartPartitionedProducers() && conf.getAccessMode() == ProducerAccessMode.Shared) {
                         topicMetadata = new TopicMetadataImpl(currentPartitionNumber);
                         future.complete(null);
+                        // call interceptor with the metadata change
+                        onPartitionsChange(topic, currentPartitionNumber);
                         return future;
                     } else {
                         List<CompletableFuture<Producer<T>>> futureList = list
@@ -362,9 +364,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                 .stream()
                                 .map(partitionName -> {
                                     int partitionIndex = TopicName.getPartitionIndex(partitionName);
-                                    return producers.computeIfAbsent(partitionIndex, (idx) ->
-                                            new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
-                                                    idx, schema, interceptors)).producerCreatedFuture();
+                                    return producers.computeIfAbsent(partitionIndex, (idx) -> new ProducerImpl<>(
+                                            client, partitionName, conf, new CompletableFuture<>(),
+                                            idx, schema, interceptors)).producerCreatedFuture();
                                 }).collect(Collectors.toList());
 
                         FutureUtil.waitForAll(futureList)
