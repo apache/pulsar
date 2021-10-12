@@ -39,7 +39,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.apache.commons.lang3.StringUtils;
@@ -95,7 +94,10 @@ public class PerformanceClient {
         @Parameter(names = { "-t", "--num-topic" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
+        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+        public String deprecatedAuthPluginClassName;
+
+        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
         @Parameter(
@@ -133,6 +135,10 @@ public class PerformanceClient {
         if (arguments.help) {
             jc.usage();
             PerfClientUtils.exit(-1);
+        }
+
+        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
+            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
         }
 
         if (arguments.topics.size() != 1) {

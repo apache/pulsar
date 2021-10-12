@@ -45,7 +45,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | access-mode | Set the producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`. | Shared |
 | admin-url | Set the Pulsar admin URL. | N/A |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
-| auth_plugin | Set the authentication plugin class name. | N/A |
+| auth-plugin | Set the authentication plugin class name. | N/A |
 | listener-name | Set the listener name for the broker. | N/A |
 | batch-max-bytes | Set the maximum number of bytes for each batch. | 4194304 |
 | batch-max-messages | Set the maximum number of messages for each batch. | 1000 |
@@ -122,7 +122,7 @@ The following table lists configuration options available for the `pulsar-perf c
 |----|----|----|
 | acks-delay-millis | Set the acknowledgment grouping delay in milliseconds. | 100 ms |
 | auth-params | Set the authentication parameters, whose format is determined by the implementation of the `configure` method in the authentication plugin class, such as "key1:val1,key2:val2" or "{"key1":"val1","key2":"val2"}". | N/A |
-| auth_plugin | Set the authentication plugin class name. | N/A |
+| auth-plugin | Set the authentication plugin class name. | N/A |
 | auto_ack_chunk_q_full | Configure whether to automatically ack for the oldest message in receiver queue if the queue is full. | false |
 | listener-name | Set the listener name for the broker. | N/A |
 | batch-index-ack | Enable or disable the batch index acknowledgment. | false |
