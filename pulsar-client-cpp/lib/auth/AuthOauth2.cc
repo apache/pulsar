@@ -257,7 +257,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     if (jsonBody.empty() || tokenEndPoint_.empty()) {
         return resultPtr;
     }
-    LOG_INFO("Generate JSON body for ClientCredentialFlow: " << jsonBody);
+    LOG_DEBUG("Generate JSON body for ClientCredentialFlow: " << jsonBody);
 
     CURL* handle = curl_easy_init();
     CURLcode res;
