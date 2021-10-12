@@ -214,7 +214,7 @@ This example shows how to use pulsar-perf to connect to a cluster through OAuth2
 
 ```shell script
 bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
---auth_plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
+--auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
 --auth-params '{"privateKey":"file:///path/to/key/file.json",
     "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
     "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \

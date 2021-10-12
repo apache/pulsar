@@ -491,6 +491,46 @@
           "id": "version-2.7.3/admin-api-functions"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/adaptors-storm"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/reference-terminology"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/reference-cli-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/reference-configuration"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/reference-metrics"
+        }
+      ]
     }
   ]
 }
