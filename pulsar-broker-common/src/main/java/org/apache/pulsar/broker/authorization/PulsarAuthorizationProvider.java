@@ -336,9 +336,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         CompletableFuture<Void> future =
                 pulsarResources.getNamespaceResources().setPoliciesAsync(namespace, policies -> {
                     if (remove) {
-                        if (policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName) != null) {
-                            policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName)
-                                    .removeAll(roles);
+                        Set<String> subscriptionAuth =
+                                policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName);
+                        if (subscriptionAuth != null) {
+                            subscriptionAuth.removeAll(roles);
                         } else {
                             log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace,
                                     roles, subscriptionName);

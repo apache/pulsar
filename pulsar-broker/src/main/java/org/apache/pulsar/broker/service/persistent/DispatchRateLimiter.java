@@ -180,7 +180,7 @@ public class DispatchRateLimiter {
             return true;
         }
 
-        policies = policies.isPresent() ? policies :  getPolicies(brokerService, topicName);
+        policies = policies.isPresent() ? policies : getPolicies(brokerService, topicName);
         return isDispatchRateNeeded(serviceConfig, policies, topicName, type);
     }
 

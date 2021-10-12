@@ -195,15 +195,12 @@ public abstract class AbstractTopic implements Topic {
     protected boolean isConsumersExceededOnTopic() {
         Integer maxConsumers = getTopicPolicies().map(TopicPolicies::getMaxConsumerPerTopic).orElse(null);
         if (maxConsumers == null) {
-            Policies policies;
+
             // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
-            policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
+            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
                             TopicName.get(topic).getNamespaceObject())
                     .orElseGet(() -> new Policies());
 
-            if (policies == null) {
-                policies = new Policies();
-            }
             maxConsumers = policies.max_consumers_per_topic;
         }
         final int maxConsumersPerTopic = maxConsumers != null ? maxConsumers
@@ -611,7 +608,7 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
-    protected void internalAddProducer(Producer producer) throws BrokerServiceException{
+    protected void internalAddProducer(Producer producer) throws BrokerServiceException {
         if (isProducersExceeded()) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
