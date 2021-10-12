@@ -316,7 +316,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                 resultPtr->setAccessToken(root.get<std::string>("access_token", ""));
                 resultPtr->setExpiresIn(
                     root.get<uint32_t>("expires_in", Oauth2TokenResult::undefined_expiration));
-                resultPtr->setIdToken(root.get<std::string>("refresh_token", ""));
+                resultPtr->setRefreshToken(root.get<std::string>("refresh_token", ""));
                 resultPtr->setIdToken(root.get<std::string>("id_token", ""));
 
                 if (!resultPtr->getAccessToken().empty()) {
