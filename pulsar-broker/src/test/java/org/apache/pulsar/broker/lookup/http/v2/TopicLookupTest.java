@@ -40,37 +40,18 @@ import static org.testng.Assert.assertEquals;
 @Test(groups = "broker")
 public class TopicLookupTest extends PulsarWebResourceTest {
 
-    private static final Logger log = LoggerFactory.getLogger(TopicLookupTest.class);
-
     private static final String TOPIC_PATH = "/v2/topic/persistent/public/testns/testtopic";
 
     private TestableTopicLookup resource;
 
-    @BeforeMethod(alwaysRun = true, groups = "broker")
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
-        log.info("TopicLookupTest::setUp called");
-    }
-
-    @AfterMethod(alwaysRun = true, groups = "broker")
-    @Override
-    public void tearDown() throws Exception {
-        log.info("TopicLookupTest::tearDown called");
-        super.tearDown();
-    }
-
     @Override
     protected ResourceConfig configure() {
-        log.info("TopicLookupTest::configure called");
         resource = spy(new TestableTopicLookup());
         return new ResourceConfig().register(resource);
     }
 
     @Test
     public void testListenerName() {
-        log.info("TopicLookupTest::testListenerName called, client={}", client());
-
         Response response;
         // verify query param
         response = target(TOPIC_PATH).queryParam("listenerName", "query").request().get();
