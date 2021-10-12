@@ -248,6 +248,7 @@ public class PulsarStandalone implements AutoCloseable {
     public void start() throws Exception {
 
         if (config == null) {
+            log.error("Failed to load configuration");
             System.exit(1);
         }
 
