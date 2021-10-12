@@ -46,7 +46,7 @@ public class BindAddressValidatorTest {
         return config;
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testMalformed() {
         ServiceConfiguration config = newEmptyConfiguration();
         config.setBindAddresses("internal:");
