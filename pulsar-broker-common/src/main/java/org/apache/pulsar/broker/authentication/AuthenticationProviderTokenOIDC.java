@@ -25,9 +25,17 @@ import java.net.MalformedURLException;
 import java.net.SocketAddress;
 import java.net.URL;
 
+
+import java.security.Key;
+import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.Clock;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
@@ -42,6 +50,8 @@ import com.auth0.jwt.exceptions.SignatureVerificationException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.InvalidKeyException;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import org.apache.commons.io.IOUtils;
@@ -49,8 +59,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
 
@@ -64,9 +72,6 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
 
 
     static final String CONF_ISSUER_URL = "tokenAuthenticationOIDCIssuerUrl";
-
-    // When using public key's, the algorithm of the key
-    static final String CONF_TOKEN_PUBLIC_ALG = "tokenPublicKeytokenPublicKey";
 
     // The token audience "claim" name, e.g. "aud", that will be used to get the audience from token.
     static final String CONF_TOKEN_AUDIENCE_CLAIM = "tokenAudienceClaim";
@@ -92,13 +97,7 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
     private String audience;
     private JwkProvider provider;
     private String issuerUrl;
-
-    // config keys
-
-    private String confTokenAuthClaimSettingName;
-    private String confTokenAudienceClaimSettingName;
-    private String confTokenAudienceSettingName;
-    private String confJWkUrlSettingName;
+    private JwtParser parser;
 
 
 
@@ -115,31 +114,23 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
-        this.confTokenAuthClaimSettingName = CONF_TOKEN_AUTH_CLAIM;
-        this.confTokenAudienceClaimSettingName = CONF_TOKEN_AUDIENCE_CLAIM;
-        this.confTokenAudienceSettingName = CONF_TOKEN_AUDIENCE;
-        this.confJWkUrlSettingName = CONF_ISSUER_URL;
-
         // we need to fetch the algorithm before we fetch the key
         this.roleClaim = getTokenRoleClaim(config);
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
         this.issuerUrl = getIssuerUrl(config);
 
-        URL url = new URL(this.issuerUrl+"/.well-known/openid-configuration");
-        if(!url.getProtocol().equals("https")){
+        URL issuerUrl = new URL(this.issuerUrl);
+        URL configUrl = new URL(issuerUrl,"/.well-known/openid-configuration");
+        if(!configUrl.getProtocol().equals("https")){
             throw new MalformedURLException("protocol needs to be https");
         }
         //extracting the jwks_uri
-        JsonObject json = new Gson().fromJson(IOUtils.toString(url, UTF_8), JsonObject.class);
+        JsonObject json = new Gson().fromJson(IOUtils.toString(configUrl, UTF_8), JsonObject.class);
+        URL jwksUrl = new URL(json.get("jwks_uri").getAsString());
         this.provider = new UrlJwkProvider(new URL(json.get("jwks_uri").getAsString()));
 
-
-
-        if (audienceClaim != null && audience == null ) {
-            throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
-                    + "] configured, but Audience stands for this broker not.");
-        }
+        this.parser = Jwts.parserBuilder().setSigningKeyResolver(new JwksResolver(jwksUrl, Clock.systemDefaultZone())).requireIssuer(this.issuerUrl).build();
     }
 
     @Override
@@ -153,12 +144,13 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
             // Get Token
             String token;
             String role;
+            Jws<Claims> jwt;
             token = getToken(authData);
 
             // Parse Token by validating
 
-
-            role = getPrincipal(authenticateToken(token));
+            jwt = authenticateToken(token);
+            role = getPrincipal(jwt);
 
 
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
@@ -204,23 +196,23 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
     }
 
     @SuppressWarnings("unchecked")
-    private DecodedJWT authenticateToken(final String token) throws AuthenticationException {
-        DecodedJWT jwt = JWT.decode(token);
+    private Jws<Claims> authenticateToken(final String token) throws AuthenticationException {
+        //DecodedJWT jwt = JWT.decode(token);
 
         Jwk jwk = null;
         Algorithm algorithm = null;
         try {
-            jwk = provider.get(jwt.getKeyId());
+            // parse the token and verify the signature
+            Jws<Claims> jwt = this.parser.parseClaimsJws(token);
+            /*jwk = provider.get(jwt.getKeyId());
             if(!(jwk.getPublicKey() instanceof RSAPublicKey)){
                 throw new JwtException("key needs to be a RSA Publickey");
             }
 
             algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey(), null);
-            algorithm.verify(jwt); // if the token signature is invalid, the method will throw SignatureVerificationException
-
-            if (audienceClaim != null) {
-                Object object = jwt.getClaim(audienceClaim);
-
+            algorithm.verify(jwt); // if the token signature is invalid, the method will throw SignatureVerificationException*/
+            if (audience != null){
+                Object object = audienceClaim != null ? jwt.getBody().get(audienceClaim): jwt.getBody().get("aud");
                 if (object == null) {
                     throw new JwtException("Found null Audience in token, for claimed field: " + audienceClaim);
                 }
@@ -228,54 +220,45 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
                 if (object instanceof List) {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
-                    if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
-                        throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
-                                + "] not contains this broker: " + audience);
+                    if (!audiences.contains(audience)) {
+                        throw new AuthenticationException("Audiences in token doesn't contain :"+ audience);
                     }
                 } else if (object instanceof String) {
                     if (!object.equals(audience)) {
-                        throw new AuthenticationException("Audiences in token: [" + object
-                                + "] not contains this broker: " + audience);
+                        throw new AuthenticationException("Audiences in token doesn't contain :"+ audience);
                     }
                 } else {
                     // should not reach here.
                     throw new AuthenticationException("Audiences in token is not in expected format: " + object);
                 }
-            }
 
-            if(jwt.getExpiresAt() != null){
-                long minToExpiration = (jwt.getExpiresAt().getTime() - new Date().getTime()) / (60 * 1000);
-                if(minToExpiration <= 0){
-                    throw new AuthenticationException("Token is expired");
-                }
-                expiringTokenMinutesMetrics.observe((double) minToExpiration / (60 * 1000));
             }
 
             return jwt;
-        } catch (JwkException | SignatureVerificationException e) {
+        } catch (SignatureVerificationException e) {
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
 
     }
 
-    private String getPrincipal(DecodedJWT jwt) {
+    private String getPrincipal(Jwt<?, Claims> jwt) {
 
-        return jwt.getClaim(roleClaim).asString();
+        return jwt.getBody().getSubject();
     }
 
     private String getTokenRoleClaim(ServiceConfiguration conf){
-        if (conf.getProperty(confTokenAuthClaimSettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenAuthClaimSettingName))) {
-            return (String) conf.getProperty(confTokenAuthClaimSettingName);
+        if (conf.getProperty(CONF_TOKEN_AUTH_CLAIM) != null
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUTH_CLAIM))) {
+            return (String) conf.getProperty(CONF_TOKEN_AUTH_CLAIM);
         } else {
             return Claims.SUBJECT;
         }
     }
 
     private String getIssuerUrl(ServiceConfiguration conf){
-        if (conf.getProperty(confJWkUrlSettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confJWkUrlSettingName))) {
-            return (String) conf.getProperty(confJWkUrlSettingName);
+        if (conf.getProperty(CONF_ISSUER_URL) != null
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_ISSUER_URL))) {
+            return (String) conf.getProperty(CONF_ISSUER_URL);
         } else {
             return "";
         }
@@ -283,9 +266,9 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
 
     // get Token Audience Claim from configuration, if not configured return null.
     private String getTokenAudienceClaim(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(confTokenAudienceClaimSettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenAudienceClaimSettingName))) {
-            return (String) conf.getProperty(confTokenAudienceClaimSettingName);
+        if (conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM) != null
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM))) {
+            return (String) conf.getProperty(CONF_TOKEN_AUDIENCE_CLAIM);
         } else {
             return null;
         }
@@ -293,9 +276,9 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
 
     // get Token Audience that stands for this broker from configuration, if not configured return null.
     private String getTokenAudience(ServiceConfiguration conf) throws IllegalArgumentException {
-        if (conf.getProperty(confTokenAudienceSettingName) != null
-                && StringUtils.isNotBlank((String) conf.getProperty(confTokenAudienceSettingName))) {
-            return (String) conf.getProperty(confTokenAudienceSettingName);
+        if (conf.getProperty(CONF_TOKEN_AUDIENCE) != null
+                && StringUtils.isNotBlank((String) conf.getProperty(CONF_TOKEN_AUDIENCE))) {
+            return (String) conf.getProperty(CONF_TOKEN_AUDIENCE);
         } else {
             return null;
         }
@@ -304,7 +287,7 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
     private static final class TokenAuthenticationState implements AuthenticationState {
         private final AuthenticationProviderTokenOIDC provider;
         private AuthenticationDataSource authenticationDataSource;
-        private DecodedJWT jwt;
+        private Jwt<?,Claims> jwt;
         private final SocketAddress remoteAddress;
         private final SSLSession sslSession;
         private long expiration;
@@ -330,12 +313,6 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
             String token = new String(authData.getBytes(), UTF_8);
 
             this.jwt = provider.authenticateToken(token);
-            if (jwt.getExpiresAt() != null) {
-                this.expiration = jwt.getExpiresAt().getTime();
-            } else {
-                // Disable expiration
-                this.expiration = Long.MAX_VALUE;
-            }
             this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
 
             // There's no additional auth stage required
@@ -357,5 +334,89 @@ public class AuthenticationProviderTokenOIDC implements AuthenticationProvider {
         public boolean isExpired() {
             return expiration < System.currentTimeMillis();
         }
+    }
+}
+
+class JwksResolver implements SigningKeyResolver {
+
+    private final URL jwksUrl;
+    private final Clock clock;
+    private Duration connectTimeout;
+    private Duration readTimeout;
+    private Duration cacheTimeout;
+
+    private transient Map<String, PublicKey> cache;
+    private transient Instant cacheExpiry;
+
+    public JwksResolver(URL jwksUrl, Clock clock) {
+        this.jwksUrl = jwksUrl;
+        this.clock = clock;
+        this.cache = new LinkedHashMap<>(0);
+        this.cacheTimeout = Duration.ofMinutes(10);
+    }
+
+    public JwksResolver withConnectTimeout(Duration connectTimeout) {
+        this.connectTimeout = connectTimeout;
+        return this;
+    }
+
+    public JwksResolver withReadTimeout(Duration readTimeout) {
+        this.readTimeout = readTimeout;
+        return this;
+    }
+
+    public JwksResolver withCacheTimeout(Duration cacheTimeout) {
+        this.cacheTimeout = cacheTimeout;
+        return this;
+    }
+
+    @Override
+    public synchronized Key resolveSigningKey(JwsHeader header, Claims claims) {
+        return resolve(header);
+    }
+
+    @Override
+    public synchronized Key resolveSigningKey(JwsHeader header, String plaintext) {
+        return resolve(header);
+    }
+
+            /**
+             * Returns the signing key that should be used to validate a digital signature for a JWS with
+             * the specified header.
+             * @param header the header of the JWS to validate.
+             */
+    Key resolve(JwsHeader header) {
+        String keyId = header.getKeyId();
+        // check cache
+        PublicKey key = this.cache.get(keyId);
+        if (key != null) {
+            return key;
+        }
+
+        // update cache if necessary
+        if (this.cacheExpiry == null || Instant.now(clock).isAfter(cacheExpiry)) {
+            try {
+                this.updateCache();
+                this.cacheExpiry = Instant.now(clock).plus(this.cacheTimeout);
+            } catch (Exception e) {
+                throw new IllegalStateException("the JWKS is unavailable", e);
+            }
+
+            // check cache again
+            key = this.cache.get(header.getKeyId());
+        }
+
+        if (key == null) {
+            throw new InvalidKeyException("Unable to resolve key with id '" + keyId + "'");
+        }
+        return key;
+    }
+
+    /**
+     * Downloads and updates the cache of JWK public keys.
+     * @throws IOException if the JWKS could not be downloaded.
+     */
+    private void updateCache() throws IOException {
+
     }
 }
