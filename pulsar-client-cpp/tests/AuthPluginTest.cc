@@ -366,9 +366,7 @@ TEST(AuthPluginTest, testOauth2WrongSecret) {
     LOG_INFO("PARAMS: " << params);
     pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
     ASSERT_EQ(auth->getAuthMethodName(), "token");
-
-    EXPECT_THROW(auth->getAuthData(data), std::runtime_error)
-        << "Expected fail for wrong secret when to get token from server";
+    ASSERT_EQ(auth->getAuthData(data), ResultAuthenticationError);
 }
 
 TEST(AuthPluginTest, testOauth2CredentialFile) {
