@@ -216,7 +216,6 @@ public class PerformanceClient {
 
     }
 
-
     public void runPerformanceTest(Arguments arguments) throws InterruptedException, IOException {
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[arguments.msgSize];
@@ -296,12 +295,11 @@ public class PerformanceClient {
                 RateLimiter rateLimiter = RateLimiter.create(arguments.msgRate);
                 long startTime = System.nanoTime();
                 long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
                     for (String topic : producersMap.keySet()) {
-                        if (testTime > 0 && System.nanoTime() > testEndTime) {
+                        if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
                             Thread.sleep(5000);
                             PerfClientUtils.exit(0);
