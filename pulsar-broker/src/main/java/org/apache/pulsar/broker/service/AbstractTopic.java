@@ -146,31 +146,18 @@ public abstract class AbstractTopic implements Topic {
         this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(brokerService.pulsar().getConfiguration()
                 .getMaxMessageSizeCheckIntervalInSeconds());
         this.lastActive = System.nanoTime();
-        Policies policies = null;
-        try {
-            policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(
-                            TopicName.get(topic).getNamespaceObject())
-                    .orElseGet(() -> new Policies());
-        } catch (Exception e) {
-            log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
-        }
         this.preciseTopicPublishRateLimitingEnable =
                 brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
-        updatePublishDispatcher(policies);
+        updatePublishDispatcher();
     }
 
     protected boolean isProducersExceeded() {
         Integer maxProducers = getTopicPolicies().map(TopicPolicies::getMaxProducerPerTopic).orElse(null);
 
         if (maxProducers == null) {
-            Policies policies;
-            try {
-                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(
-                                TopicName.get(topic).getNamespaceObject())
-                        .orElseGet(() -> new Policies());
-            } catch (Exception e) {
-                policies = new Policies();
-            }
+            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                    .getPoliciesIfCached(TopicName.get(topic).getNamespaceObject())
+                    .orElseGet(() -> new Policies());
             maxProducers = policies.max_producers_per_topic;
         }
         maxProducers = maxProducers != null ? maxProducers : brokerService.pulsar()
@@ -209,18 +196,12 @@ public abstract class AbstractTopic implements Topic {
         Integer maxConsumers = getTopicPolicies().map(TopicPolicies::getMaxConsumerPerTopic).orElse(null);
         if (maxConsumers == null) {
             Policies policies;
-            try {
-                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
-                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(
-                                TopicName.get(topic).getNamespaceObject())
-                        .orElseGet(() -> new Policies());
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
+            policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
+                            TopicName.get(topic).getNamespaceObject())
+                    .orElseGet(() -> new Policies());
 
-                if (policies == null) {
-                    policies = new Policies();
-                }
-            } catch (Exception e) {
-                log.warn("[{}] Failed to get namespace policies that include max number of consumers: {}", topic,
-                        e.getMessage());
+            if (policies == null) {
                 policies = new Policies();
             }
             maxConsumers = policies.max_consumers_per_topic;
@@ -630,7 +611,7 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
-    protected void internalAddProducer(Producer producer) throws BrokerServiceException {
+    protected void internalAddProducer(Producer producer) throws BrokerServiceException{
         if (isProducersExceeded()) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
@@ -789,10 +770,10 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public void updateMaxPublishRate(Policies policies) {
-        updatePublishDispatcher(policies);
+        updatePublishDispatcher();
     }
 
-    private void updatePublishDispatcher(Policies policies) {
+    private void updatePublishDispatcher() {
         //if topic-level policy exists, try to use topic-level publish rate policy
         Optional<PublishRate> topicPublishRate = getTopicPolicies().map(TopicPolicies::getPublishRate);
         if (topicPublishRate.isPresent()) {
@@ -802,9 +783,13 @@ public abstract class AbstractTopic implements Topic {
             return;
         }
 
+        Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
+                            TopicName.get(topic).getNamespaceObject())
+                    .orElseGet(() -> new Policies());
+
         //topic-level policy is not set, try to use namespace-level rate policy
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
-        final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
+        final PublishRate publishRate = policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
                 : null;
 

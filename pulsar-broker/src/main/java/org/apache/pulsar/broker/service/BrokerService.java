@@ -2535,18 +2535,12 @@ public class BrokerService implements Closeable {
     }
 
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
-        try {
-            Optional<Policies> policies =
-                    pulsar.getPulsarResources().getNamespaceResources().getPolicies(topicName.getNamespaceObject());
-            // If namespace policies have the field set, it will override the broker-level setting
-            if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
-                return policies.get().autoTopicCreationOverride;
-            }
-        } catch (Throwable t) {
-            // Ignoring since if we don't have policies, we fallback on the default
-            log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};",
-                    topicName, t.getMessage(), t);
-            return null;
+        Optional<Policies> policies =
+                pulsar.getPulsarResources().getNamespaceResources()
+                        .getPoliciesIfCached(topicName.getNamespaceObject());
+        // If namespace policies have the field set, it will override the broker-level setting
+        if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
+            return policies.get().autoTopicCreationOverride;
         }
         log.debug("No autoTopicCreateOverride policy found for {}", topicName);
         return null;
@@ -2568,18 +2562,11 @@ public class BrokerService implements Closeable {
     }
 
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
-        try {
-            Optional<Policies> policies =
-                    pulsar.getPulsarResources().getNamespaceResources().getPolicies(topicName.getNamespaceObject());
-            // If namespace policies have the field set, it will override the broker-level setting
-            if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
-                return policies.get().autoSubscriptionCreationOverride;
-            }
-        } catch (Throwable t) {
-            // Ignoring since if we don't have policies, we fallback on the default
-            log.warn("Got exception when reading autoSubscriptionCreateOverride policy for {}: {};",
-                    topicName, t.getMessage(), t);
-            return null;
+        Optional<Policies> policies =
+                pulsar.getPulsarResources().getNamespaceResources().getPoliciesIfCached(topicName.getNamespaceObject());
+        // If namespace policies have the field set, it will override the broker-level setting
+        if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+            return policies.get().autoSubscriptionCreationOverride;
         }
         log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
