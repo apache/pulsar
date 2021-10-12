@@ -76,7 +76,7 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">The Pulsar Node.js client</h1></header><article><div><span><p>Pulsar Node.js 客户端可用于在 Node.js 中创建 Pulsar <a href="#producers">producer</a>、<a href="#consumers">consumer</a> 和 <a href="#readers">reader</a>。</p>
 <p>Node.js 客户端中 <a href="#producers">producer</a>、<a href="#consumers">consumer</a> 和 <a href="#readers">reader</a> 中的所有方法都对线程可用。</p>
-<p>For 1.3.0 or later versions, <a href="https://github.com/apache/pulsar-client-node/blob/master/index.d.ts">type definitions</a> used in TypeScript are available.</p>
+<p>对于1.3.0或者更高版本，TypeScript中<a href="https://github.com/apache/pulsar-client-node/blob/master/index.d.ts">定义的类型</a>同样可以使用。</p>
 <h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
 <p>You can install the <a href="https://www.npmjs.com/package/pulsar-client"><code>pulsar-client</code></a> library via <a href="https://www.npmjs.com/">npm</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="要求"></a><a href="#要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>要求</h3>
@@ -89,8 +89,8 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">1.0.0</td><td style="text-align:left">2.3.0 及以上</td></tr>
-<tr><td style="text-align:left">1.1.0</td><td style="text-align:left">2.4.0 or later</td></tr>
-<tr><td style="text-align:left">1.2.0</td><td style="text-align:left">2.5.0 or later</td></tr>
+<tr><td style="text-align:left">1.1.0</td><td style="text-align:left">2.4.0及以上</td></tr>
+<tr><td style="text-align:left">1.2.0</td><td style="text-align:left">2.5.0及以上</td></tr>
 </tbody>
 </table>
 <p>If an incompatible version of the C++ client is installed, you may fail to build or run this library.</p>
@@ -110,11 +110,11 @@
 <p>A URL for a production Pulsar cluster may look something like this:</p>
 <pre><code class="hljs css language-http">pulsar://pulsar.us-west.example.com:6650
 </code></pre>
-<p>If you are using <a href="/docs/zh-CN/2.8.0/security-tls-transport">TLS encryption</a> or <a href="/docs/zh-CN/2.8.0/security-tls-authentication">TLS Authentication</a>, the URL looks like this:</p>
+<p>如果使用<a href="/docs/zh-CN/2.8.0/security-tls-transport">TLS加密</a>或<a href="/docs/zh-CN/2.8.0/security-tls-authentication">TLS认证</a>，URL地址如下：</p>
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="创建客户端"></a><a href="#创建客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建客户端</h2>
-<p>In order to interact with Pulsar, you first need a client object. You can create a client instance using a <code>new</code> operator and the <code>Client</code> method, passing in a client options object (more on configuration <a href="#client-configuration">below</a>).</p>
+<p>与Pulsar服务端交互之前，需要建立Pulsar客户端。 You can create a client instance using a <code>new</code> operator and the <code>Client</code> method, passing in a client options object (more on configuration <a href="#client-configuration">below</a>).</p>
 <p>Here is an example:</p>
 <pre><code class="hljs css language-JavaScript"><span class="hljs-keyword">const</span> Pulsar = <span class="hljs-built_in">require</span>(<span class="hljs-string">'pulsar-client'</span>);
 
@@ -135,7 +135,7 @@
 <tbody>
 <tr><td style="text-align:left"><code>serviceUrl</code></td><td style="text-align:left">The connection URL for the Pulsar cluster. 更多详细信息，参阅<a href="#connection-urls">这里</a>。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>authentication</code></td><td style="text-align:left">Configure the authentication provider. (default: no authentication). 更多详细信息，参阅 <a href="/docs/zh-CN/2.8.0/security-tls-authentication">TLS 认证</a>。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>operationTimeoutSeconds</code></td><td style="text-align:left">Node.js 客户端操作的超时时间（创建 producer、订阅/取消订阅 <a href="/docs/zh-CN/2.8.0/reference-terminology#topic"> topic</a>）。 Retries occur until this threshold is reached, at which point the operation fails.</td><td style="text-align:left">30</td></tr>
+<tr><td style="text-align:left"><code>operationTimeoutSeconds</code></td><td style="text-align:left">Node.js 客户端操作的超时时间（创建 producer、订阅/取消订阅 <a href="/docs/zh-CN/2.8.0/reference-terminology#topic"> topic</a>）。 未超时时会重试，超时后执行失败</td><td style="text-align:left">30</td></tr>
 <tr><td style="text-align:left"><code>ioThreads</code></td><td style="text-align:left">用于处理 Pulsar <a href="/docs/zh-CN/2.8.0/reference-terminology#broker">broker</a> 连接的线程数。</td><td style="text-align:left">1</td></tr>
 <tr><td style="text-align:left"><code>messageListenerThreads</code></td><td style="text-align:left"><a href="#consumers">consumer</a> 和 <a href="#readers">readers</a> 监听消息使用的线程数。</td><td style="text-align:left">1</td></tr>
 <tr><td style="text-align:left"><code>concurrentLookupRequest</code></td><td style="text-align:left">The number of concurrent lookup requests that can be sent on each broker connection. Setting a maximum helps to keep from overloading brokers. 只有当客户端需要生产及/或订阅数千 Pulsar topic 时，才需要修改预设的默认值：50000 。</td><td style="text-align:left">50000</td></tr>
@@ -143,7 +143,7 @@
 <tr><td style="text-align:left"><code>tlsValidateHostname</code></td><td style="text-align:left">设置是否启用 TLS 主机名验证。</td><td style="text-align:left"><code>false</code></td></tr>
 <tr><td style="text-align:left"><code>tlsAllowInsecureConnection</code></td><td style="text-align:left">设置是否让 Pulsar 客户端从 broker 接受不信任的 TLS 证书。</td><td style="text-align:left"><code>false</code></td></tr>
 <tr><td style="text-align:left"><code>statsIntervalInSeconds</code></td><td style="text-align:left">两次信息统计之间的时间间隔。 当 statsInterval 为正数时启用信息统计。 最小值为 1 秒。</td><td style="text-align:left">600</td></tr>
-<tr><td style="text-align:left"><code>log</code></td><td style="text-align:left">A function that is used for logging.</td><td style="text-align:left"><code>console.log</code></td></tr>
+<tr><td style="text-align:left"><code>log</code></td><td style="text-align:left">记录日志</td><td style="text-align:left"><code>console.log</code></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
@@ -475,7 +475,7 @@ In this example, using await operator instead of executor function.</p>
 <h2><a class="anchor" aria-hidden="true" id="端到端加密"></a><a href="#端到端加密" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>端到端加密</h2>
 <p><a href="https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav">End-to-end encryption</a> allows applications to encrypt messages at producers and decrypt at consumers.</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
-<p>If you want to use the end-to-end encryption feature in the Node.js client, you need to configure <code>publicKeyPath</code> and <code>privateKeyPath</code> for both producer and consumer.</p>
+<p>如果想在Node.js客户端配置端到端加密功能，那么需要在producer端和consumer端都配置<code>publicKeyPath</code>和<code>privateKeyPath</code>。</p>
 <pre><code class="hljs"><span class="hljs-symbol">publicKeyPath:</span> <span class="hljs-string">"./public.pem"</span>
 <span class="hljs-symbol">privateKeyPath:</span> <span class="hljs-string">"./private.pem"</span>
 </code></pre>
@@ -483,7 +483,7 @@ In this example, using await operator instead of executor function.</p>
 <p>This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Node.js client.</p>
 <p><strong>前提条件</strong></p>
 <ul>
-<li>Pulsar C++ client 2.7.1 or later</li>
+<li>Pulsar C++ 客户端版本为2.7.1或者更高</li>
 </ul>
 <p><strong>步骤</strong></p>
 <ol>
