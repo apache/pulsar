@@ -189,6 +189,9 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
+    char errorBuffer[CURL_ERROR_SIZE];
+    curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer);
+
     // Make get call to server
     res = curl_easy_perform(handle);
 
@@ -218,8 +221,8 @@ void ClientCredentialFlow::initialize() {
             }
             break;
         default:
-            LOG_ERROR("Response failed for getting the well-known configuration " << issuerUrl_
-                                                                                  << ". Error Code " << res);
+            LOG_ERROR("Response failed for getting the well-known configuration "
+                      << issuerUrl_ << ". Error Code " << res << ": " << errorBuffer);
             break;
     }
     // Free header list
@@ -254,7 +257,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     if (jsonBody.empty() || tokenEndPoint_.empty()) {
         return resultPtr;
     }
-    LOG_DEBUG("Generate JSON body for ClientCredentialFlow: " << jsonBody);
+    LOG_INFO("Generate JSON body for ClientCredentialFlow: " << jsonBody);
 
     CURL* handle = curl_easy_init();
     CURLcode res;
@@ -282,6 +285,9 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     curl_easy_setopt(handle, CURLOPT_POSTFIELDS, jsonBody.c_str());
+
+    char errorBuffer[CURL_ERROR_SIZE];
+    curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer);
 
     // Make get call to server
     res = curl_easy_perform(handle);
@@ -321,8 +327,8 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
             }
             break;
         default:
-            LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". Error Code " << res
-                                                       << " passedin: " << jsonBody);
+            LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". ErrorCode " << res << ": "
+                                                       << errorBuffer << " passedin: " << jsonBody);
             break;
     }
     // Free header list
