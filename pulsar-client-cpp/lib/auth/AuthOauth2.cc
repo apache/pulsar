@@ -370,7 +370,12 @@ const std::string AuthOauth2::getAuthMethodName() const { return "token"; }
 
 Result AuthOauth2::getAuthData(AuthenticationDataPtr& authDataContent) {
     if (cachedTokenPtr_ == nullptr || cachedTokenPtr_->isExpired()) {
-        cachedTokenPtr_ = CachedTokenPtr(new Oauth2CachedToken(flowPtr_->authenticate()));
+        try {
+            cachedTokenPtr_ = CachedTokenPtr(new Oauth2CachedToken(flowPtr_->authenticate()));
+        } catch (const std::runtime_error& e) {
+            // The real error logs have already been printed in authenticate()
+            return ResultAuthenticationError;
+        }
     }
 
     authDataContent = cachedTokenPtr_->getAuthData();
