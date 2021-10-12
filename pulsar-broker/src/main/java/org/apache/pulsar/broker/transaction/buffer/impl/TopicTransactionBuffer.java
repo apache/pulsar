@@ -181,9 +181,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 if (changeToInitializingStateFromUnused()){
                     buffer.retain();
                     takeSnapshot().thenAccept(ignore -> {
+                        changeToReadyState();
                         addTxnEntry(completableFuture, txnId, buffer);
                         buffer.release();
-                        changeToReadyState();
                     }).exceptionally(exception -> {
                         changeToUnUsedState();
                         buffer.release();
