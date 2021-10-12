@@ -199,7 +199,6 @@
     <plugin>
       <groupId>org.gaul</groupId>
       <artifactId>modernizer-maven-plugin</artifactId>
-      <version>2.3.0</version>
       <configuration>
         <failOnViolations>true</failOnViolations>
         <javaVersion>8</javaVersion>
