@@ -23,6 +23,8 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertSame;
+
+import java.net.ServerSocket;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -57,10 +59,10 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         super.doInitConf();
         if (useListenerName) {
             conf.setAdvertisedAddress(null);
-            conf.setBrokerServicePortTls(Optional.of(6651));
-            conf.setBrokerServicePort(Optional.of(6660));
-            conf.setWebServicePort(Optional.of(8081));
-            conf.setWebServicePortTls(Optional.of(8082));
+            conf.setBrokerServicePortTls(Optional.of(PortUtil.nextFreePort()));
+            conf.setBrokerServicePort(Optional.of(PortUtil.nextFreePort()));
+            conf.setWebServicePort(Optional.of(PortUtil.nextFreePort()));
+            conf.setWebServicePortTls(Optional.of(PortUtil.nextFreePort()));
         }
     }
 
@@ -124,4 +126,30 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(pulsar.webAddressTls(conf), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
+}
+
+class PortUtil {
+    private static int nextPort = getBasePort();
+
+    public static synchronized int nextFreePort() {
+        int exceptionCount = 0;
+        while (true) {
+            int port = nextPort++;
+            try (ServerSocket ss = new ServerSocket(port)) {
+                ss.close();
+                //Give it some time to truly close the connection
+                Thread.sleep(100);
+                return port;
+            } catch (Exception e) {
+                exceptionCount++;
+                if (exceptionCount > 5) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+
+    private static int getBasePort() {
+        return Integer.valueOf(System.getProperty("test.basePort", "15000"));
+    }
 }
