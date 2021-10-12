@@ -341,7 +341,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                     .removeAll(roles);
                         } else {
                             log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace,
-                                    subscriptionName, roles);
+                                    roles, subscriptionName);
                             throw new IllegalArgumentException("couldn't find subscription");
                         }
                     } else {
