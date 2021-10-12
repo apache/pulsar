@@ -54,10 +54,6 @@ public abstract class TopicTransactionBufferState {
         return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.Unused));
     }
 
-    protected boolean changeBackToUnUsedState() {
-        return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.Unused));
-    }
-
     protected boolean changeToInitializingState() {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
     }

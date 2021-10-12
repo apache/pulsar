@@ -186,7 +186,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         buffer.release();
                         changeToReadyState();
                     }).exceptionally(exception -> {
-                        changeBackToUnUsedState();
+                        changeToUnUsedState();
                         buffer.release();
                         log.error("Fail to takeSnapshot before adding the first message with transaction", exception);
                         completableFuture.completeExceptionally(exception);
@@ -194,12 +194,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     });
                 } else {
                     completableFuture.completeExceptionally(new TransactionBufferInitialUseException("Fail to change "
-                            + "TransactionBufferState from Unused to Ready When the first message with transaction "
-                            + "was sent"));
+                            + "TransactionBufferState from Unused to Initializing "
+                            + "When the first message with transaction was sent"));
                 }
             } else {
                 completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
-                        State.Unused, getState()));
+                        State.Ready, getState()));
             }
         }
         return completableFuture;
