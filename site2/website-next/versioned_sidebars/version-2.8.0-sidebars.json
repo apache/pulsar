@@ -510,6 +510,24 @@
     },
     {
       "type": "category",
+      "label": "Adaptors",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/adaptors-kafka"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/adaptors-spark"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/adaptors-storm"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Reference",
       "items": [
         {
