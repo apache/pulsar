@@ -55,15 +55,15 @@ public abstract class TopicTransactionBufferState {
     }
 
     protected boolean changeBackToUnUsedState() {
-        return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Unused));
-    }
-
-    protected boolean changeToReadyStateAfterUsed(){
-        return (STATE_UPDATER.compareAndSet(this, State.Unused, State.Ready));
+        return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.Unused));
     }
 
     protected boolean changeToInitializingState() {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
+    }
+
+    protected boolean changeToInitializingStateFromUnused() {
+        return STATE_UPDATER.compareAndSet(this, State.Unused, State.Initializing);
     }
 
     protected boolean changeToCloseState() {
