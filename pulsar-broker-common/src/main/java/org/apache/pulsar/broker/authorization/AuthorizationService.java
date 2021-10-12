@@ -676,4 +676,8 @@ public class AuthorizationService {
             throw new RestException(e.getCause());
         }
     }
+
+    public AuthorizationProvider getProvider() {
+        return provider;
+    }
 }
