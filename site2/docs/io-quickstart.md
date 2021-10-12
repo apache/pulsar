@@ -480,7 +480,7 @@ In this section, you need to configure a JDBC sink connector.
     configs:
       userName: "postgres"
       password: "password"
-      jdbcUrl: "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"
+      jdbcUrl: "jdbc:postgresql://localhost:5432/postgres"
       tableName: "pulsar_postgres_jdbc_sink"
     ```
 

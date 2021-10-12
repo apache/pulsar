@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.debezium;
 
+import io.debezium.relational.history.DatabaseHistory;
 import java.util.Map;
 
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
@@ -95,6 +96,9 @@ public abstract class DebeziumSource extends KafkaConnectSource {
         // offset.storage.topic: offset topic name
         setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
             topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
+
+        config.put(DatabaseHistory.CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.client.builder",
+                SerDeUtils.serialize(sourceContext.getPulsarClientBuilder()));
 
         super.open(config, sourceContext);
     }

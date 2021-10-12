@@ -166,12 +166,11 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
         4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize;  // cmdLength + cmdSize + magicLength +
     // checksumSize + msgMetadataLength + msgMetadataSize
     int totalSize = headerContentSize + payloadSize;
-    int headersSize = 4 + headerContentSize;  // totalSize + headerLength
     int checksumReaderIndex = -1;
 
     headers.reset();
-    assert(headers.writableBytes() >= headersSize);
-    headers.writeUnsignedInt(totalSize);  // External frame
+    assert(headers.writableBytes() >= (4 + headerContentSize));  // totalSize + headerLength
+    headers.writeUnsignedInt(totalSize);                         // External frame
 
     // Write cmd
     headers.writeUnsignedInt(cmdSize);
@@ -259,7 +258,8 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo,
                                     CommandSubscribe_InitialPosition subscriptionInitialPosition,
-                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy) {
+                                    bool replicateSubscriptionState, KeySharedPolicy keySharedPolicy,
+                                    int priorityLevel) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -273,6 +273,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_read_compacted(readCompacted);
     subscribe->set_initialposition(subscriptionInitialPosition);
     subscribe->set_replicate_subscription_state(replicateSubscriptionState);
+    subscribe->set_priority_level(priorityLevel);
 
     if (isBuiltInSchema(schemaInfo.getSchemaType())) {
         subscribe->set_allocated_schema(getSchema(schemaInfo));
@@ -643,7 +644,13 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
             return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
+        case BaseCommand::TC_CLIENT_CONNECT_REQUEST:
+            return "TC_CLIENT_CONNECT_REQUEST";
+        case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
+            return "TC_CLIENT_CONNECT_RESPONSE";
+            break;
     };
+    BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));
 }
 
 void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {

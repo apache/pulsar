@@ -105,7 +105,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private final Set<String> bundleLossesCache;
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
-    // Used to distribute bundles within a namespace evely across brokers.
+    // Used to distribute bundles within a namespace evenly across brokers.
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String,
             ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
 
@@ -1122,7 +1122,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         return String.format("%s:%s", pulsar.getAdvertisedAddress(),
                 pulsar.getConfiguration().getWebServicePort().isPresent()
                         ? pulsar.getConfiguration().getWebServicePort().get()
-                        : pulsar.getConfiguration().getWebServicePortTls());
+                        : pulsar.getConfiguration().getWebServicePortTls().get());
     }
 
     @Override

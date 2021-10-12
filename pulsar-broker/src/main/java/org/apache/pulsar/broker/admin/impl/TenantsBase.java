@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.collect.Lists;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -71,7 +70,7 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(e);
             return;
         }
-        tenantResources().getChildrenAsync(path(POLICIES)).whenComplete((tenants, e) -> {
+        tenantResources().listTenantsAsync().whenComplete((tenants, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to get tenants list", clientAppId, e);
                 asyncResponse.resume(new RestException(e));
@@ -98,7 +97,7 @@ public class TenantsBase extends PulsarWebResource {
             asyncResponse.resume(e);
         }
 
-        tenantResources().getAsync(path(POLICIES, tenant)).whenComplete((tenantInfo, e) -> {
+        tenantResources().getTenantAsync(tenant).whenComplete((tenantInfo, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to get Tenant {}", clientAppId, e.getMessage());
                 asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get Tenant"));
@@ -137,7 +136,7 @@ public class TenantsBase extends PulsarWebResource {
             return;
         }
 
-        tenantResources().getChildrenAsync(path(POLICIES)).whenComplete((tenants, e) -> {
+        tenantResources().listTenantsAsync().whenComplete((tenants, e) -> {
             if (e != null) {
                 log.error("[{}] Failed to create tenant ", clientAppId, e.getCause());
                 asyncResponse.resume(new RestException(e));
@@ -154,12 +153,12 @@ public class TenantsBase extends PulsarWebResource {
                     return;
                 }
             }
-            tenantResources().existsAsync(path(POLICIES, tenant)).thenAccept(exist ->{
+            tenantResources().tenantExistsAsync(tenant).thenAccept(exist ->{
                 if (exist) {
                     asyncResponse.resume(new RestException(Status.CONFLICT, "Tenant already exist"));
                     return;
                 }
-                tenantResources().createAsync(path(POLICIES, tenant), tenantInfo).thenAccept((r) -> {
+                tenantResources().createTenantAsync(tenant, tenantInfo).thenAccept((r) -> {
                     log.info("[{}] Created tenant {}", clientAppId(), tenant);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
@@ -197,7 +196,7 @@ public class TenantsBase extends PulsarWebResource {
         }
 
         final String clientAddId = clientAppId();
-        tenantResources().getAsync(path(POLICIES, tenant)).thenAccept(tenantAdmin -> {
+        tenantResources().getTenantAsync(tenant).thenAccept(tenantAdmin -> {
             if (!tenantAdmin.isPresent()) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found"));
                 return;
@@ -205,9 +204,7 @@ public class TenantsBase extends PulsarWebResource {
             TenantInfo oldTenantAdmin = tenantAdmin.get();
             Set<String> newClusters = new HashSet<>(newTenantAdmin.getAllowedClusters());
             canUpdateCluster(tenant, oldTenantAdmin.getAllowedClusters(), newClusters).thenApply(r -> {
-                tenantResources().setAsync(path(POLICIES, tenant), old -> {
-                    return newTenantAdmin;
-                }).thenAccept(done -> {
+                tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin).thenAccept(done -> {
                     log.info("Successfully updated tenant info {}", tenant);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
@@ -256,29 +253,19 @@ public class TenantsBase extends PulsarWebResource {
     }
 
     protected void internalDeleteTenant(AsyncResponse asyncResponse, String tenant) {
-        tenantResources().existsAsync(path(POLICIES, tenant)).thenApply(exists -> {
+        tenantResources().tenantExistsAsync(tenant).thenApply(exists -> {
             if (!exists) {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Tenant doesn't exist"));
                 return null;
             }
             return hasActiveNamespace(tenant).thenAccept(ns -> {
                 try {
-                    // already fetched children and they should be in the cache
-                    List<CompletableFuture<Void>> clusterList = Lists.newArrayList();
-                    for (String cluster : tenantResources().getChildrenAsync(path(POLICIES, tenant)).get()) {
-                        clusterList.add(tenantResources().deleteAsync(path(POLICIES, tenant, cluster)));
-                    }
-                    FutureUtil.waitForAll(clusterList).thenAccept(c -> {
-                        tenantResources().deleteAsync(path(POLICIES, tenant)).thenAccept(t -> {
-                            log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
-                            asyncResponse.resume(Response.noContent().build());
-                        }).exceptionally(ex -> {
-                            log.error("Failed to delete tenant {}", tenant, ex.getCause());
-                            asyncResponse.resume(new RestException(ex));
-                            return null;
-                        });
-                    }).exceptionally(ex -> {
-                        log.error("Failed to delete clusters under tenant {}", tenant, ex.getCause());
+                    tenantResources().deleteTenantAsync(tenant)
+                            .thenAccept(t -> {
+                                log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
+                                asyncResponse.resume(Response.noContent().build());
+                            }).exceptionally(ex -> {
+                        log.error("Failed to delete tenant {}", tenant, ex.getCause());
                         asyncResponse.resume(new RestException(ex));
                         return null;
                     });
@@ -304,7 +291,7 @@ public class TenantsBase extends PulsarWebResource {
 
         List<String> namespaces;
         try {
-            namespaces = getListOfNamespaces(tenant);
+            namespaces = tenantResources().getListOfNamespaces(tenant);
         } catch (Exception e) {
             log.error("[{}] Failed to get namespaces list of {}", clientAppId(), tenant, e);
             asyncResponse.resume(new RestException(e));
@@ -334,7 +321,7 @@ public class TenantsBase extends PulsarWebResource {
 
 
             try {
-                pulsar().getPulsarResources().getTopicResources().clearTennantPersistence(tenant).get();
+                pulsar().getPulsarResources().getTopicResources().clearTenantPersistence(tenant).get();
             } catch (ExecutionException | InterruptedException e) {
                 // warn level log here since this failure has no side effect besides left a un-used metadata
                 // and also will not affect the re-creation of tenant

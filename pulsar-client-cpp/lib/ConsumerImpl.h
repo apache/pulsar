@@ -79,6 +79,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void messageReceived(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                          bool& isChecksumValid, proto::MessageMetadata& msgMetadata, SharedBuffer& payload);
     void messageProcessed(Message& msg, bool track = true);
+    void activeConsumerChanged(bool isActive);
     inline proto::CommandSubscribe_SubType getSubType();
     inline proto::CommandSubscribe_InitialPosition getInitialPosition();
     void handleUnsubscribe(Result result, ResultCallback callback);
@@ -148,6 +149,9 @@ class ConsumerImpl : public ConsumerImplBase,
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
 
     void internalListener();
+
+    void internalConsumerChangeListener(bool isActive);
+
     void handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer);
     ConsumerStatsBasePtr consumerStatsBasePtr_;
 
@@ -182,6 +186,7 @@ class ConsumerImpl : public ConsumerImplBase,
     const std::string subscription_;
     std::string originalSubscriptionName_;
     MessageListener messageListener_;
+    ConsumerEventListenerPtr eventListener_;
     ExecutorServicePtr listenerExecutor_;
     bool hasParent_;
     ConsumerTopicType consumerTopicType_;
@@ -197,7 +202,7 @@ class ConsumerImpl : public ConsumerImplBase,
     uint64_t consumerId_;
     std::string consumerName_;
     std::string consumerStr_;
-    int32_t partitionIndex_;
+    int32_t partitionIndex_ = -1;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
     std::atomic_bool messageListenerRunning_;
     CompressionCodecProvider compressionCodecProvider_;

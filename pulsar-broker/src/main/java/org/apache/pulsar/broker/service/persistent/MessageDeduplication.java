@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.util.HashMap;
@@ -39,8 +38,6 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
@@ -432,8 +429,8 @@ public class MessageDeduplication {
             return CompletableFuture.completedFuture(isDeduplicationEnabled.get());
         }
         TopicName name = TopicName.get(topic.getName());
-        return pulsar.getConfigurationCache().policiesCache()
-                .getAsync(AdminResource.path(POLICIES, name.getNamespace())).thenApply(policies -> {
+        return pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(name.getNamespaceObject()).thenApply(policies -> {
                     // If namespace policies have the field set, it will override the broker-level setting
                     if (policies.isPresent() && policies.get().deduplicationEnabled != null) {
                         return policies.get().deduplicationEnabled;
@@ -495,8 +492,8 @@ public class MessageDeduplication {
         try {
             //if topic-level policies not exists, try to get namespace-level policies
             if (interval == null) {
-                final Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                        .get(ZkAdminPaths.namespacePoliciesPath(TopicName.get(topic.getName()).getNamespaceObject()));
+                final Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources()
+                        .getPolicies(TopicName.get(topic.getName()).getNamespaceObject());
                 if (policies.isPresent()) {
                     interval = policies.get().deduplicationSnapshotIntervalSeconds;
                 }

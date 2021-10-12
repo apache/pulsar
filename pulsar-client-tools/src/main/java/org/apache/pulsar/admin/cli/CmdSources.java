@@ -181,13 +181,27 @@ public class CmdSources extends CmdBase {
         protected String metricsPortStart;
 
         private void mergeArgs() {
-            if (!isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
-            if (!isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
-            if (!isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
-            if (DEPRECATED_useTls != null) useTls = DEPRECATED_useTls;
-            if (DEPRECATED_tlsAllowInsecureConnection != null) tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
-            if (DEPRECATED_tlsHostNameVerificationEnabled != null) tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
-            if (!isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            if (isBlank(brokerServiceUrl) && !isBlank(DEPRECATED_brokerServiceUrl)) {
+                brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            }
+            if (isBlank(clientAuthPlugin) && !isBlank(DEPRECATED_clientAuthPlugin)) {
+                clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            }
+            if (isBlank(clientAuthParams) && !isBlank(DEPRECATED_clientAuthParams)) {
+                clientAuthParams = DEPRECATED_clientAuthParams;
+            }
+            if (useTls == false && DEPRECATED_useTls != null) {
+                useTls = DEPRECATED_useTls;
+            }
+            if (tlsAllowInsecureConnection == false && DEPRECATED_tlsAllowInsecureConnection != null) {
+                tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
+            }
+            if (tlsHostNameVerificationEnabled == false && DEPRECATED_tlsHostNameVerificationEnabled != null) {
+                tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
+            }
+            if (isBlank(tlsTrustCertFilePath) && !isBlank(DEPRECATED_tlsTrustCertFilePath)) {
+                tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            }
         }
 
         @Override
@@ -329,12 +343,24 @@ public class CmdSources extends CmdBase {
         protected SourceConfig sourceConfig;
 
         private void mergeArgs() {
-            if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
-            if (!isBlank(DEPRECATED_destinationTopicName)) destinationTopicName = DEPRECATED_destinationTopicName;
-            if (!isBlank(DEPRECATED_deserializationClassName)) deserializationClassName = DEPRECATED_deserializationClassName;
-            if (!isBlank(DEPRECATED_className)) className = DEPRECATED_className;
-            if (!isBlank(DEPRECATED_sourceConfigFile)) sourceConfigFile = DEPRECATED_sourceConfigFile;
-            if (!isBlank(DEPRECATED_sourceConfigString)) sourceConfigString = DEPRECATED_sourceConfigString;
+            if (processingGuarantees == null && DEPRECATED_processingGuarantees != null) {
+                processingGuarantees = DEPRECATED_processingGuarantees;
+            }
+            if (isBlank(destinationTopicName) && !isBlank(DEPRECATED_destinationTopicName)) {
+                destinationTopicName = DEPRECATED_destinationTopicName;
+            }
+            if (isBlank(deserializationClassName) && !isBlank(DEPRECATED_deserializationClassName)) {
+                deserializationClassName = DEPRECATED_deserializationClassName;
+            }
+            if (isBlank(className) && !isBlank(DEPRECATED_className)) {
+                className = DEPRECATED_className;
+            }
+            if (isBlank(sourceConfigFile) && !isBlank(DEPRECATED_sourceConfigFile)) {
+                sourceConfigFile = DEPRECATED_sourceConfigFile;
+            }
+            if (isBlank(sourceConfigString) && !isBlank(DEPRECATED_sourceConfigString)) {
+                sourceConfigString = DEPRECATED_sourceConfigString;
+            }
         }
 
         @Override

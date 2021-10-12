@@ -26,8 +26,7 @@ Deploying a Pulsar cluster consists of the following steps:
 
 Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
 
->**Tips**
->
+>**Tips**  
 > You can reuse existing Zookeeper clusters.
 
 To run Pulsar on bare metal, the following configuration is recommended:
@@ -37,8 +36,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
   * 3 for running a Pulsar broker, and a [BookKeeper](https://bookkeeper.apache.org) bookie
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
-> **Note**
-> 
+> **Note**  
 > * Broker is only supported on 64-bit JVM.
 > * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.
 > * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
@@ -64,6 +62,31 @@ For machines running a bookie and a Pulsar broker, more powerful machines are re
 
 * Fast CPUs and 10Gbps [NIC](https://en.wikipedia.org/wiki/Network_interface_controller) (for Pulsar brokers)
 * Small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache (for BookKeeper bookies)
+
+To start a Pulsar instance, below are the minimum and the recommended hardware settings.
+
+1. The minimum hardware settings (250 Pulsar topics)
+  - Broker
+    - CPU: 0.2
+    - Memory: 256MB
+  - Bookie
+    - CPU: 0.2
+    - Memory: 256MB
+    - Storage: 
+      - Journal: 8GB, PD-SSD
+      - Ledger: 16GB, PD-STANDARD
+
+2. The recommended hardware settings (1000 Pulsar topics)
+
+  - Broker
+    - CPU: 8
+    - Memory: 8GB
+  - Bookie
+    - CPU: 4
+    - Memory: 8GB
+    - Storage: 
+      - Journal: 256GB, PD-SSD
+      - Ledger: 2TB, PD-STANDARD
 
 ## Install the Pulsar binary package
 
@@ -168,7 +191,7 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 ## Deploy a ZooKeeper cluster
 
-> If you already have an exsiting zookeeper cluster and want to use it, you can skip this section.
+> If you already have an existing zookeeper cluster and want to use it, you can skip this section.
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.
 
@@ -372,7 +395,7 @@ You can start a broker in the background using the [`pulsar-daemon`](reference-c
 $ bin/pulsar-daemon start broker
 ```
 
-Once you succesfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!
+Once you successfully start up all the brokers that you intend to use, your Pulsar cluster should be ready to go!
 
 ## Connect to the running cluster
 

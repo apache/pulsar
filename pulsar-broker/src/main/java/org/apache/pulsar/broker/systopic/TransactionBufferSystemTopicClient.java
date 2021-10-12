@@ -105,6 +105,22 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
         }
 
         @Override
+        public MessageId delete(TransactionBufferSnapshot transactionBufferSnapshot) throws PulsarClientException {
+            return producer.newMessage()
+                    .key(transactionBufferSnapshot.getTopicName())
+                    .value(null)
+                    .send();
+        }
+
+        @Override
+        public CompletableFuture<MessageId> deleteAsync(TransactionBufferSnapshot transactionBufferSnapshot) {
+            return producer.newMessage()
+                    .key(transactionBufferSnapshot.getTopicName())
+                    .value(null)
+                    .sendAsync();
+        }
+
+        @Override
         public void close() throws IOException {
             this.producer.close();
             transactionBufferSystemTopicClient.removeWriter(this);

@@ -82,14 +82,18 @@ public class CmdFunctionsTest {
     private static final String JAR_NAME = CmdFunctionsTest.class.getClassLoader().getResource("dummyexamples.jar").getFile();
     private static final String GO_EXEC_FILE_NAME = "test-go-function-with-url";
     private static final String PYTHON_FILE_NAME = "test-go-function-with-url";
-    private static final String URL ="file:" + JAR_NAME;
-    private static final String URL_WITH_GO ="file:" + GO_EXEC_FILE_NAME;
-    private static final String URL_WITH_PY ="file:" + PYTHON_FILE_NAME;
+    private static final String URL = "file:" + JAR_NAME;
+    private static final String URL_WITH_GO = "file:" + GO_EXEC_FILE_NAME;
+    private static final String URL_WITH_PY = "file:" + PYTHON_FILE_NAME;
     private static final String FN_NAME = TEST_NAME + "-function";
     private static final String INPUT_TOPIC_NAME = TEST_NAME + "-input-topic";
     private static final String OUTPUT_TOPIC_NAME = TEST_NAME + "-output-topic";
     private static final String TENANT = TEST_NAME + "-tenant";
     private static final String NAMESPACE = TEST_NAME + "-namespace";
+    private static final String PACKAGE_URL = "function://sample/ns1/jardummyexamples@1";
+    private static final String PACKAGE_GO_URL = "function://sample/ns1/godummyexamples@1";
+    private static final String PACKAGE_PY_URL = "function://sample/ns1/pydummyexamples@1";
+    private static final String PACKAGE_INVALID_URL = "functionsample.jar";
 
     private PulsarAdmin admin;
     private Functions functions;
@@ -359,6 +363,89 @@ public class CmdFunctionsTest {
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", PACKAGE_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(FN_NAME, creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateGoFunctionWithPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-go-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--go", PACKAGE_GO_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-go-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreatePyFunctionWithPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", "test-py-function",
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--py", PACKAGE_PY_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", "process_python_function",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals("test-py-function", creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithInvalidPackageUrl() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", PACKAGE_INVALID_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+
+        assertEquals(FN_NAME, creater.getFunctionName());
+        assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
+        assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        verify(functions, times(0)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
     @Test

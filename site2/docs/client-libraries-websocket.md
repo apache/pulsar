@@ -69,7 +69,7 @@ All exchanges via the WebSocket API use JSON.
 
 ### Authentication
 
-#### Broswer javascript WebSocket client
+#### Browser javascript WebSocket client
 
 Use the query param `token` transport the authentication token.
 
@@ -403,9 +403,15 @@ TOPIC = scheme + '://localhost:8080/ws/v2/producer/persistent/public/default/my-
 
 ws = websocket.create_connection(TOPIC)
 
+# encode message
+s = "Hello World"
+firstEncoded = s.encode("UTF-8")
+binaryEncoded = base64.b64encode(firstEncoded)
+payloadString = binaryEncoded.decode('UTF-8')
+
 # Send one message as JSON
 ws.send(json.dumps({
-    'payload' : base64.b64encode('Hello World'),
+    'payload' : payloadString,
     'properties': {
         'key1' : 'value1',
         'key2' : 'value2'
@@ -415,9 +421,9 @@ ws.send(json.dumps({
 
 response =  json.loads(ws.recv())
 if response['result'] == 'ok':
-    print 'Message published successfully'
+    print( 'Message published successfully')
 else:
-    print 'Failed to publish message:', response
+    print('Failed to publish message:', response)
 ws.close()
 ```
 
@@ -442,7 +448,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
+    print( "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
@@ -470,7 +476,7 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
+    print ( "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))

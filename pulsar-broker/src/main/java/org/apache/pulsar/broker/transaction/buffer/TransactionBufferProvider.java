@@ -40,7 +40,7 @@ public interface TransactionBufferProvider {
         Class<?> providerClass;
         try {
             providerClass = Class.forName(providerClassName);
-            Object obj = providerClass.newInstance();
+            Object obj = providerClass.getDeclaredConstructor().newInstance();
             checkArgument(obj instanceof TransactionBufferProvider,
                 "The factory has to be an instance of "
                     + TransactionBufferProvider.class.getName());

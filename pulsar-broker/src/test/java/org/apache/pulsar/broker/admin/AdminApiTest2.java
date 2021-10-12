@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,6 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.core.Response.Status;
 import lombok.Cleanup;
@@ -147,6 +149,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         return new Object[][] { { "ns1" }, { "global" } };
     }
 
+    @DataProvider(name = "isV1")
+    public Object[][] isV1() {
+        return new Object[][] { { true }, { false } };
+    }
+
     /**
      * <pre>
      * It verifies increasing partitions for partitioned-topic.
@@ -215,8 +222,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer2.close();
         consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        // sometime: mockZk fails to refresh ml-cache: so, invalidate the cache to get fresh data
-        pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         assertEquals(Sets.newHashSet(admin.topics().getSubscriptions(newPartitionTopicName)),
                 Sets.newHashSet(subName1, subName2));
 
@@ -1473,6 +1478,60 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testDistinguishTopicTypeWhenForceDeleteNamespace() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
+        final String ns = "prop-xyz/distinguish-topic-type-ns";
+        final String exNs = "prop-xyz/ex-distinguish-topic-type-ns";
+        admin.namespaces().createNamespace(ns, 2);
+        admin.namespaces().createNamespace(exNs, 2);
+
+        final String p1 = "persistent://" + ns + "/p1";
+        final String p5 = "persistent://" + ns + "/p5";
+        final String np = "persistent://" + ns + "/np";
+
+        admin.topics().createPartitionedTopic(p1, 1);
+        admin.topics().createPartitionedTopic(p5, 5);
+        admin.topics().createNonPartitionedTopic(np);
+
+        final String exNp = "persistent://" + exNs + "/np";
+        admin.topics().createNonPartitionedTopic(exNp);
+        // insert an invalid topic name
+        pulsar.getLocalMetadataStore().put(
+                "/managed-ledgers/" + exNs + "/persistent/", "".getBytes(), Optional.empty()).join();
+
+        List<String> topics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(ns)).get();
+        List<String> exTopics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(exNs)).get();
+
+        // ensure that the topic list contains all the topics
+        List<String> allTopics = new ArrayList<>(Arrays.asList(np, TopicName.get(p1).getPartition(0).toString()));
+        for (int i = 0; i < 5; i++) {
+            allTopics.add(TopicName.get(p5).getPartition(i).toString());
+        }
+        Assert.assertEquals(allTopics.stream().filter(t -> !topics.contains(t)).count(), 0);
+        Assert.assertTrue(exTopics.contains("persistent://" + exNs + "/"));
+        // partition num = p1 + p5 + np
+        Assert.assertEquals(topics.size(), 1 + 5 + 1);
+        Assert.assertEquals(exTopics.size(), 1 + 1);
+
+        admin.namespaces().deleteNamespace(ns, true);
+        Arrays.asList(p1, p5, np).forEach(t -> {
+            try {
+                admin.schemas().getSchemaInfo(t);
+            } catch (PulsarAdminException e) {
+                // all the normal topics' schemas have been deleted
+                Assert.assertEquals(e.getStatusCode(), 404);
+            }
+        });
+
+        try {
+            admin.namespaces().deleteNamespace(exNs, true);
+            fail("Should fail due to invalid topic");
+        } catch (Exception e) {
+            //ok
+        }
+    }
+
+    @Test
     public void testUpdateClusterWithProxyUrl() throws Exception {
         ClusterData cluster = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         String clusterName = "test2";
@@ -2085,15 +2144,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void testGetTopicsWithDifferentMode() throws Exception {
         final String namespace = "prop-xyz/ns1";
 
-        final String persistentTopicName = TopicName.get(
-                "persistent",
-                NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+        final String persistentTopicName = TopicName
+                .get("persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
 
-        final String nonPersistentTopicName = TopicName.get(
-                "non-persistent",
-                NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+        final String nonPersistentTopicName = TopicName
+                .get("non-persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistentTopicName).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(nonPersistentTopicName).create();
@@ -2124,5 +2181,54 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         producer1.close();
         producer2.close();
+    }
+
+
+    @Test(dataProvider = "isV1")
+    public void testNonPartitionedTopic(boolean isV1) throws Exception {
+        String tenant = "prop-xyz";
+        String cluster = "test";
+        String namespace = tenant + "/" + (isV1 ? cluster + "/" : "") + "n1" + isV1;
+        String topic = "persistent://" + namespace + "/t1" + isV1;
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
+        admin.topics().createNonPartitionedTopic(topic);
+        assertTrue(admin.topics().getList(namespace).contains(topic));
+    }
+
+    /**
+     * Validate retring failed partitioned topic should succeed.
+     * @throws Exception
+     */
+    @Test
+    public void testFailedUpdatePartitionedTopic() throws Exception {
+        final String topicName = "failed-topic";
+        final String subName1 = topicName + "-my-sub-1";
+        final int startPartitions = 4;
+        final int newPartitions = 8;
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + topicName;
+
+        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+
+        admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        consumer1.close();
+
+        // validate partition topic is created
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, startPartitions);
+
+        // create a subscription for few new partition which can fail
+        admin.topics().createSubscription(partitionedTopicName + "-partition-" + startPartitions, subName1,
+                MessageId.earliest);
+
+        try {
+            admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, false);
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // Ok
+        }
+        admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, true);
+        // validate subscription is created for new partition.
+        assertNotNull(admin.topics().getStats(partitionedTopicName + "-partition-" + 6).getSubscriptions().get(subName1));
     }
 }

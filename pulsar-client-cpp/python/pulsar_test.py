@@ -19,7 +19,6 @@
 #
 
 
-import logging
 from unittest import TestCase, main
 import time
 import os
@@ -104,10 +103,6 @@ class PulsarTest(TestCase):
         conf.replicate_subscription_state_enabled(True)
         self.assertEqual(conf.replicate_subscription_state_enabled(), True)
 
-    def test_client_logger(self):
-        logger = logging.getLogger("pulsar")
-        Client(self.serviceUrl, logger=logger)
-        
     def test_connect_error(self):
         with self.assertRaises(pulsar.ConnectError):
             client = Client('fakeServiceUrl')
@@ -377,11 +372,24 @@ class PulsarTest(TestCase):
         producer = client.create_producer(topic=topic,
                                           encryption_key="client-rsa.pem",
                                           crypto_key_reader=crypto_key_reader)
-        producer.send('hello')
+        reader = client.create_reader(topic=topic,
+                                      start_message_id=MessageId.earliest,
+                                      crypto_key_reader=crypto_key_reader)
+        producer.send(b'hello')
         msg = consumer.receive(TM)
         self.assertTrue(msg)
-        self.assertEqual(msg.value(), 'hello')
+        self.assertEqual(msg.value(), b'hello')
         consumer.unsubscribe()
+
+        msg = reader.read_next(TM)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        with self.assertRaises(pulsar.Timeout):
+            reader.read_next(100)
+
+        reader.close()
+
         client.close()
 
     def test_tls_auth3(self):
@@ -1096,6 +1104,14 @@ class PulsarTest(TestCase):
         consumer.unsubscribe()
         client.close()
 
+    def test_client_reference_deleted(self):
+        def get_producer():
+            cl = Client(self.serviceUrl)
+            return cl.create_producer(topic='foobar')
+
+        producer = get_producer()
+        producer.send(b'test_payload')
+
     #####
 
     def test_get_topic_name(self):
@@ -1130,6 +1146,19 @@ class PulsarTest(TestCase):
         msg = consumer.receive(TM)
         self.assertTrue(msg.topic_name() in partitions)
         client.close()
+
+    def test_shutdown_client(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('persistent://public/default/partitioned_topic_name_test')
+        producer.send(b'hello')
+        client.shutdown()
+
+        try:
+            producer.send(b'hello')
+            self.assertTrue(False)
+        except pulsar.PulsarException:
+            # Expected
+            pass
 
     def test_negative_acks(self):
         client = Client(self.serviceUrl)

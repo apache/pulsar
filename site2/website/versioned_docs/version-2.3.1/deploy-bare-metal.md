@@ -176,7 +176,7 @@ For more details of how to configure tiered storage feature, you could reference
 
 ## Deploying a ZooKeeper cluster
 
-> If you already have an exsiting zookeeper cluster and would like to use it, you can skip this section.
+> If you already have an existing zookeeper cluster and would like to use it, you can skip this section.
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination- and configuration-related tasks for Pulsar. To deploy a Pulsar cluster you'll need to deploy ZooKeeper first (before all other components). We recommend deploying a 3-node ZooKeeper cluster. Pulsar does not make heavy use of ZooKeeper, so more lightweight machines or VMs should suffice for running ZooKeeper.
 
@@ -364,11 +364,11 @@ You can start a broker in the background using the [`pulsar-daemon`](reference-c
 $ bin/pulsar-daemon start broker
 ```
 
-Once you've succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!
+Once you've successfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!
 
 ## Connecting to the running cluster
 
-Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is runnning properly.
+Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is running properly.
 
 To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](reference-configuration.md#client) in your binary package. You'll need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:
 

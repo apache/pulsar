@@ -87,6 +87,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
@@ -3462,9 +3463,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                     assertEquals(c2.getMarkDeletedPosition(), positions.get(positions.size() - 1));
                 });
-
-        factory1.shutdown();
-        dirtyFactory.shutdown();
     }
 
     @Test
@@ -3553,6 +3551,44 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(true), 2);
         Assert.assertEquals(managedCursor.getNumberOfEntriesInBacklog(false), 4);
+    }
+
+    @Test
+    public void testCursorNoRolloverIfNoMetadataSession() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMetadataMaxEntriesPerLedger(2);
+        managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        managedLedgerConfig.setThrottleMarkDelete(0);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testCursorNoRolloverIfNoMetadataSession", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry("test".getBytes(Encoding)));
+        }
+
+        cursor.delete(positions.get(0));
+
+        long initialLedgerId = cursor.getCursorLedger();
+
+        metadataStore.triggerSessionEvent(SessionEvent.SessionLost);
+
+        for (int i = 1; i < 10; i++) {
+            cursor.delete(positions.get(i));
+        }
+
+        assertEquals(cursor.getCursorLedger(), initialLedgerId);
+
+        // After the session gets reestablished, the rollover should restart
+        metadataStore.triggerSessionEvent(SessionEvent.SessionReestablished);
+
+        for (int i = 0; i < 10; i++) {
+            Position p = ledger.addEntry("test".getBytes(Encoding));
+            cursor.delete(p);
+        }
+
+        assertNotEquals(cursor.getCursorLedger(), initialLedgerId);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

@@ -57,6 +57,12 @@ class RecordMeta(type):
 
 class Record(with_metaclass(RecordMeta, object)):
 
+    # This field is used to set namespace for Avro Record schema.
+    _avro_namespace = None
+
+    # Generate a schema where fields are sorted alphabetically
+    _sorted_fields = False
+
     def __init__(self, default=None, required_default=False, required=False, *args, **kwargs):
         self._required_default = required_default
         self._default = default
@@ -101,23 +107,36 @@ class Record(with_metaclass(RecordMeta, object)):
 
     @classmethod
     def schema_info(cls, defined_names):
-        if cls.__name__ in defined_names:
-            return cls.__name__
+        namespace_prefix = ''
+        if cls._avro_namespace is not None:
+            namespace_prefix = cls._avro_namespace + '.'
+        namespace_name = namespace_prefix + cls.__name__
 
-        defined_names.add(cls.__name__)
+        if namespace_name in defined_names:
+            return namespace_name
+
+        defined_names.add(namespace_name)
+
         schema = {
-            'name': str(cls.__name__),
             'type': 'record',
-            'fields': []
+            'name': str(cls.__name__)
         }
-        for name in sorted(cls._fields.keys()):
+        if cls._avro_namespace is not None:
+            schema['namespace'] = cls._avro_namespace
+        schema['fields'] = []
+
+        if cls._sorted_fields:
+            fields = sorted(cls._fields.keys())
+        else:
+            fields = cls._fields.keys()
+        for name in fields:
             field = cls._fields[name]
             field_type = field.schema_info(defined_names) \
                 if field._required else ['null', field.schema_info(defined_names)]
             schema['fields'].append({
                 'name': name,
-                'type': field_type,
-                'default': field.default()
+                'default': field.default(),
+                'type': field_type
             }) if field.required_default() else schema['fields'].append({
                 'name': name,
                 'type': field_type,

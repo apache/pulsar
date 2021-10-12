@@ -22,8 +22,6 @@
 #include <string>
 #include <lib/LogUtils.h>
 
-DECLARE_LOG_OBJECT()
-
 using namespace pulsar;
 TEST(MessageTest, testMessageContents) {
     MessageBuilder msgBuilder1;

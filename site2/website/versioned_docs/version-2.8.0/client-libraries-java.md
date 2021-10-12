@@ -15,6 +15,7 @@ Package | Description | Maven Artifact
 :-------|:------------|:--------------
 [`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{pulsar:version}}%7Cjar)
 [`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C{{pulsar:version}}%7Cjar)
+`org.apache.pulsar.client.all` |Includes both `pulsar-client` and `pulsar-client-admin`<br></br> Both `pulsar-client` and `pulsar-client-admin` are shaded packages and they shade dependencies independently. Consequently, the applications using both `pulsar-client` and `pulsar-client-admin` have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules. <br></br> In this case, you can use `pulsar-client-all`, which shades dependencies only one time and reduces the size of dependencies.  |[org.apache.pulsar:pulsar-client-all:{{pulsar:version}}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C{{pulsar:version}}%7Cjar)
 
 This document focuses only on the client API for producing and consuming messages on Pulsar topics. For how to use the Java admin client, see [Pulsar admin interface](admin-api-overview.md).
 
@@ -590,7 +591,7 @@ If a broker dispatches only one message at a time, consumer1 receives the follow
 ("key-4", "message-4-1")
 ```
 
-consumer2 receives the follwoing information.
+consumer2 receives the following information.
 
 ```
 ("key-1", "message-1-2")
@@ -623,7 +624,7 @@ Consumer consumer2 = client.newConsumer()
 
 `Key_Shared` subscription is like `Shared` subscription, all consumers can attach to the same subscription. But it is different from `Key_Shared` subscription, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
 
-consumer1 receives the follwoing information.
+consumer1 receives the following information.
 
 ```
 ("key-1", "message-1-1")
@@ -633,7 +634,7 @@ consumer1 receives the follwoing information.
 ("key-3", "message-3-2")
 ```
 
-consumer2 receives the follwoing information.
+consumer2 receives the following information.
 
 ```
 ("key-2", "message-2-1")
@@ -696,8 +697,7 @@ String|`topicName`|Topic name. |None
 int|`receiverQueueSize`|Size of a consumer's receiver queue.<br/><br/>For example, the number of messages that can be accumulated by a consumer before an application calls `Receive`.<br/><br/>A value higher than the default value increases consumer throughput, though at the expense of more memory utilization.|1000
 ReaderListener&lt;T&gt;|`readerListener`|A listener that is called for message received.|None
 String|`readerName`|Reader name.|null
-String| `subscriptionName`|Subscription name|When there is a single topic, the default subscription name is `"reader-" + 10-digit UUID`.
-When there are multiple topics, the default subscription name is `"multiTopicsReader-" + 10-digit UUID`.
+String| `subscriptionName`|Subscription name|When there is a single topic, the default subscription name is `"reader-" + 10-digit UUID`.<br/>When there are multiple topics, the default subscription name is `"multiTopicsReader-" + 10-digit UUID`.
 String|`subscriptionRolePrefix`|Prefix of subscription role. |null
 CryptoKeyReader|`cryptoKeyReader`|Interface that abstracts the access to a key store.|null
 ConsumerCryptoFailureAction|`cryptoFailureAction`|Consumer should take action when it receives a message that can not be decrypted.<br/><br/><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><br/><li> **DISCARD**: silently acknowledge and not deliver message to an application.</li><br/><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.<br/><br/>The message decompression fails. <br/><br/>If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br/><br/>Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL</li>

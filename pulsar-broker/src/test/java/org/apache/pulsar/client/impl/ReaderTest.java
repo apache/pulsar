@@ -42,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -56,6 +57,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
@@ -554,4 +556,50 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         latch.await();
         Assert.assertEquals(received.size(), 1);
     }
+
+    @Test(timeOut = 1000 * 10)
+    public void removeNonPersistentTopicReaderTest() throws Exception {
+        final String topic = "non-persistent://my-property/my-ns/non-topic";
+
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+        Reader<byte[]> reader2 = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        Awaitility.await()
+                .pollDelay(3, TimeUnit.SECONDS)
+                .until(() -> {
+                    TopicStats topicStats = admin.topics().getStats(topic);
+                    System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
+                    return topicStats.getSubscriptions().size() == 2;
+                });
+
+        reader.close();
+        reader2.close();
+
+        Awaitility.await().until(() -> {
+            TopicStats topicStats = admin.topics().getStats(topic);
+            System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
+            return topicStats.getSubscriptions().size() == 0;
+        });
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        consumer.close();
+
+        Awaitility.await()
+                .pollDelay(3, TimeUnit.SECONDS)
+                .until(() -> {
+            TopicStats topicStats = admin.topics().getStats(topic);
+            System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
+            return topicStats.getSubscriptions().size() == 1;
+        });
+    }
+
 }

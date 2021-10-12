@@ -79,7 +79,7 @@ brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 
 ### ... on Proxies
 
-To configure proxies to authenticate clients, put the folling in `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
+To configure proxies to authenticate clients, put the following in `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
 
 The proxy should have its own client key pair for connecting to brokers. The role token for this key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 

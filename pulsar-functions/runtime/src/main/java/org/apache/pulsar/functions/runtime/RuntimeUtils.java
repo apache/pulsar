@@ -196,6 +196,8 @@ public class RuntimeUtils {
         if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
             goInstanceConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
         }
+        goInstanceConfig.setSubscriptionPosition(
+                instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
             for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {

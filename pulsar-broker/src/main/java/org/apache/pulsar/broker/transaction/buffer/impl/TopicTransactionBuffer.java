@@ -271,7 +271,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             TxnID firstTxn = ongoingTxns.firstKey();
             if (firstTxn.getMostSigBits() == txnID.getMostSigBits() && lowWaterMark >= firstTxn.getLeastSigBits()) {
                 ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L,
-                        txnID.getMostSigBits(), txnID.getLeastSigBits());
+                        firstTxn.getMostSigBits(), firstTxn.getLeastSigBits());
                 try {
                     topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
                         @Override
@@ -369,6 +369,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Void> purgeTxns(List<Long> dataLedgers) {
         return null;
+    }
+
+    @Override
+    public CompletableFuture<Void> clearSnapshot() {
+        return this.takeSnapshotWriter.thenCompose(writer -> {
+            TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
+            snapshot.setTopicName(topic.getName());
+            return writer.deleteAsync(snapshot);
+        }).thenCompose(__ -> CompletableFuture.completedFuture(null));
     }
 
     @Override

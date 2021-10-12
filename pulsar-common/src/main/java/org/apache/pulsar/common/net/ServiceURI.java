@@ -28,6 +28,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -237,4 +238,25 @@ public class ServiceURI {
         return port;
     }
 
+    /**
+     * Create a new URI from the service URI which only specifies one of the hosts.
+     * @return a pulsar service URI with a single host specified
+     */
+    public String selectOne() {
+        StringBuilder sb = new StringBuilder();
+        if (serviceName != null) {
+            sb.append(serviceName);
+
+            for (int i = 0; i < serviceInfos.length; i++) {
+                sb.append('+').append(serviceInfos[i]);
+            }
+            sb.append("://");
+        }
+        if (serviceUser != null) {
+            sb.append(serviceUser).append('@');
+        }
+        int hostIndex = ThreadLocalRandom.current().nextInt(serviceHosts.length);
+        sb.append(serviceHosts[hostIndex]);
+        return sb.append(servicePath).toString();
+    }
 }

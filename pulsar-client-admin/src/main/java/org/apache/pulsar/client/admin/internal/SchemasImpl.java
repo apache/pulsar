@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -438,8 +439,12 @@ public class SchemasImpl extends BaseResource implements Schemas {
 
         byte[] schema;
         if (response.getType() == SchemaType.KEY_VALUE) {
-            schema = DefaultImplementation.convertKeyValueDataStringToSchemaInfoSchema(
-                    response.getData().getBytes(UTF_8));
+            try {
+                schema = DefaultImplementation.getDefaultImplementation().convertKeyValueDataStringToSchemaInfoSchema(
+                        response.getData().getBytes(UTF_8));
+            } catch (IOException conversionError) {
+                throw new RuntimeException(conversionError);
+            }
         } else {
             schema = response.getData().getBytes(UTF_8);
         }
@@ -466,28 +471,31 @@ public class SchemasImpl extends BaseResource implements Schemas {
 
 
     // the util function exists for backward compatibility concern
-    static String convertSchemaDataToStringLegacy(SchemaInfo schemaInfo) {
+    static String convertSchemaDataToStringLegacy(SchemaInfo schemaInfo) throws IOException {
         byte[] schemaData = schemaInfo.getSchema();
         if (null == schemaInfo.getSchema()) {
             return "";
         }
 
         if (schemaInfo.getType() == SchemaType.KEY_VALUE) {
-           return DefaultImplementation.convertKeyValueSchemaInfoDataToString(
-                   DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo));
+           return DefaultImplementation.getDefaultImplementation().convertKeyValueSchemaInfoDataToString(
+                   DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfo));
         }
 
         return new String(schemaData, UTF_8);
     }
 
     static PostSchemaPayload convertSchemaInfoToPostSchemaPayload(SchemaInfo schemaInfo) {
-
-        PostSchemaPayload payload = new PostSchemaPayload();
-        payload.setType(schemaInfo.getType().name());
-        payload.setProperties(schemaInfo.getProperties());
-        // for backward compatibility concern, we convert `bytes` to `string`
-        // we can consider fixing it in a new version of rest endpoint
-        payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo));
-        return payload;
+        try {
+            PostSchemaPayload payload = new PostSchemaPayload();
+            payload.setType(schemaInfo.getType().name());
+            payload.setProperties(schemaInfo.getProperties());
+            // for backward compatibility concern, we convert `bytes` to `string`
+            // we can consider fixing it in a new version of rest endpoint
+            payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo));
+            return payload;
+        } catch (IOException conversionError) {
+            throw new RuntimeException(conversionError);
+        }
     }
 }
