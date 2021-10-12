@@ -193,9 +193,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         return null;
                     });
                 } else {
-                    completableFuture.completeExceptionally(new TransactionBufferInitialUseException("Fail to change "
-                            + "TransactionBufferState from Unused to Initializing "
-                            + "When the first message with transaction was sent"));
+                    completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
+                            State.Unused, getState()));
                 }
             } else {
                 completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
