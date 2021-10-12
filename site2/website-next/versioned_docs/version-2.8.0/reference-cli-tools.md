@@ -2,11 +2,16 @@
 id: reference-cli-tools
 title: Pulsar command-line tools
 sidebar_label: Pulsar CLI tools
+original_id: reference-cli-tools
 ---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.
 
-All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone.md). The following tools are currently documented:
+All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone). The following tools are currently documented:
 
 * [`pulsar`](#pulsar)
 * [`pulsar-client`](#pulsar-client)
@@ -18,6 +23,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 > ### Getting help
 > You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
 > ```shell
+>
 > $ bin/pulsar broker --help
 > ```
 
@@ -28,13 +34,17 @@ The pulsar tool is used to start Pulsar components, such as bookies and ZooKeepe
 These processes can also be started in the background, using nohup, using the pulsar-daemon tool, which has the same command interface as pulsar.
 
 Usage:
+
 ```bash
+
 $ pulsar command
+
 ```
 Commands:
 * `bookie`
 * `broker`
 * `compact-topic`
+* `discovery`
 * `configuration-store`
 * `initialize-cluster-metadata`
 * `proxy`
@@ -44,8 +54,11 @@ Commands:
 * `zookeeper-shell`
 
 Example:
+
 ```bash
+
 $ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
+
 ```
 
 The table below lists the environment variables that you can use to configure the `pulsar` tool.
@@ -57,6 +70,7 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_BOOKKEEPER_CONF`|description: Configuration file for bookie|`conf/bookkeeper.conf`|
 |`PULSAR_ZK_CONF`|Configuration file for zookeeper|`conf/zookeeper.conf`|
 |`PULSAR_CONFIGURATION_STORE_CONF`|Configuration file for the configuration store|`conf/global_zookeeper.conf`|
+|`PULSAR_DISCOVERY_CONF`|Configuration file for discovery service|`conf/discovery.conf`|
 |`PULSAR_WEBSOCKET_CONF`|Configuration file for websocket proxy|`conf/websocket.conf`|
 |`PULSAR_STANDALONE_CONF`|Configuration file for standalone|`conf/standalone.conf`|
 |`PULSAR_EXTRA_OPTS`|Extra options to be passed to the jvm||
@@ -71,8 +85,11 @@ The table below lists the environment variables that you can use to configure th
 Starts up a bookie server
 
 Usage:
+
 ```bash
+
 $ pulsar bookie options
+
 ```
 
 Options
@@ -84,10 +101,13 @@ Options
 
 
 Example
+
 ```bash
+
 $ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
   -readOnly \
   -withAutoRecovery
+
 ```
 
 ### `broker`
@@ -95,8 +115,11 @@ $ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
 Starts up a Pulsar broker
 
 Usage
+
 ```bash
+
 $ pulsar broker options
+
 ```
 
 Options
@@ -108,8 +131,11 @@ Options
 |`-ra` , `--run-bookie-autorecovery`|Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker|false|
 
 Example
+
 ```bash
+
 $ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
+
 ```
 
 ### `compact-topic`
@@ -117,8 +143,11 @@ $ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 Run compaction against a Pulsar topic (in a new process)
 
 Usage
+
 ```bash
+
 $ pulsar compact-topic options
+
 ```
 Options
 
@@ -127,8 +156,31 @@ Options
 |`-t` , `--topic`|The Pulsar topic that you would like to compact||
 
 Example
+
 ```bash
+
 $ pulsar compact-topic --topic topic-to-compact
+
+```
+
+### `discovery`
+
+Run a discovery server
+
+Usage
+
+```bash
+
+$ pulsar discovery
+
+```
+
+Example
+
+```bash
+
+$ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
+
 ```
 
 ### `configuration-store`
@@ -136,13 +188,19 @@ $ pulsar compact-topic --topic topic-to-compact
 Starts up the Pulsar configuration store
 
 Usage
+
 ```bash
+
 $ pulsar configuration-store
+
 ```
 
 Example
+
 ```bash
+
 $ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
+
 ```
 
 ### `initialize-cluster-metadata`
@@ -150,8 +208,11 @@ $ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar confi
 One-time cluster metadata initialization
 
 Usage
+
 ```bash
+
 $ pulsar initialize-cluster-metadata options
+
 ```
 
 Options
@@ -177,8 +238,11 @@ Options
 Manages the Pulsar proxy
 
 Usage
+
 ```bash
+
 $ pulsar proxy options
+
 ```
 
 Options
@@ -189,10 +253,13 @@ Options
 |`-zk` , `--zookeeper-servers`|Local ZooKeeper connection string||
 
 Example
+
 ```bash
+
 $ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk2 \
   --configuration-store zk-0,zk-1,zk-2
+
 ```
 
 ### `standalone`
@@ -200,8 +267,11 @@ $ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
 Run a broker service with local bookies and local ZooKeeper
 
 Usage
+
 ```bash
+
 $ pulsar standalone options
+
 ```
 
 Options
@@ -219,20 +289,29 @@ Options
 |`--zookeeper-port` |Local ZooKeeper’s port|2181|
 
 Example
+
 ```bash
+
 $ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
+
 ```
 
 ### `websocket`
 
 Usage
+
 ```bash
+
 $ pulsar websocket
+
 ```
 
 Example
+
 ```bash
+
 $ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
+
 ```
 
 ### `zookeeper`
@@ -240,23 +319,31 @@ $ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
 Starts up a ZooKeeper cluster
 
 Usage
+
 ```bash
+
 $ pulsar zookeeper
+
 ```
 
 Example
-```bash
-$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
-```
 
+```bash
+
+$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
+
+```
 
 ### `zookeeper-shell`
 
 Connects to a running ZooKeeper cluster using the ZooKeeper shell
 
 Usage
+
 ```bash
+
 $ pulsar zookeeper-shell options
+
 ```
 
 Options
@@ -273,8 +360,11 @@ Options
 The pulsar-client tool
 
 Usage
+
 ```bash
+
 $ pulsar-client command
+
 ```
 
 Commands
@@ -291,7 +381,7 @@ Options
 |`--listener-name`|Listener name for the broker||
 |`--proxy-protocol`|Proxy protocol to select type of routing at proxy||
 |`--proxy-url`|Proxy-server URL to which to connect||
-|`--url`|Broker URL to which to connect|pulsar://localhost:6650/ </br> ws://localhost:8080 |
+|`--url`|Broker URL to which to connect|pulsar://localhost:6650/ <br /> ws://localhost:8080 |
 | `-v`, `--version` | Get the version of the Pulsar client
 |`-h`, `--help`|Show this help
 
@@ -300,8 +390,11 @@ Options
 Send a message or messages to a specific broker and topic
 
 Usage
+
 ```bash
+
 $ pulsar-client produce topic options
+
 ```
 
 Options
@@ -324,8 +417,11 @@ Options
 Consume messages from a specific broker and topic
 
 Usage
+
 ```bash
+
 $ pulsar-client consume topic options
+
 ```
 
 Options
@@ -354,8 +450,11 @@ A wrapper around the pulsar tool that’s used to start and stop processes, such
 pulsar-daemon has a similar interface to the pulsar command but adds start and stop commands for various services. For a listing of those services, run pulsar-daemon to see the help output or see the documentation for the pulsar command.
 
 Usage
+
 ```bash
+
 $ pulsar-daemon command
+
 ```
 
 Commands
@@ -367,16 +466,22 @@ Commands
 Start a service in the background using nohup.
 
 Usage
+
 ```bash
+
 $ pulsar-daemon start service
+
 ```
 
 ### `stop`
 Stop a service that’s already been started using start.
 
 Usage
+
 ```bash
+
 $ pulsar-daemon stop service options
+
 ```
 
 Options
@@ -391,8 +496,11 @@ Options
 A tool for performance testing a Pulsar broker.
 
 Usage
+
 ```bash
+
 $ pulsar-perf command
+
 ```
 
 Commands
@@ -422,8 +530,10 @@ The table below lists the environment variables that you can use to configure th
 Run a consumer
 
 Usage
+
 ```
 $ pulsar-perf consume options
+
 ```
 
 Options
@@ -431,7 +541,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth-plugin`|Authentication plugin class name||
+|`--auth_plugin`|Authentication plugin class name||
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full|false|
 |`--listener-name`|Listener name for the broker||
 |`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
@@ -440,7 +550,6 @@ Options
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-h`, `--help`|Help message|false|
 |`--conf-file`|Configuration file||
-|`-m`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-e`, `--expire_time_incomplete_chunked_messages`|The expiration time for incomplete chunk messages (in milliseconds)|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
@@ -455,11 +564,11 @@ Options
 |`--replicated`|Whether the subscription status should be replicated|false|
 |`-u`, `--service-url`|Pulsar service URL||
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
-|`-s`, `--subscriber-name`|Subscriber name prefix||
+|`-s`, `--subscriber-name`|Subscriber name prefix|sub|
 |`-ss`, `--subscriptions`|A list of subscriptions to consume on (e.g. sub1,sub2)|sub|
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
-|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--tls-allow-insecure`|Allow insecure TLS connection||
 
@@ -468,8 +577,11 @@ Options
 Run a producer
 
 Usage
+
 ```bash
+
 $ pulsar-perf produce options
+
 ```
 
 Options
@@ -479,7 +591,7 @@ Options
 |`-am`, `--access-mode`|Producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`|Shared|
 |`-au`, `--admin-url`|Pulsar admin URL||
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth-plugin`|Authentication plugin class name||
+|`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`-bb`, `--batch-max-bytes`|Maximum number of bytes per batch|4194304|
@@ -498,9 +610,9 @@ Options
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
 |`-p`, `--max-outstanding-across-partitions`|Max number of outstanding messages across partitions|50000|
-|`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-mk`, `--message-key-generation-mode`|The generation mode of message key. Valid options are `autoIncrement`, `random`||
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages.|0|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
 |`-threads`, `--num-test-threads`|Number of test threads|1|
 |`-t`, `--num-topic`|The number of topics|1|
@@ -514,7 +626,7 @@ Options
 |`-u`, `--service-url`|Pulsar service URL||
 |`-s`, `--size`|Message size (in bytes)|1024|
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
-|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--warmup-time`|Warm-up time in seconds|1|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
@@ -524,8 +636,11 @@ Options
 Run a topic reader
 
 Usage
+
 ```bash
+
 $ pulsar-perf read options
+
 ```
 
 Options
@@ -533,11 +648,10 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth-plugin`|Authentication plugin class name||
+|`--auth_plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
-|`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
 |`-t`, `--num-topics`|The number of topics|1|
@@ -546,7 +660,7 @@ Options
 |`-u`, `--service-url`|Pulsar service URL||
 |`-m`, `--start-message-id`|Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'|earliest|
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
-|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--use-tls`|Use TLS encryption on the connection|false|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
@@ -555,8 +669,11 @@ Options
 Run a websocket producer
 
 Usage
+
 ```bash
+
 $ pulsar-perf websocket-producer options
+
 ```
 
 Options
@@ -564,24 +681,27 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth-plugin`|Authentication plugin class name||
+|`--auth_plugin`|Authentication plugin class name||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
-|`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
+|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages|0|
 |`-t`, `--num-topic`|The number of topics|1|
 |`-f`, `--payload-file`|Use payload from a file instead of empty buffer||
 |`-u`, `--proxy-url`|Pulsar Proxy URL, e.g., "ws://localhost:8080/"||
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
 |`-s`, `--size`|Message size in byte|1024|
-|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages|0|
 
 
 ### `managed-ledger`
 Write directly on managed-ledgers
 
 Usage
+
 ```bash
+
 $ pulsar-perf managed-ledger options
+
 ```
 
 Options
@@ -594,11 +714,11 @@ Options
 |`-h`, `--help`|Help message|false|
 |`-c`, `--max-connections`|Max number of TCP connections to a single bookie|1|
 |`-o`, `--max-outstanding`|Max number of outstanding requests|1000|
-|`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
+|`-m`, `--num-messages`|Number of messages to publish in total. If the value is 0 or smaller than 0, it keeps publishing messages|0|
 |`-t`, `--num-topic`|Number of managed ledgers|1|
 |`-r`, `--rate`|Write rate msg/s across managed ledgers|100|
 |`-s`, `--size`|Message size in byte|1024|
-|`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
+|`-time`, `--test-duration`|Test duration (in seconds). If the value is 0 or smaller than 0, it keeps publishing messages|0|
 |`--threads`|Number of threads writing|1|
 |`-w`, `--write-quorum`|Ledger write quorum|1|
 |`-zk`, `--zookeeperServers`|ZooKeeper connection string||
@@ -608,8 +728,11 @@ Options
 Continuously receive broker data and/or load reports
 
 Usage
+
 ```bash
+
 $ pulsar-perf monitor-brokers options
+
 ```
 
 Options
@@ -624,8 +747,11 @@ Options
 Run a simulation server acting as a Pulsar client. Uses the client configuration specified in `conf/client.conf`.
 
 Usage
+
 ```bash
+
 $ pulsar-perf simulation-client options
+
 ```
 
 Options
@@ -640,8 +766,11 @@ Options
 Run a simulation controller to give commands to servers
 
 Usage
+
 ```bash
+
 $ pulsar-perf simulation-controller options
+
 ```
 
 Options
@@ -658,17 +787,22 @@ Options
 This help message
 
 Usage
-```bash
-$ pulsar-perf help
-```
 
+```bash
+
+$ pulsar-perf help
+
+```
 
 ## `bookkeeper`
 A tool for managing BookKeeper.
 
 Usage
+
 ```bash
+
 $ bookkeeper command
+
 ```
 
 Commands
@@ -698,8 +832,11 @@ The table below lists the environment variables that you can use to configure th
 Runs an auto-recovery service daemon
 
 Usage
+
 ```bash
+
 $ bookkeeper auto-recovery options
+
 ```
 
 Options
@@ -713,8 +850,11 @@ Options
 Starts up a BookKeeper server (aka bookie)
 
 Usage
+
 ```bash
+
 $ bookkeeper bookie options
+
 ```
 
 Options
@@ -730,16 +870,22 @@ Options
 Runs a test ensemble of N bookies locally
 
 Usage
+
 ```bash
+
 $ bookkeeper localbookie N
+
 ```
 
 ### `upgrade`
 Upgrade the bookie’s filesystem
 
 Usage
+
 ```bash
+
 $ bookkeeper upgrade options
+
 ```
 
 Options
@@ -754,13 +900,19 @@ Options
 Run shell for admin commands. To see a full listing of those commands, run bookkeeper shell without an argument.
 
 Usage
+
 ```bash
+
 $ bookkeeper shell
+
 ```
 
 Example
+
 ```bash
+
 $ bookkeeper shell bookiesanity
+
 ```
 
 ## `broker-tool`
@@ -768,8 +920,11 @@ $ bookkeeper shell bookiesanity
 The `broker- tool` is used for operations on a specific broker.
 
 Usage
+
 ```bash
+
 $ broker-tool command
+
 ```
 Commands
 * `load-report`
@@ -779,8 +934,10 @@ Example
 Two ways to get more information about a command as below:
 
 ```bash
+
 $ broker-tool help command
 $ broker-tool command --help
+
 ```
 
 ### `load-report`
