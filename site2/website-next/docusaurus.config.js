@@ -58,11 +58,12 @@ const injectLinkParse = ([, prefix, , name, path]) => {
 };
 
 const injectLinkParseForEndpoint = ([, info]) => {
-  // console.log("inject link parse: ", info);
-  const [method, path, suffix] = info.split("|");
-  // console.log(method, path ,suffix)
+  let [method, path, suffix] = info.split("|");
+  if (!suffix) {
+    suffix = path;
+  }
 
-  const restPath = path.split("/");
+  let restPath = path.split("/");
   const restApiVersion = restPath[2];
   const restApiType = restPath[3];
   let restBaseUrl = restApiUrl;
@@ -74,14 +75,14 @@ const injectLinkParseForEndpoint = ([, info]) => {
     restBaseUrl = sinkApiUrl;
   }
   let restUrl = "";
-  if (suffix && suffix.indexOf("?version") >= 0) {
+  if (suffix.indexOf("?version") >= 0) {
     restUrl = suffix + "&apiVersion=" + restApiVersion;
-  } else if (suffix) {
+  } else {
     restUrl = suffix + "version=master&apiVersion=" + restApiVersion;
   }
   return {
     text: method + " " + path,
-    link: restBaseUrl + suffix ? "#" + restUrl : "",
+    link: restBaseUrl + "#" + restUrl,
   };
 };
 
