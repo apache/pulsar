@@ -177,27 +177,23 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         if (checkIfReady()){
             addTxnEntry(completableFuture, txnId, buffer);
         } else {
-            if (checkIfUnused()){
-                if (changeToInitializingStateFromUnused()){
-                    buffer.retain();
-                    takeSnapshot().thenAccept(ignore -> {
-                        changeToReadyState();
-                        addTxnEntry(completableFuture, txnId, buffer);
-                        buffer.release();
-                    }).exceptionally(exception -> {
-                        changeToUnUsedState();
-                        buffer.release();
-                        log.error("Fail to takeSnapshot before adding the first message with transaction", exception);
-                        completableFuture.completeExceptionally(exception);
-                        return null;
-                    });
-                } else {
-                    completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
-                            State.Unused, getState()));
-                }
+            if (checkIfUnused() && changeToInitializingStateFromUnused()){
+                //`PulsarDecoder` will release this buffer  in `finally` and `takeSnapshot` is asynchronous
+                buffer.retain();
+                takeSnapshot().thenAccept(ignore -> {
+                    changeToReadyState();
+                    addTxnEntry(completableFuture, txnId, buffer);
+                    buffer.release();
+                }).exceptionally(exception -> {
+                    changeToUnUsedState();
+                    buffer.release();
+                    log.error("Fail to takeSnapshot before adding the first message with transaction", exception);
+                    completableFuture.completeExceptionally(exception);
+                    return null;
+                });
             } else {
                 completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
-                        State.Ready, getState()));
+                        State.Unused, getState()));
             }
         }
         return completableFuture;
