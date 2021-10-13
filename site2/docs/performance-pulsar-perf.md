@@ -72,7 +72,9 @@ The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can u
 
     **Input**
 
-    If you have not created a topic (in this example, it is _my-topic_) before, the broker creates a new topic without partitions, then the consumer can not receive any messages. Consequently, before using `pulsar-perf consume`, make sure your topic has enough messages to consume.
+    > **Note** 
+    >
+    > If you have not created a topic (in this example, it is _my-topic_) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using `pulsar-perf consume`, make sure your topic has enough messages to consume.
 
     ```
     bin/pulsar-perf consume my-topic
@@ -101,7 +103,9 @@ The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can u
 
     **Input**
 
-    If you have not created a topic (in this example, it is _my-topic_) before, the broker creates a new topic without partitions, then the consumer can not receive any messages. Consequently, before using `pulsar-perf consume`, make sure your topic has enough messages to consume.
+    > **Note** 
+    >
+    > If you have not created a topic (in this example, it is _my-topic_) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using `pulsar-perf consume`, make sure your topic has enough messages to consume.
     
     ```shell
     bin/pulsar-perf consume my-topic -r 10 -txn -ss mysubName -st Exclusive -sp Earliest -ntxn 10
@@ -123,7 +127,7 @@ The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can u
 
 ## Transactions
 
-This section shows how Pulsar Perf runs transactions.
+This section shows how Pulsar Perf runs transactions. For more information, see [Pulsar transactions](txn-why.md).
 
 ### Use transaction
 
@@ -131,7 +135,9 @@ This example executes 50 transactions. Each transaction sends and receives 1 mes
 
 **Input**
 
-If you have not created a topic (in this example, it is _myConsumerTopic_) before, the broker creates a new topic without partitions, then the consumer can not receive any messages. Consequently, before using `pulsar-perf transaction`, make sure your topic has enough messages to consume.
+> **Note** 
+>
+> If you have not created a topic (in this example, it is _myConsumerTopic_) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using `pulsar-perf transaction`, make sure your topic has enough messages to consume.
 
 ```shell
 bin/pulsar-perf transaction --topics-c myConsumerTopic --topics-p MyproduceTopic -threads 1 -ntxn 50 -ss testSub  -nmp 1 -nmc 1
@@ -153,7 +159,9 @@ This example disables transactions.
 
 **Input**
 
-If you have not created a topic (in this example, it is _myConsumerTopic_) before, the broker creates a new topic without partitions and messages, then you can not consume any messages. Consequently, before using `pulsar-perf transaction --txn-disEnable`, make sure your topic has enough messages to consume.
+> **Note** 
+>
+> If you have not created a topic (in this example, it is _myConsumerTopic_) before, the broker creates a new topic without partitions and messages, then the consumer can not receive any messages. Consequently, before using `pulsar-perf transaction --txn-disEnable`, make sure your topic has enough messages to consume.
 
 ```shell
 bin/pulsar-perf transaction --topics-c myConsumerTopic --topics-p myproduceTopic -threads 1 -ntxn 50 -ss testSub --txn-disEnable

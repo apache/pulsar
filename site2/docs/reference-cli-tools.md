@@ -466,7 +466,7 @@ Options
 
 Below are **transaction** related options.
 
-If you want `--txn-timeout`, `--numMessage-perTransaction`, `-nmt`, `-ntxn`, or `-abort` take effect, set ` --txn-enable` to true.
+If you want `--txn-timeout`, `--numMessage-perTransaction`, `-nmt`, `-ntxn`, or `-abort` take effect, set `--txn-enable` to true.
 
 |Flag|Description|Default|
 |---|---|---|
@@ -533,7 +533,7 @@ Options
 
 Below are **transaction** related options.
 
-If you want `--txn-timeout`, `--numMessage-perTransaction`, or `-abort` take effect, set ` --txn-enable` to true.
+If you want `--txn-timeout`, `--numMessage-perTransaction`, or `-abort` take effect, set `--txn-enable` to true.
 
 |Flag|Description|Default|
 |---|---|---|
@@ -697,7 +697,7 @@ $ pulsar-perf transaction options
 `-ns`, `--num-subscriptions`|Number of subscriptions per topic.|1
 `-threads`, `--num-test-threads`|Number of test threads. <br /><br />This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction. <br /><br /> Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1
 `-nmc`, `--numMessage-perTransaction-consume`|Set the number of messages consumed in a transaction. <br /><br /> If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1
-`-`nmp`, `--numMessage-perTransaction-produce`|Set the number of messages produced in a transaction. <br /><br />If transaction is disabled, it means the number of messages produced in a task instead of in a transaction.|1
+`-nmp`, `--numMessage-perTransaction-produce`|Set the number of messages produced in a transaction. <br /><br />If transaction is disabled, it means the number of messages produced in a task instead of in a transaction.|1
 `-ntxn`, `--number-txn`|Set the number of transactions. <br /><br /> 0 means the number of transactions is unlimited. <br /><br /> If transaction is disabled, it means the number of tasks instead of transactions. |0
 `-np`, `--partitions`|Create partitioned topics with a given number of partitions. <br /><br /> 0 means not trying to create a topic.
 `-q`, `--receiver-queue-size`|Size of the receiver queue.|1000
@@ -709,7 +709,7 @@ $ pulsar-perf transaction options
 `--topics-c`|All topics assigned to consumers.|[test-consume]
 `--topics-p`|All topics assigned to producers . |[test-produce]
 `--txn-disEnable`|Disable transaction.|true
-`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). <br /><br /> If you want `--txn-timeout` takes effect, set ` --txn-enable` to true.|5
+`-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). <br /><br /> If you want `--txn-timeout` takes effect, set `--txn-enable` to true.|5
 `-abort`|Abort the transaction. <br /><br /> If you want `-abort` takes effect, set `--txn-disEnable` to false.|true
 `-txnRate`|Set the rate of opened transactions or tasks. <br /><br /> 0 means no limit.|0
 
