@@ -2981,13 +2981,13 @@ public class PersistentTopic extends AbstractTopic
                                     // Message has been successfully persisted
                                     messageDeduplication.recordMessagePersisted(publishContext,
                                             (PositionImpl) position);
-                                    publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
-                                            ((PositionImpl) position).getEntryId());
+                                    publishContext.completed(null, position.getLedgerId(),
+                                            position.getEntryId());
 
                                     decrementPendingWriteOpsAndCheck();
                                 })
                                 .exceptionally(throwable -> {
-                                    if (!(throwable instanceof  ManagedLedgerException)){
+                                    if (!(throwable instanceof ManagedLedgerException)){
                                         throwable = new ManagedLedgerException(throwable);
                                     }
                                     addFailed((ManagedLedgerException) throwable, publishContext);

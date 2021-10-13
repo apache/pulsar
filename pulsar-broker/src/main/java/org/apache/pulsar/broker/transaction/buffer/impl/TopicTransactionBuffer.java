@@ -182,19 +182,19 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 buffer.retain();
                 takeSnapshot().thenAccept(ignore -> {
                     changeToReadyState();
-                    addTxnEntry(completableFuture, txnId, buffer);
                     buffer.release();
+                    log.info("Topic {} take snapshot successfully when uses TransactionBuffer at the first time",
+                            this.topic.getName());
                 }).exceptionally(exception -> {
                     changeToUnUsedState();
                     buffer.release();
-                    log.error("Fail to takeSnapshot before adding the first message with transaction", exception);
-                    completableFuture.completeExceptionally(exception);
+                    log.error("Topic {} fail to takeSnapshot before adding the first message with transaction",
+                            this.topic.getName(), exception);
                     return null;
                 });
-            } else {
-                completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
-                        State.Unused, getState()));
             }
+        completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
+                State.Unused, getState()));
         }
         return completableFuture;
     }
