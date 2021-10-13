@@ -414,7 +414,7 @@
 </thead>
 <tbody>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
+<tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>-ac</code>, <code>--auto_ack_chunk_q_full</code></td><td>Auto ack for the oldest message in consumer's receiver queue if the queue full</td><td>false</td></tr>
 <tr><td><code>--listener-name</code></td><td>broker 监听器名称</td><td></td></tr>
 <tr><td><code>--acks-delay-millis</code></td><td>确认分组延迟，以毫秒计</td><td>100</td></tr>
@@ -461,7 +461,7 @@
 <tr><td><code>-am</code>, <code>--access-mode</code></td><td>Producer access mode. Valid values are <code>Shared</code>, <code>Exclusive</code> and <code>WaitForExclusive</code></td><td>Shared（共享）</td></tr>
 <tr><td><code>-au</code>, <code>--admin-url</code></td><td>Pulsar admin URL</td><td></td></tr>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
+<tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--listener-name</code></td><td>broker 监听器名称</td><td></td></tr>
 <tr><td><code>-b</code>, <code>--batch-time-window</code></td><td>Batch messages in a window of the specified number of milliseconds</td><td>1</td></tr>
 <tr><td><code>-bb</code>, <code>--batch-max-bytes</code></td><td>Maximum number of bytes per batch</td><td>4194304</td></tr>
@@ -514,7 +514,7 @@
 </thead>
 <tbody>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
+<tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--listener-name</code></td><td>broker 监听器名称</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
@@ -545,12 +545,15 @@
 </thead>
 <tbody>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class. For example, <code>key1:val1,key2:val2</code> or <code>{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}</code>.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
+<tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.</td><td>0</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
 <tr><td><code>-f</code>, <code>--payload-file</code></td><td>使用文件中的 payload 而不是空缓存中的</td><td></td></tr>
+<tr><td><code>-e</code>, <code>--payload-delimiter</code></td><td>The delimiter used to split lines when using payload from a file</td><td>\n</td></tr>
+<tr><td><code>-fp</code>, <code>--format-payload</code></td><td>Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds</td><td>false</td></tr>
+<tr><td><code>-fc</code>, <code>--format-class</code></td><td>Custom formatter class name</td><td><code>org.apache.pulsar.testclient.DefaultMessageFormatter</code></td></tr>
 <tr><td><code>-u</code>, <code>--proxy-url</code></td><td>Pulsar 代理 URL，比如 &quot;<a href="ws://localhost:8080/">ws://localhost:8080/</a>&quot;</td><td></td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>Publish rate msg/s across topics</td><td>100</td></tr>
 <tr><td><code>-s</code>, <code>--size</code></td><td>消息大小（字节）</td><td>1024</td></tr>
