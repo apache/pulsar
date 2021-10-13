@@ -304,7 +304,8 @@ public class PulsarStandalone implements AutoCloseable {
         final AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
         if (!config.isTlsEnabled()) {
             checkArgument(config.getWebServicePort().isPresent(), "webServicePort must be present");
-            checkArgument(internalListener.getBrokerServiceUrl() != null, "plaintext must be configured on internal listener");
+            checkArgument(internalListener.getBrokerServiceUrl() != null,
+                    "plaintext must be configured on internal listener");
             URL webServiceUrl = new URL(String.format("http://%s:%d",
                     ServiceConfigurationUtils.getWebServiceAddress(config),
                     config.getWebServicePort().get()));
@@ -319,7 +320,8 @@ public class PulsarStandalone implements AutoCloseable {
             createSampleNameSpace(clusterData, cluster);
         } else {
             checkArgument(config.getWebServicePortTls().isPresent(), "webServicePortTls must be present");
-            checkArgument(internalListener.getBrokerServiceUrlTls() != null, "TLS must be configured on internal listener");
+            checkArgument(internalListener.getBrokerServiceUrlTls() != null,
+                    "TLS must be configured on internal listener");
             URL webServiceUrlTls = new URL(String.format("https://%s:%d",
                     ServiceConfigurationUtils.getWebServiceAddress(config),
                     config.getWebServicePortTls().get()));
