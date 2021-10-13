@@ -24,19 +24,22 @@ import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
-public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbContainer> {
+public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContainer> {
 
-    public static final String NAME = "debezium-oracledb-12c";
-    static final Integer[] PORTS = { 1521 };
+    // This password needs to include at least 8 characters of at least three of these four categories:
+    // uppercase letters, lowercase letters, numbers and non-alphanumeric symbols
+    public static final String SA_PASSWORD = "p@ssw0rD";
+    public static final String NAME = "debezium-mssql";
+    static final Integer[] PORTS = { 1433 };
 
-    // https://github.com/MaksymBilenko/docker-oracle-12c
-    // Apache 2.0 license.
-    // Newer versions don't have LigMiner in XE (Standard) Edition and require Enterprise.
-    // Debezium 1.5 didn't work with 11g out of the box
-    // and it is not tested with 11.g according to https://debezium.io/releases/1.5/
-    private static final String IMAGE_NAME = "quay.io/maksymbilenko/oracle-12c:master";
+    // https://hub.docker.com/_/microsoft-mssql-server
+    // EULA: https://go.microsoft.com/fwlink/?linkid=857698
+    // "You may install and use copies of the software on any device,
+    // including third party shared devices, to design, develop, test and demonstrate your programs.
+    // You may not use the software on a device or server in a production environment."
+    private static final String IMAGE_NAME = "mcr.microsoft.com/mssql/server:2019-latest";
 
-    public DebeziumOracleDbContainer(String clusterName) {
+    public DebeziumMsSqlContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);
     }
 
@@ -48,10 +51,12 @@ public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbCo
     @Override
     protected void configure() {
         super.configure();
+        // leaving default MSSQL_PID (aka Developer edition)
         this.withNetworkAliases(NAME)
             .withExposedPorts(PORTS)
-            .withEnv("DBCA_TOTAL_MEMORY", "2048")
-            .withEnv("WEB_CONSOLE", "false")
+            .withEnv("ACCEPT_EULA", "Y")
+            .withEnv("SA_PASSWORD", SA_PASSWORD)
+            .withEnv("MSSQL_AGENT_ENABLED", "true")
             .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
