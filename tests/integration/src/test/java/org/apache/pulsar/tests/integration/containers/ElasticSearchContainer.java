@@ -40,6 +40,7 @@ public class ElasticSearchContainer extends ChaosContainer<ElasticSearchContaine
         this.withNetworkAliases(NAME)
             .withExposedPorts(PORTS)
             .withEnv("discovery.type", "single-node")
+            .withEnv("ES_JAVA_OPTS", "-Xms2g -Xmx2g")
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(clusterName + "-" + NAME);
