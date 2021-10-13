@@ -50,7 +50,8 @@ public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbCo
         super.configure();
         this.withNetworkAliases(NAME)
             .withExposedPorts(PORTS)
-            .withEnv("DBCA_TOTAL_MEMORY", "1024")
+            .withEnv("DBCA_TOTAL_MEMORY", "2048")
+            .withEnv("WEB_CONSOLE", "false")
             .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
