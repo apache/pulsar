@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Integration - Pulsar-IO Sources
+name: CI - Integration - Pulsar-IO Sinks and Sources
 on:
   pull_request:
     branches:
@@ -79,7 +79,6 @@ jobs:
           sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt clean
           docker rmi $(docker images -q) -f
-          docker system prune -f
           df -h
 
       - name: run install by skip tests
@@ -100,7 +99,7 @@ jobs:
 
       - name: run integration tests
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        run: ./build/run_integration_group.sh PULSAR_IO_SOURCE
+        run: ./build/run_integration_group.sh PULSAR_IO
 
       - name: Upload container logs
         uses: actions/upload-artifact@v2
