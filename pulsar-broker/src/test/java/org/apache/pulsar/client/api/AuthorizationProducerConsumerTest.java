@@ -542,13 +542,13 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         @Override
         public CompletableFuture<Boolean> allowTopicOperationAsync(
             TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            return CompletableFuture.completedFuture(true);
+            return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
         @Override
         public Boolean allowTopicOperation(
             TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            return true;
+            return clientAuthProviderSupportedRoles.contains(role);
         }
     }
 

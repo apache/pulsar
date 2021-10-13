@@ -518,8 +518,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                    .orElseThrow(() -> new KeeperException.NoNodeException());
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+            if (policies == null) {
+                throw new KeeperException.NoNodeException();
+            }
+
             if (policies.replication_clusters != null) {
                 Set<String> configuredClusters = Sets.newTreeSet(policies.replication_clusters);
                 replicators.forEach((region, replicator) -> {
@@ -2010,8 +2013,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName name = TopicName.get(topic);
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()))
-                    .orElseThrow(() -> new KeeperException.NoNodeException());
+                    .getDataIfPresent(AdminResource.path(POLICIES, name.getNamespace()));
+            if (policies == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Error getting policies", topic);
+                }
+                return;
+            }
+
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
                     .getSubscriptionExpirationTimeMinutes();
             final long expirationTimeMillis = TimeUnit.MINUTES
@@ -2457,8 +2466,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName name = TopicName.get(topic);
         TopicPolicies topicPolicies = getTopicPolicies(name);
         Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, name.getNamespace()))
-                .orElseThrow(KeeperException.NoNodeException::new);
+                .getDataIfPresent(AdminResource.path(POLICIES, name.getNamespace()));
+        if (policies == null) {
+          throw new KeeperException.NoNodeException();
+        }
         if (topicPolicies != null && topicPolicies.isMessageTTLSet()) {
             return topicPolicies.getMessageTTLInSeconds();
         }

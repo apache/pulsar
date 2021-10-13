@@ -2414,8 +2414,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
         try {
-            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                            .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            Optional<Policies> policies =
+                    Optional.ofNullable(pulsar.getConfigurationCache().policiesCache().getDataIfPresent(
+                            AdminResource.path(POLICIES, topicName.getNamespace().toString()))
+                    );
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
                 return policies.get().autoTopicCreationOverride;
@@ -2445,8 +2447,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
         try {
-            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+            Optional<Policies> policies =
+                    Optional.ofNullable(pulsar.getConfigurationCache().policiesCache().getDataIfPresent(
+                            AdminResource.path(POLICIES, topicName.getNamespace().toString()))
+                    );
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
                 return policies.get().autoSubscriptionCreationOverride;

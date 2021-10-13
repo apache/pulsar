@@ -517,6 +517,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         when(pulsar.getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
                 .thenReturn(Optional.of(policies));
+        when(pulsar.getConfigurationCache().policiesCache()
+                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(policies);
         testMaxProducers();
     }
 
@@ -1439,6 +1442,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         when(pulsar.getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, TopicName.get(globalTopicName).getNamespace())))
                         .thenReturn(Optional.of(new Policies()));
+        when(pulsar.getConfigurationCache().policiesCache()
+                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(globalTopicName).getNamespace())))
+                .thenReturn(new Policies());
         // try to start replicator again
         topic.startReplProducers();
         // verify: replicator.startProducer is not invoked
@@ -1747,6 +1753,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         when(pulsar.getConfigurationCache().policiesCache()
                 .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
                 .thenReturn(Optional.of(new Policies()));
+
+        when(pulsar.getConfigurationCache().policiesCache()
+                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(new Policies());
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         doReturn(5).when(svcConfig).getSubscriptionExpirationTimeMinutes();
