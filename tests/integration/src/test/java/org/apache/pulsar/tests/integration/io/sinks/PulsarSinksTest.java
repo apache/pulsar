@@ -54,12 +54,12 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(new JdbcPostgresSinkTester(), true);
     }
 
-    @Test(groups = "sink")
+    @Test(groups = "sink", enabled = false)
     public void testElasticSearchSinkRawData() throws Exception {
         testSink(new ElasticSearchSinkTester(false), true);
     }
 
-    @Test(groups = "sink")
+    @Test(groups = "sink", enabled = false)
     public void testElasticSearchSinkSchemaEnabled() throws Exception {
         testSink(new ElasticSearchSinkTester(true), true);
     }
