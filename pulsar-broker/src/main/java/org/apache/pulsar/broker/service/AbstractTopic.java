@@ -114,8 +114,6 @@ public abstract class AbstractTopic implements Topic {
         this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
         this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
-        Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
         this.preciseTopicPublishRateLimitingEnable =
                 brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         updatePublishDispatcher();
@@ -391,7 +389,7 @@ public abstract class AbstractTopic implements Topic {
         }
     }
 
-    protected void internalAddProducer(Producer producer) throws BrokerServiceException{
+    protected void internalAddProducer(Producer producer) throws BrokerServiceException {
         if (isProducersExceeded()) {
             log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
             throw new BrokerServiceException.ProducerBusyException("Topic reached max producers limit");
