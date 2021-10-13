@@ -216,6 +216,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private PulsarClient client = null;
     private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
+    /**
+     * The host component of the broker's canonical name.
+     */
     private final String advertisedAddress;
     private String webServiceAddress;
     private String webServiceAddressTls;
@@ -286,12 +289,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                          WorkerConfig workerConfig,
                          Optional<WorkerService> functionWorkerService,
                          Consumer<Integer> processTerminator) {
+        state = State.Init;
+
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
+
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
-        this.advertisedAddress = ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, false);
-        state = State.Init;
+
+        // the advertised address is defined as the host component of the broker's canonical name.
+        this.advertisedAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
+
         // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.brokerVersion = PulsarVersion.getVersion();
@@ -671,7 +679,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
 
-            // Refresh addresses, since the port might have been dynamically assigned
+            // Refresh addresses and update configuration, since the port might have been dynamically assigned
+            if (config.getBrokerServicePort().equals(Optional.of(0))) {
+                config.setBrokerServicePort(brokerService.getListenPort());
+            }
+            if (config.getBrokerServicePortTls().equals(Optional.of(0))) {
+                config.setBrokerServicePortTls(brokerService.getListenPortTls());
+            }
             this.webServiceAddress = webAddress(config);
             this.webServiceAddressTls = webAddressTls(config);
             this.brokerServiceUrl = brokerUrl(config);
@@ -761,8 +775,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             final String bootstrapMessage = "bootstrap service "
                     + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
                     + (config.getWebServicePortTls().isPresent() ? ", tls-port = " + config.getWebServicePortTls() : "")
-                    + (config.getBrokerServicePort().isPresent() ? ", broker url= " + brokerServiceUrl : "")
-                    + (config.getBrokerServicePortTls().isPresent() ? ", broker tls url= " + brokerServiceUrlTls : "");
+                    + (StringUtils.isNotEmpty(brokerServiceUrl) ? ", broker url= " + brokerServiceUrl : "")
+                    + (StringUtils.isNotEmpty(brokerServiceUrlTls) ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready, bootstrap_seconds={}", bootstrapTimeSeconds);
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
@@ -1397,26 +1411,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return transactionBufferClient;
     }
 
+    /**
+     * Gets the broker service URL (non-TLS) associated with the internal listener.
+     */
     protected String brokerUrl(ServiceConfiguration config) {
-        if (config.getBrokerServicePort().isPresent()) {
-            return brokerUrl(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
-                    getBrokerListenPort().get());
-        } else {
-            return null;
-        }
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
+        return internalListener != null && internalListener.getBrokerServiceUrl() != null ?
+                internalListener.getBrokerServiceUrl().toString() : null;
     }
 
     public static String brokerUrl(String host, int port) {
         return String.format("pulsar://%s:%d", host, port);
     }
 
+    /**
+     * Gets the broker service URL (TLS) associated with the internal listener.
+     */
     public String brokerUrlTls(ServiceConfiguration config) {
-        if (config.getBrokerServicePortTls().isPresent()) {
-            return brokerUrlTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
-                    getBrokerListenPortTls().get());
-        } else {
-            return null;
-        }
+        AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
+        return internalListener != null && internalListener.getBrokerServiceUrlTls() != null ?
+                internalListener.getBrokerServiceUrlTls().toString() : null;
     }
 
     public static String brokerUrlTls(String host, int port) {
@@ -1425,8 +1439,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return webAddress(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
-                    getListenPortHTTP().get());
+            return webAddress(ServiceConfigurationUtils.getWebServiceAddress(config), getListenPortHTTP().get());
         } else {
             return null;
         }
@@ -1438,8 +1451,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public String webAddressTls(ServiceConfiguration config) {
         if (config.getWebServicePortTls().isPresent()) {
-            return webAddressTls(ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
-                    getListenPortHTTPS().get());
+            return webAddressTls(ServiceConfigurationUtils.getWebServiceAddress(config), getListenPortHTTPS().get());
         } else {
             return null;
         }
