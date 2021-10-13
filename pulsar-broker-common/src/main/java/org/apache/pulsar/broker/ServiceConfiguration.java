@@ -1074,6 +1074,52 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Specify whether Client certificates are required for TLS Reject.\n"
             + "the Connection if the Client Certificate is not trusted")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Print the entire trust chain for the client's certificate in\n"
+                + "the application logs when authenticating\n"
+                + "Default value is 0 (off)")
+    private boolean tlsLogEntireCertificateChain = false;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "If set to a positive non-zero value, the broker will print a warning in\n"
+                + "the application logs and increment a Prometheus counter if the client's\n"
+                + "certificate is within this many milliseconds of expiration.\n"
+                + "Default value is 0 (off)")
+    private long tlsPrintWarnOnClientCertNearingExpirationMillis = 0;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "If set to a positive non-zero value, the broker will print an error in\n"
+                + "the application logs and increment a Prometheus counter if the client's\n"
+                + "certificate is within this many milliseconds of expiration.\n"
+                + "Default value is 0 (off)")
+    private long tlsPrintErrorOnClientCertNearingExpirationMillis = 0;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "If set to a positive non-zero value, the broker will print a warning in\n"
+                + "the application logs and increment a Prometheus metric if the client's\n"
+                + "certificate has a validity duration exceeding the supplied number of milliseconds.\n"
+                + "Default value is 0 (off)")
+    private long tlsPrintWarnOnClientCertValidityDurationExceedsMillis = 0;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "If set to a true the broker will print a warning in the logs and increment\n"
+                + "a Prometheus metric if a self-signed client certificate is encountered.\n"
+                + "Default value is 0 (off)")
+    private boolean tlsPrintWarnOnSelfSignedCertificate = false;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "If set to a positive non-zero value, the broker will print a warning in\n"
+                + "the application logs and increment a Prometheus metric if the client's\n"
+                + "certificate has a RSA key with bit size < number of supplied bits\n"
+                + "Default value is 0 (off)")
+    private int tlsPrintWarnOnRsaKeySizeLessThanBits = 0;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "If true broker will print a warning and increment a Prometheus metric if\n"
+                + "a client certificate with a wildcard CN is encountered\n"
+                + "Default value is false (off)")
+    private boolean tlsPrintWarnOnWildcardCertificate = false;
 
     /***** --- Authentication --- ****/
     @FieldContext(

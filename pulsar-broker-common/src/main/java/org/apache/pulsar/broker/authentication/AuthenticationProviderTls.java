@@ -19,15 +19,66 @@
 package org.apache.pulsar.broker.authentication;
 
 import java.io.IOException;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPublicKey;
+import java.time.*;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.stream.Collectors;
 
 import javax.naming.AuthenticationException;
+import javax.security.auth.x500.X500Principal;
 
+import io.prometheus.client.Counter;
+import lombok.NonNull;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class AuthenticationProviderTls implements AuthenticationProvider {
+    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationProviderTls.class);
+
+    static final Counter clientCertSelfSignedMetrics = Counter.build()
+            .name("pulsar_authentication_tls_cert_self_signed_count")
+            .help("Pulsar client authenticating with a TLS cert that is self-signed")
+            .register();
+
+    static final Counter clientCertSmallRsaKeySizeMetrics = Counter.build()
+            .name("pulsar_authentication_tls_cert_small_rsa_key_count")
+            .help("Pulsar client authenticating with a TLS cert that has a small rsa key")
+            .register();
+
+    static final Counter clientCertReachedWarnThresholdMetrics = Counter.build()
+            .name("pulsar_authentication_tls_cert_expiration_soon_count")
+            .help("Pulsar client authenticating with a TLS cert nearing expiration")
+            .register();
+
+    static final Counter clientCertReachedErrorThresholdMetrics = Counter.build()
+            .name("pulsar_authentication_tls_cert_expiration_imminent_count")
+            .help("Pulsar client authenticating with a TLS cert whose expiration is imminent")
+            .register();
+
+    static final Counter clientCertValidityDurationExceedsThresholdMetrics = Counter.build()
+            .name("pulsar_authentication_tls_cert_validity_too_long_count")
+            .help("Pulsar client authenticating with a TLS cert whose validity duration exceeds the system's configured (soft) maximum value")
+            .register();
+
+    static final Counter clientCertWildcardMetrics = Counter.build()
+            .name("pulsar_authentication_tls_cert_wildcard_count")
+            .help("Pulsar client authenticating with a TLS cert that has wildcard CN")
+            .register();
+
+    private boolean logEntireCertificateChain;
+    private boolean printWarnOnSelfSignedCertificate;
+    private int printWarnIfRsaKeySizeLessThanBits;
+    private long printWarnOnClientCertNearingExpirationMillis;
+    private long printErrorOnClientCertNearingExpirationMillis;
+    private long printWarnOnClientCertValidityDurationExceedsMillis;
+    private boolean printWarnOnWildcardCertificate;
 
     @Override
     public void close() throws IOException {
@@ -36,7 +87,50 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        // noop
+        this.logEntireCertificateChain = config.isTlsLogEntireCertificateChain();
+
+        this.printWarnOnSelfSignedCertificate = config.isTlsPrintWarnOnSelfSignedCertificate();
+        if(this.printWarnOnSelfSignedCertificate) {
+            LOG.info("Broker will emit warnings when a self-signed client cert is encountered");
+        }
+
+        this.printWarnIfRsaKeySizeLessThanBits = config.getTlsPrintWarnOnRsaKeySizeLessThanBits();
+        if(0 != this.printWarnIfRsaKeySizeLessThanBits) {
+            LOG.info("Broker will emit warnings when a certificate has RSA key size less than "
+                    + this.printWarnIfRsaKeySizeLessThanBits + " bits");
+        }
+
+        this.printWarnOnClientCertNearingExpirationMillis
+                = config.getTlsPrintWarnOnClientCertNearingExpirationMillis();
+        if(0 != this.printWarnOnClientCertNearingExpirationMillis) {
+            LOG.info("Broker will emit warnings when a certificate expiring within "
+                    + this.printWarnOnClientCertNearingExpirationMillis + " milliseconds is encountered");
+        }
+
+        this.printErrorOnClientCertNearingExpirationMillis
+                = config.getTlsPrintErrorOnClientCertNearingExpirationMillis();
+        if(0 != this.printErrorOnClientCertNearingExpirationMillis) {
+            LOG.info("Broker will emit errors when a certificate expiring within "
+                    + this.printErrorOnClientCertNearingExpirationMillis + " milliseconds is encountered");
+        }
+
+        this.printWarnOnClientCertValidityDurationExceedsMillis
+                = config.getTlsPrintWarnOnClientCertValidityDurationExceedsMillis();
+        if(0 != this.printWarnOnClientCertValidityDurationExceedsMillis) {
+            LOG.info("Broker will emit warnings when encountering a certificate with validity period (notAfter - notBefore) exceeding "
+                    + this.printWarnOnClientCertValidityDurationExceedsMillis + " milliseconds");
+        }
+
+        this.printWarnOnWildcardCertificate = config.isTlsPrintWarnOnWildcardCertificate();
+    }
+
+    static void resetMetrics() {
+        clientCertSelfSignedMetrics.clear();
+        clientCertSmallRsaKeySizeMetrics.clear();
+        clientCertReachedWarnThresholdMetrics.clear();
+        clientCertReachedErrorThresholdMetrics.clear();
+        clientCertValidityDurationExceedsThresholdMetrics.clear();
+        clientCertWildcardMetrics.clear();
     }
 
     @Override
@@ -47,6 +141,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         String commonName = null;
+        X509Certificate[] clientCertificateChain = null;
         try {
             if (authData.hasDataFromTls()) {
                 /**
@@ -72,11 +167,11 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                 // The format is defined in RFC 2253.
                 // Example:
                 // CN=Steve Kille,O=Isode Limited,C=GB
-                Certificate[] certs = authData.getTlsCertificates();
-                if (null == certs) {
+                clientCertificateChain = (X509Certificate[]) authData.getTlsCertificates();
+                if (null == clientCertificateChain) {
                     throw new AuthenticationException("Failed to get TLS certificates from client");
                 }
-                String distinguishedName = ((X509Certificate) certs[0]).getSubjectX500Principal().getName();
+                String distinguishedName = clientCertificateChain[0].getSubjectX500Principal().getName();
                 for (String keyValueStr : distinguishedName.split(",")) {
                     String[] keyValue = keyValueStr.split("=", 2);
                     if (keyValue.length == 2 && "CN".equals(keyValue[0]) && !keyValue[1].isEmpty()) {
@@ -84,17 +179,196 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                         break;
                     }
                 }
+
+
             }
 
             if (commonName == null) {
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
+
+            if(this.printWarnOnSelfSignedCertificate) {
+                checkIfSelfSignedCertificate(clientCertificateChain[0], commonName);
+            }
+
+            if(0 != this.printWarnIfRsaKeySizeLessThanBits) {
+                checkIfUsingSmallRsaKeySize(clientCertificateChain[0], this.printWarnIfRsaKeySizeLessThanBits,
+                        commonName);
+            }
+
+            if(this.logEntireCertificateChain) {
+                LOG.info("Authenticated client cert with chain: " + concatenateFullCertChain(clientCertificateChain));
+            }
+
+            if(0 != this.printWarnOnClientCertNearingExpirationMillis ||
+                    0 != this.printErrorOnClientCertNearingExpirationMillis) {
+                checkIfNearingExpiration(clientCertificateChain[0],
+                        commonName,
+                        this.printErrorOnClientCertNearingExpirationMillis,
+                        this.printWarnOnClientCertNearingExpirationMillis);
+            }
+
+            if(0 != this.printWarnOnClientCertValidityDurationExceedsMillis) {
+                checkMaxValidityPeriod(clientCertificateChain[0],
+                        commonName,
+                        this.printWarnOnClientCertValidityDurationExceedsMillis);
+            }
+
+            if(this.printWarnOnWildcardCertificate) {
+                checkIfWildcardCertificate(clientCertificateChain[0], commonName);
+            }
+
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         } catch (AuthenticationException exception) {
             AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception.getMessage());
             throw exception;
         }
         return commonName;
+    }
+
+    /**
+     * According to RFC3280 "A certificate is self-issued if the DNs that appear in the subject and issuer
+     * fields are identical and are not empty." Extracting the X500Principal object representing the subject
+     * and the issuer and comparing using .equals(...) is sufficient for confirming this.
+     *
+     *  It is possible to create a certificate with an empty DN but this method expects that the DN has at
+     *  least a CN (common name) attribute.
+     *
+     * @param x509Certificate
+     * @param commonName
+     */
+    static void checkIfSelfSignedCertificate(@NonNull final X509Certificate x509Certificate,
+                                             @NonNull final String commonName) {
+        X500Principal subject = x509Certificate.getSubjectX500Principal();
+        X500Principal issuer = x509Certificate.getIssuerX500Principal();
+
+        if(subject.equals(issuer)) {
+            LOG.warn("Encountered self-signed certificate with CN " + commonName);
+            clientCertSelfSignedMetrics.inc();
+        }
+    }
+
+    /**
+     *
+     * @param x509Certificate
+     * @param commonName
+     */
+    static void checkIfWildcardCertificate(@NonNull final X509Certificate x509Certificate,
+                                           @NonNull final String commonName) {
+        if(commonName.contains("*")) {
+            LOG.warn("Encountered client certificate with CN " + commonName + " that contains a wildcard");
+            clientCertWildcardMetrics.inc();
+        }
+    }
+
+    /**
+     *
+     * @param x509Certificate
+     * @param minimumAllowableBitLength
+     * @param commonName
+     */
+    static void checkIfUsingSmallRsaKeySize(@NonNull final X509Certificate x509Certificate,
+                                            @NonNull final int minimumAllowableBitLength,
+                                            @NonNull final String commonName) {
+        PublicKey publicKey = x509Certificate.getPublicKey();
+        if(publicKey instanceof RSAPublicKey) {
+            if(((RSAPublicKey) publicKey).getModulus().bitLength() < minimumAllowableBitLength) {
+                LOG.warn("Encountered a client certificate with CN " + commonName + " and RSA key size < " +
+                        minimumAllowableBitLength);
+                clientCertSmallRsaKeySizeMetrics.inc();
+            }
+        }
+    }
+
+    /**
+     * The following method extracts the 'notAfter' attribute from the client's certificate
+     * and compares it to the printWarnOnClientCertNearingExpirationMillis and
+     * printErrorOnClientCertNearingExpirationMillis properties supplied as parameters.
+     *
+     * Those two parameters control the definition of 'nearing expiration' and
+     * 'imminent expiration' and print warnings and errors accordingly. These are relative terms
+     * and highly dependent on the environment's particular PKI setup. If the values are set too high
+     * the broker logs will be spammed with unnecessary messages. Even worse, if the values are
+     * set too low then the messages will be emitted but the admin may not have enough time to catch
+     * the problem and contact the user to inform them they need to rotate/re-issue the offending cert.
+     *
+     * In addition to printing warnings/errors this method will increment the metrics:
+     * pulsar_authentication_tls_cert_expiration_soon_count and
+     * pulsar_authentication_tls_cert_expiration_imminent_count
+     *
+     * @param x509Certificate to check
+     * @param commonName previously extracted from cert (used for logging)
+     * @param printErrorOnClientCertNearingExpirationMillis threshold for generating an error message
+     * @param printWarnOnClientCertNearingExpirationMillis threshold for generating a warning message
+     */
+    static void checkIfNearingExpiration(X509Certificate x509Certificate,
+                                         final String commonName,
+                                         final long printErrorOnClientCertNearingExpirationMillis,
+                                         final long printWarnOnClientCertNearingExpirationMillis) {
+        Instant notAfter = x509Certificate.getNotAfter().toInstant();
+        Instant now = Instant.now();
+        Instant errorInstant = notAfter.minusMillis(printErrorOnClientCertNearingExpirationMillis);
+        Instant warnInstant = notAfter.minusMillis(printWarnOnClientCertNearingExpirationMillis);
+
+
+        if(warnInstant.isBefore(now)) {
+            LOG.warn("Client certificate with CN " + commonName + " is nearing expiration (" + notAfter + ")");
+            clientCertReachedWarnThresholdMetrics.inc();
+        } else if(errorInstant.isBefore(now)) {
+            LOG.error("Expiration of client certificate with CN " + commonName + " is imminent (" + notAfter + ")");
+            clientCertReachedErrorThresholdMetrics.inc();
+        }
+    }
+
+    /**
+     * This method checks if the supplied certificate has a validity period exceeding the supplied
+     * number of milliseconds. If the period exceeds the limit then an WARN message is printed in
+     * the application logs and the metric: pulsar_authentication_tls_cert_validity_too_long_count
+     * is incremented. If the period does not exceed the limit and DEBUG is ON, then the validity
+     * period is printed in the logs for debugging purposes.
+     *
+     * @param x509Certificate to check
+     * @param commonName previously extracted from cert (used for logging)
+     * @param printWarnOnClientCertValidityDurationExceedsMillis maximum valid duration in milliseconds
+     */
+    static void checkMaxValidityPeriod(@NonNull X509Certificate x509Certificate,
+                                       @NonNull final String commonName,
+                                       @NonNull final long printWarnOnClientCertValidityDurationExceedsMillis) {
+        Instant notAfter = x509Certificate.getNotAfter().toInstant();
+        Instant notBefore = x509Certificate.getNotBefore().toInstant();
+
+        Duration maximumValidityDuration = Duration.ofMillis(printWarnOnClientCertValidityDurationExceedsMillis);
+
+        Duration validityPeriod = Duration.ofMillis(ChronoUnit.MILLIS.between(notBefore, notAfter));
+
+        if(Duration.from(validityPeriod).toMillis() > maximumValidityDuration.toMillis() ) {
+            LOG.warn("Encountered certificate with CN " + commonName + " and validity period exceeding "
+                    + maximumValidityDuration + " (" + validityPeriod + ")");
+            clientCertValidityDurationExceedsThresholdMetrics.inc();
+        } else if(LOG.isDebugEnabled()) {
+            LOG.debug("Encountered certificate with CN " + commonName + " and validity period " + validityPeriod);
+        }
+    }
+
+    /**
+     * This will return the entire validated cert chain starting with root -> intermediate ->
+     * ... -> client cert
+     *
+     * Useful if you need to debug/inspect the complete trust chain or are migrating from one
+     * cert provider to another.
+     *
+     * @param certs chain to concatenate
+     * @return the distinguished names of the cert chain in order from root to client
+     */
+    static String concatenateFullCertChain(final Certificate[] certs) {
+        final Certificate[] reversedArray = Arrays.copyOf(certs, certs.length);
+        Collections.reverse(Arrays.asList(reversedArray));
+
+        return Arrays.stream(reversedArray)
+                .map(c -> (X509Certificate) c)
+                .map(X509Certificate::getSubjectX500Principal)
+                .map(X500Principal::getName)
+                .collect(Collectors.joining(" -> "));
     }
 
 }
