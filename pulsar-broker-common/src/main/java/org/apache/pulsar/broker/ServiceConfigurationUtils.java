@@ -89,7 +89,7 @@ public class ServiceConfigurationUtils {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
                 .validateAndAnalysisAdvertisedListener(config);
         AdvertisedListener internal = result.get(config.getInternalListenerName());
-        if (internal != null) {
+        if (internal == null) {
             // synthesize an advertised listener based on legacy configuration properties
             String host = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
             internal = AdvertisedListener.builder()
