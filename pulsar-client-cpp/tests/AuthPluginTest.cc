@@ -364,18 +364,10 @@ TEST(AuthPluginTest, testOauth2WrongSecret) {
         "client_secret": "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ",
         "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
 
-        int expectedTokenLength = 3379;
-        LOG_INFO("PARAMS: " << params);
-        pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
-        ASSERT_EQ(auth->getAuthMethodName(), "token");
-
-        auth->getAuthData(data);
-
-        FAIL() << "Expected fail for wrong secret when to get token from server";
-
-    } catch (...) {
-        // expected
-    }
+    LOG_INFO("PARAMS: " << params);
+    pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
+    ASSERT_EQ(auth->getAuthMethodName(), "token");
+    ASSERT_EQ(auth->getAuthData(data), ResultAuthenticationError);
 }
 
 TEST(AuthPluginTest, testOauth2CredentialFile) {
@@ -426,4 +418,50 @@ TEST(AuthPluginTest, testOauth2RequestBody) {
 )";
     ClientCredentialFlow flow2(params);
     ASSERT_EQ(flow2.generateJsonBody(), expectedJson);
+}
+
+TEST(AuthPluginTest, testOauth2Failure) {
+    ParamMap params;
+    auto addKeyValue = [&](const std::string& key, const std::string& value) {
+        params[key] = value;
+        LOG_INFO("Configure \"" << key << "\" to \"" << value << "\"");
+    };
+
+    auto createClient = [&]() -> Client {
+        ClientConfiguration conf;
+        conf.setAuth(AuthOauth2::create(params));
+        return {"pulsar://localhost:6650", conf};
+    };
+
+    const std::string topic = "AuthPluginTest-testOauth2Failure";
+    Producer producer;
+
+    // No issuer_url
+    auto client1 = createClient();
+    ASSERT_EQ(client1.createProducer(topic, producer), ResultAuthenticationError);
+    client1.close();
+
+    // Invalid issuer_url
+    addKeyValue("issuer_url", "hello");
+    auto client2 = createClient();
+    ASSERT_EQ(client2.createProducer(topic, producer), ResultAuthenticationError);
+    client2.close();
+
+    addKeyValue("issuer_url", "https://google.com");
+    auto client3 = createClient();
+    ASSERT_EQ(client3.createProducer(topic, producer), ResultAuthenticationError);
+    client3.close();
+
+    // No client id and secret
+    addKeyValue("issuer_url", "https://dev-kt-aa9ne.us.auth0.com");
+    auto client4 = createClient();
+    ASSERT_EQ(client4.createProducer(topic, producer), ResultAuthenticationError);
+    client4.close();
+
+    // Invalid client_id and client_secret
+    addKeyValue("client_id", "my_id");
+    addKeyValue("client_secret", "my-secret");
+    auto client5 = createClient();
+    ASSERT_EQ(client5.createProducer(topic, producer), ResultAuthenticationError);
+    client5.close();
 }

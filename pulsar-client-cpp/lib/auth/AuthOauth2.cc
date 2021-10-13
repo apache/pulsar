@@ -159,6 +159,10 @@ static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void*
 }
 
 void ClientCredentialFlow::initialize() {
+    if (issuerUrl_.empty()) {
+        LOG_ERROR("Failed to initialize ClientCredentialFlow: issuer_url is not set");
+        return;
+    }
     if (!keyFile_.isValid()) {
         return;
     }
@@ -187,6 +191,9 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
+
+    char errorBuffer[CURL_ERROR_SIZE];
+    curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer);
 
     // Make get call to server
     res = curl_easy_perform(handle);
@@ -217,8 +224,8 @@ void ClientCredentialFlow::initialize() {
             }
             break;
         default:
-            LOG_ERROR("Response failed for getting the well-known configuration " << issuerUrl_
-                                                                                  << ". Error Code " << res);
+            LOG_ERROR("Response failed for getting the well-known configuration "
+                      << issuerUrl_ << ". Error Code " << res << ": " << errorBuffer);
             break;
     }
     // Free header list
@@ -282,6 +289,9 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
 
     curl_easy_setopt(handle, CURLOPT_POSTFIELDS, jsonBody.c_str());
 
+    char errorBuffer[CURL_ERROR_SIZE];
+    curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer);
+
     // Make get call to server
     res = curl_easy_perform(handle);
 
@@ -302,19 +312,26 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                     break;
                 }
 
-                resultPtr->setAccessToken(root.get<std::string>("access_token"));
-                resultPtr->setExpiresIn(root.get<uint32_t>("expires_in"));
+                resultPtr->setAccessToken(root.get<std::string>("access_token", ""));
+                resultPtr->setExpiresIn(
+                    root.get<uint32_t>("expires_in", Oauth2TokenResult::undefined_expiration));
+                resultPtr->setRefreshToken(root.get<std::string>("refresh_token", ""));
+                resultPtr->setIdToken(root.get<std::string>("id_token", ""));
 
-                LOG_DEBUG("access_token: " << resultPtr->getAccessToken()
-                                           << " expires_in: " << resultPtr->getExpiresIn());
+                if (!resultPtr->getAccessToken().empty()) {
+                    LOG_DEBUG("access_token: " << resultPtr->getAccessToken()
+                                               << " expires_in: " << resultPtr->getExpiresIn());
+                } else {
+                    LOG_ERROR("Response doesn't contain access_token, the response is: " << responseData);
+                }
             } else {
                 LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". response Code "
                                                            << response_code << " passedin: " << jsonBody);
             }
             break;
         default:
-            LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". Error Code " << res
-                                                       << " passedin: " << jsonBody);
+            LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". ErrorCode " << res << ": "
+                                                       << errorBuffer << " passedin: " << jsonBody);
             break;
     }
     // Free header list
@@ -362,7 +379,12 @@ const std::string AuthOauth2::getAuthMethodName() const { return "token"; }
 
 Result AuthOauth2::getAuthData(AuthenticationDataPtr& authDataContent) {
     if (cachedTokenPtr_ == nullptr || cachedTokenPtr_->isExpired()) {
-        cachedTokenPtr_ = CachedTokenPtr(new Oauth2CachedToken(flowPtr_->authenticate()));
+        try {
+            cachedTokenPtr_ = CachedTokenPtr(new Oauth2CachedToken(flowPtr_->authenticate()));
+        } catch (const std::runtime_error& e) {
+            // The real error logs have already been printed in authenticate()
+            return ResultAuthenticationError;
+        }
     }
 
     authDataContent = cachedTokenPtr_->getAuthData();
