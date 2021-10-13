@@ -230,7 +230,7 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     AuthenticationDataPtr authDataContent;
     result = authentication->getAuthData(authDataContent);
     if (result != ResultOk) {
-        return SharedBuffer::allocate(0);
+        return SharedBuffer{};
     }
 
     if (authDataContent->hasDataFromCommand()) {
@@ -251,7 +251,7 @@ SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication, 
     AuthenticationDataPtr authDataContent;
     result = authentication->getAuthData(authDataContent);
     if (result != ResultOk) {
-        return SharedBuffer::allocate(0);
+        return SharedBuffer{};
     }
 
     if (authDataContent->hasDataFromCommand()) {
