@@ -131,11 +131,9 @@ public abstract class AbstractTopic implements Topic {
         if (maxProducers == null) {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                         .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
-
-            if (policies == null) {
-                policies = new Policies();
+            if (policies != null) {
+                maxProducers = policies.max_producers_per_topic;
             }
-            maxProducers = policies.max_producers_per_topic;
         }
         maxProducers = maxProducers != null ? maxProducers : brokerService.pulsar()
                 .getConfiguration().getMaxProducersPerTopic();
@@ -153,14 +151,11 @@ public abstract class AbstractTopic implements Topic {
         }
         if (maxConsumers == null) {
             // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+            maxConsumers = policies != null ? policies.max_consumers_per_topic : 0;
         }
 
-        Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
-
-        if (policies == null) {
-            policies = new Policies();
-        }
         final int maxConsumersPerTopic = maxConsumers > 0 ? maxConsumers
                 : brokerService.pulsar().getConfiguration().getMaxConsumersPerTopic();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
