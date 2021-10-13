@@ -234,41 +234,71 @@ void ClientCredentialFlow::initialize() {
 }
 void ClientCredentialFlow::close() {}
 
-std::string ClientCredentialFlow::generateJsonBody() const {
+ParamMap ClientCredentialFlow::generateParamMap() const {
     if (!keyFile_.isValid()) {
-        return "";
+        return {};
     }
 
-    // fill in the request data
-    boost::property_tree::ptree pt;
-    pt.put("grant_type", "client_credentials");
-    pt.put("client_id", keyFile_.getClientId());
-    pt.put("client_secret", keyFile_.getClientSecret());
-    pt.put("audience", audience_);
+    ParamMap params;
+    params.emplace("grant_type", "client_credentials");
+    params.emplace("client_id", keyFile_.getClientId());
+    params.emplace("client_secret", keyFile_.getClientSecret());
+    params.emplace("audience", audience_);
     if (!scope_.empty()) {
-        pt.put("scope", scope_);
+        params.emplace("scope", scope_);
+    }
+    return params;
+}
+
+static std::string buildClientCredentialsBody(CURL* curl, const ParamMap& params) {
+    std::ostringstream oss;
+    bool addSeparater = false;
+
+    for (const auto& kv : params) {
+        if (addSeparater) {
+            oss << "&";
+        } else {
+            addSeparater = true;
+        }
+
+        char* encodedKey = curl_easy_escape(curl, kv.first.c_str(), kv.first.length());
+        if (!encodedKey) {
+            LOG_ERROR("curl_easy_escape for " << kv.first << " failed");
+            continue;
+        }
+        char* encodedValue = curl_easy_escape(curl, kv.second.c_str(), kv.second.length());
+        if (!encodedValue) {
+            LOG_ERROR("curl_easy_escape for " << kv.second << " failed");
+            continue;
+        }
+
+        oss << encodedKey << "=" << encodedValue;
+        curl_free(encodedKey);
+        curl_free(encodedValue);
     }
 
-    std::ostringstream ss;
-    boost::property_tree::json_parser::write_json(ss, pt);
-    return ss.str();
+    return oss.str();
 }
 
 Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     Oauth2TokenResultPtr resultPtr = Oauth2TokenResultPtr(new Oauth2TokenResult());
-    const auto jsonBody = generateJsonBody();
-    if (jsonBody.empty() || tokenEndPoint_.empty()) {
+    if (tokenEndPoint_.empty()) {
         return resultPtr;
     }
-    LOG_DEBUG("Generate JSON body for ClientCredentialFlow: " << jsonBody);
 
     CURL* handle = curl_easy_init();
+    const auto postData = buildClientCredentialsBody(handle, generateParamMap());
+    if (postData.empty()) {
+        curl_easy_cleanup(handle);
+        return resultPtr;
+    }
+    LOG_DEBUG("Generate URL encoded body for ClientCredentialFlow: " << postData);
+
     CURLcode res;
     std::string responseData;
 
-    // set header: json, request type: post
     struct curl_slist* list = NULL;
-    list = curl_slist_append(list, "Content-Type: application/json");
+    list = curl_slist_append(list, "Content-Type: application/x-www-form-urlencoded");
     curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "POST");
 
@@ -287,7 +317,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
-    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, jsonBody.c_str());
+    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, postData.c_str());
 
     char errorBuffer[CURL_ERROR_SIZE];
     curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer);
@@ -308,7 +338,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                     boost::property_tree::read_json(stream, root);
                 } catch (boost::property_tree::json_parser_error& e) {
                     LOG_ERROR("Failed to parse json of Oauth2 response: "
-                              << e.what() << "\nInput Json = " << responseData << " passedin: " << jsonBody);
+                              << e.what() << "\nInput Json = " << responseData << " passedin: " << postData);
                     break;
                 }
 
@@ -326,12 +356,12 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                 }
             } else {
                 LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". response Code "
-                                                           << response_code << " passedin: " << jsonBody);
+                                                           << response_code << " passedin: " << postData);
             }
             break;
         default:
             LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". ErrorCode " << res << ": "
-                                                       << errorBuffer << " passedin: " << jsonBody);
+                                                       << errorBuffer << " passedin: " << postData);
             break;
     }
     // Free header list

@@ -396,28 +396,21 @@ TEST(AuthPluginTest, testOauth2RequestBody) {
     params["client_secret"] = "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb";
     params["audience"] = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
 
-    std::string expectedJson = R"({
-    "grant_type": "client_credentials",
-    "client_id": "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
-    "client_secret": "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb",
-    "audience": "https:\/\/dev-kt-aa9ne.us.auth0.com\/api\/v2\/"
-}
-)";
+    auto createExpectedResult = [&] {
+        auto paramsCopy = params;
+        paramsCopy.emplace("grant_type", "client_credentials");
+        paramsCopy.erase("issuer_url");
+        return paramsCopy;
+    };
 
+    const auto expectedResult1 = createExpectedResult();
     ClientCredentialFlow flow1(params);
-    ASSERT_EQ(flow1.generateJsonBody(), expectedJson);
+    ASSERT_EQ(flow1.generateParamMap(), expectedResult1);
 
     params["scope"] = "test-scope";
-    expectedJson = R"({
-    "grant_type": "client_credentials",
-    "client_id": "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
-    "client_secret": "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb",
-    "audience": "https:\/\/dev-kt-aa9ne.us.auth0.com\/api\/v2\/",
-    "scope": "test-scope"
-}
-)";
+    const auto expectedResult2 = createExpectedResult();
     ClientCredentialFlow flow2(params);
-    ASSERT_EQ(flow2.generateJsonBody(), expectedJson);
+    ASSERT_EQ(flow2.generateParamMap(), expectedResult2);
 }
 
 TEST(AuthPluginTest, testOauth2Failure) {
