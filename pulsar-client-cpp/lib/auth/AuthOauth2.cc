@@ -298,7 +298,6 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     CURLcode res;
     std::string responseData;
 
-    // set header: json, request type: post
     struct curl_slist* list = NULL;
     list = curl_slist_append(list, "Content-Type: application/x-www-form-urlencoded");
     curl_easy_setopt(handle, CURLOPT_HTTPHEADER, list);
