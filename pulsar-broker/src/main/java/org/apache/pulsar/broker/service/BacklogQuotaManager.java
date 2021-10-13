@@ -65,7 +65,13 @@ public class BacklogQuotaManager {
     }
 
     public BacklogQuota getBacklogQuota(String namespace, String policyPath) {
-        Policies policies = zkCache.getDataIfPresent(policyPath);
+        Policies policies = null;
+        try {
+             policies = zkCache.getDataIfPresent(policyPath);
+        } catch (Exception e) {
+            log.warn("Failed to check policies for path {}: {}", policyPath, e);
+        }
+
         if (policies != null) {
             return policies.backlog_quota_map.getOrDefault(BacklogQuotaType.destination_storage, defaultQuota);
         } else {
