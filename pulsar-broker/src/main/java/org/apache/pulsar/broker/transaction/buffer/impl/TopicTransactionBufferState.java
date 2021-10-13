@@ -33,7 +33,7 @@ public abstract class TopicTransactionBufferState {
         Initializing,
         Ready,
         Close,
-        Unused
+        NoSnapshot
     }
 
     private static final AtomicReferenceFieldUpdater<TopicTransactionBufferState, State> STATE_UPDATER =
@@ -50,31 +50,31 @@ public abstract class TopicTransactionBufferState {
         return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.Ready));
     }
 
-    protected boolean changeToUnUsedState() {
-        return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.Unused));
+    protected boolean changeToNoSnapshotState() {
+        return (STATE_UPDATER.compareAndSet(this, State.Initializing, State.NoSnapshot));
     }
 
     protected boolean changeToInitializingState() {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
     }
 
-    protected boolean changeToInitializingStateFromUnused() {
-        return STATE_UPDATER.compareAndSet(this, State.Unused, State.Initializing);
+    protected boolean changeToInitializingStateFromNoSnapshot() {
+        return STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.Initializing);
     }
 
     protected boolean changeToCloseState() {
         return (STATE_UPDATER.compareAndSet(this, State.Ready, State.Close)
                 || STATE_UPDATER.compareAndSet(this, State.None, State.Close)
                 || STATE_UPDATER.compareAndSet(this, State.Initializing, State.Close)
-                || STATE_UPDATER.compareAndSet(this, State.Unused, State.Close));
+                || STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.Close));
     }
 
     public boolean checkIfReady() {
         return STATE_UPDATER.get(this) == State.Ready;
     }
 
-    public boolean checkIfUnused() {
-        return STATE_UPDATER.get(this) == State.Unused;
+    public boolean checkIfNoSnapshot() {
+        return STATE_UPDATER.get(this) == State.NoSnapshot;
     }
 
     public State getState() {

@@ -108,7 +108,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
                     public void recoverComplete() {
-                        if (!changeToReadyState()){
+                        if (!changeToReadyState()) {
                             log.error("[{}]Transaction buffer recover fail", topic.getName());
                         } else {
                             timer.newTimeout(TopicTransactionBuffer.this,
@@ -119,7 +119,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
                     @Override
                     public void noNeedToRecover() {
-                        if (!changeToUnUsedState()){
+                        if (!changeToNoSnapshotState()) {
                             log.error("[{}]Transaction buffer recover fail", topic.getName());
                         } else {
                             transactionBufferFuture.complete(null);
@@ -174,10 +174,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        if (checkIfReady()){
+        if (checkIfReady()) {
             addTxnEntry(completableFuture, txnId, buffer);
         } else {
-            if (checkIfUnused() && changeToInitializingStateFromUnused()){
+            if (checkIfNoSnapshot() && changeToInitializingStateFromNoSnapshot()) {
                 //`PulsarDecoder` will release this buffer  in `finally` and `takeSnapshot` is asynchronous
                 buffer.retain();
                 takeSnapshot().thenAccept(ignore -> {
@@ -188,7 +188,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     log.info("Topic {} take snapshot successfully when uses TransactionBuffer at the first time",
                             this.topic.getName());
                 }).exceptionally(exception -> {
-                    changeToUnUsedState();
+                    changeToNoSnapshotState();
                     buffer.release();
                     log.error("Topic {} fail to takeSnapshot before adding the first message with transaction",
                             this.topic.getName(), exception);
@@ -196,7 +196,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 });
             }
         completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
-                State.Unused, getState()));
+                State.NoSnapshot, getState()));
         }
         return completableFuture;
     }
@@ -240,7 +240,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             log.debug("Transaction {} commit on topic {}.", txnID.toString(), topic.getName());
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (!checkIfReady()){
+        if (!checkIfReady()) {
             log.warn("No message with transaction has been successfully sent, so commit is meaningless");
             completableFuture.complete(null);
             return completableFuture;
@@ -279,7 +279,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             log.debug("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (!checkIfReady()){
+        if (!checkIfReady()) {
            log.warn("No message with transaction has been successfully sent, so abort is meaningless");
            completableFuture.complete(null);
            return completableFuture;
@@ -458,7 +458,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public PositionImpl getMaxReadPosition() {
-        if (checkIfReady() || checkIfUnused()) {
+        if (checkIfReady() || checkIfNoSnapshot()) {
             return this.maxReadPosition;
         } else {
             return PositionImpl.earliest;
@@ -536,7 +536,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     transactionBufferSnapshot.getMaxReadPositionEntryId());
                         }
                     }
-                    if (!hasSnapshot){
+                    if (!hasSnapshot) {
                         callBack.noNeedToRecover();
                         return;
                     }

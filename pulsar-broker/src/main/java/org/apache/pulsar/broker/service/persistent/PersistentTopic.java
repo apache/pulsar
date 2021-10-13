@@ -2988,7 +2988,7 @@ public class PersistentTopic extends AbstractTopic
                                 })
                                 .exceptionally(throwable -> {
                                     throwable = throwable.getCause();
-                                    if (!(throwable instanceof ManagedLedgerException)){
+                                    if (!(throwable instanceof ManagedLedgerException)) {
                                         throwable = new ManagedLedgerException(throwable);
                                     }
                                     addFailed((ManagedLedgerException) throwable, publishContext);
