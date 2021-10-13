@@ -98,7 +98,7 @@ class PULSAR_PUBLIC Authentication {
      *
      * @param[out] authDataContent the shared pointer of AuthenticationData. The content of AuthenticationData
      * is changed to the internal data of the current instance.
-     * @return ResultOk
+     * @return ResultOk or ResultAuthenticationError if authentication failed
      */
     virtual Result getAuthData(AuthenticationDataPtr& authDataContent) {
         authDataContent = authData_;
@@ -450,7 +450,7 @@ class CachedToken {
     /**
      * Get AuthenticationData from the current instance
      *
-     * @return ResultOk
+     * @return ResultOk or ResultAuthenticationError if authentication failed
      */
     virtual AuthenticationDataPtr getAuthData() = 0;
 
@@ -504,7 +504,7 @@ class PULSAR_PUBLIC AuthOauth2 : public Authentication {
      *
      * @param[out] authDataOauth2 the shared pointer of AuthenticationData. The content of AuthenticationData
      * is changed to the internal data of the current instance.
-     * @return ResultOk
+     * @return ResultOk or ResultAuthenticationError if authentication failed
      */
     Result getAuthData(AuthenticationDataPtr& authDataOauth2);
 
