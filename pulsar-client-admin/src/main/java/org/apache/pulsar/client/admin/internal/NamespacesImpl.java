@@ -461,6 +461,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeNamespaceReplicationClusters(String namespace) throws PulsarAdminException {
+        try {
+            removeNamespaceReplicationClustersAsync(namespace)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeNamespaceReplicationClustersAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "replication");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public Integer getNamespaceMessageTTL(String namespace) throws PulsarAdminException {
         return sync(() -> getNamespaceMessageTTLAsync(namespace));
     }

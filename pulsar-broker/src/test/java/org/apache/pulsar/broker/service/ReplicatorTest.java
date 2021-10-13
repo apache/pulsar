@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -210,6 +211,19 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
+    }
+
+    @Test
+    public void testNamespaceWithReplicationClusters() throws PulsarAdminException {
+        // set replication cluster for namespace
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2"));
+        Assert.assertEquals(
+                admin1.namespaces().getNamespaceReplicationClusters("pulsar/ns"), Sets.newHashSet("r1","r2"));
+
+        // remove replication cluster for namespace
+        admin1.namespaces().removeNamespaceReplicationClusters("pulsar/ns");
+        Assert.assertEquals(
+                admin1.namespaces().getNamespaceReplicationClusters("pulsar/ns"), Sets.newHashSet());
     }
 
     @Test(timeOut = 10000)
