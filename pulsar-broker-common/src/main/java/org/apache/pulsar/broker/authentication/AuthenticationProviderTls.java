@@ -215,7 +215,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             }
 
             if(this.printWarnOnWildcardCertificate) {
-                checkIfWildcardCertificate(clientCertificateChain[0], commonName);
+                checkIfWildcardCertificate(commonName);
             }
 
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
@@ -234,8 +234,8 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
      *  It is possible to create a certificate with an empty DN but this method expects that the DN has at
      *  least a CN (common name) attribute.
      *
-     * @param x509Certificate
-     * @param commonName
+     * @param x509Certificate certificate to check
+     * @param commonName common name extracted from the certificate
      */
     static void checkIfSelfSignedCertificate(@NonNull final X509Certificate x509Certificate,
                                              @NonNull final String commonName) {
@@ -249,12 +249,13 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
     }
 
     /**
+     * This method checks for the presence of a wildcard (*) in the common name of the certificate.
+     * If a wildcard is found a log message is emitted and the Prometheus counter:
+     * pulsar_authentication_tls_cert_wildcard_count is incremented
      *
-     * @param x509Certificate
-     * @param commonName
+     * @param commonName to check
      */
-    static void checkIfWildcardCertificate(@NonNull final X509Certificate x509Certificate,
-                                           @NonNull final String commonName) {
+    static void checkIfWildcardCertificate(@NonNull final String commonName) {
         if(commonName.contains("*")) {
             LOG.warn("Encountered client certificate with CN " + commonName + " that contains a wildcard");
             clientCertWildcardMetrics.inc();
@@ -262,13 +263,18 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
     }
 
     /**
+     * This checks whether the supplied certificate's public key bit length is less than the supplied
+     * minimum allowable bit length. If the key is too small, this method will emit a warning and
+     * increment the Prometheus counter: pulsar_authentication_tls_cert_small_rsa_key_count
      *
-     * @param x509Certificate
-     * @param minimumAllowableBitLength
-     * @param commonName
+     * Note: This method DOES NOT work for certificates with DSA keys only RSA
+     *
+     * @param x509Certificate certificate to check
+     * @param minimumAllowableBitLength smallest acceptable RSA key size
+     * @param commonName extracted from the certificate (for logging)
      */
     static void checkIfUsingSmallRsaKeySize(@NonNull final X509Certificate x509Certificate,
-                                            @NonNull final int minimumAllowableBitLength,
+                                            final int minimumAllowableBitLength,
                                             @NonNull final String commonName) {
         PublicKey publicKey = x509Certificate.getPublicKey();
         if(publicKey instanceof RSAPublicKey) {
@@ -332,8 +338,8 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
      * @param printWarnOnClientCertValidityDurationExceedsMillis maximum valid duration in milliseconds
      */
     static void checkMaxValidityPeriod(@NonNull X509Certificate x509Certificate,
-                                       @NonNull final String commonName,
-                                       @NonNull final long printWarnOnClientCertValidityDurationExceedsMillis) {
+                                       final String commonName,
+                                       final long printWarnOnClientCertValidityDurationExceedsMillis) {
         Instant notAfter = x509Certificate.getNotAfter().toInstant();
         Instant notBefore = x509Certificate.getNotBefore().toInstant();
 

@@ -80,15 +80,14 @@ public class AuthenticationProviderTlsTest {
     }
 
     @Test
-    public void testPrintCertificateChain() throws CertificateException, NoSuchAlgorithmException,
-            CertIOException, OperatorCreationException {
+    public void testPrintCertificateChain() {
         assertEquals("O=Stark Industries,OU=CEO,CN=Tony Stark -> O=Wayne Enterprises\\, Inc.,OU=Chairman,CN=*.BruceWayne.com -> O=Planet Express\\, Inc.,OU=Delivery Dept.,CN=Phillip J Fry",
                 AuthenticationProviderTls.concatenateFullCertChain(chain));
     }
 
     @Test
     public void testCheckIfWildcardCertificate() {
-        AuthenticationProviderTls.checkIfWildcardCertificate(chain[1], INTERMEDIATE_CN);
+        AuthenticationProviderTls.checkIfWildcardCertificate(INTERMEDIATE_CN);
         assertEquals(1, AuthenticationProviderTls.clientCertWildcardMetrics.get(), 0);
     }
 
