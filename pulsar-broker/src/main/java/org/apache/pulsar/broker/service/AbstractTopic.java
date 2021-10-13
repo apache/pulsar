@@ -114,9 +114,17 @@ public abstract class AbstractTopic implements Topic {
         this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
         this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
+        Policies policies;
+        try {
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
+            policies = new Policies();
+        }
         this.preciseTopicPublishRateLimitingEnable =
                 brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
-        updatePublishDispatcher();
+        updatePublishDispatcher(policies);
     }
 
     protected boolean isProducersExceeded() {
@@ -462,10 +470,10 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public void updateMaxPublishRate(Policies policies) {
-        updatePublishDispatcher();
+        updatePublishDispatcher(policies);
     }
 
-    private void updatePublishDispatcher() {
+    private void updatePublishDispatcher(Policies policies) {
         //if topic-level policy exists, try to use topic-level publish rate policy
         TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         if (topicPolicies != null && topicPolicies.isPublishRateSet()) {
@@ -473,9 +481,6 @@ public abstract class AbstractTopic implements Topic {
             updatePublishDispatcher(topicPolicies.getPublishRate());
             return;
         }
-
-        Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
 
         //topic-level policy is not set, try to use namespace-level rate policy
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
