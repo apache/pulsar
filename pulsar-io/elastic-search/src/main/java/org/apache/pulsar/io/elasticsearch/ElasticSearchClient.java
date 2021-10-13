@@ -104,7 +104,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-public class ElasticSearchClient {
+public class ElasticSearchClient implements AutoCloseable {
 
     static final String[] malformedErrors = {
             "mapper_parsing_exception",
@@ -129,7 +129,7 @@ public class ElasticSearchClient {
         this.config = elasticSearchConfig;
         this.configCallback = new ConfigCallback();
         this.backoffRetry = new RandomExponentialRetry(elasticSearchConfig.getMaxRetryTimeInSec());
-        if (config.isBulkEnabled() == false) {
+        if (!config.isBulkEnabled()) {
             bulkProcessor = null;
         } else {
             BulkProcessor.Builder builder = BulkProcessor.builder(
@@ -359,6 +359,7 @@ public class ElasticSearchClient {
         bulkProcessor.flush();
     }
 
+    @Override
     public void close() {
         try {
             if (bulkProcessor != null) {
