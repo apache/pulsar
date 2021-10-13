@@ -23,6 +23,7 @@ import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,6 +158,16 @@ public class ConsumerInterceptors<T> implements Closeable {
                 interceptors.get(i).onAckTimeoutSend(consumer, messageIds);
             } catch (Throwable e) {
                 log.warn("Error executing interceptor onAckTimeoutSend callback", e);
+            }
+        }
+    }
+
+    public void onPartitionsChange(String topicName, int partitions) {
+        for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
+            try {
+                interceptors.get(i).onPartitionsChange(topicName, partitions);
+            } catch (Throwable e) {
+                log.warn("Error executing interceptor onPartitionsChange callback", e);
             }
         }
     }

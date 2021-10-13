@@ -141,6 +141,22 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
+    @Test(timeOut = 60000)
+    public void testReadHandlerState() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        LedgerOffloader offloader = getOffloader();
+
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        BlobStoreBackedReadHandleImpl toTest = (BlobStoreBackedReadHandleImpl) offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        Assert.assertEquals(toTest.getState(), BlobStoreBackedReadHandleImpl.State.Opened);
+        toTest.read(0, 1);
+        toTest.close();
+        Assert.assertEquals(toTest.getState(), BlobStoreBackedReadHandleImpl.State.Closed);
+    }
+
     @Test
     public void testOffloadFailInitDataBlockUpload() throws Exception {
         ReadHandle readHandle = buildReadHandle();

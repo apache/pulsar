@@ -1310,7 +1310,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         return subFuture;
                     })
                     .collect(Collectors.toList());
-
+                // call interceptor
+                onPartitionsChange(topicName, currentPartitionNumber);
                 // wait for all partitions subscribe future complete, then startReceivingMessages
                 return FutureUtil.waitForAll(futureList)
                     .thenAccept(finalFuture -> {

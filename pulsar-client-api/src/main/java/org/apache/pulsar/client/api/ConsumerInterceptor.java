@@ -120,4 +120,13 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      * @param messageIds message to ack, null if acknowledge fail.
      */
     void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds);
+
+    /**
+     * This method is called when partitions of the topic (partitioned-topic) changes.
+     *
+     * @param topicName topic name
+     * @param partitions new updated number of partitions
+     */
+    default void onPartitionsChange(String topicName, int partitions) {
+    }
 }
