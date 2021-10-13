@@ -286,6 +286,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
             assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), -1);
             assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
+            transactionBufferSnapshot = reader.readNext().getValue();
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId1).getEntryId() + 1);
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
             assertFalse(reader.hasMessageAvailable());
         });
 
