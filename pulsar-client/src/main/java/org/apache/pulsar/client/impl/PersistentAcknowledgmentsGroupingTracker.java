@@ -477,13 +477,16 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private void flushAsync(ClientCnx cnx) {
         boolean shouldFlush = false;
         if (cumulativeAckFlushRequired) {
-            newMessageAckCommandAndWrite(cnx, consumer.consumerId, lastCumulativeAck.messageId.ledgerId,
-                    lastCumulativeAck.messageId.getEntryId(), lastCumulativeAck.bitSetRecyclable,
-                    AckType.Cumulative, null, Collections.emptyMap(), false,
-                    this.currentCumulativeAckFuture, null);
-            this.consumer.unAckedChunkedMessageIdSequenceMap.remove(lastCumulativeAck.messageId);
-            shouldFlush = true;
-            cumulativeAckFlushRequired = false;
+            final MessageIdImpl messageIdOfLastAck = lastCumulativeAck.messageId;
+            if (messageIdOfLastAck != null) {
+                newMessageAckCommandAndWrite(cnx, consumer.consumerId, messageIdOfLastAck.ledgerId,
+                        messageIdOfLastAck.getEntryId(), lastCumulativeAck.bitSetRecyclable,
+                        AckType.Cumulative, null, Collections.emptyMap(), false,
+                        this.currentCumulativeAckFuture, null);
+                this.consumer.unAckedChunkedMessageIdSequenceMap.remove(messageIdOfLastAck);
+                shouldFlush = true;
+                cumulativeAckFlushRequired = false;
+            }
         }
 
         // Flush all individual acks
