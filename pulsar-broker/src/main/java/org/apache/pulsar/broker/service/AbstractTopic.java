@@ -780,9 +780,15 @@ public abstract class AbstractTopic implements Topic {
             return;
         }
 
-        Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
+        Policies policies;
+        try {
+            policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
                             TopicName.get(topic).getNamespaceObject())
                     .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
+            policies = new Policies();
+        }
 
         //topic-level policy is not set, try to use namespace-level rate policy
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
