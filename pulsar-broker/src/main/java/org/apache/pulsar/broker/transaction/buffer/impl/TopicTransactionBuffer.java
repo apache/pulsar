@@ -183,6 +183,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 takeSnapshot().thenAccept(ignore -> {
                     changeToReadyState();
                     buffer.release();
+                    timer.newTimeout(TopicTransactionBuffer.this,
+                            takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                     log.info("Topic {} take snapshot successfully when uses TransactionBuffer at the first time",
                             this.topic.getName());
                 }).exceptionally(exception -> {
@@ -449,6 +451,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (TopicTransactionBuffer.this) {
             if (ongoingTxns.isEmpty()) {
                 maxReadPosition = position;
+                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
             }
         }
     }

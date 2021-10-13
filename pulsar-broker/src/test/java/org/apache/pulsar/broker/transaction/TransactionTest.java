@@ -267,7 +267,7 @@ public class TransactionTest extends TransactionTestBase {
                 .create();
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
-                .startMessageId(MessageId.latest)
+                .startMessageId(MessageId.earliest)
                 .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader= readerBuilder.create();
 
@@ -284,11 +284,15 @@ public class TransactionTest extends TransactionTestBase {
 
         producer.newMessage(transaction).value("transaction message send ").send();
         Assert.assertTrue(persistentTopic.getTransactionBufferStats().state.equals("Ready"));
-        Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    Message<TransactionBufferSnapshot> message = reader.readNext();
-                    TransactionBufferSnapshot snapshot = message.getValue();
-                    Assert.assertEquals(snapshot.getMaxReadPositionEntryId(),0);
-                });
+
+        Message<TransactionBufferSnapshot> message = reader.readNext();
+        TransactionBufferSnapshot snapshot = message.getValue();
+        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(), 0);
+
+        Awaitility.await().untilAsserted(() -> {
+            Message<TransactionBufferSnapshot>  message1 = reader.readNext();
+            TransactionBufferSnapshot snapshot1 = message1.getValue();
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 2);
+        });
     }
 }
