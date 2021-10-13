@@ -480,7 +480,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     private synchronized void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
         havePendingRead = false;
-        Consumer c = (Consumer) ctx;
+        ReadEntriesCallBackWrapper readEntriesCallBackWrapper = (ReadEntriesCallBackWrapper) ctx;
+        Consumer c = readEntriesCallBackWrapper.getConsumer();
+        readEntriesCallBackWrapper.recycle();
 
         long waitTimeMillis = readFailureBackoff.next();
 

@@ -994,6 +994,11 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId) {
+
+        return newRedeliverUnacknowledgedMessages(consumerId, 0L, 0L);
+    }
+
     public static ByteBuf newRedeliverUnacknowledgedMessages(long consumerId, List<MessageIdData> messageIds) {
         BaseCommand cmd = localCmd(Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
         CommandRedeliverUnacknowledgedMessages req = cmd.setRedeliverUnacknowledgedMessages()

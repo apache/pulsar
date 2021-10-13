@@ -1720,13 +1720,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 unAckedMessageTracker.clear();
             }
             long requestId = client.newRequestId();
-            cnx.newRedeliverUnacknowledgedMessages(
-                    Commands.newRedeliverUnacknowledgedMessages(consumerId,
-                            requestId, consumerEpoch.get()), requestId).thenRun(() ->
-                    completableFuture.complete(null)).exceptionally(e -> {
-                completableFuture.completeExceptionally(e.getCause());
-                return null;
-            });
+            if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v20.getValue()) {
+                cnx.ctx().writeAndFlush(Commands
+                        .newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
+                completableFuture.complete(null);
+            } else {
+                cnx.newRedeliverUnacknowledgedMessages(
+                        Commands.newRedeliverUnacknowledgedMessages(consumerId,
+                                requestId, consumerEpoch.get()), requestId).thenRun(() ->
+                        completableFuture.complete(null)).exceptionally(e -> {
+                    completableFuture.completeExceptionally(e.getCause());
+                    return null;
+                });
+            }
             if (currentSize > 0) {
                 increaseAvailablePermits(cnx, currentSize);
             }
