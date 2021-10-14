@@ -832,7 +832,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected AutoTopicCreationOverride internalGetAutoTopicCreation() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).autoTopicCreationOverride;
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoTopicCreationOverride;
     }
 
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse,
@@ -909,7 +910,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected AutoSubscriptionCreationOverride internalGetAutoSubscriptionCreation() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).autoSubscriptionCreationOverride;
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoSubscriptionCreationOverride;
     }
 
     protected void internalRemoveAutoSubscriptionCreation(AsyncResponse asyncResponse) {
@@ -1731,7 +1733,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected SubscriptionAuthMode internalGetSubscriptionAuthMode() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).subscription_auth_mode;
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.subscription_auth_mode;
     }
 
     protected void internalModifyEncryptionRequired(boolean encryptionRequired) {
@@ -1754,7 +1757,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected Boolean internalGetEncryptionRequired() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).encryption_required;
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.encryption_required;
     }
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {

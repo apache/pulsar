@@ -202,6 +202,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         // tests for subscription auth mode
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "*", EnumSet.of(AuthAction.consume));
+        admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.None);
+        Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
+                SubscriptionAuthMode.None);
         admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.Prefix);
         Assert.assertEquals(admin.namespaces().getSubscriptionAuthMode("p1/c1/ns1"),
                 SubscriptionAuthMode.Prefix);
