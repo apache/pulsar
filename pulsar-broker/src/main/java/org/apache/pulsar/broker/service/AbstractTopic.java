@@ -148,7 +148,7 @@ public abstract class AbstractTopic implements Topic {
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable =
                 brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
-        updatePublishDispatcher();
+        updatePublishDispatcher(Optional.empty());
     }
 
     protected boolean isProducersExceeded() {
@@ -767,10 +767,10 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public void updateMaxPublishRate(Policies policies) {
-        updatePublishDispatcher();
+        updatePublishDispatcher(Optional.of(policies));
     }
 
-    private void updatePublishDispatcher() {
+    private void updatePublishDispatcher(Optional<Policies> optPolicies) {
         //if topic-level policy exists, try to use topic-level publish rate policy
         Optional<PublishRate> topicPublishRate = getTopicPolicies().map(TopicPolicies::getPublishRate);
         if (topicPublishRate.isPresent()) {
@@ -782,9 +782,13 @@ public abstract class AbstractTopic implements Topic {
 
         Policies policies;
         try {
-            policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
-                            TopicName.get(topic).getNamespaceObject())
-                    .orElseGet(() -> new Policies());
+            if (optPolicies.isPresent()) {
+                policies = optPolicies.get();
+            } else {
+                policies = brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(
+                                TopicName.get(topic).getNamespaceObject())
+                        .orElseGet(() -> new Policies());
+            }
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
             policies = new Policies();
