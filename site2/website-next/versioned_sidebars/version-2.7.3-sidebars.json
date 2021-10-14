@@ -546,6 +546,32 @@
     },
     {
       "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.3/develop-cpp"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Reference",
       "items": [
         {

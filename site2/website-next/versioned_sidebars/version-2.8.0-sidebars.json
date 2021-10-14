@@ -562,6 +562,28 @@
     },
     {
       "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.8.0/develop-tools"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.8.0/develop-load-manager"
+        }
+      ]
+    },
+    {
+      "type": "category",
       "label": "Reference",
       "items": [
         {
