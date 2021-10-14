@@ -209,7 +209,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                     }
                     return State.Failed;
                 }
-                log.debug("[{}] Created internal producer. partitionIndex: {}", topic, partition);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Created internal producer. partitionIndex: {}", topic, partition);
+                }
                 return State.Ready;
             }).join();
             if (createState == State.Failed) {

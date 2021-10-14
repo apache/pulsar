@@ -28,6 +28,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -117,7 +118,7 @@ public class PartitionedProducerImplTest {
     }
 
     @Test
-    public void testPartialPartition() throws Throwable {
+    public void testPartialPartition() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
         final Set<Integer> actualSet = Sets.newHashSet();
         final Message<byte[]> msg = MessageImpl
@@ -128,10 +129,17 @@ public class PartitionedProducerImplTest {
             actualSet.add(router.choosePartition(msg, metadata));
         }
         assertEquals(actualSet.size(), 3);
+
+        try {
+            new PartialRoundRobinMessageRouterImpl(0);
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getClass(), IllegalArgumentException.class);
+        }
     }
 
     @Test
-    public void testPartialPartitionWithKey() throws Throwable {
+    public void testPartialPartitionWithKey() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
         final Hash hash = Murmur3_32Hash.getInstance();
         final List<Integer> expectedHashList = Lists.newArrayList();

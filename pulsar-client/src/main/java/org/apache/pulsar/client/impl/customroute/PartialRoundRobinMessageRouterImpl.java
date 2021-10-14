@@ -40,6 +40,9 @@ public class PartialRoundRobinMessageRouterImpl implements MessageRouter {
     private volatile int partitionIndex = 0;
 
     public PartialRoundRobinMessageRouterImpl(final int numPartitionsLimit) {
+        if (numPartitionsLimit < 1) {
+            throw new IllegalArgumentException("numPartitionsLimit should be greater than or equal to 1");
+        }
         this.numPartitionsLimit = numPartitionsLimit;
     }
 
@@ -58,8 +61,8 @@ public class PartialRoundRobinMessageRouterImpl implements MessageRouter {
     }
 
     private List<Integer> getOrCreatePartialList(TopicMetadata metadata) {
-        if (partialList.isEmpty() ||
-                partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
+        if (partialList.isEmpty()
+                || partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
             synchronized (this) {
                 if (partialList.isEmpty()) {
                     partialList.addAll(IntStream.range(0, metadata.numPartitions()).boxed()
@@ -68,7 +71,8 @@ public class PartialRoundRobinMessageRouterImpl implements MessageRouter {
                                 return list.stream();
                             })).limit(numPartitionsLimit).collect(Collectors.toList()));
                 } else if (partialList.size() < numPartitionsLimit && partialList.size() < metadata.numPartitions()) {
-                    partialList.addAll(IntStream.range(0, metadata.numPartitions()).boxed().filter(e -> !partialList.contains(e))
+                    partialList.addAll(IntStream.range(0, metadata.numPartitions()).boxed()
+                            .filter(e -> !partialList.contains(e))
                             .collect(Collectors.collectingAndThen(Collectors.toList(), list -> {
                                 Collections.shuffle(list);
                                 return list.stream();
