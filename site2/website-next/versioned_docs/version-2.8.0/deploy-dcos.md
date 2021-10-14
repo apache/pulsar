@@ -11,7 +11,7 @@ import TabItem from '@theme/TabItem';
 
 > ### Tips
 >
-> If you want to enable all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+> If you want to enable all builtin [Pulsar IO](io-overview) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
 > `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 [DC/OS](https://dcos.io/) (the <strong>D</strong>ata<strong>C</strong>enter <strong>O</strong>perating <strong>S</strong>ystem) is a distributed operating system used for deploying and managing applications and systems on [Apache Mesos](http://mesos.apache.org/). DC/OS is an open-source tool that [Mesosphere](https://mesosphere.com/) creates and maintains .
@@ -28,7 +28,9 @@ In order to run Pulsar on DC/OS, you need the following:
 * The [`PulsarGroups.json`](https://github.com/apache/pulsar/blob/master/deployment/dcos/PulsarGroups.json) configuration file from the Pulsar GitHub repo.
 
   ```bash
+
   $ curl -O https://raw.githubusercontent.com/apache/pulsar/master/deployment/dcos/PulsarGroups.json
+
   ```
 
 Each node in the DC/OS-managed Mesos cluster must have at least:
@@ -44,7 +46,9 @@ Alternatively, you can change the configuration in `PulsarGroups.json` according
 You can deploy Pulsar on DC/OS using this command:
 
 ```bash
+
 $ dcos marathon group add PulsarGroups.json
+
 ```
 
 This command deploys Docker container instances in three groups, which together comprise a Pulsar cluster:
@@ -131,7 +135,9 @@ Now that you have a fully deployed Pulsar cluster, you can run a simple consumer
 You can clone a [Pulsar Java tutorial](https://github.com/streamlio/pulsar-java-tutorial) repo. This repo contains a simple Pulsar consumer and producer (you can find more information in the `README` file of the repo).
 
 ```bash
+
 $ git clone https://github.com/streamlio/pulsar-java-tutorial
+
 ```
 
 Change the `SERVICE_URL` from `pulsar://localhost:6650` to `pulsar://a1.dcos:6650` in both [`ConsumerTutorial.java`](https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ConsumerTutorial.java) and [`ProducerTutorial.java`](https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java).
@@ -142,7 +148,9 @@ Now, change the message number from 10 to 10000000 in main method of [`ProducerT
 Now compile the project code using the command below:
 
 ```bash
+
 $ mvn clean package
+
 ```
 
 ### Run the consumer and producer
@@ -150,13 +158,17 @@ $ mvn clean package
 Execute this command to run the consumer:
 
 ```bash
+
 $ mvn exec:java -Dexec.mainClass="tutorial.ConsumerTutorial"
+
 ```
 
 Execute this command to run the producer:
 
 ```bash
+
 $ mvn exec:java -Dexec.mainClass="tutorial.ProducerTutorial"
+
 ```
 
 You can see the producer producing messages and the consumer consuming messages through the DC/OS GUI.
@@ -183,5 +195,7 @@ You can shut down and uninstall the `pulsar` application from DC/OS at any time 
 2. You can use the following command:
 
     ```bash
+
     $ dcos marathon group remove /pulsar
+
     ```

@@ -177,7 +177,7 @@ stringProducer.send("My message");
 
 > Make sure that you close your producers, consumers, and clients when you do not need them.
 > ```java
-
+>
 > producer.close();
 > consumer.close();
 > client.close();
@@ -185,7 +185,7 @@ stringProducer.send("My message");
 >
 > Close operations can also be asynchronous:
 > ```java
-
+>
 > producer.closeAsync()
 >    .thenRun(() -> System.out.println("Producer closed"))
 >    .exceptionally((ex) -> {
