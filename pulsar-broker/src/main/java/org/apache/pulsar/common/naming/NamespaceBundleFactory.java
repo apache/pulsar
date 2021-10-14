@@ -22,7 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.policies.data.Policies.FIRST_BOUNDARY;
 import static org.apache.pulsar.common.policies.data.Policies.LAST_BOUNDARY;
-
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+import com.google.common.hash.HashFunction;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -34,9 +41,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -50,15 +54,6 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-import com.google.common.hash.HashFunction;
 
 public class NamespaceBundleFactory {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceBundleFactory.class);
@@ -168,19 +163,6 @@ public class NamespaceBundleFactory {
                 LOG.error("Failed to update the policy change for path {}", n.getPath(), e);
             }
         }
-    }
-
-    /**
-     * checks if the local broker is the owner of the namespace bundle.
-     *
-     * @param nsBundle
-     * @return
-     */
-    private boolean isOwner(NamespaceBundle nsBundle) {
-        if (pulsar != null) {
-            return pulsar.getNamespaceService().getOwnershipCache().getOwnedBundle(nsBundle) != null;
-        }
-        return false;
     }
 
     public void invalidateBundleCache(NamespaceName namespace) {
