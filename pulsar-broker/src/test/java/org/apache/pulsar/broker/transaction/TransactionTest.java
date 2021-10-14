@@ -18,15 +18,20 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -34,6 +39,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
@@ -246,4 +252,26 @@ public class TransactionTest extends TransactionTestBase {
 
     }
 
+    @Test
+    public void testAppendBufferWithManageLedgerException()
+            throws PulsarAdminException, ExecutionException, InterruptedException {
+
+        String topic = "persistent://pulsar/system/testReCreateTopic";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                        .getTopic(topic, false)
+                        .get().get();
+
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        try {
+            topicTransactionBuffer.appendBufferToTxn(new TxnID(123L, 321L), 123L,
+                    null);
+            Assert.fail("TransactionBuffer should not append successfully with a null buffer.");
+        } catch (Exception e) {
+            Assert.assertEquals(e.getClass(), ManagedLedgerException.class);
+        }
+
+    }
 }

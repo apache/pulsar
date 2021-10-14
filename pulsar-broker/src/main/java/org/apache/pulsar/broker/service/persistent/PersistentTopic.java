@@ -2987,6 +2987,10 @@ public class PersistentTopic extends AbstractTopic
                                     decrementPendingWriteOpsAndCheck();
                                 })
                                 .exceptionally(throwable -> {
+                                    throwable = throwable.getCause();
+                                    if (!(throwable instanceof ManagedLedgerException)) {
+                                        throwable = new ManagedLedgerException(throwable);
+                                    }
                                     addFailed((ManagedLedgerException) throwable, publishContext);
                                     return null;
                                 });
