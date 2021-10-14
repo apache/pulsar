@@ -124,6 +124,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     managedLedger.close();
                 } catch (Exception e) {
                     completableFuture.completeExceptionally(e);
+                    return;
                 }
                 completableFuture.complete(null);
             }
