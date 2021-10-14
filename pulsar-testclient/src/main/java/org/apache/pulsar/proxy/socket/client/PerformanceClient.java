@@ -301,7 +301,6 @@ public class PerformanceClient {
                     for (String topic : producersMap.keySet()) {
                         if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
-                            Thread.sleep(5000);
                             PerfClientUtils.exit(0);
                         }
 
