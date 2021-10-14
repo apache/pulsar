@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.containers;
 
 
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -63,7 +64,10 @@ public class DebeziumMsSqlContainer extends ChaosContainer<DebeziumMsSqlContaine
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(getContainerName());
             })
-            .waitingFor(new HostPortWaitStrategy());
+            // wait strategy to address problem with MS SQL responding to the connection
+            // before service starts up completely
+            // https://github.com/microsoft/mssql-docker/issues/625#issuecomment-882025521
+            .waitingFor(Wait.forLogMessage(".*The tempdb database has .*", 2));
     }
 
 }
