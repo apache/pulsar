@@ -1627,7 +1627,7 @@ public class Namespaces extends NamespacesBase {
                             @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
     public boolean getSchemaValidtionEnforced(@PathParam("tenant") String tenant,
                                               @PathParam("namespace") String namespace,
-                                              @QueryParam("applied") boolean applied) {
+                                              @QueryParam("applied") @DefaultValue("false") boolean applied) {
         validateNamespaceName(tenant, namespace);
         return internalGetSchemaValidationEnforced(applied);
     }
