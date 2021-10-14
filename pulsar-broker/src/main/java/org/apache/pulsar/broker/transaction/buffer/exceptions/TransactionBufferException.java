@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
+
 /**
  * The base exception class for the errors thrown from Transaction Buffer.
  */
@@ -36,4 +40,118 @@ public abstract class TransactionBufferException extends Exception {
     public TransactionBufferException(Throwable cause) {
         super(cause);
     }
+
+
+    /**
+     * Exception thrown when reaching end of a transaction.
+     */
+    public static class EndOfTransactionException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 0L;
+
+        public EndOfTransactionException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Exception is thrown when no transactions found committed at a given ledger.
+     */
+    public class NoTxnsCommittedAtLedgerException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 0L;
+
+        public NoTxnsCommittedAtLedgerException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Transaction buffer provider exception.
+     */
+    public class TransactionBufferProviderException extends TransactionBufferException {
+
+        public TransactionBufferProviderException(String message) {
+            super(message);
+        }
+
+    }
+
+    /**
+     * Exception is thrown when the transaction is not found in the transaction buffer.
+     */
+    public static class TransactionNotFoundException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 0L;
+
+        public TransactionNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Exception is thrown when opening a reader on a transaction that is not sealed yet.
+     */
+    public static class TransactionNotSealedException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 0L;
+
+        public TransactionNotSealedException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Transaction pending ack store provider exception.
+     */
+    public static class TransactionPendingAckStoreProviderException extends TransactionBufferException {
+
+        public TransactionPendingAckStoreProviderException(String message) {
+            super(message);
+        }
+
+    }
+
+    /**
+     * Exception thrown if a transaction is already sealed.
+     *
+     * <p>If a transaction is sealed, no more entries should be appended to this transaction.
+     */
+    public static class TransactionSealedException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 5366602873819540477L;
+
+        public TransactionSealedException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.
+     */
+    public static class TransactionStatusException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 0L;
+
+        public TransactionStatusException(TxnID txnId,
+                                          TxnStatus expectedStatus,
+                                          TxnStatus actualStatus) {
+            super("Transaction `q" + txnId + "` is not in an expected status `" + expectedStatus
+                    + "`, but is in status `" + actualStatus + "`");
+        }
+    }
+
+
+    /**
+     * Exceptions are thrown when txnAction is unsupported.
+     */
+    public static class UnsupportedTxnActionException extends TransactionBufferException {
+
+        private static final long serialVersionUID = 0L;
+
+        public UnsupportedTxnActionException(TxnID txnId, int txnAction) {
+            super("Transaction `" + txnId + "` receive unsupported txnAction " + TxnAction.valueOf(txnAction));
+        }
+    }
+
 }
