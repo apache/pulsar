@@ -132,6 +132,10 @@ module.exports = {
               to: "docs/2.7.3/",
             },
             {
+              label: "2.7.2",
+              to: "docs/2.7.2/",
+            },
+            {
               label: "2.2.0",
               to: "docs/2.2.0/",
             },
