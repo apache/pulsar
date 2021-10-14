@@ -58,8 +58,8 @@ public abstract class TopicTransactionBufferState {
         return STATE_UPDATER.compareAndSet(this, State.None, State.Initializing);
     }
 
-    protected boolean changeToInitializingStateFromNoSnapshot() {
-        return STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.Initializing);
+    protected boolean changeToReadyStateFromNoSnapshot() {
+        return STATE_UPDATER.compareAndSet(this, State.NoSnapshot, State.Ready);
     }
 
     protected boolean changeToCloseState() {

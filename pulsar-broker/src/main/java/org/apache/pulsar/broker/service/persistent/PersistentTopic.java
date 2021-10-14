@@ -107,6 +107,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -572,6 +573,11 @@ public class PersistentTopic extends AbstractTopic
             // Start replication producers if not already
             return startReplProducers().thenApply(__ -> topicEpoch);
         });
+    }
+
+    @Override
+    public CompletableFuture<Boolean> takeSnapshotIfTxnBufferNotReady() {
+        return ((TopicTransactionBuffer)getTransactionBuffer()).takeSnapshotIfNotReady();
     }
 
     @Override
@@ -2981,16 +2987,12 @@ public class PersistentTopic extends AbstractTopic
                                     // Message has been successfully persisted
                                     messageDeduplication.recordMessagePersisted(publishContext,
                                             (PositionImpl) position);
-                                    publishContext.completed(null, position.getLedgerId(),
-                                            position.getEntryId());
+                                    publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
+                                            ((PositionImpl) position).getEntryId());
 
                                     decrementPendingWriteOpsAndCheck();
                                 })
                                 .exceptionally(throwable -> {
-                                    throwable = throwable.getCause();
-                                    if (!(throwable instanceof ManagedLedgerException)) {
-                                        throwable = new ManagedLedgerException(throwable);
-                                    }
                                     addFailed((ManagedLedgerException) throwable, publishContext);
                                     return null;
                                 });

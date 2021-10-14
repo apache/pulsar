@@ -43,7 +43,6 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferStatusException;
 import org.apache.pulsar.broker.transaction.buffer.matadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Message;
@@ -171,37 +170,29 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return null;
     }
 
-    @Override
-    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
-        CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        if (checkIfReady()) {
-            addTxnEntry(completableFuture, txnId, buffer);
-        } else {
-            if (checkIfNoSnapshot() && changeToInitializingStateFromNoSnapshot()) {
-                //`PulsarDecoder` will release this buffer  in `finally` and `takeSnapshot` is asynchronous
-                buffer.retain();
-                takeSnapshot().thenAccept(ignore -> {
-                    changeToReadyState();
-                    buffer.release();
-                    timer.newTimeout(TopicTransactionBuffer.this,
-                            takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                    log.info("Topic {} take snapshot successfully when uses TransactionBuffer at the first time",
-                            this.topic.getName());
-                }).exceptionally(exception -> {
-                    changeToNoSnapshotState();
-                    buffer.release();
-                    log.error("Topic {} fail to takeSnapshot before adding the first message with transaction",
-                            this.topic.getName(), exception);
-                    return null;
-                });
+    public CompletableFuture<Boolean> takeSnapshotIfNotReady() {
+        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+        if (checkIfNoSnapshot()) {
+            takeSnapshot().thenAccept(ignore -> {
+            if (changeToReadyStateFromNoSnapshot()) {
+                timer.newTimeout(TopicTransactionBuffer.this,
+                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                completableFuture.complete(null);
             }
-        completableFuture.completeExceptionally(new TransactionBufferStatusException(this.topic.getName(),
-                State.NoSnapshot, getState()));
+            completableFuture.complete(null);
+            }).exceptionally(exception -> {
+                log.error("Topic {} failed to take snapshot", this.topic.getName());
+                completableFuture.completeExceptionally(exception);
+                return null;
+            });
         }
         return completableFuture;
     }
 
-    private void addTxnEntry(CompletableFuture<Position> completableFuture, TxnID txnId, ByteBuf buffer){
+
+    @Override
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
+        CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
@@ -217,6 +208,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 completableFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
+        return completableFuture;
     }
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
@@ -240,11 +232,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             log.debug("Transaction {} commit on topic {}.", txnID.toString(), topic.getName());
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (!checkIfReady()) {
-            log.warn("No message with transaction has been successfully sent, so commit is meaningless");
-            completableFuture.complete(null);
-            return completableFuture;
-        }
+
         ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
                 txnID.getLeastSigBits());
 

@@ -692,14 +692,14 @@ public class Commands {
 
     @VisibleForTesting
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-                Map<String, String> metadata) {
-        return newProducer(topic, producerId, requestId, producerName, false, metadata);
+                Map<String, String> metadata, boolean isTxnEnable) {
+        return newProducer(topic, producerId, requestId, producerName, false, metadata, isTxnEnable);
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-                boolean encrypted, Map<String, String> metadata) {
+                boolean encrypted, Map<String, String> metadata, boolean isTxnEnable) {
         return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null, 0, false,
-                ProducerAccessMode.Shared, Optional.empty());
+                ProducerAccessMode.Shared, Optional.empty(), isTxnEnable);
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
@@ -736,7 +736,7 @@ public class Commands {
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
           boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
           long epoch, boolean userProvidedProducerName,
-          ProducerAccessMode accessMode, Optional<Long> topicEpoch) {
+          ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnable) {
         BaseCommand cmd = localCmd(Type.PRODUCER);
         CommandProducer producer = cmd.setProducer()
                 .setTopic(topic)
@@ -745,6 +745,7 @@ public class Commands {
                 .setEpoch(epoch)
                 .setUserProvidedProducerName(userProvidedProducerName)
                 .setEncrypted(encrypted)
+                .setTxnEnable(isTxnEnable)
                 .setProducerAccessMode(convertProducerAccessMode(accessMode));
         if (producerName != null) {
             producer.setProducerName(producerName);

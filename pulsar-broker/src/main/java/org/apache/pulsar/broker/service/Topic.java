@@ -117,6 +117,12 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
+     * Take snapshot if transactionBuffer in state of NoSnapshot.(only for persistent topic)
+     * @return
+     */
+    CompletableFuture<Boolean> takeSnapshotIfTxnBufferNotReady();
+
+    /**
      * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);

@@ -222,6 +222,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
+    public CompletableFuture<Boolean> takeSnapshotIfTxnBufferNotReady() {
+        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(true);
+        return  completableFuture;
+    }
+
+    @Override
     public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
                                                  SubType subType, int priorityLevel, String consumerName,
                                                  boolean isDurable, MessageId startMessageId,

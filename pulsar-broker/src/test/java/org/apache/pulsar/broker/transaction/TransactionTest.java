@@ -255,44 +255,44 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
-    public void testTakeSnapshotBeforeFirstTxnMessageSend() throws Exception{
+    public void testTakeSnapshotBeforeBuildTxnProducer() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testSnapShot";
         admin.topics().createNonPartitionedTopic(topic);
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(topic, false)
                 .get().get();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
-                .topic(topic).enableBatching(true)
-                .create();
+
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .startMessageId(MessageId.earliest)
                 .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        Reader<TransactionBufferSnapshot> reader= readerBuilder.create();
+        Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
         long waitSnapShotTime = getPulsarServiceList().get(0).getConfiguration()
                 .getTransactionBufferSnapshotMinTimeInMillis();
-
-        producer.newMessage(Schema.STRING).value("common message send").send();
-
         Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> Assert.assertFalse(reader.hasMessageAvailable()));
-        Assert.assertTrue(persistentTopic.getTransactionBufferStats().state.equals("Unused"));
-        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
 
-        producer.newMessage(transaction).value("transaction message send ").send();
-        Assert.assertTrue(persistentTopic.getTransactionBufferStats().state.equals("Ready"));
-
-        Message<TransactionBufferSnapshot> message = reader.readNext();
-        TransactionBufferSnapshot snapshot = message.getValue();
-        Assert.assertEquals(snapshot.getMaxReadPositionEntryId(), 0);
+        //test take snapshot by build producer by the transactionEnable client
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic).enableBatching(true)
+                .create();
 
         Awaitility.await().untilAsserted(() -> {
-            Message<TransactionBufferSnapshot>  message1 = reader.readNext();
+            Message<TransactionBufferSnapshot> message1 = reader.readNext();
             TransactionBufferSnapshot snapshot1 = message1.getValue();
-            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 2);
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), -1);
+        });
+
+        // test snapshot by publish  normal messages.
+        producer.newMessage(Schema.STRING).value("common message send").send();
+        producer.newMessage(Schema.STRING).value("common message send").send();
+
+        Awaitility.await().untilAsserted(() -> {
+            Message<TransactionBufferSnapshot> message1 = reader.readNext();
+            TransactionBufferSnapshot snapshot1 = message1.getValue();
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 1);
         });
     }
 }
