@@ -172,7 +172,7 @@ public class DispatchRateLimiter {
 
             }).exceptionally(ex -> {
                 log.error("[{}] failed to get the dispatch rate policy from the namespace resource for type {}",
-                        topicName, type);
+                        topicName, type, ex);
                 return null;
             });
         } else {
@@ -324,7 +324,7 @@ public class DispatchRateLimiter {
     public CompletableFuture<Optional<DispatchRate>> getPoliciesDispatchRateAsync(BrokerService brokerService) {
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
         return getPoliciesAsync(brokerService, topicName).thenApply(policiesOp ->
-                Optional.of(getPoliciesDispatchRate(cluster, policiesOp, type)));
+                Optional.ofNullable(getPoliciesDispatchRate(cluster, policiesOp, type)));
     }
 
     public static CompletableFuture<Optional<Policies>> getPoliciesAsync(BrokerService brokerService,
