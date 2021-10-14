@@ -1407,7 +1407,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public static String brokerUrl(String host, int port) {
-        return String.format("pulsar://%s:%d", host, port);
+        return ServiceConfigurationUtils.brokerUrl(host, port);
     }
 
     public String brokerUrlTls(ServiceConfiguration config) {
@@ -1420,7 +1420,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public static String brokerUrlTls(String host, int port) {
-        return String.format("pulsar+ssl://%s:%d", host, port);
+        return ServiceConfigurationUtils.brokerUrlTls(host, port);
     }
 
     public String webAddress(ServiceConfiguration config) {
