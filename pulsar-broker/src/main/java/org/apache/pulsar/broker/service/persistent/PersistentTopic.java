@@ -1006,33 +1006,29 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private void asyncDeleteCursor(String subscriptionName, CompletableFuture<Void> unsubscribeFuture) {
-        lock.writeLock().lock();
         ledger.asyncDeleteCursor(Codec.encode(subscriptionName), new DeleteCursorCallback() {
             @Override
             public void deleteCursorComplete(Object ctx) {
-                try {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Cursor deleted successfully", topic, subscriptionName);
-                    }
-                    removeSubscription(subscriptionName);
-                    unsubscribeFuture.complete(null);
-                    lastActive = System.nanoTime();
-                } finally {
-                    lock.writeLock().unlock();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Cursor deleted successfully", topic, subscriptionName);
                 }
+                removeSubscription(subscriptionName);
+                unsubscribeFuture.complete(null);
+                lastActive = System.nanoTime();
             }
 
             @Override
             public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                try {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Error deleting cursor for subscription",
-                                topic, subscriptionName, exception);
-                    }
-                    unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
-                } finally {
-                    lock.writeLock().unlock();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Error deleting cursor for subscription",
+                            topic, subscriptionName, exception);
                 }
+                if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
+                    unsubscribeFuture.complete(null);
+                    lastActive = System.nanoTime();
+                    return;
+                }
+                unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
     }
