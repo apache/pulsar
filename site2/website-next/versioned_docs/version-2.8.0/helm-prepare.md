@@ -68,13 +68,17 @@ The following table describes all variables.
 Run the script, by passing in your desired parameters. It can work with the default parameters except for `PROJECT` which is required:
 
 ```bash
+
 PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh up
+
 ```
 
 The script can also be used to clean up the created GKE resources.
 
 ```bash
+
 PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh down
+
 ```
 
 #### Create cluster with local SSDs
@@ -83,7 +87,8 @@ To install a Pulsar Helm chart using local persistent volumes, you need to creat
 
 ```
 PROJECT=<gcloud project id> USE_LOCAL_SSD=true LOCAL_SSD_COUNT=<local-ssd-count> scripts/pulsar/gke_bootstrap_script.sh up
+
 ```
 ## Next Steps
 
-Continue with the [installation of the chart](helm-deploy.md) once you have the cluster up and running.
+Continue with the [installation of the chart](helm-deploy) once you have the cluster up and running.

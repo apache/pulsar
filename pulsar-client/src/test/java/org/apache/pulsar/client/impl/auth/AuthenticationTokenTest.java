@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.SerializationUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -100,12 +99,12 @@ public class AuthenticationTokenTest {
 
     @Test
     public void testAuthTokenConfigFromFile() throws Exception {
-        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
         FileUtils.write(tokenFile, "my-test-token-string", Charsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("file://" + tokenFile);
+        authToken.configure(getTokenFileUri(tokenFile));
         assertEquals(authToken.getAuthMethodName(), "token");
 
         AuthenticationDataProvider authData = authToken.getAuthData();
@@ -128,12 +127,12 @@ public class AuthenticationTokenTest {
      */
     @Test
     public void testAuthTokenConfigFromFileWithNewline() throws Exception {
-        File tokenFile = File.createTempFile("pular-test-token", ".key");
+        File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
         FileUtils.write(tokenFile, "  my-test-token-string  \r\n", Charsets.UTF_8);
 
         AuthenticationToken authToken = new AuthenticationToken();
-        authToken.configure("file://" + tokenFile);
+        authToken.configure(getTokenFileUri(tokenFile));
         assertEquals(authToken.getAuthMethodName(), "token");
 
         AuthenticationDataProvider authData = authToken.getAuthData();
@@ -197,10 +196,14 @@ public class AuthenticationTokenTest {
         assertEquals(tokenSupplier.token, ts.getAuthData().getCommandData());
     }
 
+    private String getTokenFileUri(File file) {
+        return "file:///" + file.toString().replace('\\', '/');
+    }
+
     public static class SerializableSupplier implements Supplier<String>, Serializable {
 
         private static final long serialVersionUID = 6259616338933150683L;
-        private String token;
+        private final String token;
 
         public SerializableSupplier(final String token) {
             super();
