@@ -149,6 +149,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         return new Object[][] { { "ns1" }, { "global" } };
     }
 
+    @DataProvider(name = "isV1")
+    public Object[][] isV1() {
+        return new Object[][] { { true }, { false } };
+    }
+
     /**
      * <pre>
      * It verifies increasing partitions for partitioned-topic.
@@ -2139,15 +2144,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void testGetTopicsWithDifferentMode() throws Exception {
         final String namespace = "prop-xyz/ns1";
 
-        final String persistentTopicName = TopicName.get(
-                "persistent",
-                NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+        final String persistentTopicName = TopicName
+                .get("persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
 
-        final String nonPersistentTopicName = TopicName.get(
-                "non-persistent",
-                NamespaceName.get(namespace),
-                "get_topics_mode_" + UUID.randomUUID().toString()).toString();
+        final String nonPersistentTopicName = TopicName
+                .get("non-persistent", NamespaceName.get(namespace), "get_topics_mode_" + UUID.randomUUID().toString())
+                .toString();
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistentTopicName).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(nonPersistentTopicName).create();
@@ -2178,5 +2181,54 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         producer1.close();
         producer2.close();
+    }
+
+
+    @Test(dataProvider = "isV1")
+    public void testNonPartitionedTopic(boolean isV1) throws Exception {
+        String tenant = "prop-xyz";
+        String cluster = "test";
+        String namespace = tenant + "/" + (isV1 ? cluster + "/" : "") + "n1" + isV1;
+        String topic = "persistent://" + namespace + "/t1" + isV1;
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
+        admin.topics().createNonPartitionedTopic(topic);
+        assertTrue(admin.topics().getList(namespace).contains(topic));
+    }
+
+    /**
+     * Validate retring failed partitioned topic should succeed.
+     * @throws Exception
+     */
+    @Test
+    public void testFailedUpdatePartitionedTopic() throws Exception {
+        final String topicName = "failed-topic";
+        final String subName1 = topicName + "-my-sub-1";
+        final int startPartitions = 4;
+        final int newPartitions = 8;
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + topicName;
+
+        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+
+        admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        consumer1.close();
+
+        // validate partition topic is created
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, startPartitions);
+
+        // create a subscription for few new partition which can fail
+        admin.topics().createSubscription(partitionedTopicName + "-partition-" + startPartitions, subName1,
+                MessageId.earliest);
+
+        try {
+            admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, false);
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            // Ok
+        }
+        admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, true);
+        // validate subscription is created for new partition.
+        assertNotNull(admin.topics().getStats(partitionedTopicName + "-partition-" + 6).getSubscriptions().get(subName1));
     }
 }

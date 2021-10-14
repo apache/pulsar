@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.api.coordination;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import org.apache.pulsar.metadata.api.MetadataSerde;
 
 /**
  * Interface for the coordination service. Provides abstraction for distributed locks and leader election.
@@ -41,6 +42,7 @@ public interface CoordinationService extends AutoCloseable {
             Consumer<LeaderElectionState> stateChangesListener);
 
     <T> LockManager<T> getLockManager(Class<T> clazz);
+    <T> LockManager<T> getLockManager(MetadataSerde<T> serde);
 
     /**
      * Increment a counter identified by the specified path and return the current value.

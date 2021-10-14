@@ -29,7 +29,6 @@ import io.netty.channel.EventLoopGroup;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -1325,26 +1324,6 @@ public class NamespaceService implements AutoCloseable {
             LOG.debug("SLA Monitoring not owned by the broker: ns={}", getSLAMonitorNamespace(host, config));
         }
         return isNameSpaceRegistered;
-    }
-
-    public void registerOwnedBundles() {
-        List<OwnedBundle> ownedBundles = new ArrayList<>(ownershipCache.getOwnedBundles().values());
-        ownershipCache.invalidateLocalOwnerCache();
-        ownedBundles.forEach(ownedBundle -> {
-            try {
-                ownershipCache.tryAcquiringOwnership(ownedBundle.getNamespaceBundle());
-            } catch (Exception e) {
-                try {
-                    ownedBundle.handleUnloadRequest(pulsar, 5, TimeUnit.MINUTES);
-                } catch (IllegalStateException ex) {
-                    // The owned bundle is not in active state.
-                } catch (Exception ex) {
-                    LOG.error("Unexpected exception occur when register owned bundle {}. Shutdown broker now !!!",
-                        ownedBundle.getNamespaceBundle(), ex);
-                    pulsar.getShutdownService().shutdown(-1);
-                }
-            }
-        });
     }
 
     @Override

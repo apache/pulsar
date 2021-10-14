@@ -42,5 +42,21 @@ public enum SessionEvent {
     /**
      * The session was established
      */
-    SessionReestablished,
+    SessionReestablished;
+
+    /**
+     * Check whether the state represents a connected or not-connected state.
+     */
+    public boolean isConnected() {
+        switch (this) {
+            case Reconnected:
+            case SessionReestablished:
+                return true;
+
+            case ConnectionLost:
+            case SessionLost:
+            default:
+                return false;
+        }
+    }
 }

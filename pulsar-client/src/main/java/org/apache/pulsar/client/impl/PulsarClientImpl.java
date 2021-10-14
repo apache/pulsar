@@ -107,8 +107,9 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private final AtomicReference<State> state = new AtomicReference<>();
-    private final Set<ProducerBase<?>> producers;
-    private final Set<ConsumerBase<?>> consumers;
+    // These sets are updated from multiple threads, so they require a threadsafe data structure
+    private final Set<ProducerBase<?>> producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<ConsumerBase<?>> consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
@@ -182,8 +183,6 @@ public class PulsarClientImpl implements PulsarClient {
             } else {
                 this.timer = timer;
             }
-            producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
-            consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
             if (conf.isEnableTransaction()) {
                 tcClient = new TransactionCoordinatorClientImpl(this);
@@ -952,29 +951,21 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     void cleanupProducer(ProducerBase<?> producer) {
-        synchronized (producers) {
-            producers.remove(producer);
-        }
+        producers.remove(producer);
     }
 
     void cleanupConsumer(ConsumerBase<?> consumer) {
-        synchronized (consumers) {
-            consumers.remove(consumer);
-        }
+        consumers.remove(consumer);
     }
 
     @VisibleForTesting
     int producersCount() {
-        synchronized (producers) {
-            return producers.size();
-        }
+        return producers.size();
     }
 
     @VisibleForTesting
     int consumersCount() {
-        synchronized (consumers) {
-            return consumers.size();
-        }
+        return consumers.size();
     }
 
     private static Mode convertRegexSubscriptionMode(RegexSubscriptionMode regexSubscriptionMode) {

@@ -19,18 +19,16 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.Lists;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.tuple.Pair;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Contains all the cursors for a ManagedLedger.
@@ -60,8 +58,23 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    // Used to keep track of slowest cursor. Contains all of all the cursors except for non-durable cursors
-    // Since we do need to keep track of non-durable cursors.
+    public enum CursorType {
+        DurableCursor,
+        NonDurableCursor,
+        ALL
+    }
+
+    public ManagedCursorContainer() {
+        cursorType = CursorType.DurableCursor;
+    }
+
+    public ManagedCursorContainer(CursorType cursorType) {
+        this.cursorType = cursorType;
+    }
+
+    private final CursorType cursorType;
+
+    // Used to keep track of slowest cursor. Contains all of all active cursors.
     private final ArrayList<Item> heap = Lists.newArrayList();
 
     // Maps a cursor to its position in the heap
@@ -76,14 +89,23 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             Item item = new Item(cursor, heap.size());
             cursors.put(cursor.getName(), item);
 
-            // don't need to add non-durable cursors
-            if (cursor.isDurable()) {
+            if (shouldTrackInHeap(cursor)) {
                 heap.add(item);
                 siftUp(item);
             }
         } finally {
             rwLock.unlockWrite(stamp);
         }
+    }
+
+    private boolean shouldTrackInHeap(ManagedCursor cursor) {
+        return CursorType.ALL.equals(cursorType)
+                || (cursor.isDurable() && CursorType.DurableCursor.equals(cursorType))
+                || (!cursor.isDurable() && CursorType.NonDurableCursor.equals(cursorType));
+    }
+
+    public PositionImpl getSlowestReadPositionForActiveCursors() {
+        return heap.isEmpty() ? null : (PositionImpl) heap.get(0).cursor.getReadPosition();
     }
 
     public ManagedCursor get(String name) {
@@ -100,8 +122,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         long stamp = rwLock.writeLock();
         try {
             Item item = cursors.remove(name);
-
-            if (item.cursor.isDurable()) {
+            if (item != null && shouldTrackInHeap(item.cursor)) {
                 // Move the item to the right end of the heap to be removed
                 Item lastItem = heap.get(heap.size() - 1);
                 swap(item, lastItem);
@@ -132,7 +153,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             }
 
 
-            if (item.cursor.isDurable()) {
+            if (shouldTrackInHeap(item.cursor)) {
                 PositionImpl previousSlowestConsumer = heap.get(0).position;
 
                 // When the cursor moves forward, we need to push it toward the
@@ -146,7 +167,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 }
 
                 PositionImpl newSlowestConsumer = heap.get(0).position;
-                    return Pair.of(previousSlowestConsumer, newSlowestConsumer);
+                return Pair.of(previousSlowestConsumer, newSlowestConsumer);
             }
             return null;
         } finally {

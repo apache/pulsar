@@ -220,18 +220,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private synchronized void handleMetadataStoreNotification(SessionEvent e) {
         log.info("Received MetadataStore session event: {}", e);
-
-        switch (e) {
-            case ConnectionLost:
-            case SessionLost:
-                metadataServiceAvailable = false;
-                break;
-
-            case Reconnected:
-            case SessionReestablished:
-                metadataServiceAvailable = true;
-                break;
-        }
+        metadataServiceAvailable = e.isConnected();
     }
 
     private synchronized void flushCursors() {

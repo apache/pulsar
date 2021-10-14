@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 
@@ -65,16 +66,16 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public Map<String, List<String>> getConsumerKeyHashRanges() {
-        Map<String, List<String>> result = new HashMap<>();
+    public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
+        Map<Consumer, List<Range>> result = new HashMap<>();
         Map.Entry<Integer, Consumer> prev = null;
         for (Map.Entry<Integer, Consumer> entry: rangeMap.entrySet()) {
             if (prev == null) {
                 prev = entry;
             } else {
                 if (prev.getValue().equals(entry.getValue())) {
-                    result.computeIfAbsent(entry.getValue().consumerName(), key -> new ArrayList<>())
-                            .add("[" + prev.getKey() + ", " + entry.getKey() + "]");
+                    result.computeIfAbsent(entry.getValue(), key -> new ArrayList<>())
+                            .add(Range.of(prev.getKey(), entry.getKey()));
                 }
                 prev = null;
             }

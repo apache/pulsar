@@ -721,6 +721,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    protected void onPartitionsChange(String topicName, int partitions) {
+        if (interceptors != null) {
+            interceptors. onPartitionsChange(topicName, partitions);
+        }
+    }
+
     protected boolean canEnqueueMessage(Message<T> message) {
         // Default behavior, can be overridden in subclasses
         return true;

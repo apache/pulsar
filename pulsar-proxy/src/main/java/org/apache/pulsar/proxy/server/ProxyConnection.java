@@ -71,7 +71,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private PulsarClientImpl client;
     private ConnectionPool connectionPool;
     private ProxyService service;
-    private Authentication clientAuthentication;
     AuthenticationDataSource authenticationData;
     private State state;
     private final Supplier<SslHandler> sslHandlerSupplier;
@@ -303,7 +302,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         try {
             // init authn
             this.clientConf = createClientConfiguration();
-            this.clientAuthentication = clientConf.getAuthentication();
             int protocolVersion = getProtocolVersionToAdvertise(connect);
 
             // authn not enabled, complete
@@ -427,10 +425,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         ClientConfigurationData clientConf = new ClientConfigurationData();
         clientConf.setServiceUrl(service.getServiceUrl());
         ProxyConfiguration proxyConfig = service.getConfiguration();
-        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
-            clientConf.setAuthentication(AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
-                    proxyConfig.getBrokerClientAuthenticationParameters()));
-        }
+        clientConf.setAuthentication(this.getClientAuthentication());
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);
             if (proxyConfig.isBrokerClientTlsEnabledWithKeyStore()) {
@@ -463,7 +458,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     public Authentication getClientAuthentication() {
-        return clientAuthentication;
+        return service.getProxyClientAuthenticationPlugin();
     }
 
     @Override
