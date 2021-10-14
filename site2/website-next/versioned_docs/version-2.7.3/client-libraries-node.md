@@ -124,7 +124,7 @@ Here is an example:
 ```JavaScript
 
 const producer = await client.createProducer({
-  topic: 'my-topic',
+  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace
 });
 
 await producer.send({
