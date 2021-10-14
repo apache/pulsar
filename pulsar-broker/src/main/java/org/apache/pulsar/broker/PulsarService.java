@@ -600,10 +600,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 throw new IllegalArgumentException("webServicePort/webServicePortTls must be present");
             }
 
-            if (!config.getBrokerServicePort().isPresent() && !config.getBrokerServicePortTls().isPresent()) {
-                throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
-            }
-
             if (config.isAuthorizationEnabled() && !config.isAuthenticationEnabled()) {
                 throw new IllegalStateException("Invalid broker configuration. Authentication must be enabled with "
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
