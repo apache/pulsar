@@ -335,12 +335,7 @@ public class DispatchRateLimiter {
 
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
-        try {
-            return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(namespace);
-        } catch (Exception e) {
-            log.warn("Failed to get message-rate for {} ", topicName, e);
-            return Optional.empty();
-        }
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(namespace);
     }
 
     /**
