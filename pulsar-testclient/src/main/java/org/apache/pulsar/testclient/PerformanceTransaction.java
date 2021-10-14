@@ -325,8 +325,12 @@ public class PerformanceTransaction {
                     //the executorService
                     while (true) {
                         if (arguments.numTransactions > 0) {
-                            if (totalNumEndTxnOpFailed.sum()
+                            if (totalNumTxnOpenTxnFail.sum()
                                     + totalNumTxnOpenTxnSuccess.sum() >= arguments.numTransactions) {
+                                if(totalNumEndTxnOpFailed.sum()
+                                        + totalNumEndTxnOpSuccess.sum() < arguments.numTransactions ) {
+                                    continue;
+                                }
                                 log.info("------------------- DONE -----------------------");
                                 executing.compareAndSet(true, false);
                                 executorService.shutdownNow();
@@ -343,7 +347,6 @@ public class PerformanceTransaction {
                                 break;
                             }
                         }
-
                         Transaction transaction = atomicReference.get();
                         for (List<Consumer<byte[]>> subscriptions : consumers) {
                                 for (Consumer<byte[]> consumer : subscriptions) {
