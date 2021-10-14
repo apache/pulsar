@@ -170,6 +170,10 @@ public class DispatchRateLimiter {
                 log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type,
                         dispatchRateOp.get());
 
+            }).exceptionally(ex -> {
+                log.error("[{}] failed to get the dispatch rate policy from the namespace resource for type {}",
+                        topicName, type);
+                return null;
             });
         } else {
             updateDispatchRate(dispatchRate.get());
