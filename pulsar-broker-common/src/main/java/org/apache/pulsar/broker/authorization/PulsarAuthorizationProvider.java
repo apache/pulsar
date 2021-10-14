@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authorization;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.base.Function;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -47,6 +48,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -331,16 +333,16 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return updateSubscriptionPermissionAsync(namespace, subscriptionName, Collections.singleton(role), true);
     }
 
-    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
-            boolean remove) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-
+    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+                                                                      Set<String> roles,
+                                                                      boolean remove) {
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            result.completeExceptionally(e);
+            return FutureUtil.failedFuture(e);
         }
 
+        CompletableFuture<Void> result = new CompletableFuture<>();
         final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespace.toString());
 
         try {
