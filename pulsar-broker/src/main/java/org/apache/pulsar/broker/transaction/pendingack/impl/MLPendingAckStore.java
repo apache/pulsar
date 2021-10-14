@@ -120,13 +120,20 @@ public class MLPendingAckStore implements PendingAckStore {
         cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
             @Override
             public void closeComplete(Object ctx) {
-                try {
-                    managedLedger.close();
-                } catch (Exception e) {
-                    completableFuture.completeExceptionally(e);
-                    return;
-                }
-                completableFuture.complete(null);
+                managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+
+                    @Override
+                    public void closeComplete(Object ctx) {
+                        log.error("[{}][{}] MLPendingAckStore closed successfully！", managedLedger.getName(), ctx);
+                        completableFuture.complete(null);
+                    }
+
+                    @Override
+                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error("[{}][{}] MLPendingAckStore closed failed,exception={}", managedLedger.getName(), ctx, exception);
+                        completableFuture.completeExceptionally(exception);
+                    }
+                }, ctx);
             }
 
             @Override
