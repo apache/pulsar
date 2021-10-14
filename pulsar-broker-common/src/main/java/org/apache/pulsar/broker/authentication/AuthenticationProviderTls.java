@@ -167,7 +167,13 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                 // The format is defined in RFC 2253.
                 // Example:
                 // CN=Steve Kille,O=Isode Limited,C=GB
-                clientCertificateChain = (X509Certificate[]) authData.getTlsCertificates();
+                Certificate[] uncastCerts = authData.getTlsCertificates();
+                clientCertificateChain = new X509Certificate[uncastCerts.length];
+
+                for(int i = 0; i < uncastCerts.length; i++) {
+                    clientCertificateChain[i] = (X509Certificate) uncastCerts[i];
+                }
+
                 if (null == clientCertificateChain) {
                     throw new AuthenticationException("Failed to get TLS certificates from client");
                 }
