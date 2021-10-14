@@ -1107,11 +1107,15 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleRange,
+    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName,
                                                 boolean authoritative, boolean unload, String splitAlgorithmName) {
         validateSuperUserAccess();
-        checkNotNull(bundleRange, "BundleRange should not be null");
-        log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
+        checkNotNull(bundleName, "BundleRange should not be null");
+        log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
+
+        String bundleRange = bundleName.equals(Policies.LARGEST_BUNDLE)
+                ? findLargestBundleWithTopics(namespaceName).getBundleRange()
+                : bundleName;
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1161,6 +1165,10 @@ public abstract class NamespacesBase extends AdminResource {
             }
             return null;
         });
+    }
+
+    private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundlesWithHighestTopics(namespaceName);
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
