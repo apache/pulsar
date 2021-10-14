@@ -1514,6 +1514,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void clearPendingAddEntries(ManagedLedgerException e) {
         while (!pendingAddEntries.isEmpty()) {
             OpAddEntry op = pendingAddEntries.poll();
+            op.close();
             op.failed(e);
         }
     }
