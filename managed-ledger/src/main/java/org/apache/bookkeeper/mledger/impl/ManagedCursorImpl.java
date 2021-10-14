@@ -527,7 +527,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.info("[{}] [{}] Couldn't find next next valid ledger for recovery {}", ledger.getName(), name,
                         position);
             }
-            position = nextExistingLedger != null ? PositionImpl.get(nextExistingLedger, -1) : position;
+            if (nextExistingLedger != null) {
+                position = PositionImpl.get(nextExistingLedger, -1);
+            }
         }
         if (position.compareTo(ledger.getLastPosition()) > 0) {
             log.warn("[{}] [{}] Current position {} is ahead of last position {}", ledger.getName(), name, position,
