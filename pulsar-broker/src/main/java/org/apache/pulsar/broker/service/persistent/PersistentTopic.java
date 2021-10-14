@@ -576,8 +576,8 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public CompletableFuture<Boolean> takeSnapshotIfTxnBufferNotReady() {
-        return ((TopicTransactionBuffer)getTransactionBuffer()).takeSnapshotIfNotReady();
+    public CompletableFuture<Void> takeSnapshotIfTxnBufferNotReady() {
+        return ((TopicTransactionBuffer) getTransactionBuffer()).takeSnapshotIfNotReady();
     }
 
     @Override

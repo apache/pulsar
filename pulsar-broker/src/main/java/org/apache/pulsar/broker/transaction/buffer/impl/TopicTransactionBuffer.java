@@ -170,8 +170,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return null;
     }
 
-    public CompletableFuture<Boolean> takeSnapshotIfNotReady() {
-        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+    public CompletableFuture<Void> takeSnapshotIfNotReady() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfNoSnapshot()) {
             takeSnapshot().thenAccept(ignore -> {
             if (changeToReadyStateFromNoSnapshot()) {

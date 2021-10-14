@@ -222,9 +222,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Boolean> takeSnapshotIfTxnBufferNotReady() {
-        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(true);
+    public CompletableFuture<Void> takeSnapshotIfTxnBufferNotReady() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(null);
         return  completableFuture;
     }
 
