@@ -130,7 +130,8 @@ public class MLPendingAckStore implements PendingAckStore {
 
                     @Override
                     public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("[{}][{}] MLPendingAckStore closed failed,exception={}", managedLedger.getName(), ctx, exception);
+                        log.error("[{}][{}] MLPendingAckStore closed failed,exception={}", managedLedger.getName(),
+                                ctx, exception);
                         completableFuture.completeExceptionally(exception);
                     }
                 }, ctx);
