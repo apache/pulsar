@@ -45,7 +45,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install some utilities
 RUN apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
+     && apt-get -y install openjdk-8-jdk-headless netcat dnsutils less procps iputils-ping \
                  python3 python3-dev python3-setuptools python3-yaml python3-kazoo \
                  libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
                  curl \
@@ -61,8 +61,8 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 ADD target/python-client/ /pulsar/pulsar-client
 ADD target/cpp-client/ /pulsar/cpp-client
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/security/java.security
 RUN apt-get update \
      && apt install -y /pulsar/cpp-client/*.deb \
      && apt-get clean \
