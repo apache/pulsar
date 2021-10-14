@@ -137,8 +137,8 @@ rotate_out_log ()
 start ()
 {
   if [ -f $pid ]; then
-      if kill -0 `cat "$pid"` > /dev/null 2>&1; then
-        echo $command running as process `cat "$pid"`.  Stop it first.
+      if kill -0 `cat $pid` > /dev/null 2>&1; then
+        echo $command running as process `cat $pid`.  Stop it first.
         exit 1
       fi
     fi
@@ -222,7 +222,7 @@ case $startStop in
     then
        start
     else
-       echo "WARNNING :  $command is not stopped completely."
+       echo "WARNNING :  $command failed restart, for $command is not stopped completely."
     fi
     ;;
 
