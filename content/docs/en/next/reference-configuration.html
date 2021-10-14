@@ -231,6 +231,7 @@
 <tr><td>exposeConsumerLevelMetricsInPrometheus</td><td>Whether to enable consumer level metrics.</td><td>false</td></tr>
 <tr><td>jvmGCMetricsLoggerClassName</td><td>Classname of Pluggable JVM GC metrics logger that can log GC specific metrics.</td><td>N/A</td></tr>
 <tr><td>bindAddress</td><td>Hostname or IP address the service binds on, default is 0.0.0.0.</td><td>0.0.0.0</td></tr>
+<tr><td>bindAddresses</td><td>Additional Hostname or IP addresses the service binds on: <code>listener_name:scheme://host:port,...</code>.</td><td></td></tr>
 <tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
 <tr><td>clusterName</td><td>Name of the cluster to which this broker belongs to</td><td></td></tr>
 <tr><td>brokerDeduplicationEnabled</td><td>Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.</td><td>false</td></tr>
@@ -508,6 +509,7 @@
 <tr><td>brokerServicePort</td><td>The port on which the standalone broker listens for connections</td><td>6650</td></tr>
 <tr><td>webServicePort</td><td>The port used by the standalone broker for HTTP requests</td><td>8080</td></tr>
 <tr><td>bindAddress</td><td>The hostname or IP address on which the standalone service binds</td><td>0.0.0.0</td></tr>
+<tr><td>bindAddresses</td><td>Additional Hostname or IP addresses the service binds on: <code>listener_name:scheme://host:port,...</code>.</td><td></td></tr>
 <tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
 <tr><td>numAcceptorThreads</td><td>Number of threads to use for Netty Acceptor</td><td>1</td></tr>
 <tr><td>numIOThreads</td><td>Number of threads to use for Netty IO</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
