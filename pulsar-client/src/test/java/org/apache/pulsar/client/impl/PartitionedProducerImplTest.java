@@ -18,18 +18,25 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import com.google.api.client.util.Lists;
 import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import org.apache.pulsar.client.api.Message;
@@ -40,7 +47,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.assertj.core.util.Sets;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
@@ -105,6 +115,45 @@ public class PartitionedProducerImplTest {
 
         MessageRouter messageRouter = getMessageRouter(producerConfigurationData);
         assertTrue(messageRouter instanceof CustomMessageRouter);
+    }
+
+    @Test
+    public void testPartialPartition() {
+        final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
+        final Set<Integer> actualSet = Sets.newHashSet();
+        final Message<byte[]> msg = MessageImpl
+                .create(new MessageMetadata(), ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+
+        for (int i = 0; i < 10; i++) {
+            final TopicMetadata metadata = new TopicMetadataImpl(10);
+            actualSet.add(router.choosePartition(msg, metadata));
+        }
+        assertEquals(actualSet.size(), 3);
+
+        try {
+            new PartialRoundRobinMessageRouterImpl(0);
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getClass(), IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    public void testPartialPartitionWithKey() {
+        final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
+        final Hash hash = Murmur3_32Hash.getInstance();
+        final List<Integer> expectedHashList = Lists.newArrayList();
+        final List<Integer> actualHashList = Lists.newArrayList();
+
+        for (int i = 0; i < 10; i++) {
+            final String key = String.valueOf(i);
+            final Message<byte[]> msg = MessageImpl
+                    .create(new MessageMetadata().setPartitionKey(key), ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+            final TopicMetadata metadata = new TopicMetadataImpl(10);
+            expectedHashList.add(signSafeMod(hash.makeHash(key), 10));
+            actualHashList.add(router.choosePartition(msg, metadata));
+        }
+        assertNotEquals(actualHashList, expectedHashList);
     }
 
     private MessageRouter getMessageRouter(ProducerConfigurationData producerConfigurationData)
