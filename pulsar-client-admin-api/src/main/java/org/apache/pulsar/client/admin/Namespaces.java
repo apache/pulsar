@@ -3548,7 +3548,6 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    @Deprecated
     boolean getSchemaValidationEnforced(String namespace) throws PulsarAdminException;
 
     /**
@@ -3557,7 +3556,6 @@ public interface Namespaces {
      *
      * @return the schema validation enforced flag
      */
-    @Deprecated
     CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace);
 
     /**
