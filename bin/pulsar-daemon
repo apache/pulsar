@@ -220,6 +220,7 @@ case $startStop in
     stop $1
     if [ "$exitCode" != 1 ]
     then
+       sleep 3
        start
     else
        echo "WARNNING :  $command failed restart, for $command is not stopped completely."
