@@ -107,7 +107,6 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -216,8 +215,7 @@ public class PersistentTopic extends AbstractTopic
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
 
-    // this future is for publish txn message in order.
-    private volatile CompletableFuture<Void> transactionCompletableFuture;
+
     @Getter
     protected final TransactionBuffer transactionBuffer;
 
@@ -262,7 +260,6 @@ public class PersistentTopic extends AbstractTopic
                 brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis();
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        this.transactionCompletableFuture = new CompletableFuture<>();
         initializeRateLimiterIfNeeded(Optional.empty());
         registerTopicPolicyListener();
 
@@ -304,9 +301,8 @@ public class PersistentTopic extends AbstractTopic
         if (brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
                 && !checkTopicIsEventsNames(topicName)) {
             this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
+                    .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
-            this.transactionCompletableFuture.complete(null);
             this.transactionBuffer = new TransactionBufferDisable();
         }
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
@@ -358,12 +354,11 @@ public class PersistentTopic extends AbstractTopic
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
-        this.transactionCompletableFuture = new CompletableFuture<>();
+
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
             this.transactionBuffer = brokerService.getPulsar()
-                    .getTransactionBufferProvider().newTransactionBuffer(this, transactionCompletableFuture);
+                    .getTransactionBufferProvider().newTransactionBuffer(this);
         } else {
-            this.transactionCompletableFuture.complete(null);
             this.transactionBuffer = new TransactionBufferDisable();
         }
     }
@@ -576,8 +571,8 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public CompletableFuture<Void> takeSnapshotIfTxnBufferNotReady() {
-        return ((TopicTransactionBuffer) getTransactionBuffer()).takeSnapshotIfNotReady();
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnable) {
+        return getTransactionBuffer().checkIfTBRecoverCompletely(isTxnEnable);
     }
 
     @Override
@@ -2962,63 +2957,55 @@ public class PersistentTopic extends AbstractTopic
     public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
         // in order to avoid the opAddEntry retain
-        headersAndPayload.retain();
+
         // in order to promise the publish txn message orderly, we should change the transactionCompletableFuture
-        this.transactionCompletableFuture = this.transactionCompletableFuture.thenAccept(v -> {
-            try {
-                if (isFenced) {
-                    publishContext.completed(new TopicFencedException("fenced"), -1, -1);
-                    decrementPendingWriteOpsAndCheck();
-                    return;
-                }
-                if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
-                    publishContext.completed(new NotAllowedException("Exceed maximum message size")
-                            , -1, -1);
-                    decrementPendingWriteOpsAndCheck();
-                    return;
-                }
 
-                MessageDeduplication.MessageDupStatus status =
-                        messageDeduplication.isDuplicate(publishContext, headersAndPayload);
-                switch (status) {
-                    case NotDup:
-                        transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
-                                .thenAccept(position -> {
-                                    // Message has been successfully persisted
-                                    messageDeduplication.recordMessagePersisted(publishContext,
-                                            (PositionImpl) position);
-                                    publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
-                                            ((PositionImpl) position).getEntryId());
+        if (isFenced) {
+            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
+        if (isExceedMaximumMessageSize(headersAndPayload.readableBytes())) {
+            publishContext.completed(new NotAllowedException("Exceed maximum message size")
+                    , -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
 
-                                    decrementPendingWriteOpsAndCheck();
-                                })
-                                .exceptionally(throwable -> {
-                                    addFailed((ManagedLedgerException) throwable, publishContext);
-                                    return null;
-                                });
-                        break;
-                    case Dup:
-                        // Immediately acknowledge duplicated message
-                        publishContext.completed(null, -1, -1);
-                        decrementPendingWriteOpsAndCheck();
-                        break;
-                    default:
-                        publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
-                        decrementPendingWriteOpsAndCheck();
+        MessageDeduplication.MessageDupStatus status =
+                messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+        switch (status) {
+            case NotDup:
+                transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
+                        .thenAccept(position -> {
+                            // Message has been successfully persisted
+                            messageDeduplication.recordMessagePersisted(publishContext,
+                                    (PositionImpl) position);
+                            publishContext.completed(null, ((PositionImpl) position).getLedgerId(),
+                                    ((PositionImpl) position).getEntryId());
 
-                }
-            } finally {
-                headersAndPayload.release();
-            }
-        }).exceptionally(e -> {
-            headersAndPayload.release();
-            return null;
-        });
+                            decrementPendingWriteOpsAndCheck();
+                        })
+                        .exceptionally(throwable -> {
+                            addFailed((ManagedLedgerException) throwable, publishContext);
+                            return null;
+                        });
+                break;
+            case Dup:
+                // Immediately acknowledge duplicated message
+                publishContext.completed(null, -1, -1);
+                decrementPendingWriteOpsAndCheck();
+                break;
+            default:
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                decrementPendingWriteOpsAndCheck();
+
+        }
+
     }
 
     @Override
     public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark) {
-        return this.transactionCompletableFuture.thenCompose(future -> {
             if (TxnAction.COMMIT_VALUE == txnAction) {
                 return transactionBuffer.commitTxn(txnID, lowWaterMark);
             } else if (TxnAction.ABORT_VALUE == txnAction) {
@@ -3026,7 +3013,6 @@ public class PersistentTopic extends AbstractTopic
             } else {
                 return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
             }
-        });
     }
 
     @Override

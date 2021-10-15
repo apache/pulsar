@@ -91,7 +91,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private volatile long lastSnapshotTimestamps;
 
-    public TopicTransactionBuffer(PersistentTopic topic, CompletableFuture<Void> transactionBufferFuture) {
+    private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
+
+    public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
         this.topic = topic;
         this.changeToInitializingState();
@@ -170,23 +172,35 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return null;
     }
 
-    public CompletableFuture<Void> takeSnapshotIfNotReady() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (checkIfNoSnapshot()) {
-            takeSnapshot().thenAccept(ignore -> {
-            if (changeToReadyStateFromNoSnapshot()) {
-                timer.newTimeout(TopicTransactionBuffer.this,
-                        takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
-                completableFuture.complete(null);
-            }
-            completableFuture.complete(null);
+    @Override
+    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxnEnable) {
+        if (!isTxnEnable) {
+            return CompletableFuture.completedFuture(null);
+        } else {
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            transactionBufferFuture.thenRun(() -> {
+                if (checkIfNoSnapshot()) {
+                    takeSnapshot().thenRun(() -> {
+                        if (changeToReadyStateFromNoSnapshot()) {
+                            timer.newTimeout(TopicTransactionBuffer.this,
+                                    takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+                        }
+                        completableFuture.complete(null);
+                    }).exceptionally(exception -> {
+                        log.error("Topic {} failed to take snapshot", this.topic.getName());
+                        completableFuture.completeExceptionally(exception);
+                        return null;
+                    });
+                } else {
+                    completableFuture.complete(null);
+                }
             }).exceptionally(exception -> {
-                log.error("Topic {} failed to take snapshot", this.topic.getName());
+                log.error("Topic {}: TransactionBuffer Recover Failed", this.topic.getName(), exception);
                 completableFuture.completeExceptionally(exception);
                 return null;
             });
+            return completableFuture;
         }
-        return completableFuture;
     }
 
 
@@ -232,32 +246,37 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             log.debug("Transaction {} commit on topic {}.", txnID.toString(), topic.getName());
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-
-        ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
-                txnID.getLeastSigBits());
-
-        try {
-            topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    synchronized (TopicTransactionBuffer.this) {
-                        updateMaxReadPosition(txnID);
-                        handleLowWaterMark(txnID, lowWaterMark);
-                        clearAbortedTransactions();
-                        takeSnapshotByChangeTimes();
+        //Wait TB recover completely.
+        transactionBufferFuture.thenRun(() -> {
+            ByteBuf commitMarker = Markers.newTxnCommitMarker(-1L, txnID.getMostSigBits(),
+                    txnID.getLeastSigBits());
+            try {
+                topic.getManagedLedger().asyncAddEntry(commitMarker, new AsyncCallbacks.AddEntryCallback() {
+                    @Override
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        synchronized (TopicTransactionBuffer.this) {
+                            updateMaxReadPosition(txnID);
+                            handleLowWaterMark(txnID, lowWaterMark);
+                            clearAbortedTransactions();
+                            takeSnapshotByChangeTimes();
+                        }
+                        completableFuture.complete(null);
                     }
-                    completableFuture.complete(null);
-                }
 
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Failed to commit for txn {}", txnID, exception);
-                    completableFuture.completeExceptionally(new PersistenceException(exception));
-                }
-            }, null);
-        } finally {
-            commitMarker.release();
-        }
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error("Failed to commit for txn {}", txnID, exception);
+                        completableFuture.completeExceptionally(new PersistenceException(exception));
+                    }
+                }, null);
+            } finally {
+                commitMarker.release();
+            }
+        }).exceptionally(exception -> {
+            log.error("Transaction {} commit on topic {}.", txnID.toString(), topic.getName(), exception);
+            completableFuture.completeExceptionally(exception);
+            return null;
+        });
         return completableFuture;
     }
 
@@ -267,37 +286,43 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             log.debug("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        if (!checkIfReady()) {
-           log.warn("No message with transaction has been successfully sent, so abort is meaningless");
-           completableFuture.complete(null);
-           return completableFuture;
-        }
-
-        ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L, txnID.getMostSigBits(), txnID.getLeastSigBits());
-        try {
-            topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    synchronized (TopicTransactionBuffer.this) {
-                        aborts.put(txnID, (PositionImpl) position);
-                        updateMaxReadPosition(txnID);
-                        handleLowWaterMark(txnID, lowWaterMark);
-                        changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
-                        clearAbortedTransactions();
-                        takeSnapshotByChangeTimes();
+        //Wait TB recover completely.
+        transactionBufferFuture.thenRun(() -> {
+            //no message sent, need not to add abort mark by txn timeout.
+            if (!checkIfReady()) {
+                completableFuture.complete(null);
+                return;
+            }
+            ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L, txnID.getMostSigBits(), txnID.getLeastSigBits());
+            try {
+                topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
+                    @Override
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        synchronized (TopicTransactionBuffer.this) {
+                            aborts.put(txnID, (PositionImpl) position);
+                            updateMaxReadPosition(txnID);
+                            handleLowWaterMark(txnID, lowWaterMark);
+                            changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
+                            clearAbortedTransactions();
+                            takeSnapshotByChangeTimes();
+                        }
+                        completableFuture.complete(null);
                     }
-                    completableFuture.complete(null);
-                }
 
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Failed to abort for txn {}", txnID, exception);
-                    completableFuture.completeExceptionally(new PersistenceException(exception));
-                }
-            }, null);
-        } finally {
-            abortMarker.release();
-        }
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error("Failed to abort for txn {}", txnID, exception);
+                        completableFuture.completeExceptionally(new PersistenceException(exception));
+                    }
+                }, null);
+            } finally {
+                abortMarker.release();
+            }
+        }).exceptionally(exception -> {
+            log.error("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
+            completableFuture.completeExceptionally(exception);
+            return null;
+        });
         return completableFuture;
     }
 

@@ -222,10 +222,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Void> takeSnapshotIfTxnBufferNotReady() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(null);
-        return  completableFuture;
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnable) {
+        return  CompletableFuture.completedFuture(null);
     }
 
     @Override
