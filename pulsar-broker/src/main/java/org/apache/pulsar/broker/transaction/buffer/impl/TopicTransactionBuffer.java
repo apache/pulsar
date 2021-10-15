@@ -195,7 +195,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     completableFuture.complete(null);
                 }
             }).exceptionally(exception -> {
-                log.error("Topic {}: TransactionBuffer Recover Failed", this.topic.getName(), exception);
+                log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception);
                 completableFuture.completeExceptionally(exception);
                 return null;
             });

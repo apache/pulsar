@@ -1229,12 +1229,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
                                 topic.checkIfTransactionBufferRecoverCompletely(isTxnEnable).thenAccept(future -> {
-                                    buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted, metadata,
-                                            schemaVersion, epoch, userProvidedProducerName, topicName,
+                                    buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                                            metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
                                             producerAccessMode, topicEpoch, producerFuture);
                                 }).exceptionally(exception -> {
                                     Throwable cause = exception.getCause();
-                                    log.error("producerId {}, requestId {} : TransactionBuffer Recover Failed",
+                                    log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
                                             producerId, requestId, exception);
                                     commandSender.sendErrorResponse(requestId,
                                             ServiceUnitNotReadyException.getClientErrorCode(cause),
