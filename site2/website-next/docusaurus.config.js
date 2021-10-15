@@ -210,5 +210,6 @@ module.exports = {
         fromExtensions: ["md"],
       },
     ],
+    "./postcss-tailwind-loader",
   ],
 };
