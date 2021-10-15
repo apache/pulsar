@@ -82,7 +82,7 @@ function Feature({ Svg, title, content }) {
         <Svg className={styles.featureSvg} alt={title} />
       </div> */}
       <div className="text--center padding-horiz--md">
-        <ReactMarkdown children={title} className="text-4xl font-bold text-primary" />
+        <ReactMarkdown children={title} className="text-2xl font-bold text-primary" />
         <p className="mt-6 text-xl">{content}</p>
       </div>
     </div>

@@ -3,7 +3,6 @@ import { ReactSVG } from "react-svg";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 
 export default function Svg(props) {
-  console.log(JSON.stringify(props, null, 2));
   return (
     <ReactSVG
       src={useBaseUrl(props.src)}
