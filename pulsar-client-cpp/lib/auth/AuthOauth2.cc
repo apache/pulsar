@@ -281,10 +281,8 @@ static std::string buildClientCredentialsBody(CURL* curl, const ParamMap& params
     return oss.str();
 }
 
-static std::once_flag initializeOnce;
-
 Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
-    std::call_once(initializeOnce, &ClientCredentialFlow::initialize, this);
+    std::call_once(initializeOnce_, &ClientCredentialFlow::initialize, this);
     Oauth2TokenResultPtr resultPtr = Oauth2TokenResultPtr(new Oauth2TokenResult());
     if (tokenEndPoint_.empty()) {
         return resultPtr;
