@@ -1,9 +1,15 @@
 const plugin = require("tailwindcss/plugin");
+const colors = require("tailwindcss/colors");
 
 module.exports = {
   purge: ["./src/**/*.html", "./src/**/*.js", "./src/**/*.tsx"],
   darkMode: false,
-  theme: {},
+  theme: {
+    colors: {
+      ...colors,
+      primary: "#198fff",
+    },
+  },
   variants: {
     extend: {},
   },

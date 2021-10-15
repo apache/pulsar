@@ -98,6 +98,9 @@ module.exports = {
   favicon: "img/favicon.ico",
   organizationName: "apache",
   projectName: "pulsar",
+  customFields: {
+    githubUrl,
+  },
   themeConfig: {
     navbar: {
       title: "",

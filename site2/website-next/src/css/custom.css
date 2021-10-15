@@ -12,8 +12,13 @@
   @tailwind screens;
 }
 
-.section {
+/* .section {
   @apply max-w-screen-xl xl:max-w-screen-xl px-8 container;
+} */
+
+svg {
+  width: inherit;
+  height: inherit;
 }
 
 :root {
@@ -25,6 +30,8 @@
   --ifm-color-primary-lighter: rgb(102, 212, 189);
   --ifm-color-primary-lightest: rgb(146, 224, 208);
   --ifm-code-font-size: 95%;
+  --ifm-container-width: 1280px;
+  --ifm-container-width-xl: 1536px;
 }
 
 .docusaurus-highlight-code-line {

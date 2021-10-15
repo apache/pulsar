@@ -21,9 +21,13 @@
     "@svgr/webpack": "^5.5.0",
     "clsx": "^1.1.1",
     "file-loader": "^6.2.0",
+    "install": "^0.13.0",
+    "npm": "^8.1.0",
     "prism-react-renderer": "^1.2.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
+    "react-markdown": "^7.0.1",
+    "react-svg": "^14.0.15",
     "remark-linkify-regex": "^1.0.0",
     "replace-in-file": "^6.2.0",
     "url-loader": "^4.1.1"

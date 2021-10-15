@@ -1,24 +1,26 @@
-import React from 'react';
-import clsx from 'clsx';
-import Layout from '@theme/Layout';
-import Link from '@docusaurus/Link';
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import styles from './index.module.css';
-import HomepageFeatures from '../components/HomepageFeatures';
+import React from "react";
+import clsx from "clsx";
+import Layout from "@theme/Layout";
+import Link from "@docusaurus/Link";
+import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
+import styles from "./index.module.css";
+import HomepageFeatures from "../components/HomepageFeatures";
+import Svg from "../components/Svg";
+import Button from "../components/Button";
+import { docUrl, githubUrl } from "../utils/index";
 
-function HomepageHeader() {
-  const {siteConfig} = useDocusaurusContext();
+function HomepageHeader(props) {
+  const { siteConfig } = useDocusaurusContext();
   return (
-    <header className={clsx('hero hero--primary', styles.heroBanner)}>
-      <div className="container">
-        <h1 className="hero__title">{siteConfig.title}</h1>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
+    <header className={clsx("tailwind hero", styles.heroBanner)}>
+      <div className="flex flex-col items-center container">
+        <Svg src="/img/pulsar.svg" className="h-48" />
+        <h2 className="mt-12 font-medium mb-12">{siteConfig.tagline}</h2>
         <div className={styles.buttons}>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs">
-            Read️ the Docs
-          </Link>
+          <Button href={docUrl("", props.language)} className="mr-6">
+            READ THE DOCS
+          </Button>
+          <Button href={githubUrl()}>GITHUB</Button>
         </div>
       </div>
     </header>
@@ -26,13 +28,14 @@ function HomepageHeader() {
 }
 
 export default function Home() {
-  const {siteConfig} = useDocusaurusContext();
+  const { siteConfig } = useDocusaurusContext();
   return (
     <Layout
       title={`Hello from ${siteConfig.title}`}
-      description="Description will go into a meta tag in <head />">
+      description="Description will go into a meta tag in <head />"
+    >
       <HomepageHeader />
-      <main>
+      <main className="tailwind">
         <HomepageFeatures />
       </main>
     </Layout>
