@@ -215,7 +215,6 @@ public class PersistentTopic extends AbstractTopic
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
 
-
     @Getter
     protected final TransactionBuffer transactionBuffer;
 
@@ -3006,13 +3005,13 @@ public class PersistentTopic extends AbstractTopic
 
     @Override
     public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction, long lowWaterMark) {
-            if (TxnAction.COMMIT_VALUE == txnAction) {
-                return transactionBuffer.commitTxn(txnID, lowWaterMark);
-            } else if (TxnAction.ABORT_VALUE == txnAction) {
-                return transactionBuffer.abortTxn(txnID, lowWaterMark);
-            } else {
-                return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
-            }
+        if (TxnAction.COMMIT_VALUE == txnAction) {
+            return transactionBuffer.commitTxn(txnID, lowWaterMark);
+        } else if (TxnAction.ABORT_VALUE == txnAction) {
+            return transactionBuffer.abortTxn(txnID, lowWaterMark);
+        } else {
+            return FutureUtil.failedFuture(new NotAllowedException("Unsupported txnAction " + txnAction));
+        }
     }
 
     @Override
