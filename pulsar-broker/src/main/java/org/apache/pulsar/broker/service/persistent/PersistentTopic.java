@@ -795,6 +795,8 @@ public class PersistentTopic extends AbstractTopic
                             consumerName);
                 } else if (e.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, e.getMessage());
+                } else {
+                    log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, e);
                 }
 
                 decrementUsageCount();
@@ -802,7 +804,7 @@ public class PersistentTopic extends AbstractTopic
                 return null;
             });
         }).exceptionally(ex -> {
-            log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
+            log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
             decrementUsageCount();
             if (ex.getCause() instanceof NotAllowedException) {
                 future.completeExceptionally(ex.getCause());
