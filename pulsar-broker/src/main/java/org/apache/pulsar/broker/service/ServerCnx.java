@@ -1229,13 +1229,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
                                 topic.checkIfTransactionBufferRecoverCompletely(isTxnEnable).thenAccept(future -> {
-                                    buildProducer(topic, producerId, producerName, requestId, isEncrypted, metadata,
+                                    buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted, metadata,
                                             schemaVersion, epoch, userProvidedProducerName, topicName,
                                             producerAccessMode, topicEpoch, producerFuture);
                                 }).exceptionally(exception -> {
                                     Throwable cause = exception.getCause();
-                                    log.error("Topic {} failed to take snapshot. producerId = {}",
-                                            topic.getName(), producerId, cause);
+                                    log.error("producerId {}, requestId {} : TransactionBuffer Recover Failed",
+                                            producerId, requestId, exception);
                                     commandSender.sendErrorResponse(requestId,
                                             ServiceUnitNotReadyException.getClientErrorCode(cause),
                                             cause.getMessage());
@@ -1278,7 +1278,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
-    private void buildProducer(Topic topic, long producerId, String producerName, long requestId,
+    private void buildProducerAndAddTopic(Topic topic, long producerId, String producerName, long requestId,
                              boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
                              boolean userProvidedProducerName, TopicName topicName,
                              ProducerAccessMode producerAccessMode,
