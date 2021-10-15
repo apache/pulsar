@@ -124,7 +124,9 @@ public class MLPendingAckStore implements PendingAckStore {
 
                     @Override
                     public void closeComplete(Object ctx) {
-                        log.error("[{}][{}] MLPendingAckStore closed successfully！", managedLedger.getName(), ctx);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] MLPendingAckStore closed successfully！", managedLedger.getName(), ctx);
+                        }
                         completableFuture.complete(null);
                     }
 
