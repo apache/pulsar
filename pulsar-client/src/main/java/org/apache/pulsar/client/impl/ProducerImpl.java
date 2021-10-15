@@ -414,7 +414,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             int compressedSize = compressedPayload.readableBytes();
             if (compressedSize > ClientCnx.getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
                 compressedPayload.release();
-                String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
+                String compressedStr = (conf.getCompressionType() != CompressionType.NONE)
                                            ? "Compressed"
                                            : "";
                 PulsarClientException.InvalidMessageException invalidMessageException = new PulsarClientException.InvalidMessageException(
