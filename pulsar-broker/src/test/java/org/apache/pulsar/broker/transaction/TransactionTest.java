@@ -27,8 +27,10 @@ import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -252,10 +254,12 @@ public class TransactionTest extends TransactionTestBase {
 
     }
 
+    // If TXB appends buffer failed, it maybe return a exception that is not ManageLedgerException.
+    //But `future`.exceptionally need a ManageLedgerException as parameter for addFailed()
     @Test
-    public void testAppendBufferWithManageLedgerException()
-            throws PulsarAdminException, ExecutionException, InterruptedException {
-
+    public void testAppendBufferWithNotManageLedgerExceptionCanCastToMLE()
+            throws PulsarAdminException, ExecutionException, InterruptedException, NoSuchFieldException,
+            IllegalAccessException {
         String topic = "persistent://pulsar/system/testReCreateTopic";
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -263,15 +267,67 @@ public class TransactionTest extends TransactionTestBase {
                 (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
                         .getTopic(topic, false)
                         .get().get();
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        //Make transactionBufferFuture complete.
+        Topic.PublishContext publishContext = new Topic.PublishContext() {
 
-        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
-        try {
-            topicTransactionBuffer.appendBufferToTxn(new TxnID(123L, 321L), 123L,
-                    null);
-            Assert.fail("TransactionBuffer should not append successfully with a null buffer.");
-        } catch (Exception e) {
-            Assert.assertEquals(e.getClass(), ManagedLedgerException.class);
-        }
+            @Override
+            public String getProducerName() {
+                return "test";
+            }
 
+            public long getSequenceId() {
+                return  30;
+            }
+            /**
+             * Return the producer name for the original producer.
+             *
+             * For messages published locally, this will return the same local producer name, though in case of replicated
+             * messages, the original producer name will differ
+             */
+            public String getOriginalProducerName() {
+                return "test";
+            }
+
+            public long getOriginalSequenceId() {
+                return  30;
+            }
+
+            public long getHighestSequenceId() {
+                return  30;
+            }
+
+            public long getOriginalHighestSequenceId() {
+                return  30;
+            }
+
+            public long getNumberOfMessages() {
+                return  30;
+            }
+
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                Assert.assertTrue(e.getCause() instanceof ManagedLedgerException);
+                countDownLatch.countDown();
+            }
+        };
+        persistentTopic.publishTxnMessage(new TxnID(123L, 321L),
+                Unpooled.copiedBuffer("message", UTF_8), publishContext);
+        //Close manageLedger.
+        Class<ManagedLedgerImpl> managedLedgerClass = ManagedLedgerImpl.class;
+        Field STATE_UPDATER_Class = managedLedgerClass.getDeclaredField("STATE_UPDATER");
+        STATE_UPDATER_Class.setAccessible(true);
+        AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State> STATE_UPDATER =
+                (AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State>)
+                        STATE_UPDATER_Class.get(persistentTopic.getManagedLedger());
+        STATE_UPDATER.set((ManagedLedgerImpl) persistentTopic.getManagedLedger(), ManagedLedgerImpl.State.Closed);
+        //Publish to a close managerLedger to test ManagerLedgerException.
+        persistentTopic.publishTxnMessage(new TxnID(123L, 321L),
+                Unpooled.copiedBuffer("message", UTF_8), publishContext);
+        //If timeout, it means the assertTrue in publishContext.completed is failed.
+        Awaitility.await().until(() -> {
+            countDownLatch.await();
+            return true;
+        });
     }
 }
