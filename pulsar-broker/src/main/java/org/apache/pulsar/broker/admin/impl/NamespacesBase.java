@@ -781,7 +781,9 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
         checkNotNull(clusterIds, "ClusterIds should not be null");
 
-        Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
+        Set<String> replicationClusterSet = clusterIds.isEmpty()
+                ? Sets.newHashSet(namespaceName.isV2() ? config().getClusterName() : namespaceName.getCluster())
+                : Sets.newHashSet(clusterIds);
         if (!namespaceName.isGlobal()) {
             throw new RestException(Status.PRECONDITION_FAILED, "Cannot set replication on a non-global namespace");
         }

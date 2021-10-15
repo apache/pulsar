@@ -61,7 +61,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -214,16 +213,55 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
-    public void testNamespaceWithReplicationClusters() throws PulsarAdminException {
-        // set replication cluster for namespace
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2"));
+    public void testNamespaceWithReplicationClusters() throws Exception {
+        log.info("--- Starting ReplicatorTest::testNamespaceWithReplicationClusters ---");
+
+        final String namespace = "pulsar/test";
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/topic1");
+        admin1.namespaces().createNamespace(namespace);
         Assert.assertEquals(
-                admin1.namespaces().getNamespaceReplicationClusters("pulsar/ns"), Sets.newHashSet("r1","r2"));
+                admin1.namespaces().getNamespaceReplicationClusters(namespace), Sets.newHashSet("r1"));
+        // set replication cluster for namespace
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.topics().createPartitionedTopic(topicName, 3);
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName)
+                .subscriptionName("s1").subscribe();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName)
+                .subscriptionName("s1").subscribe();
+
+        byte[] value = "test".getBytes();
+        producer1.newMessage().value(value).send();
+        assertEquals(consumer1.receive().getValue(), value);
+        Message<byte[]> msg2 = consumer2.receive(1, TimeUnit.SECONDS);
+        if (msg2 == null) {
+            fail("msg should have been replicated to remote cluster");
+        }
 
         // remove replication cluster for namespace
-        admin1.namespaces().removeNamespaceReplicationClusters("pulsar/ns");
+        admin1.namespaces().removeNamespaceReplicationClusters(namespace);
         Assert.assertEquals(
-                admin1.namespaces().getNamespaceReplicationClusters("pulsar/ns"), Sets.newHashSet());
+                admin1.namespaces().getNamespaceReplicationClusters(namespace), Sets.newHashSet("r1"));
+        producer1.newMessage().value(value).send();
+        assertEquals(consumer1.receive().getValue(), value);
+        msg2 = consumer2.receive(1, TimeUnit.SECONDS);
+        if (msg2 != null) {
+            fail("msg should have not been replicated to remote cluster");
+        }
+
+        consumer1.close();
+        consumer2.close();
+        producer1.close();
     }
 
     @Test(timeOut = 10000)
