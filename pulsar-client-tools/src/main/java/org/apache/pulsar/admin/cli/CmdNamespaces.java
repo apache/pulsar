@@ -57,6 +57,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.Policies.BundleType;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
@@ -789,8 +790,13 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--bundle",
-                "-b" }, description = "{start-boundary}_{end-boundary} / LARGEST(bundle with highest topics)", required = true)
+                "-b" }, description = "{start-boundary}_{end-boundary} "
+                        + "(mutually exclusive with --bundle-type)", required = false)
         private String bundle;
+
+        @Parameter(names = { "--bundle-type",
+        "-bt" }, description = "bundle type (mutually exclusive with --bundle)", required = false)
+        private BundleType bundleType;
 
         @Parameter(names = { "--unload",
                 "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
@@ -804,6 +810,13 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
+            if (StringUtils.isBlank(bundle) && bundleType == null) {
+                throw new ParameterException("Must pass one of the params: --bundle / --bundle-type");
+            }
+            if (StringUtils.isNotBlank(bundle) && bundleType != null) {
+                throw new ParameterException("--bundle and --bundle-type are mutually exclusive");
+            }
+            bundle = bundleType != null ? bundleType.toString() : bundle;
             getAdmin().namespaces().splitNamespaceBundle(namespace, bundle, unload, splitAlgorithmName);
         }
     }

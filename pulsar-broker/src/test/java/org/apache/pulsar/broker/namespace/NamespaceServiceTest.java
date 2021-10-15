@@ -31,10 +31,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -46,10 +43,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.lookup.LookupResult;
@@ -66,7 +66,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl.BundlesDataImplBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -74,6 +73,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +81,11 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.hash.Hashing;
 
 @Test(groups = "broker")
 public class NamespaceServiceTest extends BrokerTestBase {
@@ -523,7 +528,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             }
         }
 
-        String largestBundle = namespaceService.getNamespaceBundleFactory().getBundlesWithHighestTopics(nsname)
+        String largestBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestTopics(nsname)
                 .getBundleRange();
 
         assertEquals(maxBundle, largestBundle);
@@ -532,10 +537,61 @@ public class NamespaceServiceTest extends BrokerTestBase {
             consumers[i].close();
         }
 
-        admin.namespaces().splitNamespaceBundle(namespace, Policies.LARGEST_BUNDLE, false, null);
+        admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.LARGEST.toString(), false, null);
 
         for (NamespaceBundle bundle : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
             assertNotEquals(bundle.getBundleRange(), maxBundle);
+        }
+    }
+
+    /**
+     * Test bundle split with hot bundle which is serving highest load.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testSplitBundleWithHighestThroughput() throws Exception {
+
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        restartBroker();
+        String namespace = "prop/test/ns-abc2";
+        String topic = "persistent://" + namespace + "/t1-";
+        int totalTopics = 100;
+
+        BundlesData bundleData = BundlesData.builder().numBundles(10).build();
+        admin.namespaces().createNamespace(namespace, bundleData);
+        Consumer<byte[]>[] consumers = new Consumer[totalTopics];
+        for (int i = 0; i < totalTopics; i++) {
+            consumers[i] = pulsarClient.newConsumer().topic(topic + i).subscriptionName("my-subscriber-name")
+                    .subscribe();
+        }
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get(namespace);
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+
+        String bundle = bundles.findBundle(TopicName.get(topic + "0")).getBundleRange();
+        String path = ModularLoadManagerImpl.getBundleDataPath(bundle);
+        NamespaceBundleStats defaultStats = new NamespaceBundleStats();
+        defaultStats.msgThroughputIn = 100000;
+        defaultStats.msgThroughputOut = 100000;
+        BundleData bd = new BundleData(10, 19, defaultStats );
+        byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(bd);
+        pulsar.getLocalMetadataStore().put(path, data, Optional.empty());
+        
+        String hotBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestThroughput(nsname)
+                .getBundleRange();
+
+        assertEquals(bundle, hotBundle);
+        
+        for (int i = 0; i < totalTopics; i++) {
+            consumers[i].close();
+        }
+
+        admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.HOT.toString(), false, null);
+
+        for (NamespaceBundle b : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
+            assertNotEquals(b.getBundleRange(), hotBundle);
         }
     }
 
