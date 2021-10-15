@@ -39,10 +39,10 @@ public final class MultipleListenerValidator {
 
     /**
      * Validate the configuration of `advertisedListeners`, `internalListenerName`.
-     * 2. the listener name in `advertisedListeners` must not duplicate.
-     * 3. user can not assign same 'host:port' to different listener.
-     * 4. if `internalListenerName` is absent, the first `listener` in the `advertisedListeners` will be the `internalListenerName`.
-     * 5. if pulsar do not specify `brokerServicePortTls`, should only contain one entry of `pulsar://` per listener name.
+     * 1. the listener name in `advertisedListeners` must not duplicate.
+     * 2. user can not assign same 'host:port' to different listener.
+     * 3. if `internalListenerName` is absent, the first `listener` in the `advertisedListeners` will be the `internalListenerName`.
+     * 4. if pulsar do not specify `brokerServicePortTls`, should only contain one entry of `pulsar://` per listener name.
      * @param config the pulsar broker configure.
      * @return
      */
