@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 
 
 /**

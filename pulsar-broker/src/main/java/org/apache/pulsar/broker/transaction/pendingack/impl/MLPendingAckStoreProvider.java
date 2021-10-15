@@ -26,7 +26,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferException;
+import org.apache.pulsar.broker.transaction.exception.pendingack.TransactionPendingAckException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -45,7 +45,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
 
         if (subscription == null) {
             pendingAckStoreFuture.completeExceptionally(
-                    new TransactionBufferException
+                    new TransactionPendingAckException
                             .TransactionPendingAckStoreProviderException("The subscription is null."));
             return pendingAckStoreFuture;
         }
