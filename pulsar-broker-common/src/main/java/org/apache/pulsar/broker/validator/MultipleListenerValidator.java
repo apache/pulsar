@@ -33,7 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * the validator for pulsar multiple  listeners.
+ * Validates multiple listener address configurations.
  */
 public final class MultipleListenerValidator {
 
@@ -109,21 +109,6 @@ public final class MultipleListenerValidator {
                 } catch (Throwable cause) {
                     throw new IllegalArgumentException("the value " + strUri + " in the `advertisedListeners` configure is invalid");
                 }
-            }
-            if (!config.getBrokerServicePortTls().isPresent()) {
-                if (pulsarSslAddress != null) {
-                    throw new IllegalArgumentException("If pulsar do not start ssl port, there is no need to configure " +
-                            " `pulsar+ssl` in `" + entry.getKey() + "` listener.");
-                }
-            } else {
-                if (pulsarSslAddress == null) {
-                    throw new IllegalArgumentException("the `" + entry.getKey() + "` listener in the `advertisedListeners` "
-                            + " do not specify `pulsar+ssl` address.");
-                }
-            }
-            if (pulsarAddress == null) {
-                throw new IllegalArgumentException("the `" + entry.getKey() + "` listener in the `advertisedListeners` "
-                        + " do not specify `pulsar` address.");
             }
             result.put(entry.getKey(), AdvertisedListener.builder().brokerServiceUrl(pulsarAddress).brokerServiceUrlTls(pulsarSslAddress).build());
         }

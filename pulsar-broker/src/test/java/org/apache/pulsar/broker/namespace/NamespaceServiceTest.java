@@ -154,7 +154,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -441,7 +441,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
