@@ -300,8 +300,7 @@ public class TransactionTest extends TransactionTestBase {
         });
     }
 
-    //If TB appends buffer failed, it maybe return a exception that is not a ManageLedgerException.
-    //But `future`.exceptionally need a ManageLedgerException as parameter for addFailed()
+
     @Test
     public void testAppendBufferWithNotManageLedgerExceptionCanCastToMLE()
             throws Exception {
@@ -359,11 +358,11 @@ public class TransactionTest extends TransactionTestBase {
         //Close topic manageLedger.
         persistentTopic.getManagedLedger().close();
 
-        //Publish to a close managerLedger to test ManagerLedgerException.
+        //Publish to a closed managerLedger to test ManagerLedgerException.
         persistentTopic.publishTxnMessage(new TxnID(123L, 321L),
                 Unpooled.copiedBuffer("message", UTF_8), publishContext);
 
-        //If timeout, it means the assertTrue in publishContext.completed is failed.
+        //If it times out, it means that the assertTrue in publishContext.completed is failed.
         Awaitility.await().until(() -> {
             countDownLatch.await();
             return true;
