@@ -37,11 +37,8 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const Top
       topicName_(topicName),
       topic_(topicName_->toString()),
       conf_(config),
-      state_(Pending),
       topicMetadata_(new TopicMetadataImpl(numPartitions)),
       flushedPartitions_(0) {
-    numProducersCreated_ = 0;
-    cleanup_ = false;
     routerPolicy_ = getMessageRouter();
 
     int maxPendingMessagesPerPartition =
@@ -348,7 +345,7 @@ void PartitionedProducerImpl::flushAsync(FlushCallback callback) {
         flushPromise_ = std::make_shared<Promise<Result, bool_type>>();
     } else {
         // already in flushing, register a listener callback
-        std::function<void(Result, bool)> listenerCallback = [this, callback](Result result, bool_type v) {
+        auto listenerCallback = [callback](Result result, bool_type v) {
             if (v) {
                 callback(ResultOk);
             } else {

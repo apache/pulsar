@@ -103,7 +103,8 @@ Oauth2CachedToken::Oauth2CachedToken(Oauth2TokenResultPtr token) {
     if (expiredIn > 0) {
         expiresAt_ = expiredIn + currentTimeMillis();
     } else {
-        throw std::runtime_error("ExpiresIn in Oauth2TokenResult invalid value: " + expiredIn);
+        throw std::runtime_error("ExpiresIn in Oauth2TokenResult invalid value: " +
+                                 std::to_string(expiredIn));
     }
     authData_ = AuthenticationDataPtr(new AuthDataOauth2(token->getAccessToken()));
 }

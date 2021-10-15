@@ -52,9 +52,9 @@ HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
     : executorProvider_(std::make_shared<ExecutorServiceProvider>(NUMBER_OF_LOOKUP_THREADS)),
       authenticationPtr_(authData),
       lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()),
+      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()),
       isUseTls_(clientConfiguration.isUseTls()),
       tlsAllowInsecure_(clientConfiguration.isTlsAllowInsecureConnection()),
-      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()),
       tlsValidateHostname_(clientConfiguration.isValidateHostName()) {
     if (lookupUrl[lookupUrl.length() - 1] == '/') {
         // Remove trailing '/'

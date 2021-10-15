@@ -72,15 +72,16 @@ static bool has_pclmulqdq = false;
 
 bool crc32c_initialize() {
     if (!initialized) {
+#ifdef _MSC_VER
         const uint32_t cpuid_ecx_sse42 = (1 << 20);
         const uint32_t cpuid_ecx_pclmulqdq = (1 << 1);
-
-#ifdef _MSC_VER
         int CPUInfo[4] = {};
         __cpuid(CPUInfo, 1);
         has_sse42 = (CPUInfo[2] & cpuid_ecx_sse42) != 0;
         has_pclmulqdq = (CPUInfo[2] & cpuid_ecx_pclmulqdq) != 0;
 #elif BOOST_ARCH_X86_64
+        const uint32_t cpuid_ecx_sse42 = (1 << 20);
+        const uint32_t cpuid_ecx_pclmulqdq = (1 << 1);
         unsigned int eax, ebx, ecx, edx;
         if (__get_cpuid(1, &eax, &ebx, &ecx, &edx)) {
             has_sse42 = (ecx & cpuid_ecx_sse42) != 0;

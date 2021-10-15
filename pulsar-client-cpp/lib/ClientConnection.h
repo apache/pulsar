@@ -249,7 +249,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
         }
     }
 
-    State state_;
+    State state_ = Pending;
     TimeDuration operationsTimeout_;
     AuthenticationPtr authentication_;
     int serverProtocolVersion_;
@@ -264,9 +264,13 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
      */
     SocketPtr socket_;
     TlsSocketPtr tlsSocket_;
+#if BOOST_VERSION >= 106600
+    boost::asio::strand<boost::asio::io_service::executor_type> strand_;
+#else
+    boost::asio::io_service::strand strand_;
+#endif
 
     const std::string logicalAddress_;
-
     /*
      *  stores address of the service, for ex. pulsar://localhost:6650
      */
@@ -312,7 +316,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     // Pending buffers to write on the socket
     std::deque<boost::any> pendingWriteBuffers_;
-    int pendingWriteOperations_;
+    int pendingWriteOperations_ = 0;
 
     SharedBuffer outgoingBuffer_;
     proto::BaseCommand outgoingCmd_;
@@ -321,7 +325,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     HandlerAllocator writeHandlerAllocator_;
 
     // Signals whether we're waiting for a response from broker
-    bool havePendingPingRequest_;
+    bool havePendingPingRequest_ = false;
     DeadlineTimerPtr keepAliveTimer_;
     DeadlineTimerPtr consumerStatsRequestTimer_;
 
@@ -330,16 +334,10 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
 
     void startConsumerStatsTimer(std::vector<uint64_t> consumerStatsRequests);
     uint32_t maxPendingLookupRequest_;
-    uint32_t numOfPendingLookupRequest_;
+    uint32_t numOfPendingLookupRequest_ = 0;
     friend class PulsarFriend;
 
-    bool isTlsAllowInsecureConnection_;
-
-#if BOOST_VERSION >= 106600
-    boost::asio::strand<boost::asio::io_service::executor_type> strand_;
-#else
-    boost::asio::io_service::strand strand_;
-#endif
+    bool isTlsAllowInsecureConnection_ = false;
 };
 }  // namespace pulsar
 

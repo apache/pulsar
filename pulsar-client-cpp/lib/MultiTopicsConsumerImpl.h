@@ -98,12 +98,12 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     std::map<std::string, int> topicsPartitions_;
     mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
-    MultiTopicsConsumerState state_;
-    std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
-    LookupServicePtr lookupServicePtr_;
+    MultiTopicsConsumerState state_ = Pending;
     BlockingQueue<Message> messages_;
     ExecutorServicePtr listenerExecutor_;
     MessageListener messageListener_;
+    LookupServicePtr lookupServicePtr_;
+    std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
     Promise<Result, ConsumerImplBaseWeakPtr> multiTopicsConsumerCreatedPromise_;
     UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
     const std::vector<std::string>& topics_;
