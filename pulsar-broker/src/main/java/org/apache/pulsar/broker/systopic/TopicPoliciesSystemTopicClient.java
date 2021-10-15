@@ -82,7 +82,10 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public MessageId write(PulsarEvent event) throws PulsarClientException {
-            return producer.newMessage().key(getEventKey(event)).value(event).send();
+            return producer.newMessage()
+                    .key(getEventKey(event))
+                    .properties(event.getProperties() == null ? Collections.emptyMap() : event.getProperties())
+                    .value(event).send();
         }
 
         @Override

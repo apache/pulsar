@@ -348,7 +348,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // delete policies
         if (msg.getValue() == null) {
             TopicName topicName = TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
-            System.out.println("refreshTopicPoliciesCache:" + msg.getProperties() + " " + msg.getProperty(IS_GLOBAL));
             if (IS_GLOBAL.equals(msg.getProperty(IS_GLOBAL))) {
                 globalPoliciesCache.remove(topicName);
             } else {
