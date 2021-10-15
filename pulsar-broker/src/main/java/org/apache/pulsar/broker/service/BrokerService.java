@@ -45,6 +45,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,6 +117,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -124,6 +126,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
@@ -254,6 +257,8 @@ public class BrokerService implements Closeable {
     private final BundlesQuotas bundlesQuotas;
 
     private PulsarChannelInitializer.Factory pulsarChannelInitFactory = PulsarChannelInitializer.DEFAULT_FACTORY;
+
+    private final List<Channel> listenChannels = new ArrayList<>(2);
     private Channel listenChannel;
     private Channel listenChannelTls;
 
@@ -404,39 +409,46 @@ public class BrokerService implements Closeable {
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
                 PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
 
-        ServerBootstrap bootstrap = defaultServerBootstrap.clone();
-
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
+        List<BindAddress> bindAddresses = BindAddressValidator.validateBindAddresses(serviceConfig,
+                Arrays.asList("pulsar", "pulsar+ssl"));
+        String internalListenerName = serviceConfig.getInternalListenerName();
 
-        bootstrap.childHandler(
-                pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, false));
+        // create a channel for each bind address
+        if (bindAddresses.size() == 0) {
+            throw new IllegalArgumentException("At least one broker bind address must be configured");
+        }
+        for (BindAddress a : bindAddresses) {
+            InetSocketAddress addr = new InetSocketAddress(a.getAddress().getHost(), a.getAddress().getPort());
+            boolean isTls = "pulsar+ssl".equals(a.getAddress().getScheme());
+            PulsarChannelInitializer.PulsarChannelOptions opts = PulsarChannelInitializer.PulsarChannelOptions.builder()
+                            .enableTLS(isTls)
+                            .listenerName(a.getListenerName()).build();
 
-        Optional<Integer> port = serviceConfig.getBrokerServicePort();
-        if (port.isPresent()) {
-            // Bind and start to accept incoming connections.
-            InetSocketAddress addr = new InetSocketAddress(pulsar.getBindAddress(), port.get());
+            ServerBootstrap b = defaultServerBootstrap.clone();
+            b.childHandler(
+                    pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, opts));
             try {
-                listenChannel = bootstrap.bind(addr).sync().channel();
-                log.info("Started Pulsar Broker service on {}", listenChannel.localAddress());
+                Channel ch = b.bind(addr).sync().channel();
+                listenChannels.add(ch);
+
+                // identify the primary channel. Note that the legacy bindings appear first and have no listener.
+                if (StringUtils.isBlank(a.getListenerName())
+                        || StringUtils.equalsIgnoreCase(a.getListenerName(), internalListenerName)) {
+                    if (this.listenChannel == null && !isTls) {
+                        this.listenChannel = ch;
+                    }
+                    if (this.listenChannelTls == null && isTls) {
+                        this.listenChannelTls = ch;
+                    }
+                }
+
+                log.info("Started Pulsar Broker service on {}, TLS: {}, listener: {}",
+                        ch.localAddress(),
+                        isTls ? SslContext.defaultServerProvider().toString() : "(none)",
+                        StringUtils.defaultString(a.getListenerName(), "(none)"));
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar broker on " + addr, e);
-            }
-        }
-
-        Optional<Integer> tlsPort = serviceConfig.getBrokerServicePortTls();
-        if (tlsPort.isPresent()) {
-            ServerBootstrap tlsBootstrap = bootstrap.clone();
-            tlsBootstrap.childHandler(
-                    pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, true));
-            try {
-                listenChannelTls = tlsBootstrap.bind(new InetSocketAddress(
-                        pulsar.getBindAddress(), tlsPort.get())).sync()
-                        .channel();
-                log.info("Started Pulsar Broker TLS service on {} - TLS provider: {}", listenChannelTls.localAddress(),
-                        SslContext.defaultServerProvider());
-            } catch (Exception e) {
-                throw new IOException(String.format("Failed to start Pulsar Broker TLS service on %s:%d",
-                        pulsar.getBindAddress(), tlsPort.get()), e);
             }
         }
 
@@ -700,14 +712,11 @@ public class BrokerService implements Closeable {
                                 log.info("Continuing to second phase in shutdown.");
 
                                 List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
-
-                                if (listenChannel != null && listenChannel.isOpen()) {
-                                    asyncCloseFutures.add(closeChannel(listenChannel));
-                                }
-
-                                if (listenChannelTls != null && listenChannelTls.isOpen()) {
-                                    asyncCloseFutures.add(closeChannel(listenChannelTls));
-                                }
+                                listenChannels.forEach(ch -> {
+                                    if (ch.isOpen()) {
+                                        asyncCloseFutures.add(closeChannel(ch));
+                                    }
+                                });
 
                                 if (interceptor != null) {
                                     interceptor.close();
@@ -2535,18 +2544,12 @@ public class BrokerService implements Closeable {
     }
 
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
-        try {
-            Optional<Policies> policies =
-                    pulsar.getPulsarResources().getNamespaceResources().getPolicies(topicName.getNamespaceObject());
-            // If namespace policies have the field set, it will override the broker-level setting
-            if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
-                return policies.get().autoTopicCreationOverride;
-            }
-        } catch (Throwable t) {
-            // Ignoring since if we don't have policies, we fallback on the default
-            log.warn("Got exception when reading autoTopicCreateOverride policy for {}: {};",
-                    topicName, t.getMessage(), t);
-            return null;
+        Optional<Policies> policies =
+                pulsar.getPulsarResources().getNamespaceResources()
+                        .getPoliciesIfCached(topicName.getNamespaceObject());
+        // If namespace policies have the field set, it will override the broker-level setting
+        if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
+            return policies.get().autoTopicCreationOverride;
         }
         log.debug("No autoTopicCreateOverride policy found for {}", topicName);
         return null;
@@ -2568,18 +2571,11 @@ public class BrokerService implements Closeable {
     }
 
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
-        try {
-            Optional<Policies> policies =
-                    pulsar.getPulsarResources().getNamespaceResources().getPolicies(topicName.getNamespaceObject());
-            // If namespace policies have the field set, it will override the broker-level setting
-            if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
-                return policies.get().autoSubscriptionCreationOverride;
-            }
-        } catch (Throwable t) {
-            // Ignoring since if we don't have policies, we fallback on the default
-            log.warn("Got exception when reading autoSubscriptionCreateOverride policy for {}: {};",
-                    topicName, t.getMessage(), t);
-            return null;
+        Optional<Policies> policies =
+                pulsar.getPulsarResources().getNamespaceResources().getPoliciesIfCached(topicName.getNamespaceObject());
+        // If namespace policies have the field set, it will override the broker-level setting
+        if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+            return policies.get().autoSubscriptionCreationOverride;
         }
         log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
