@@ -484,7 +484,7 @@ message CommandProducer {
     // the subsequent reconnections.
     optional uint64 topic_epoch = 11;
 
-    optional bool txnEnable = 12 [default = false];
+    optional bool txn_Enabled = 12 [default = false];
 }
 
 message CommandSend {

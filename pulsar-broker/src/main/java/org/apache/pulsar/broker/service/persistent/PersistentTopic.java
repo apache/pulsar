@@ -570,8 +570,8 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnable) {
-        return getTransactionBuffer().checkIfTBRecoverCompletely(isTxnEnable);
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
+        return getTransactionBuffer().checkIfTBRecoverCompletely(isTxnEnabled);
     }
 
     @Override

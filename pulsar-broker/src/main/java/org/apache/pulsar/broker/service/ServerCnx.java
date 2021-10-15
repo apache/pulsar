@@ -1116,7 +1116,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final ProducerAccessMode producerAccessMode = cmdProducer.getProducerAccessMode();
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
                 ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
-        final boolean isTxnEnable = cmdProducer.isTxnEnable();
+        final boolean isTxnEnabled = cmdProducer.isTxnEnabled();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -1228,7 +1228,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             });
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
-                                topic.checkIfTransactionBufferRecoverCompletely(isTxnEnable).thenAccept(future -> {
+                                topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
                                     buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                             metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
                                             producerAccessMode, topicEpoch, producerFuture);

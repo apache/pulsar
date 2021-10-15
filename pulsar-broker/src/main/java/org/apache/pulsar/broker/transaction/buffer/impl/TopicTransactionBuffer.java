@@ -173,8 +173,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxnEnable) {
-        if (!isTxnEnable) {
+    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxnEnabled) {
+        if (!isTxnEnabled) {
             return CompletableFuture.completedFuture(null);
         } else {
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -387,23 +387,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 });
                 snapshot.setAborts(list);
             }
-
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            writer.writeAsync(snapshot).whenComplete((v, e) -> {
-                if (e != null) {
-                    completableFuture.completeExceptionally(e);
-                    log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
-                } else {
-                    this.lastSnapshotTimestamps = System.currentTimeMillis();
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}]Transaction buffer take snapshot success! "
-                                + "messageId : {}", topic.getName(), v);
-                    }
-
-                    completableFuture.complete(null);
+            return writer.writeAsync(snapshot).thenAccept(messageId-> {
+                this.lastSnapshotTimestamps = System.currentTimeMillis();
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}]Transaction buffer take snapshot success! "
+                            + "messageId : {}", topic.getName(), messageId);
                 }
+            }).exceptionally(e -> {
+                log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e);
+                return null;
             });
-            return completableFuture;
         });
     }
     private void clearAbortedTransactions() {

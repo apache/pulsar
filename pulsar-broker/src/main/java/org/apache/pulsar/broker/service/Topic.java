@@ -119,10 +119,10 @@ public interface Topic {
     /**
      * Wait TransactionBuffer Recovers completely.
      * Take snapshot after TB Recovers completely.
-     * @param isTxnEnable
+     * @param isTxnEnabled
      * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
      */
-    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnable);
+    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
 
     /**
      * record add-latency.

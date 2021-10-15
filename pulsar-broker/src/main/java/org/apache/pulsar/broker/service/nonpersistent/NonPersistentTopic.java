@@ -222,7 +222,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnable) {
+    public CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled) {
         return  CompletableFuture.completedFuture(null);
     }
 
