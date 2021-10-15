@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 import io.netty.buffer.ByteBuf;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
@@ -33,6 +34,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -293,14 +295,10 @@ public class TopicLookupBase extends PulsarWebResource {
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 newAuthoritative, LookupType.Redirect, requestId, false));
                             } else {
-                                // When running in standalone mode we want to redirect the client through the service
-                                // url, so that the advertised address configuration is not relevant anymore.
-                                boolean redirectThroughServiceUrl = pulsarService.getConfiguration()
-                                        .isRunningStandalone();
-
+                                ServiceConfiguration conf = pulsarService.getConfiguration();
                                 lookupfuture.complete(newLookupResponse(lookupData.getBrokerUrl(),
                                         lookupData.getBrokerUrlTls(), true /* authoritative */, LookupType.Connect,
-                                        requestId, redirectThroughServiceUrl));
+                                        requestId, shouldRedirectThroughServiceUrl(conf, lookupData)));
                             }
                         }).exceptionally(ex -> {
                     if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
@@ -352,6 +350,33 @@ public class TopicLookupBase extends PulsarWebResource {
             @Encoded String encodedTopic) {
         String decodedName = Codec.decode(encodedTopic);
         return TopicName.get(TopicDomain.getEnum(topicDomain).value(), tenant, namespace, decodedName);
+    }
+
+    private static boolean shouldRedirectThroughServiceUrl(ServiceConfiguration conf, LookupData lookupData) {
+        // When running in standalone mode we want to redirect the client through the service URL,
+        // if the advertised address is a loopback address (see PulsarStandaloneStarter).
+        if (!conf.isRunningStandalone()) {
+            return false;
+        }
+        if (!StringUtils.isEmpty(lookupData.getBrokerUrl())) {
+            try {
+                URI host = URI.create(lookupData.getBrokerUrl());
+                return InetAddress.getByName(host.getHost()).isLoopbackAddress();
+            } catch (Exception e) {
+                log.info("Failed to resolve advertised address {}: {}", lookupData.getBrokerUrl(), e.getMessage());
+                return false;
+            }
+        }
+        if (!StringUtils.isEmpty(lookupData.getBrokerUrlTls())) {
+            try {
+                URI host = URI.create(lookupData.getBrokerUrlTls());
+                return InetAddress.getByName(host.getHost()).isLoopbackAddress();
+            } catch (Exception e) {
+                log.info("Failed to resolve advertised address {}: {}", lookupData.getBrokerUrlTls(), e.getMessage());
+                return false;
+            }
+        }
+        return false;
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicLookupBase.class);

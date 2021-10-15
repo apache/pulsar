@@ -796,7 +796,7 @@ public class PersistentTopic extends AbstractTopic
                 } else if (ex.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, ex.getMessage());
                 } else {
-                    log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
+                    log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }
                 return null;
             });

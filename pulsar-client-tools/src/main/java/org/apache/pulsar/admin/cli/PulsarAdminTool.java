@@ -80,10 +80,10 @@ public class PulsarAdminTool {
     boolean help;
 
     // for tls with keystore type config
-    boolean useKeyStoreTls = false;
-    String tlsTrustStoreType = "JKS";
-    String tlsTrustStorePath = null;
-    String tlsTrustStorePassword = null;
+    boolean useKeyStoreTls;
+    String tlsTrustStoreType;
+    String tlsTrustStorePath;
+    String tlsTrustStorePassword;
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
