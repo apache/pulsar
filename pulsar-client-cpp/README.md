@@ -235,6 +235,26 @@ ${PULSAR_PATH}/pulsar-client-cpp/cmake -DPROTOC_PATH=C:/protobuf/bin/protoc -DCM
 #This will generate pulsar-cpp.sln. Open this in Visual Studio and build the desired configurations.
 ```
 
+#### Checks
+
+##### Client libraries are available in the following places.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.lib
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release/pulsar.dll
+```
+
+#### Examples
+
+##### Add windows environment paths.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/lib/Release
+${PULSAR_PATH}/pulsar-client-cpp/vcpkg_installed
+```
+
+##### Examples are available in.
+```
+${PULSAR_PATH}/pulsar-client-cpp/build/examples/Release
+```
 
 ## Tests
 ```shell

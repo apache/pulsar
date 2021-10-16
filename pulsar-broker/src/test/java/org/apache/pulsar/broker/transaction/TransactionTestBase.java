@@ -21,8 +21,6 @@ package org.apache.pulsar.broker.transaction;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
@@ -76,7 +74,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     @Getter
     private final List<ServiceConfiguration> serviceConfigurationList = new ArrayList<>();
     @Getter
-    private final List<PulsarService> pulsarServiceList = new ArrayList<>();
+    protected final List<PulsarService> pulsarServiceList = new ArrayList<>();
 
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
@@ -136,6 +134,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setSystemTopicEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
+            conf.setTopicLevelPoliciesEnabled(true);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));
@@ -294,16 +293,22 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             log.warn("Failed to clean up mocked pulsar service:", e);
         }
     }
-    public boolean waitForCoordinatorToBeAvailable(int numOfBroker, int numOfTCPerBroker){
+    public void waitForCoordinatorToBeAvailable(int numOfTCPerBroker){
         // wait tc init success to ready state
-        Awaitility.await().untilAsserted(() -> {
-            TransactionMetadataStore transactionMetadataStore =
-                    getPulsarServiceList().get(numOfBroker - 1).getTransactionMetadataStoreService()
-                            .getStores().get(TransactionCoordinatorID.get(numOfTCPerBroker - 1));
-            assertNotNull(transactionMetadataStore);
-            assertEquals(((MLTransactionMetadataStore) transactionMetadataStore).getState(),
-                    TransactionMetadataStoreState.State.Ready);
+        Awaitility.await().until(() -> {
+            Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
+                    getPulsarServiceList().get(brokerCount-1).getTransactionMetadataStoreService().getStores();
+            if (stores.size() == numOfTCPerBroker) {
+                for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
+                    if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()
+                            != TransactionMetadataStoreState.State.Ready) {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
         });
-        return true;
     }
 }

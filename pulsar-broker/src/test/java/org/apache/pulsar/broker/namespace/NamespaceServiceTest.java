@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -32,15 +31,14 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,9 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -67,15 +63,17 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl.BundlesDataImplBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.data.Stat;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,9 +143,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         // (2) validate LocalZookeeper policies updated with newly created split
         // bundles
-        String path = joinPath(LOCAL_POLICIES_ROOT, nsname.toString());
-        byte[] content = this.pulsar.getLocalZkCache().getZooKeeper().getData(path, null, new Stat());
-        Policies policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
+        LocalPolicies policies = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
         NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
         assertEquals(localZkBundles, updatedNsBundles);
         log.info("Policies: {}", policies);
@@ -155,11 +151,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
-                        new Stat());
+                byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -290,12 +285,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle).join();
 
-        try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
-            fail("it should fail as node is not present");
-        } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
-            // ok
-        }
+        Optional<GetResult> res = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(bundle)).join();
+        assertFalse(res.isPresent());
     }
 
     /**
@@ -322,12 +313,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // try to unload bundle whose topic will be stuck
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS).join();
 
-        try {
-            pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(bundle), null, null);
-            fail("it should fail as node is not present");
-        } catch (org.apache.zookeeper.KeeperException.NoNodeException e) {
-            // ok
-        }
+        Optional<GetResult> res = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(bundle)).join();
+        assertFalse(res.isPresent());
         consumer.close();
     }
 
@@ -351,12 +338,17 @@ public class NamespaceServiceTest extends BrokerTestBase {
         URI uri2 = new URI(candidateBroker2);
         String path1 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri1.getHost(), uri1.getPort());
         String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
-        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path1,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
-        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path2,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
+
+        pulsar.getLocalMetadataStore().put(path1,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
+                Optional.empty(),
+                EnumSet.of(CreateOption.Ephemeral)
+                ).join();
+        pulsar.getLocalMetadataStore().put(path2,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
+                Optional.empty(),
+                EnumSet.of(CreateOption.Ephemeral)
+        ).join();
         LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1, false, null).get();
 
         // update to new load manager
@@ -381,9 +373,11 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
         URI uri = new URI(candidateBroker);
         String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
-        ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.EPHEMERAL);
+
+        pulsar.getLocalMetadataStore().put(path,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld),
+                Optional.empty(),
+                EnumSet.of(CreateOption.Ephemeral));
 
         LookupResult noListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, null).get();
         LookupResult withListener = pulsar.getNamespaceService().createLookupResult(candidateBroker, false, listener).get();
@@ -436,9 +430,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         // (2) validate LocalZookeeper policies updated with newly created split
         // bundles
-        String path = joinPath(LOCAL_POLICIES_ROOT, nsname.toString());
-        byte[] content = this.pulsar.getLocalZkCache().getZooKeeper().getData(path, null, new Stat());
-        Policies policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
+        LocalPolicies policies = this.pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
         NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
         assertEquals(localZkBundles, updatedNsBundles);
         log.info("Policies: {}", policies);
@@ -446,11 +438,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
             try {
-                byte[] data = this.pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitUtils.path(b), null,
-                        new Stat());
+                byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -498,6 +489,53 @@ public class NamespaceServiceTest extends BrokerTestBase {
         } catch (Exception e) {
             // make sure: NPE does not occur
             fail("split bundle failed", e);
+        }
+    }
+
+    @Test
+    public void testSplitLargestBundle() throws Exception {
+        String namespace = "prop/test/ns-abc2";
+        String topic = "persistent://" + namespace + "/t1-";
+        int totalTopics = 100;
+
+        BundlesData bundleData = BundlesData.builder().numBundles(10).build();
+        admin.namespaces().createNamespace(namespace, bundleData);
+        Consumer<byte[]>[] consumers = new Consumer[totalTopics];
+        for (int i = 0; i < totalTopics; i++) {
+            consumers[i] = pulsarClient.newConsumer().topic(topic + i).subscriptionName("my-subscriber-name")
+                    .subscribe();
+        }
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get(namespace);
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+
+        Map<String, Integer> topicCount = Maps.newHashMap();
+        int maxTopics = 0;
+        String maxBundle = null;
+        for (int i = 0; i < totalTopics; i++) {
+            String bundle = bundles.findBundle(TopicName.get(topic + i)).getBundleRange();
+            int count = topicCount.getOrDefault(bundle, 0) + 1;
+            topicCount.put(bundle, count);
+            if (count > maxTopics) {
+                maxTopics = count;
+                maxBundle = bundle;
+            }
+        }
+
+        String largestBundle = namespaceService.getNamespaceBundleFactory().getBundlesWithHighestTopics(nsname)
+                .getBundleRange();
+
+        assertEquals(maxBundle, largestBundle);
+
+        for (int i = 0; i < totalTopics; i++) {
+            consumers[i].close();
+        }
+
+        admin.namespaces().splitNamespaceBundle(namespace, Policies.LARGEST_BUNDLE, false, null);
+
+        for (NamespaceBundle bundle : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
+            assertNotEquals(bundle.getBundleRange(), maxBundle);
         }
     }
 

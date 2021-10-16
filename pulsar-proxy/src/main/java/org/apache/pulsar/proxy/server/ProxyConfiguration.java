@@ -491,6 +491,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int httpInputMaxReplayBufferSize = 5 * 1024 * 1024;
 
     @FieldContext(
+            minValue = 1,
+            category = CATEGORY_HTTP,
+            doc = "Http proxy timeout.\n\n"
+                    + "The timeout value for HTTP proxy is in millisecond."
+    )
+    private int httpProxyTimeout = 5 * 60 * 1000;
+
+    @FieldContext(
            minValue = 1,
            category = CATEGORY_HTTP,
            doc = "Number of threads to use for HTTP requests processing"
@@ -559,6 +567,19 @@ public class ProxyConfiguration implements PulsarConfiguration {
             )
         }
     )
+
+    /***** --- Protocol Handlers --- ****/
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate proxy extensions"
+    )
+    private String proxyExtensionsDirectory = "./proxyextensions";
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "List of messaging protocols to load, which is a list of extension names"
+    )
+    private Set<String> proxyExtensions = Sets.newTreeSet();
 
     /***** --- WebSocket --- ****/
     @FieldContext(

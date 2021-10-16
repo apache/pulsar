@@ -25,10 +25,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -36,11 +33,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.CacheGetResult;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -49,7 +46,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
 @Slf4j
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
@@ -83,9 +80,17 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     }
 
                     @Override
-                    public CompletableFuture<Optional<CacheGetResult<T>>> asyncReload(String key,
-                            Optional<CacheGetResult<T>> oldValue, Executor executor) {
-                        return readValueFromStore(key);
+                    public CompletableFuture<Optional<CacheGetResult<T>>> asyncReload(
+                            String key,
+                            Optional<CacheGetResult<T>> oldValue,
+                            Executor executor) {
+                        if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
+                            return readValueFromStore(key);
+                        } else {
+                            // Do not try to refresh the cache item if we know that we're not connected to the
+                            // metadata store
+                            return CompletableFuture.completedFuture(oldValue);
+                        }
                     }
                 });
     }
@@ -98,11 +103,13 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     }
 
                     try {
-                        T obj = serde.deserialize(optRes.get().getValue());
+                        GetResult res = optRes.get();
+                        T obj = serde.deserialize(path, res.getValue(), res.getStat());
                         return FutureUtils
-                                .value(Optional.of(new CacheGetResult<>(obj, optRes.get().getStat())));
+                                .value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
                     } catch (Throwable t) {
-                        return FutureUtils.exception(new ContentDeserializationException(t));
+                        return FutureUtils.exception(new ContentDeserializationException(
+                                "Failed to deserialize payload for key '" + path + "'", t));
                     }
                 });
     }
@@ -136,15 +143,16 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     long expectedVersion;
 
                     if (optEntry.isPresent()) {
+                        CacheGetResult<T> entry = optEntry.get();
                         T clone;
                         try {
                             // Use clone and CAS zk to ensure thread safety
-                            clone = serde.deserialize(serde.serialize(optEntry.get().getValue()));
+                            clone = serde.deserialize(path, serde.serialize(path, entry.getValue()), entry.getStat());
                         } catch (IOException e) {
                             return FutureUtils.exception(e);
                         }
                         currentValue = Optional.of(clone);
-                        expectedVersion = optEntry.get().getStat().getVersion();
+                        expectedVersion = entry.getStat().getVersion();
                     } else {
                         currentValue = Optional.empty();
                         expectedVersion = -1;
@@ -154,7 +162,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     byte[] newValue;
                     try {
                         newValueObj = modifyFunction.apply(currentValue);
-                        newValue = serde.serialize(newValueObj);
+                        newValue = serde.serialize(path, newValueObj);
                     } catch (Throwable t) {
                         return FutureUtils.exception(t);
                     }
@@ -176,15 +184,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
                     CacheGetResult<T> entry = optEntry.get();
                     T currentValue = entry.getValue();
-                    long expectedVersion = optEntry.get().getStat().getVersion();
+                    long expectedVersion = entry.getStat().getVersion();
 
                     T newValueObj;
                     byte[] newValue;
                     try {
                         // Use clone and CAS zk to ensure thread safety
-                        currentValue = serde.deserialize(serde.serialize(currentValue));
+                        currentValue = serde.deserialize(path, serde.serialize(path, currentValue), entry.getStat());
                         newValueObj = modifyFunction.apply(currentValue);
-                        newValue = serde.serialize(newValueObj);
+                        newValue = serde.serialize(path, newValueObj);
                     } catch (Throwable t) {
                         return FutureUtils.exception(t);
                     }
@@ -200,7 +208,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     public CompletableFuture<Void> create(String path, T value) {
         byte[] content;
         try {
-            content = serde.serialize(value);
+            content = serde.serialize(path, value);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }

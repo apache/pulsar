@@ -90,6 +90,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -373,6 +374,62 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer2.receive(1);
 
         consumer3.receive(1);
+    }
+
+    @Test
+    public void testReplicationWithSchema() throws Exception {
+        PulsarClient client1 = pulsar1.getClient();
+        PulsarClient client2 = pulsar2.getClient();
+        PulsarClient client3 = pulsar3.getClient();
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/testReplicationWithSchema"));
+
+        final String subName = "my-sub";
+
+        @Cleanup
+        Producer<Schemas.PersonOne> producer1 = client1.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .create();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer2 = client2.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .create();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer3 = client3.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .create();
+
+        List<Producer<Schemas.PersonOne>> producers = Lists.newArrayList(producer1, producer2, producer3);
+
+        @Cleanup
+        Consumer<Schemas.PersonOne> consumer1 = client1.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<Schemas.PersonOne> consumer2 = client2.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<Schemas.PersonOne> consumer3 = client3.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 3; i++) {
+            producers.get(i).send(new Schemas.PersonOne(i));
+            Message<Schemas.PersonOne> msg1 = consumer1.receive();
+            Message<Schemas.PersonOne> msg2 = consumer2.receive();
+            Message<Schemas.PersonOne> msg3 = consumer3.receive();
+            assertTrue(msg1 != null && msg2 != null && msg3 != null);
+            assertTrue(msg1.getValue().equals(msg2.getValue()) && msg2.getValue().equals(msg3.getValue()));
+            consumer1.acknowledge(msg1);
+            consumer2.acknowledge(msg2);
+            consumer3.acknowledge(msg3);
+        }
     }
 
     @Test
@@ -1179,55 +1236,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
-    public void testRemoveClusterFromNamespace() throws Exception {
-        final String cluster4 = "r4";
-        admin1.clusters().createCluster(cluster4, ClusterData.builder()
-                .serviceUrl(url3.toString())
-                .serviceUrlTls(urlTls3.toString())
-                .brokerServiceUrl(pulsar3.getSafeBrokerServiceUrl())
-                .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
-                .build());
-
-        admin1.tenants().createTenant("pulsar1",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
-                        Sets.newHashSet("r1", "r3", cluster4)));
-
-        admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r3", cluster4));
-
-        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient(cluster4);
-        Assert.assertNotNull(repClient1);
-        Assert.assertFalse(repClient1.isClosed());
-
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
-                .build();
-
-        final String topicName = "persistent://pulsar1/ns1/testRemoveClusterFromNamespace-" + UUID.randomUUID();
-
-        Producer<byte[]> producer = client.newProducer()
-                .topic(topicName)
-                .create();
-
-        producer.send("Pulsar".getBytes());
-
-        producer.close();
-        client.close();
-
-        Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
-                .get().getReplicators().get(cluster4);
-
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
-
-        admin1.clusters().deleteCluster(cluster4);
-
-        Awaitility.await().untilAsserted(() -> Assert.assertFalse(replicator.isConnected()));
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(repClient1.isClosed()));
-
-        Awaitility.await().untilAsserted(() -> Assert.assertNull(
-                pulsar1.getBrokerService().getReplicationClients().get(cluster4)));
-    }
-
-    @Test
     public void testDoNotReplicateSystemTopic() throws Exception {
         final String namespace = newUniqueName("pulsar/ns");
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r2", "r3"));
@@ -1236,12 +1244,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
                 EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME).toString();
         admin1.topics().createNonPartitionedTopic(topic);
-        Awaitility.await()
-                .until(() -> pulsar1.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
-        Awaitility.await()
-                .until(() -> pulsar2.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
-        Awaitility.await()
-                .until(() -> pulsar3.getTopicPoliciesService().cacheIsInitialized(TopicName.get(topic)));
         admin1.topics().setRetention(topic, new RetentionPolicies(10, 10));
         admin2.topics().setRetention(topic, new RetentionPolicies(20, 20));
         admin3.topics().setRetention(topic, new RetentionPolicies(30, 30));

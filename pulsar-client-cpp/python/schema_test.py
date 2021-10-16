@@ -19,6 +19,8 @@
 #
 
 from unittest import TestCase, main
+
+import fastavro
 import pulsar
 from pulsar.schema import *
 from enum import Enum
@@ -36,6 +38,7 @@ class SchemaTest(TestCase):
             blue = 3
 
         class Example(Record):
+            _sorted_fields = True
             a = String()
             b = Integer()
             c = Array(String())
@@ -46,6 +49,7 @@ class SchemaTest(TestCase):
             h = Bytes()
             i = Map(String())
 
+        fastavro.parse_schema(Example.schema())
         self.assertEqual(Example.schema(), {
             "name": "Example",
             "type": "record",
@@ -75,15 +79,18 @@ class SchemaTest(TestCase):
 
     def test_complex(self):
         class MySubRecord(Record):
+            _sorted_fields = True
             x = Integer()
             y = Long()
             z = String()
 
         class Example(Record):
+            _sorted_fields = True
             a = String()
             sub = MySubRecord     # Test with class
             sub2 = MySubRecord()  # Test with instance
 
+        fastavro.parse_schema(Example.schema())
         self.assertEqual(Example.schema(), {
             "name": "Example",
             "type": "record",
@@ -99,13 +106,7 @@ class SchemaTest(TestCase):
                  }]
                  },
                  {"name": "sub2",
-                  "type": ["null", {
-                     "name": "MySubRecord",
-                     "type": "record",
-                     "fields": [{"name": "x", "type": ["null", "int"]},
-                                {"name": "y", "type": ["null", "long"]},
-                                {"name": "z", "type": ["null", "string"]}]
-                 }]
+                  "type": ["null", 'MySubRecord']
                  }
             ]
         })
@@ -305,7 +306,6 @@ class SchemaTest(TestCase):
         except TypeError:
             pass # Expected
 
-
     def test_serialize_json(self):
         class Example(Record):
             a = Integer()
@@ -350,6 +350,34 @@ class SchemaTest(TestCase):
         r2 = s.decode(data)
         self.assertEqual(r2.__class__.__name__, 'Example')
         self.assertEqual(r2, r)
+
+    def test_non_sorted_fields(self):
+        class T1(Record):
+            a = Integer()
+            b = Integer()
+            c = Double()
+            d = String()
+
+        class T2(Record):
+            b = Integer()
+            a = Integer()
+            d = String()
+            c = Double()
+
+        self.assertNotEqual(T1.schema()['fields'], T2.schema()['fields'])
+
+    def test_sorted_fields(self):
+        class T1(Record):
+            _sorted_fields = True
+            a = Integer()
+            b = Integer()
+
+        class T2(Record):
+            _sorted_fields = True
+            b = Integer()
+            a = Integer()
+
+        self.assertEqual(T1.schema()['fields'], T2.schema()['fields'])
 
     def test_schema_version(self):
         class Example(Record):
@@ -410,6 +438,31 @@ class SchemaTest(TestCase):
         self.assertEqual(r.b, None)
         self.assertEqual(r.c, 'hello')
 
+    def test_none_value(self):
+        """
+        The objective of the test is to check that if no value is assigned to the attribute, the validation is returning
+        the expect default value as defined in the Field class
+        """
+        class Example(Record):
+            a = Null()
+            b = Boolean()
+            c = Integer()
+            d = Long()
+            e = Float()
+            f = Double()
+            g = Bytes()
+            h = String()
+
+        r = Example()
+
+        self.assertIsNone(r.a)
+        self.assertFalse(r.b)
+        self.assertIsNone(r.c)
+        self.assertIsNone(r.d)
+        self.assertIsNone(r.e)
+        self.assertIsNone(r.f)
+        self.assertIsNone(r.g)
+        self.assertIsNone(r.h)
     ####
 
     def test_json_schema(self):
@@ -427,7 +480,6 @@ class SchemaTest(TestCase):
         producer = client.create_producer(
                         'my-json-python-topic',
                         schema=JsonSchema(Example))
-
 
         # Validate that incompatible schema is rejected
         try:
@@ -460,6 +512,9 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
 
         self.assertEqual(r, msg.value())
+
+        producer.close()
+        consumer.close()
         client.close()
 
     def test_string_schema(self):
@@ -492,13 +547,11 @@ class SchemaTest(TestCase):
         self.assertEqual(b"Hello", msg.data())
         client.close()
 
-
     def test_bytes_schema(self):
         client = pulsar.Client(self.serviceUrl)
         producer = client.create_producer(
                         'my-bytes-python-topic',
                         schema=BytesSchema())
-
 
         # Validate that incompatible schema is rejected
         try:
@@ -562,6 +615,9 @@ class SchemaTest(TestCase):
         msg = consumer.receive()
 
         self.assertEqual(r, msg.value())
+
+        producer.close()
+        consumer.close()
         client.close()
 
     def test_json_enum(self):
@@ -666,6 +722,7 @@ class SchemaTest(TestCase):
 
     def test_avro_required_default(self):
         class MySubRecord(Record):
+            _sorted_fields = True
             x = Integer()
             y = Long()
             z = String()
@@ -682,7 +739,9 @@ class SchemaTest(TestCase):
             i = Map(String())
             j = MySubRecord()
 
+
         class ExampleRequiredDefault(Record):
+            _sorted_fields = True
             a = Integer(required_default=True)
             b = Boolean(required=True, required_default=True)
             c = Long(required_default=True)
@@ -823,7 +882,6 @@ class SchemaTest(TestCase):
 
         client.close()
 
-
     def test_default_value(self):
         class MyRecord(Record):
             A = Integer()
@@ -855,25 +913,68 @@ class SchemaTest(TestCase):
 
     def test_serialize_schema_complex(self):
         class NestedObj1(Record):
+            _sorted_fields = True
             na1 = String()
             nb1 = Double()
 
         class NestedObj2(Record):
+            _sorted_fields = True
             na2 = Integer()
             nb2 = Boolean()
             nc2 = NestedObj1()
 
+        class NestedObj3(Record):
+            na3 = Integer()
+
+        class NestedObj4(Record):
+            _avro_namespace = 'xxx4'
+            _sorted_fields = True
+            na4 = String()
+            nb4 = Integer()
+
+        class Color(Enum):
+            red = 1
+            green = 2
+            blue = 3
+
         class ComplexRecord(Record):
+            _avro_namespace = 'xxx.xxx'
+            _sorted_fields = True
             a = Integer()
             b = Integer()
+            color = Color
+            color2 = Color
             nested = NestedObj2()
+            nested2 = NestedObj2()
+            mapNested = Map(NestedObj3())
+            mapNested2 = Map(NestedObj3())
+            arrayNested = Array(NestedObj4())
+            arrayNested2 = Array(NestedObj4())
 
+        print('complex schema: ', ComplexRecord.schema())
         self.assertEqual(ComplexRecord.schema(), {
             "name": "ComplexRecord",
+            "namespace": "xxx.xxx",
             "type": "record",
             "fields": [
                 {"name": "a", "type": ["null", "int"]},
+                {'name': 'arrayNested', 'type': ['null', {'type': 'array', 'items':
+                    {'name': 'NestedObj4', 'namespace': 'xxx4', 'type': 'record', 'fields': [
+                        {'name': 'na4', 'type': ['null', 'string']},
+                        {'name': 'nb4', 'type': ['null', 'int']}
+                    ]}}
+                ]},
+                {'name': 'arrayNested2', 'type': ['null', {'type': 'array', 'items': 'xxx4.NestedObj4'}]},
                 {"name": "b", "type": ["null", "int"]},
+                {'name': 'color', 'type': ['null', {'type': 'enum', 'name': 'Color', 'symbols': [
+                    'red', 'green', 'blue']}]},
+                {'name': 'color2', 'type': ['null', 'Color']},
+                {'name': 'mapNested', 'type': ['null', {'type': 'map', 'values':
+                    {'name': 'NestedObj3', 'type': 'record', 'fields': [
+                        {'name': 'na3', 'type': ['null', 'int']}
+                    ]}}
+                ]},
+                {'name': 'mapNested2', 'type': ['null', {'type': 'map', 'values': 'NestedObj3'}]},
                 {"name": "nested", "type": ['null', {'name': 'NestedObj2', 'type': 'record', 'fields': [
                     {'name': 'na2', 'type': ['null', 'int']},
                     {'name': 'nb2', 'type': ['null', 'boolean']},
@@ -881,7 +982,8 @@ class SchemaTest(TestCase):
                         {'name': 'na1', 'type': ['null', 'string']},
                         {'name': 'nb1', 'type': ['null', 'double']}
                     ]}]}
-                ]}]}
+                ]}]},
+                {"name": "nested2", "type": ['null', 'NestedObj2']}
             ]
         })
 
@@ -892,7 +994,23 @@ class SchemaTest(TestCase):
 
             nested_obj1 = NestedObj1(na1='na1 value', nb1=20.5)
             nested_obj2 = NestedObj2(na2=22, nb2=True, nc2=nested_obj1)
-            r = ComplexRecord(a=1, b=2, nested=nested_obj2)
+            r = ComplexRecord(a=1, b=2, color=Color.red, color2=Color.blue,
+                              nested=nested_obj2, nested2=nested_obj2,
+            mapNested={
+                'a': NestedObj3(na3=1),
+                'b': NestedObj3(na3=2),
+                'c': NestedObj3(na3=3)
+            }, mapNested2={
+                'd': NestedObj3(na3=4),
+                'e': NestedObj3(na3=5),
+                'f': NestedObj3(na3=6)
+            }, arrayNested=[
+                NestedObj4(na4='value na4 1', nb4=100),
+                NestedObj4(na4='value na4 2', nb4=200)
+            ], arrayNested2=[
+                NestedObj4(na4='value na4 3', nb4=300),
+                NestedObj4(na4='value na4 4', nb4=400)
+            ])
             data_encode = data_schema.encode(r)
 
             data_decode = data_schema.decode(data_encode)
@@ -900,14 +1018,56 @@ class SchemaTest(TestCase):
             self.assertEqual(data_decode, r)
             self.assertEqual(data_decode.a, 1)
             self.assertEqual(data_decode.b, 2)
+            self.assertEqual(data_decode.color, Color.red)
+            self.assertEqual(data_decode.color2, Color.blue)
             self.assertEqual(data_decode.nested.na2, 22)
             self.assertEqual(data_decode.nested.nb2, True)
             self.assertEqual(data_decode.nested.nc2.na1, 'na1 value')
             self.assertEqual(data_decode.nested.nc2.nb1, 20.5)
+            self.assertEqual(data_decode.nested2.na2, 22)
+            self.assertEqual(data_decode.nested2.nb2, True)
+            self.assertEqual(data_decode.nested2.nc2.na1, 'na1 value')
+            self.assertEqual(data_decode.nested2.nc2.nb1, 20.5)
+            self.assertEqual(data_decode.mapNested['a'].na3, 1)
+            self.assertEqual(data_decode.mapNested['b'].na3, 2)
+            self.assertEqual(data_decode.mapNested['c'].na3, 3)
+            self.assertEqual(data_decode.mapNested2['d'].na3, 4)
+            self.assertEqual(data_decode.mapNested2['e'].na3, 5)
+            self.assertEqual(data_decode.mapNested2['f'].na3, 6)
+            self.assertEqual(data_decode.arrayNested[0].na4, 'value na4 1')
+            self.assertEqual(data_decode.arrayNested[0].nb4, 100)
+            self.assertEqual(data_decode.arrayNested[1].na4, 'value na4 2')
+            self.assertEqual(data_decode.arrayNested[1].nb4, 200)
+            self.assertEqual(data_decode.arrayNested2[0].na4, 'value na4 3')
+            self.assertEqual(data_decode.arrayNested2[0].nb4, 300)
+            self.assertEqual(data_decode.arrayNested2[1].na4, 'value na4 4')
+            self.assertEqual(data_decode.arrayNested2[1].nb4, 400)
             print('Encode and decode complex schema finish. schema_type: ', schema_type)
 
         encode_and_decode('avro')
         encode_and_decode('json')
+
+    def test_sub_record_set_to_none(self):
+        class NestedObj1(Record):
+            na1 = String()
+            nb1 = Double()
+
+        class NestedObj2(Record):
+            na2 = Integer()
+            nb2 = Boolean()
+            nc2 = NestedObj1()
+
+        data_schema = AvroSchema(NestedObj2)
+        r = NestedObj2(na2=1, nb2=True)
+
+        data_encode = data_schema.encode(r)
+        data_decode = data_schema.decode(data_encode)
+
+        self.assertEqual(data_decode.__class__.__name__, 'NestedObj2')
+        self.assertEqual(data_decode, r)
+        self.assertEqual(data_decode.na2, 1)
+        self.assertTrue(data_decode.nb2)
+
 
     def test_produce_and_consume_complex_schema_data(self):
         class NestedObj1(Record):
@@ -919,10 +1079,19 @@ class SchemaTest(TestCase):
             nb2 = Boolean()
             nc2 = NestedObj1()
 
+        class NestedObj3(Record):
+            na3 = Integer()
+
+        class NestedObj4(Record):
+            na4 = String()
+            nb4 = Integer()
+
         class ComplexRecord(Record):
             a = Integer()
             b = Integer()
             nested = NestedObj2()
+            mapNested = Map(NestedObj3())
+            arrayNested = Array(NestedObj4())
 
         client = pulsar.Client(self.serviceUrl)
 
@@ -941,7 +1110,14 @@ class SchemaTest(TestCase):
 
             nested_obj1 = NestedObj1(na1='na1 value', nb1=20.5)
             nested_obj2 = NestedObj2(na2=22, nb2=True, nc2=nested_obj1)
-            r = ComplexRecord(a=1, b=2, nested=nested_obj2)
+            r = ComplexRecord(a=1, b=2, nested=nested_obj2, mapNested={
+                'a': NestedObj3(na3=1),
+                'b': NestedObj3(na3=2),
+                'c': NestedObj3(na3=3)
+            }, arrayNested=[
+                NestedObj4(na4='value na4 1', nb4=100),
+                NestedObj4(na4='value na4 2', nb4=200)
+            ])
             producer.send(r)
 
             msg = consumer.receive()
@@ -954,15 +1130,27 @@ class SchemaTest(TestCase):
             self.assertEqual(value.nested.nb2, True)
             self.assertEqual(value.nested.nc2.na1, 'na1 value')
             self.assertEqual(value.nested.nc2.nb1, 20.5)
+            self.assertEqual(value.mapNested['a'].na3, 1)
+            self.assertEqual(value.mapNested['b'].na3, 2)
+            self.assertEqual(value.mapNested['c'].na3, 3)
+            self.assertEqual(value.arrayNested[0].na4, 'value na4 1')
+            self.assertEqual(value.arrayNested[0].nb4, 100)
+            self.assertEqual(value.arrayNested[1].na4, 'value na4 2')
+            self.assertEqual(value.arrayNested[1].nb4, 200)
 
-            producer.close()
-            consumer.close()
             print('Produce and consume complex schema data finish. schema_type', schema_type)
 
         produce_consume_test('avro')
         produce_consume_test('json')
 
         client.close()
+
+    def test(self):
+        class NamespaceDemo(Record):
+            _namespace = 'xxx.xxx.xxx'
+            x = String()
+            y = Integer()
+        print('schema: ', NamespaceDemo.schema())
 
 if __name__ == '__main__':
     main()

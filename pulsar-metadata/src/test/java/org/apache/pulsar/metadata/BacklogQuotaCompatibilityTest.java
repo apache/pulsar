@@ -18,37 +18,39 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import java.io.IOException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-
-import static org.testng.Assert.assertEquals;
-
 public class BacklogQuotaCompatibilityTest {
 
     @Test
     public void testBackwardCompatibility() throws IOException {
-        String oldPolicyStr = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}," +
-                "\"subscription_auth_roles\":{}},\"replication_clusters\":[],\"backlog_quota_map\":" +
-                "{\"destination_storage\":{\"limit\":1001,\"policy\":\"consumer_backlog_eviction\"}}," +
-                "\"clusterDispatchRate\":{},\"topicDispatchRate\":{},\"subscriptionDispatchRate\":{}," +
-                "\"replicatorDispatchRate\":{},\"clusterSubscribeRate\":{},\"publishMaxMessageRate\":{}," +
-                "\"latency_stats_sample_rate\":{},\"subscription_expiration_time_minutes\":0,\"deleted\":false," +
-                "\"encryption_required\":false,\"subscription_auth_mode\":\"None\"," +
-                "\"max_consumers_per_subscription\":0,\"offload_threshold\":-1," +
-                "\"schema_auto_update_compatibility_strategy\":\"Full\",\"schema_compatibility_strategy\":" +
-                "\"UNDEFINED\",\"is_allow_auto_update_schema\":true,\"schema_validation_enforced\":false," +
-                "\"subscription_types_enabled\":[]}\n";
+        String oldPolicyStr = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{},"
+                + "\"subscription_auth_roles\":{}},\"replication_clusters\":[],\"backlog_quota_map\":"
+                + "{\"destination_storage\":{\"limit\":1001,\"policy\":\"consumer_backlog_eviction\"}},"
+                + "\"clusterDispatchRate\":{},\"topicDispatchRate\":{},\"subscriptionDispatchRate\":{},"
+                + "\"replicatorDispatchRate\":{},\"clusterSubscribeRate\":{},\"publishMaxMessageRate\":{},"
+                + "\"latency_stats_sample_rate\":{},\"subscription_expiration_time_minutes\":0,\"deleted\":false,"
+                + "\"encryption_required\":false,\"subscription_auth_mode\":\"None\","
+                + "\"max_consumers_per_subscription\":0,\"offload_threshold\":-1,"
+                + "\"schema_auto_update_compatibility_strategy\":\"Full\",\"schema_compatibility_strategy\":"
+                + "\"UNDEFINED\",\"is_allow_auto_update_schema\":true,\"schema_validation_enforced\":false,"
+                + "\"subscription_types_enabled\":[]}\n";
 
-        JSONMetadataSerdeSimpleType jsonMetadataSerdeSimpleType = new JSONMetadataSerdeSimpleType(TypeFactory.defaultInstance().constructSimpleType(Policies.class, null));
-        Policies policies = (Policies) jsonMetadataSerdeSimpleType.deserialize(oldPolicyStr.getBytes());
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(), 1001);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTime(), 0);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getPolicy(), BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        JSONMetadataSerdeSimpleType jsonMetadataSerdeSimpleType = new JSONMetadataSerdeSimpleType(
+                TypeFactory.defaultInstance().constructSimpleType(Policies.class, null));
+        Policies policies = (Policies) jsonMetadataSerdeSimpleType.deserialize(null, oldPolicyStr.getBytes(), null);
+        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
+                1001);
+        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTime(),
+                0);
+        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getPolicy(),
+                BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
     }
 
 }

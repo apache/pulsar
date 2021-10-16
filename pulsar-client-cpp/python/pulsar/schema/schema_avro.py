@@ -42,6 +42,13 @@ if HAS_AVRO:
                 return x.name
             elif isinstance(x, Record):
                 return self.encode_dict(x.__dict__)
+            elif isinstance(x, list):
+                arr = []
+                for item in x:
+                    arr.append(self._get_serialized_value(item))
+                return arr
+            elif isinstance(x, dict):
+                return self.encode_dict(x)
             else:
                 return x
 
@@ -52,7 +59,7 @@ if HAS_AVRO:
             fastavro.schemaless_writer(buffer, self._schema, m)
             return buffer.getvalue()
 
-        def encode_dict(self, d: dict):
+        def encode_dict(self, d):
             obj = {}
             for k, v in d.items():
                 obj[k] = self._get_serialized_value(v)

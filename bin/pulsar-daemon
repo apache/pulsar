@@ -20,13 +20,12 @@
 
 usage() {
     cat <<EOF
-Usage: pulsar-daemon (start|stop) <command> <args...>
+Usage: pulsar-daemon (start|stop|restart) <command> <args...>
 where command is one of:
     broker              Run a broker server
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
     configuration-store Run a configuration-store server
-    discovery           Run a discovery server
     websocket           Run a websocket proxy server
     functions-worker    Run a functions worker server
     standalone          Run a standalone Pulsar service
@@ -89,9 +88,6 @@ case $command in
         echo "doing $startStop $command ..."
         ;;
     (configuration-store)
-        echo "doing $startStop $command ..."
-        ;;
-    (discovery)
         echo "doing $startStop $command ..."
         ;;
     (websocket)
@@ -206,6 +202,66 @@ case $startStop in
       rm $pid
     else
       echo no "$command to stop"
+    fi
+    ;;
+
+  (restart)
+   if [ -f $pid ]; then
+      TARGET_PID=$(cat $pid)
+      if kill -0 $TARGET_PID > /dev/null 2>&1; then
+        echo "stopping $command"
+        kill $TARGET_PID
+
+        count=0
+        location=$PULSAR_LOG_DIR
+        while ps -p $TARGET_PID > /dev/null;
+         do
+          echo "Shutdown is in progress... Please wait..."
+          sleep 1
+          count=`expr $count + 1`
+
+          if [ "$count" = "$PULSAR_STOP_TIMEOUT" ]; then
+                break
+          fi
+         done
+
+        if [ "$count" != "$PULSAR_STOP_TIMEOUT" ]; then
+            echo "Shutdown completed."
+        fi
+
+        if kill -0 $TARGET_PID > /dev/null 2>&1; then
+              fileName=$location/$command.out
+              $JAVA_HOME/bin/jstack $TARGET_PID > $fileName
+              echo "Thread dumps are taken for analysis at $fileName"
+              if [ "$1" == "-force" ]
+              then
+                 echo "forcefully stopping $command"
+                 kill -9 $TARGET_PID >/dev/null 2>&1
+                 echo Successfully stopped the process
+              else
+                 echo "WARNNING :  $command is not stopped completely."
+                 exit 1
+              fi
+        fi
+      else
+        echo "no $command to stop"
+      fi
+      rm $pid
+    else
+      echo no "$command to stop"
+    fi
+    sleep 3
+
+    rotate_out_log $out
+    echo restarting $command, logging to $logfile
+    echo Note: Set immediateFlush to true in conf/log4j2.yaml will guarantee the logging event is flushing to disk immediately. The default behavior is switched off due to performance considerations.
+    pulsar=$PULSAR_HOME/bin/pulsar
+    nohup $pulsar $command "$@" > "$out" 2>&1 < /dev/null &
+    echo $! > $pid
+    sleep 1; head $out
+    sleep 2;
+    if ! ps -p $! > /dev/null ; then
+      exit 1
     fi
     ;;
 

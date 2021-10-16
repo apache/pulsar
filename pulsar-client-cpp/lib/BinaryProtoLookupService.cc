@@ -34,15 +34,11 @@ namespace pulsar {
  * Constructor
  */
 BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& lookupUrl)
-    : cnxPool_(cnxPool), serviceUrl_(lookupUrl), mutex_(), requestIdGenerator_(0) {}
+    : serviceUrl_(lookupUrl), cnxPool_(cnxPool) {}
 
 BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& lookupUrl,
                                                    const std::string& listenerName)
-    : cnxPool_(cnxPool),
-      serviceUrl_(lookupUrl),
-      listenerName_(listenerName),
-      mutex_(),
-      requestIdGenerator_(0) {}
+    : serviceUrl_(lookupUrl), listenerName_(listenerName), cnxPool_(cnxPool) {}
 
 /*
  * @param topicName topic name to get broker for
@@ -130,7 +126,7 @@ void BinaryProtoLookupService::sendPartitionMetadataLookupRequest(const std::str
                                                                   const ClientConnectionWeakPtr& clientCnx,
                                                                   LookupDataResultPromisePtr promise) {
     if (result != ResultOk) {
-        promise->setFailed(ResultConnectError);
+        promise->setFailed(result);
         Future<Result, LookupDataResultPtr> future = promise->getFuture();
         return;
     }

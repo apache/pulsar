@@ -4,7 +4,7 @@ title: Built-in connector
 sidebar_label: Built-in connector
 ---
 
-Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems. For a full set of third-party connectors that Pulsar supports, refer to [StreamNative Hub](https://hub.streamnative.io/).
+Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems. 
 
 Using any of these connectors is as easy as writing a simple connector and running the connector locally or submitting the connector to a Pulsar Functions cluster.
 
@@ -45,6 +45,23 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/java/org/apache/pulsar/io/debezium/mongodb/DebeziumMongoDbSource.java)
 
+### Debezium Oracle
+
+* [Configuration](io-debezium-source.md#configuration)
+
+* [Example](io-debezium-source.md#example-of-oracle)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/oracle/src/main/java/org/apache/pulsar/io/debezium/oracle/DebeziumOracleSource.java)
+
+### Debezium Microsoft SQL Server
+
+* [Configuration](io-debezium-source.md#configuration)
+
+* [Example](io-debezium-source.md#example-of-microsoft-sql)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mssql/src/main/java/org/apache/pulsar/io/debezium/mssql/DebeziumMsSqlSource.java)
+
+  
 ### DynamoDB
 
 * [Configuration](io-dynamodb-source.md#configuration)

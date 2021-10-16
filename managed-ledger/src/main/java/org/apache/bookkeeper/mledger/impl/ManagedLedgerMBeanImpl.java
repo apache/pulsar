@@ -35,6 +35,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final ManagedLedgerImpl managedLedger;
 
     private final Rate addEntryOps = new Rate();
+    private final Rate addEntryWithReplicasOps = new Rate();
     private final Rate addEntryOpsFailed = new Rate();
     private final Rate readEntriesOps = new Rate();
     private final Rate readEntriesOpsFailed = new Rate();
@@ -49,7 +50,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     private final LongAdder cursorLedgerCreateOp = new LongAdder();
     private final LongAdder cursorLedgerDeleteOp = new LongAdder();
 
-    // addEntryLatencyStatsUsec measure total latency including time entry spent while waiting in queue 
+    // addEntryLatencyStatsUsec measure total latency including time entry spent while waiting in queue
     private final StatsBuckets addEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
     // ledgerAddEntryLatencyStatsUsec measure latency to persist entry into ledger
     private final StatsBuckets ledgerAddEntryLatencyStatsUsec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
@@ -63,6 +64,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     public void refreshStats(long period, TimeUnit unit) {
         double seconds = unit.toMillis(period) / 1000.0;
         addEntryOps.calculateRate(seconds);
+        addEntryWithReplicasOps.calculateRate(seconds);
         addEntryOpsFailed.calculateRate(seconds);
         readEntriesOps.calculateRate(seconds);
         readEntriesOpsFailed.calculateRate(seconds);
@@ -77,6 +79,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     public void addAddEntrySample(long size) {
         addEntryOps.recordEvent(size);
         entryStats.addValue(size);
+        addEntryWithReplicasOps.recordEvent(size * managedLedger.getConfig().getWriteQuorumSize());
     }
 
     public void addMarkDeleteOp() {
@@ -184,6 +187,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public double getAddEntryBytesRate() {
         return addEntryOps.getValueRate();
+    }
+
+    @Override
+    public double getAddEntryWithReplicasBytesRate() {
+        return addEntryWithReplicasOps.getValueRate();
     }
 
     @Override

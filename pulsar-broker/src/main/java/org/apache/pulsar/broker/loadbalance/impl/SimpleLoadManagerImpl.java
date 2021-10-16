@@ -105,7 +105,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private final Set<String> bundleLossesCache;
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
-    // Used to distribute bundles within a namespace evely across brokers.
+    // Used to distribute bundles within a namespace evenly across brokers.
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String,
             ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
 
@@ -227,7 +227,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         }
         this.policies = new SimpleResourceAllocationPolicies(pulsar);
         lastLoadReport = new LoadReport(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         lastLoadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
         lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
@@ -276,7 +276,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             log.info("Created broker ephemeral node on {}", brokerLockPath);
 
             // load default resource quota
-            this.realtimeAvgResourceQuota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota();
+            this.realtimeAvgResourceQuota = pulsar.getBrokerService().getBundlesQuotas()
+                    .getDefaultResourceQuota().join();
             this.lastResourceQuotaUpdateTimestamp = System.currentTimeMillis();
             this.realtimeCpuLoadFactor = getDynamicConfigurationDouble(
                     LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH, SETTING_NAME_LOAD_FACTOR_CPU,
@@ -410,7 +411,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private ResourceQuota getResourceQuota(String bundle) {
         Map<String, ResourceQuota> quotas = this.realtimeResourceQuotas.get();
         if (!quotas.containsKey(bundle)) {
-            ResourceQuota quota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getQuota(bundle);
+            ResourceQuota quota = pulsar.getBrokerService().getBundlesQuotas().getResourceQuota(bundle).join();
             quotas.put(bundle, quota);
             return quota;
         } else {
@@ -576,9 +577,9 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     newQuota.getBandwidthIn(), newQuota.getBandwidthOut(), newQuota.getMemory()));
 
             if (bundle == null) {
-                pulsar.getLocalZkCacheService().getResourceQuotaCache().setDefaultQuota(newQuota);
+                pulsar.getBrokerService().getBundlesQuotas().setDefaultResourceQuota(newQuota).join();
             } else {
-                pulsar.getLocalZkCacheService().getResourceQuotaCache().setQuota(bundle, newQuota);
+                pulsar.getBrokerService().getBundlesQuotas().setResourceQuota(bundle, newQuota).join();
             }
         }
     }
@@ -598,14 +599,14 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 }});
 
         // write default quota
-        ResourceQuota defaultQuota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota();
+        ResourceQuota defaultQuota = pulsar.getBrokerService().getBundlesQuotas().getDefaultResourceQuota().join();
         this.compareAndWriteQuota(null, defaultQuota, this.realtimeAvgResourceQuota);
 
         // write each bundle's quota
         Map<String, ResourceQuota> quotas = this.realtimeResourceQuotas.get();
         for (Map.Entry<String, ResourceQuota> entry : quotas.entrySet()) {
             String bundle = entry.getKey();
-            ResourceQuota oldQuota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getQuota(bundle);
+            ResourceQuota oldQuota = pulsar.getBrokerService().getBundlesQuotas().getResourceQuota(bundle).join();
             this.compareAndWriteQuota(bundle, oldQuota, entry.getValue());
         }
     }
@@ -634,6 +635,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
             Map<Long, Set<ResourceUnit>> newSortedRankings = Maps.newTreeMap();
             Map<ResourceUnit, ResourceUnitRanking> newResourceUnitRankings = new HashMap<>();
+            ResourceQuota defaultResourceQuota =
+                    pulsar.getBrokerService().getBundlesQuotas().getDefaultResourceQuota().join();
 
             for (Map.Entry<ResourceUnit, LoadReport> entry : currentLoadReports.entrySet()) {
                 ResourceUnit resourceUnit = entry.getKey();
@@ -656,8 +659,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
                 // generated sorted ranking
                 double loadPercentage = ranking.getEstimatedLoadPercentage();
-                long maxCapacity = ranking
-                        .estimateMaxCapacity(pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
+                long maxCapacity = ranking.estimateMaxCapacity(defaultResourceQuota);
                 long finalRank = 0;
                 if (strategy.equals(LOADBALANCER_STRATEGY_LLS)) {
                     finalRank = (long) loadPercentage;
@@ -735,7 +737,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             ServiceUnitId serviceUnit) {
         long underloadThreshold = this.getLoadBalancerBrokerUnderloadedThresholdPercentage();
         long overloadThreshold = this.getLoadBalancerBrokerOverloadedThresholdPercentage();
-        ResourceQuota defaultQuota = pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota();
+        ResourceQuota defaultQuota = pulsar.getBrokerService().getBundlesQuotas().getDefaultResourceQuota().join();
 
         double minLoadPercentage = 101.0;
         long maxAvailability = -1;
@@ -1043,7 +1045,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         synchronized (bundleGainsCache) {
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getSafeWebServiceAddress(),
-                        pulsar.getWebServiceAddressTls(), pulsar.getSafeBrokerServiceUrl(),
+                        pulsar.getWebServiceAddressTls(), pulsar.getBrokerServiceUrl(),
                         pulsar.getBrokerServiceUrlTls());
                 loadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
@@ -1120,7 +1122,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         return String.format("%s:%s", pulsar.getAdvertisedAddress(),
                 pulsar.getConfiguration().getWebServicePort().isPresent()
                         ? pulsar.getConfiguration().getWebServicePort().get()
-                        : pulsar.getConfiguration().getWebServicePortTls());
+                        : pulsar.getConfiguration().getWebServicePortTls().get());
     }
 
     @Override
@@ -1159,9 +1161,6 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 long oldBundleCount = lastLoadReport.getNumBundles();
                 long newBundleCount = pulsar.getBrokerService().getNumberOfNamespaceBundles();
                 long bundleCountChange = Math.abs(oldBundleCount - newBundleCount);
-                long maxCapacity = ResourceUnitRanking.calculateBrokerMaxCapacity(
-                        lastLoadReport.getSystemResourceUsage(),
-                        pulsar.getLocalZkCacheService().getResourceQuotaCache().getDefaultQuota());
                 if (newBundleCount != oldBundleCount) {
                     needUpdate = true;
                 }

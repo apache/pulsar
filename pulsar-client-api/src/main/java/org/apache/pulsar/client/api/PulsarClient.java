@@ -52,12 +52,12 @@ public interface PulsarClient extends Closeable {
      * @since 2.0.0
      */
     static ClientBuilder builder() {
-        return DefaultImplementation.newClientBuilder();
+        return DefaultImplementation.getDefaultImplementation().newClientBuilder();
     }
 
     /**
      * Create a producer builder that can be used to configure
-     * and construct a producer with default {@link Schema.BYTES}.
+     * and construct a producer with default {@link Schema#BYTES}.
      *
      * <p>Example:
      *
@@ -97,7 +97,7 @@ public interface PulsarClient extends Closeable {
     <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
-     * Create a consumer builder with no schema ({@link Schema.BYTES}) for subscribing to
+     * Create a consumer builder with no schema ({@link Schema#BYTES}) for subscribing to
      * one or more topics.
      *
      * <pre>{@code
@@ -147,7 +147,7 @@ public interface PulsarClient extends Closeable {
     <T> ConsumerBuilder<T> newConsumer(Schema<T> schema);
 
     /**
-     * Create a topic reader builder with no schema ({@link Schema.BYTES}) to read from the specified topic.
+     * Create a topic reader builder with no schema ({@link Schema#BYTES}) to read from the specified topic.
      *
      * <p>The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
      * subscription. A reader needs to be specified a {@link ReaderBuilder#startMessageId(MessageId)}
@@ -272,8 +272,7 @@ public interface PulsarClient extends Closeable {
      * this client has currently active. That implies that close and wait, asynchronously, until all pending producer
      * send requests are persisted.
      *
-     * @throws PulsarClientException
-     *             if the close operation fails
+     * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> closeAsync();
 

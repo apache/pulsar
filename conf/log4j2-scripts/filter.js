@@ -20,12 +20,12 @@
 var result = false;
 var topicName = "pulsar-topic-name";
 /*
- * Find more logEvent attributes at : 
+ * Find more logEvent attributes at :
  * https://github.com/apache/logging-log4j2/blob/dbd2d252a1b4139a9bd9eb213c89f28498db6dcf/log4j-core/src/main/java/org/apache/logging/log4j/core/LogEvent.java
  */
 if (logEvent.getLevel() == "DEBUG"){
         if(logEvent.getMessage().getFormattedMessage().indexOf(topicName)!=-1) {
-                result = true;  
+                result = true;
         }
 } else {
         result = true;

@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -103,7 +104,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
-public class ElasticSearchClient {
+public class ElasticSearchClient implements AutoCloseable {
 
     static final String[] malformedErrors = {
             "mapper_parsing_exception",
@@ -124,11 +125,11 @@ public class ElasticSearchClient {
     final AtomicReference<Exception> irrecoverableError = new AtomicReference<>();
     final ScheduledExecutorService executorService;
 
-    ElasticSearchClient(ElasticSearchConfig elasticSearchConfig) throws MalformedURLException {
+    ElasticSearchClient(ElasticSearchConfig elasticSearchConfig) {
         this.config = elasticSearchConfig;
         this.configCallback = new ConfigCallback();
         this.backoffRetry = new RandomExponentialRetry(elasticSearchConfig.getMaxRetryTimeInSec());
-        if (config.isBulkEnabled() == false) {
+        if (!config.isBulkEnabled()) {
             bulkProcessor = null;
         } else {
             BulkProcessor.Builder builder = BulkProcessor.builder(
@@ -358,6 +359,7 @@ public class ElasticSearchClient {
         bulkProcessor.flush();
     }
 
+    @Override
     public void close() {
         try {
             if (bulkProcessor != null) {
@@ -470,6 +472,16 @@ public class ElasticSearchClient {
                         .indices(indexName)
                         .source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery())),
                 RequestOptions.DEFAULT);
+    }
+
+    @VisibleForTesting
+    protected org.elasticsearch.action.admin.indices.refresh.RefreshResponse refresh(String indexName) throws IOException {
+        return client.indices().refresh(new RefreshRequest(indexName), RequestOptions.DEFAULT);
+    }
+
+    @VisibleForTesting
+    protected org.elasticsearch.action.support.master.AcknowledgedResponse delete(String indexName) throws IOException {
+        return client.indices().delete(new DeleteIndexRequest(indexName), RequestOptions.DEFAULT);
     }
 
     private <T> T retry(Callable<T> callable, String source) {

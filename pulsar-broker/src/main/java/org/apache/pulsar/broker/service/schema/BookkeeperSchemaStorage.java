@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -58,6 +59,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +73,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     private final MetadataStore store;
     private final PulsarService pulsar;
+    private final ZooKeeper zooKeeper;
     private final MetadataCache<SchemaStorageFormat.SchemaLocator> locatorEntryCache;
 
     private final ServiceConfiguration config;
@@ -78,18 +83,20 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             new ConcurrentHashMap<>();
 
     @VisibleForTesting
-    BookkeeperSchemaStorage(PulsarService pulsar) {
+    BookkeeperSchemaStorage(PulsarService pulsar, ZooKeeper zooKeeper) {
         this.pulsar = pulsar;
+        this.zooKeeper = zooKeeper;
         this.store = pulsar.getLocalMetadataStore();
         this.config = pulsar.getConfiguration();
         this.locatorEntryCache = store.getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
             @Override
-            public byte[] serialize(SchemaStorageFormat.SchemaLocator value) {
+            public byte[] serialize(String path, SchemaStorageFormat.SchemaLocator value) {
                 return value.toByteArray();
             }
 
             @Override
-            public SchemaStorageFormat.SchemaLocator deserialize(byte[] content) throws IOException {
+            public SchemaStorageFormat.SchemaLocator deserialize(String path, byte[] content, Stat stat)
+                    throws IOException {
                 return SchemaStorageFormat.SchemaLocator.parseFrom(content);
             }
         });
@@ -99,7 +106,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     public void start() throws IOException {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
             pulsar.getConfiguration(),
-            pulsar.getZkClient(),
+            zooKeeper,
             pulsar.getIoEventLoopGroup(),
             Optional.empty(),
             null
@@ -174,7 +181,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public CompletableFuture<SchemaVersion> delete(String key, boolean forcefully) {
-        return deleteSchema(key, forcefully).thenApply(LongSchemaVersion::new);
+        return deleteSchema(key, forcefully).thenApply(version -> {
+            if (version == null) {
+                return null;
+            }
+            return new LongSchemaVersion(version);
+        });
     }
 
     @Override
@@ -369,10 +381,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<Long> deleteSchema(String schemaId, boolean forceFully) {
-        return (forceFully ? CompletableFuture.completedFuture(null) : getSchema(schemaId))
-                .thenCompose(schemaAndVersion -> {
-            if (!forceFully && isNull(schemaAndVersion)) {
+    private CompletableFuture<Long> deleteSchema(String schemaId, boolean forcefully) {
+        return (forcefully ? CompletableFuture.completedFuture(null)
+                : ignoreUnrecoverableBKException(getSchema(schemaId))).thenCompose(schemaAndVersion -> {
+            if (!forcefully && isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
                 // The version is only for the compatibility of the current interface
@@ -405,9 +417,20 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                             store.delete(path, Optional.empty())
                                     .thenRun(() -> {
                                         future.complete(version);
-                                    }).exceptionally(ex1 -> {
-                                future.completeExceptionally(ex1);
-                                return null;
+                                    }).exceptionally(zkException -> {
+                                        if (zkException.getCause()
+                                                instanceof MetadataStoreException.NotFoundException) {
+                                            // The znode has been deleted by others.
+                                            // In some cases, the program may enter this logic.
+                                            // Since the znode is gone, we don’t need to deal with it.
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("No node for schema path: {}", path);
+                                            }
+                                            future.complete(null);
+                                        } else {
+                                            future.completeExceptionally(zkException);
+                                        }
+                                        return null;
                             });
                         });
                     }
@@ -680,5 +703,23 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         boolean recoverable = rc != BKException.Code.NoSuchLedgerExistsException
                 && rc != BKException.Code.NoSuchEntryException;
         return new SchemaException(recoverable, message);
+    }
+
+    public static <T> CompletableFuture<T> ignoreUnrecoverableBKException(CompletableFuture<T> source) {
+        return source.exceptionally(t -> {
+            if (t.getCause() != null
+                    && (t.getCause() instanceof SchemaException)
+                    && !((SchemaException) t.getCause()).isRecoverable()) {
+                // Meeting NoSuchLedgerExistsException or NoSuchEntryException when reading schemas in
+                // bookkeeper. This also means that the data has already been deleted by other operations
+                // in deleting schema.
+                if (log.isDebugEnabled()) {
+                    log.debug("Schema data in bookkeeper may be deleted by other operations.", t);
+                }
+                return null;
+            }
+            // rethrow other cases
+            throw t instanceof CompletionException ? (CompletionException) t : new CompletionException(t);
+        });
     }
 }

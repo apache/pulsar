@@ -27,7 +27,6 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -52,7 +51,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -232,7 +230,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     int numPartitions,
             @QueryParam("createLocalTopicOnly") @DefaultValue("false") boolean createLocalTopicOnly) {
         try {
-            validateGlobalNamespaceOwnership(tenant, namespace);
+            validateNamespaceName(tenant, namespace);
+            validateGlobalNamespaceOwnership();
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
@@ -265,7 +264,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateGlobalNamespaceOwnership(tenant, namespace);
+        validateNamespaceName(tenant, namespace);
+        validateGlobalNamespaceOwnership();
         validateTopicName(tenant, namespace, encodedTopic);
         internalCreateNonPartitionedTopic(authoritative);
     }
@@ -417,8 +417,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+            .thenAccept(op -> {
+                TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 asyncResponse.resume(topicPolicies.getDeduplicationSnapshotIntervalSeconds());
             })
             .exceptionally(ex -> {
@@ -724,12 +725,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
         validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative);
+        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative, force);
     }
 
 
@@ -1576,6 +1578,29 @@ public class PersistentTopics extends PersistentTopicsBase {
         return internalGetBacklog(authoritative);
     }
 
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/backlogSize")
+    @ApiOperation(value = "Calculate backlog size by a message ID (in bytes).")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void getBacklogSizeByMessageId(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalGetBacklogSizeByMessageId(asyncResponse, messageId, authoritative);
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/backlogQuotaMap")
     @ApiOperation(value = "Get backlog quota map on a topic.")
@@ -1593,7 +1618,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenAccept(__ -> asyncResponse.resume(internalGetBacklogQuota(applied)))
+            .thenCompose(__ -> internalGetBacklogQuota(applied))
+            .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getBacklogQuotaMap", ex, asyncResponse);
                 return null;
@@ -1667,18 +1693,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenAccept(__ ->
-                asyncResponse.resume(getTopicPolicies(topicName)
-                    .map(TopicPolicies::getMessageTTLInSeconds)
-                    .orElseGet(() -> {
-                        if (applied) {
-                            Integer otherLevelTTL = getNamespacePolicies(namespaceName).message_ttl_in_seconds;
-                            return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
-                                    : otherLevelTTL;
-                        }
-                        return null;
-                    }))
-            )
+            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+            .thenAccept(op -> asyncResponse.resume(op
+                .map(TopicPolicies::getMessageTTLInSeconds)
+                .orElseGet(() -> {
+                    if (applied) {
+                        Integer otherLevelTTL = getNamespacePolicies(namespaceName).message_ttl_in_seconds;
+                        return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
+                                : otherLevelTTL;
+                    }
+                    return null;
+                })))
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMessageTTL", ex, asyncResponse);
                 return null;
@@ -1830,7 +1855,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> asyncResponse.resume(internalGetRetention(applied)))
+            .thenCompose(__ -> internalGetRetention(applied))
+            .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getRetention", ex, asyncResponse);
                 return null;
@@ -2013,11 +2039,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> maxSubscriptionsPerTopic = internalGetMaxSubscriptionsPerTopic();
-                asyncResponse.resume(maxSubscriptionsPerTopic.isPresent() ? maxSubscriptionsPerTopic.get()
-                        : Response.noContent().build());
-            })
+            .thenCompose(__ -> internalGetMaxSubscriptionsPerTopic())
+            .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
+                    : Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxSubscriptions", ex, asyncResponse);
                 return null;
@@ -2359,8 +2383,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> policies = internalGetMaxMessageSize();
+            .thenCompose(__ -> internalGetMaxMessageSize())
+            .thenAccept(policies -> {
                 asyncResponse.resume(policies.isPresent() ? policies.get() : Response.noContent().build());
             })
             .exceptionally(ex -> {
@@ -2444,6 +2468,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message = "Termination of a partitioned topic is not allowed"),
+            @ApiResponse(code = 406, message = "Need to provide a persistent topic name"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")})
@@ -2456,7 +2481,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
+        validatePersistentTopicName(tenant, namespace, encodedTopic);
         return internalTerminate(authoritative);
     }
 
@@ -2929,11 +2954,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<Integer> maxConsumersPerSubscription = internalGetMaxConsumersPerSubscription();
-                asyncResponse.resume(maxConsumersPerSubscription.isPresent() ? maxConsumersPerSubscription.get()
-                        : Response.noContent().build());
-            })
+            .thenCompose(__ -> internalGetMaxConsumersPerSubscription())
+            .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
+                    : Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMaxConsumersPerSubscription", ex, asyncResponse);
                 return null;
@@ -3025,11 +3048,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<PublishRate> publishRate = internalGetPublishRate();
-                asyncResponse.resume(publishRate.isPresent() ? publishRate.get()
-                        : Response.noContent().build());
-            })
+            .thenCompose(__ -> internalGetPublishRate())
+            .thenAccept(op -> asyncResponse.resume(op.isPresent() ? op.get()
+                    : Response.noContent().build()))
             .exceptionally(ex -> {
                 handleTopicPolicyException("getPublishRate", ex, asyncResponse);
                 return null;
@@ -3119,9 +3140,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenRun(() -> {
-                Optional<List<SubType>> subscriptionTypesEnabled = internalGetSubscriptionTypesEnabled();
-                asyncResponse.resume(subscriptionTypesEnabled.isPresent() ? subscriptionTypesEnabled.get()
+            .thenCompose(__ -> internalGetSubscriptionTypesEnabled())
+            .thenAccept(op -> {
+                asyncResponse.resume(op.isPresent() ? op.get()
                         : Response.noContent().build());
             })
             .exceptionally(ex -> {

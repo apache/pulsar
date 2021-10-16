@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import java.lang.reflect.Field;
 import io.netty.channel.EventLoopGroup;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -84,6 +85,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
+    protected PortForwarder brokerGateway;
+    protected boolean enableBrokerGateway =  false;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 
@@ -118,6 +121,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
             lookupUrl = new URI(pulsar.getBrokerServiceUrl());
+
+            // setup port forwarding from the advertised port to the listen port
+            if (enableBrokerGateway) {
+                InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+                brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
+            }
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
     }
@@ -195,6 +205,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
             pulsarClient.shutdown();
             pulsarClient = null;
         }
+        if (brokerGateway != null) {
+            brokerGateway.close();
+        }
         if (pulsar != null) {
             stopBroker();
             pulsar = null;
@@ -238,6 +251,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected abstract void cleanup() throws Exception;
 
+    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
+        // No-op
+    }
+
     protected void restartBroker() throws Exception {
         stopBroker();
         startBroker();
@@ -260,13 +277,15 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
         this.pulsar = startBroker(conf);
 
-        brokerUrl = new URL(pulsar.getWebServiceAddress());
-        brokerUrlTls = new URL(pulsar.getWebServiceAddressTls());
+        brokerUrl = pulsar.getWebServiceAddress() != null ? new URL(pulsar.getWebServiceAddress()) : null;
+        brokerUrlTls = pulsar.getWebServiceAddressTls() != null ? new URL(pulsar.getWebServiceAddressTls()) : null;
 
         if (admin != null) {
             admin.close();
         }
-        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString());
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
+                ? brokerUrl.toString()
+                : brokerUrlTls.toString());
         customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
         admin = spy(pulsarAdminBuilder.build());
     }
@@ -276,18 +295,22 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-
         return startBrokerWithoutAuthorization(conf);
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
         conf.setBrokerShutdownTimeoutMs(0L);
-        PulsarService pulsar = spy(new PulsarService(conf));
+        PulsarService pulsar = spy(newPulsarService(conf));
         setupBrokerMocks(pulsar);
+        beforePulsarStartMocks(pulsar);
         pulsar.start();
         log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
                 pulsar.getWebServiceAddress());
         return pulsar;
+    }
+
+    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
+        return new PulsarService(conf);
     }
 
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {

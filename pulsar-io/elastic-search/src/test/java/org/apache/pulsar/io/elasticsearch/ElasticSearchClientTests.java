@@ -31,32 +31,26 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
 @Slf4j
 public class ElasticSearchClientTests {
 
     public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
             .orElse("docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2-amd64");
-    public final static String INDEX = "myindex";
 
     static ElasticsearchContainer container;
-    static ElasticSearchConfig config;
-    static ElasticSearchClient client;
 
     @BeforeClass
     public static final void initBeforeClass() throws IOException {
         container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
         container.start();
-
-        config = new ElasticSearchConfig();
-        config.setElasticSearchUrl("http://" + container.getHttpHostAddress());
-        config.setIndexName(INDEX);
-
-        client = new ElasticSearchClient(config);
     }
 
     @AfterClass
@@ -86,84 +80,107 @@ public class ElasticSearchClientTests {
 
     @Test
     public void testIndexDelete() throws Exception {
-        client.createIndexIfNeeded(INDEX);
-        MockRecord<GenericObject> mockRecord = new MockRecord<>();
-        client.indexDocument(mockRecord, Pair.of("1","{ \"a\":1}"));
-        assertEquals(mockRecord.acked, 1);
-        assertEquals(mockRecord.failed, 0);
-        assertEquals(client.totalHits(INDEX), 1);
+        String index = "myindex-" + UUID.randomUUID();
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index));) {
+            assertTrue(client.createIndexIfNeeded(index));
+            try {
+                MockRecord<GenericObject> mockRecord = new MockRecord<>();
+                client.indexDocument(mockRecord, Pair.of("1", "{ \"a\":1}"));
+                assertEquals(mockRecord.acked, 1);
+                assertEquals(mockRecord.failed, 0);
+                assertEquals(client.totalHits(index), 1);
 
-        client.deleteDocument(mockRecord, "1");
-        assertEquals(mockRecord.acked, 2);
-        assertEquals(mockRecord.failed, 0);
-        assertEquals(client.totalHits(INDEX), 0);
+                client.deleteDocument(mockRecord, "1");
+                assertEquals(mockRecord.acked, 2);
+                assertEquals(mockRecord.failed, 0);
+                assertEquals(client.totalHits(index), 0);
+            } finally {
+                client.delete(index);
+            }
+        }
     }
 
     @Test
     public void testIndexExists() throws IOException {
-        assertFalse(client.indexExists("mynewindex"));
-        assertTrue(client.createIndexIfNeeded("mynewindex"));
-        assertTrue(client.indexExists("mynewindex"));
-        assertFalse(client.createIndexIfNeeded("mynewindex"));
+        String index = "mynewindex-" + UUID.randomUUID();
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())
+                .setIndexName(index));) {
+            assertFalse(client.indexExists(index));
+            assertTrue(client.createIndexIfNeeded(index));
+            try {
+                assertTrue(client.indexExists(index));
+                assertFalse(client.createIndexIfNeeded(index));
+            } finally {
+                client.delete(index);
+            }
+        }
     }
 
     @Test
-    public void testTopicToIndexName() {
-        assertEquals(client.topicToIndexName("data-ks1.table1"),"data-ks1.table1");
-        assertEquals(client.topicToIndexName("persistent://public/default/testesjson"), "testesjson");
-        assertEquals(client.topicToIndexName("default/testesjson"), "testesjson");
-        assertEquals(client.topicToIndexName(".testesjson"), ".testesjson");
-        assertEquals(client.topicToIndexName("TEST"), "test");
+    public void testTopicToIndexName() throws IOException {
+        try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
+                .setElasticSearchUrl("http://" + container.getHttpHostAddress())); ) {
+            assertEquals(client.topicToIndexName("data-ks1.table1"), "data-ks1.table1");
+            assertEquals(client.topicToIndexName("persistent://public/default/testesjson"), "testesjson");
+            assertEquals(client.topicToIndexName("default/testesjson"), "testesjson");
+            assertEquals(client.topicToIndexName(".testesjson"), ".testesjson");
+            assertEquals(client.topicToIndexName("TEST"), "test");
 
-        assertThrows(RuntimeException.class, () -> client.topicToIndexName("toto\\titi"));
-        assertThrows(RuntimeException.class, () -> client.topicToIndexName("_abc"));
-        assertThrows(RuntimeException.class, () -> client.topicToIndexName("-abc"));
-        assertThrows(RuntimeException.class, () -> client.topicToIndexName("+abc"));
+            assertThrows(RuntimeException.class, () -> client.topicToIndexName("toto\\titi"));
+            assertThrows(RuntimeException.class, () -> client.topicToIndexName("_abc"));
+            assertThrows(RuntimeException.class, () -> client.topicToIndexName("-abc"));
+            assertThrows(RuntimeException.class, () -> client.topicToIndexName("+abc"));
+        }
     }
 
     @Test
     public void testMalformedDocFails() throws Exception {
-        String index = "indexmalformed";
+        String index = "indexmalformed-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.FAIL);
-        ElasticSearchClient client = new ElasticSearchClient(config);
-        MockRecord<GenericObject> mockRecord = new MockRecord<>();
-        client.bulkIndex(mockRecord, Pair.of("1","{\"a\":1}"));
-        client.bulkIndex(mockRecord, Pair.of("2","{\"a\":\"toto\"}"));
-        client.flush();
-        assertNotNull(client.irrecoverableError.get());
-        assertTrue(client.irrecoverableError.get().getMessage().contains("mapper_parsing_exception"));
-        assertEquals(mockRecord.acked, 1);
-        assertEquals(mockRecord.failed, 1);
-        assertThrows(Exception.class, () -> client.bulkIndex(mockRecord, Pair.of("3","{\"a\":3}")));
-        assertEquals(mockRecord.acked, 1);
-        assertEquals(mockRecord.failed, 2);
+        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+            MockRecord<GenericObject> mockRecord = new MockRecord<>();
+            client.bulkIndex(mockRecord, Pair.of("1", "{\"a\":1}"));
+            client.bulkIndex(mockRecord, Pair.of("2", "{\"a\":\"toto\"}"));
+            client.flush();
+            assertNotNull(client.irrecoverableError.get());
+            assertTrue(client.irrecoverableError.get().getMessage().contains("mapper_parsing_exception"));
+            assertEquals(mockRecord.acked, 1);
+            assertEquals(mockRecord.failed, 1);
+            assertThrows(Exception.class, () -> client.bulkIndex(mockRecord, Pair.of("3", "{\"a\":3}")));
+            assertEquals(mockRecord.acked, 1);
+            assertEquals(mockRecord.failed, 2);
+        }
     }
 
     @Test
     public void testMalformedDocIgnore() throws Exception {
-        String index = "indexmalformed2";
+        String index = "indexmalformed2-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.IGNORE);
-        ElasticSearchClient client = new ElasticSearchClient(config);
-        MockRecord<GenericObject> mockRecord = new MockRecord<>();
-        client.bulkIndex(mockRecord, Pair.of("1","{\"a\":1}"));
-        client.bulkIndex(mockRecord, Pair.of("2","{\"a\":\"toto\"}"));
-        client.flush();
-        assertNull(client.irrecoverableError.get());
-        assertEquals(mockRecord.acked, 1);
-        assertEquals(mockRecord.failed, 1);
+        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+            MockRecord<GenericObject> mockRecord = new MockRecord<>();
+            client.bulkIndex(mockRecord, Pair.of("1", "{\"a\":1}"));
+            client.bulkIndex(mockRecord, Pair.of("2", "{\"a\":\"toto\"}"));
+            client.flush();
+            assertNull(client.irrecoverableError.get());
+            assertEquals(mockRecord.acked, 1);
+            assertEquals(mockRecord.failed, 1);
+        }
     }
 
     @Test
     public void testBulkRetry() throws Exception {
-        final String index = "indexbulktest";
+        final String index = "indexbulktest-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
@@ -171,37 +188,41 @@ public class ElasticSearchClientTests {
                 .setMaxRetries(1000)
                 .setBulkActions(2)
                 .setRetryBackoffInMs(100)
-                .setBulkFlushIntervalInMs(10000);
-        ElasticSearchClient client = new ElasticSearchClient(config);
-        client.createIndexIfNeeded(index);
+                // disabled, we want to have full control over flush() method
+                .setBulkFlushIntervalInMs(-1);
 
-        MockRecord<GenericObject> mockRecord = new MockRecord<>();
-        client.bulkIndex(mockRecord, Pair.of("1","{\"a\":1}"));
-        client.bulkIndex(mockRecord, Pair.of("2","{\"a\":2}"));
-        Thread.sleep(1000L);
-        assertEquals(mockRecord.acked, 2);
-        assertEquals(mockRecord.failed, 0);
-        assertEquals(client.totalHits(index), 2);
+        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+            try {
+                assertTrue(client.createIndexIfNeeded(index));
+                MockRecord<GenericObject> mockRecord = new MockRecord<>();
+                client.bulkIndex(mockRecord, Pair.of("1", "{\"a\":1}"));
+                client.bulkIndex(mockRecord, Pair.of("2", "{\"a\":2}"));
+                assertEquals(mockRecord.acked, 2);
+                assertEquals(mockRecord.failed, 0);
+                assertEquals(client.totalHits(index), 2);
 
-        ChaosContainer<?> chaosContainer = new ChaosContainer<>(container.getContainerName(), "15s");
-        chaosContainer.start();
+                ChaosContainer<?> chaosContainer = new ChaosContainer<>(container.getContainerName(), "15s");
+                chaosContainer.start();
 
-        client.bulkIndex(mockRecord, Pair.of("3","{\"a\":3}"));
-        Thread.sleep(5000L);
-        assertEquals(mockRecord.acked, 2);
-        assertEquals(mockRecord.failed, 0);
-        assertEquals(client.totalHits(index), 2);
+                client.bulkIndex(mockRecord, Pair.of("3", "{\"a\":3}"));
+                assertEquals(mockRecord.acked, 2);
+                assertEquals(mockRecord.failed, 0);
+                assertEquals(client.totalHits(index), 2);
 
-        chaosContainer.stop();
-        client.flush();
-        assertEquals(mockRecord.acked, 3);
-        assertEquals(mockRecord.failed, 0);
-        assertEquals(client.totalHits(index), 3);
+                chaosContainer.stop();
+                client.flush();
+                assertEquals(mockRecord.acked, 3);
+                assertEquals(mockRecord.failed, 0);
+                assertEquals(client.totalHits(index), 3);
+            } finally {
+                client.delete(index);
+            }
+        }
     }
 
     @Test
     public void testBulkBlocking() throws Exception {
-        final String index = "indexblocking";
+        final String index = "indexblocking-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
@@ -211,40 +232,51 @@ public class ElasticSearchClientTests {
                 .setBulkConcurrentRequests(2)
                 .setRetryBackoffInMs(100)
                 .setBulkFlushIntervalInMs(10000);
-        ElasticSearchClient client = new ElasticSearchClient(config);
-        client.createIndexIfNeeded(index);
+        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+            assertTrue(client.createIndexIfNeeded(index));
 
-        MockRecord<GenericObject> mockRecord = new MockRecord<>();
-        for(int i = 1; i <= 5; i++) {
-            client.bulkIndex(mockRecord, Pair.of(Integer.toString(i), "{\"a\":"+i+"}"));
+            try {
+                MockRecord<GenericObject> mockRecord = new MockRecord<>();
+                for (int i = 1; i <= 5; i++) {
+                    client.bulkIndex(mockRecord, Pair.of(Integer.toString(i), "{\"a\":" + i + "}"));
+                }
+
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat("acked record", mockRecord.acked, greaterThanOrEqualTo(4));
+                    assertEquals(mockRecord.failed, 0);
+                    assertThat("totalHits", client.totalHits(index), greaterThanOrEqualTo(4L));
+                });
+                client.flush();
+                Awaitility.await().untilAsserted(() -> {
+                    assertEquals(mockRecord.acked, 5);
+                    assertEquals(mockRecord.failed, 0);
+                    assertEquals(client.totalHits(index), 5);
+                });
+
+                ChaosContainer<?> chaosContainer = new ChaosContainer<>(container.getContainerName(), "30s");
+                chaosContainer.start();
+                Thread.sleep(1000L);
+
+                // 11th bulkIndex is blocking because we have 2 pending requests, and the 3rd request is blocked.
+                long start = System.currentTimeMillis();
+                for (int i = 6; i <= 15; i++) {
+                    client.bulkIndex(mockRecord, Pair.of(Integer.toString(i), "{\"a\":" + i + "}"));
+                    log.info("{} index {}", System.currentTimeMillis(), i);
+                }
+                long elapsed = System.currentTimeMillis() - start;
+                log.info("elapsed = {}", elapsed);
+                assertTrue(elapsed > 29000); // bulkIndex was blocking while elasticsearch was down or busy
+
+                Thread.sleep(1000L);
+                assertEquals(mockRecord.acked, 15);
+                assertEquals(mockRecord.failed, 0);
+                assertEquals(client.records.size(), 0);
+
+                chaosContainer.stop();
+            } finally {
+                client.delete(index);
+            }
         }
-        // wait bulk flush interval
-        Awaitility.await().untilAsserted( () -> {
-            assertEquals(mockRecord.acked, 5);
-            assertEquals(mockRecord.failed, 0);
-            assertEquals(client.totalHits(index), 5);
-        });
-
-        ChaosContainer<?> chaosContainer = new ChaosContainer<>(container.getContainerName(), "30s");
-        chaosContainer.start();
-        Thread.sleep(1000L);
-
-        // 11th bulkIndex is blocking because we have 2 pending requests, and the 3rd request is blocked.
-        long start = System.currentTimeMillis();
-        for(int i = 6; i <= 15; i++) {
-            client.bulkIndex(mockRecord, Pair.of(Integer.toString(i), "{\"a\":"+i+"}"));
-            log.info("{} index [}", System.currentTimeMillis(), i);
-        }
-        long elapsed = System.currentTimeMillis() - start;
-        log.info("elapsed = {}", elapsed);
-        assertTrue(elapsed > 29000); // bulkIndex was blocking while elasticsearch was down or busy
-
-        Thread.sleep(1000L);
-        assertEquals(mockRecord.acked, 15);
-        assertEquals(mockRecord.failed, 0);
-        assertEquals(client.records.size(), 0);
-
-        chaosContainer.stop();
     }
 
 }

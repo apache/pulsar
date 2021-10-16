@@ -21,18 +21,25 @@ package org.apache.pulsar.client.api;
 import java.lang.reflect.Field;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.PulsarChannelInitializer;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSubscription;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.api.proto.CommandFlow;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNull;
@@ -41,6 +48,8 @@ import static org.testng.AssertJUnit.assertTrue;
 @Test(groups = "broker-api")
 @Slf4j
 public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
+
+    private final AtomicInteger numFlow = new AtomicInteger(0);
 
     @BeforeMethod
     @Override
@@ -54,6 +63,34 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override
+    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
+        return new PulsarService(conf) {
+
+            @Override
+            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
+                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
+                broker.setPulsarChannelInitializerFactory(
+                        (_pulsar, opts) -> {
+                            return new PulsarChannelInitializer(_pulsar, opts) {
+                                @Override
+                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+                                    return new ServerCnx(pulsar) {
+
+                                        @Override
+                                        protected void handleFlow(CommandFlow flow) {
+                                            super.handleFlow(flow);
+                                            numFlow.incrementAndGet();
+                                        }
+                                    };
+                                }
+                            };
+                        });
+                return broker;
+            }
+        };
     }
 
     @Test
@@ -92,6 +129,68 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
             Assert.assertEquals(message.getValue(), "message" + i);
         }
 
+    }
+
+    @Test
+    public void testSameSubscriptionNameForDurableAndNonDurableSubscription() throws Exception {
+        String topicName = "persistent://my-property/my-ns/same-sub-name-topic";
+        // first test for create Durable subscription and then create NonDurable subscription
+        // 1. create a subscription with SubscriptionMode.Durable
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .readCompacted(true)
+                .subscriptionMode(SubscriptionMode.Durable)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName("mix-subscription")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        consumer.close();
+
+        // 2. create a subscription with SubscriptionMode.NonDurable
+        try {
+            @Cleanup
+            Consumer<String> consumerNoDurable =
+                    pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                    .readCompacted(true)
+                    .subscriptionMode(SubscriptionMode.NonDurable)
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscriptionName("mix-subscription")
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+            Assert.fail("should fail since durable subscription already exist.");
+        } catch (PulsarClientException.NotAllowedException exception) {
+            //ignore
+        }
+
+        // second test for create NonDurable subscription and then create Durable subscription
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .create();
+        // 1. create a subscription with SubscriptionMode.NonDurable
+        @Cleanup
+        Consumer<String> noDurableConsumer =
+                pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                        .subscriptionMode(SubscriptionMode.NonDurable)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .subscriptionName("mix-subscription-01")
+                        .receiverQueueSize(1)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                        .subscribe();
+
+        // 2. create a subscription with SubscriptionMode.Durable
+        try {
+            @Cleanup
+            Consumer<String> durableConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionMode(SubscriptionMode.Durable)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName("mix-subscription-01")
+                    .receiverQueueSize(1)
+                    .startMessageIdInclusive()
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+        } catch (PulsarClientException.NotAllowedException exception) {
+            //ignore
+        }
     }
 
     @Test(timeOut = 10000)
@@ -187,5 +286,23 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
             Assert.assertEquals(message.getValue(), "message" + i);
         }
 
+    }
+
+    @Test
+    public void testFlowCountForMultiTopics() throws Exception {
+        String topicName = "persistent://my-property/my-ns/test-flow-count";
+        int numPartitions = 5;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+        numFlow.set(0);
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-nonDurable-subscriber")
+                .subscriptionMode(SubscriptionMode.NonDurable)
+                .subscribe();
+        consumer.receive(1, TimeUnit.SECONDS);
+        consumer.close();
+
+        assertEquals(numFlow.get(), numPartitions);
     }
 }

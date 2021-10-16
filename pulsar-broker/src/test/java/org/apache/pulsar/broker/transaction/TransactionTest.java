@@ -19,58 +19,48 @@
 package org.apache.pulsar.broker.transaction;
 
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.Sets;
-import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.util.Iterator;
+import java.lang.reflect.Field;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.api.BKException;
-import org.apache.bookkeeper.client.api.LedgerEntries;
-import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
-import org.bouncycastle.i18n.MessageBundle;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -111,6 +101,8 @@ public class TransactionTest extends TransactionTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
+        // wait tc init success to ready state
+        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
     }
 
     @Test
@@ -177,8 +169,6 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testGetTxnID() throws Exception {
-        // wait tc init success to ready state
-        Assert.assertTrue(waitForCoordinatorToBeAvailable(NUM_BROKERS, NUM_PARTITIONS));
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
         TxnID txnID = transaction.getTxnID();
@@ -192,56 +182,117 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(txnID.getMostSigBits(), 0);
     }
 
-    public void testOffloadTransactionMessage()
-            throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException,
-            NoSuchMethodException, BKException, InvocationTargetException, IllegalAccessException {
-
-
-        String topic = "persistent://" + NAMESPACE1 +"/testOffload";
+    @Test
+    public void testSubscriptionRecreateTopic()
+            throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
+        String topic = "persistent://pulsar/system/testReCreateTopic";
+        String subName = "sub_testReCreateTopic";
+        int retentionSizeInMbSetTo = 5;
+        int retentionSizeInMbSetTopic = 6;
+        int retentionSizeInMinutesSetTo = 5;
+        int retentionSizeInMinutesSetTopic = 6;
         admin.topics().createNonPartitionedTopic(topic);
-        Transaction transaction1 = pulsarClient
-                .newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
-        Transaction transaction2 = pulsarClient
-                .newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
+        PulsarService pulsarService = super.getPulsarServiceList().get(0);
+        pulsarService.getBrokerService().getTopics().clear();
+        ManagedLedgerFactory managedLedgerFactory = pulsarService.getBrokerService().getManagedLedgerFactory();
+        Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+        field.setAccessible(true);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
+                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field.get(managedLedgerFactory);
+        ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
+        try {
+            admin.topics().createNonPartitionedTopic(topic);
+            Assert.fail();
+        } catch (PulsarAdminException.ConflictException e) {
+            log.info("Cann`t create topic again");
+        }
+        admin.topics().setRetention(topic,
+                new RetentionPolicies(retentionSizeInMinutesSetTopic, retentionSizeInMbSetTopic));
+        pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        pulsarService.getBrokerService().getTopicIfExists(topic).thenAccept(option -> {
+            if (!option.isPresent()) {
+                log.error("Failed o get Topic named: {}", topic);
+                Assert.fail();
+            }
+            PersistentTopic originPersistentTopic = (PersistentTopic) option.get();
+            String pendingAckTopicName = MLPendingAckStore
+                    .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subName);
+
+            try {
+                admin.topics().setRetention(pendingAckTopicName,
+                        new RetentionPolicies(retentionSizeInMinutesSetTo, retentionSizeInMbSetTo));
+            } catch (PulsarAdminException e) {
+                log.error("Failed to get./setRetention of topic with Exception:" + e);
+                Assert.fail();
+            }
+            PersistentSubscription subscription = originPersistentTopic
+                    .getSubscription(subName);
+            subscription.getPendingAckManageLedger().thenAccept(managedLedger -> {
+                long retentionSize = managedLedger.getConfig().getRetentionSizeInMB();
+                if (!originPersistentTopic.getTopicPolicies().isPresent()) {
+                    log.error("Failed to getTopicPolicies of :" + originPersistentTopic);
+                    Assert.fail();
+                }
+                TopicPolicies topicPolicies = originPersistentTopic.getTopicPolicies().get();
+                Assert.assertEquals(retentionSizeInMbSetTopic, retentionSize);
+                MLPendingAckStoreProvider mlPendingAckStoreProvider = new MLPendingAckStoreProvider();
+                CompletableFuture<PendingAckStore> future = mlPendingAckStoreProvider.newPendingAckStore(subscription);
+                future.thenAccept(pendingAckStore -> {
+                            ((MLPendingAckStore) pendingAckStore).getManagedLedger().thenAccept(managedLedger1 -> {
+                                Assert.assertEquals(managedLedger1.getConfig().getRetentionSizeInMB(),
+                                        retentionSizeInMbSetTo);
+                            });
+                        }
+                );
+            });
+
+
+        });
+
+
+    }
+
+    @Test
+    public void testTakeSnapshotBeforeBuildTxnProducer() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testSnapShot";
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(topic, false)
+                .get().get();
+
+        ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
+                .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
+                .startMessageId(MessageId.earliest)
+                .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
+
+        long waitSnapShotTime = getPulsarServiceList().get(0).getConfiguration()
+                .getTransactionBufferSnapshotMinTimeInMillis();
+        Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> Assert.assertFalse(reader.hasMessageAvailable()));
+
+        //test take snapshot by build producer by the transactionEnable client
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .producerName("testOffloadTxnMessage")
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .topic(topic)
+                .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic).enableBatching(true)
                 .create();
-        MessageId messageId = null;
-        for (int i = 0; i < 10; i++) {
-            messageId = producer.newMessage().value("common message : " + i).send();
-        }
 
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage(transaction1).value("Txn1 message : " + i).send();
-            producer.newMessage(transaction2).value("Txn2 message : " + i).send();
-        }
-        log.info("messageId: " + messageId.toString());
-        PersistentTopic persistentTopic =
-                (PersistentTopic) getPulsarServiceList().get(0)
-                        .getBrokerService().getTopic(topic, false)
-                        .get().get();
+        Awaitility.await().untilAsserted(() -> {
+            Message<TransactionBufferSnapshot> message1 = reader.readNext();
+            TransactionBufferSnapshot snapshot1 = message1.getValue();
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), -1);
+        });
 
-        Class<ManagedLedgerImpl> managedLedgerClass =
-                (Class<ManagedLedgerImpl>) persistentTopic.getManagedLedger().getClass();
-        Method  getLedgerHandleMethod = managedLedgerClass.getDeclaredMethod("getLedgerHandle", long.class);
-        getLedgerHandleMethod.setAccessible(true);
+        // test snapshot by publish  normal messages.
+        producer.newMessage(Schema.STRING).value("common message send").send();
+        producer.newMessage(Schema.STRING).value("common message send").send();
 
-        Future<ReadHandle> future = (Future<ReadHandle>) getLedgerHandleMethod
-                .invoke(persistentTopic.getManagedLedger(), ((MessageIdImpl)messageId).getLedgerId());
-        ReadHandle readHandle = future.get();
-
-        LedgerEntries ledgerEntries = readHandle
-                .read(((MessageIdImpl)messageId).getEntryId() - 5, ((MessageIdImpl)messageId).getEntryId());
-
-        Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
-
-        while (iterator.hasNext()){
-            log.info("read from bk: {}", iterator.next().duplicate().getEntryId() );
-        }
-
+        Awaitility.await().untilAsserted(() -> {
+            Message<TransactionBufferSnapshot> message1 = reader.readNext();
+            TransactionBufferSnapshot snapshot1 = message1.getValue();
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 1);
+        });
     }
 }

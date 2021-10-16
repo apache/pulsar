@@ -30,7 +30,7 @@ connector can create the Kafka client in this `open` method.
 
 Beside the passed-in `config` object, the Pulsar runtime also provides a `SourceContext` for the
 connector to access runtime resources for tasks like collecting metrics. The implementation can
-save the `SourceContext` for futher usage.
+save the `SourceContext` for further usage.
 
 ```java
     /**
@@ -73,7 +73,7 @@ These information includes:
   by Pulsar IO runtime to do message deduplication and achieve exactly-once processing guarantee.
 - *Properties*: _Optional_. If the record carries user-defined properties, return those properties.
 
-Additionally, the implemention of the record should provide two methods: `ack` and `fail`. These
+Additionally, the implementation of the record should provide two methods: `ack` and `fail`. These
 two methods will be used by Pulsar IO connector to acknowledge the records that it has done
 processing and fail the records that it has failed to process.
 
@@ -109,7 +109,7 @@ The main task for a Sink implementor is to implement {@inject: github:`write`:/p
     void write(Record<T> record) throws Exception;
 ```
 
-In the implemention of `write` method, the implementor can decide how to write the value and
+In the implementation of `write` method, the implementor can decide how to write the value and
 the optional key to the actual source, and leverage all the provided information such as
 `Partition Id`, `Record Sequence` for achieving different processing guarantees. The implementor
 is also responsible for acknowledging records if it has successfully written them or failing
@@ -119,7 +119,7 @@ records if has failed to write them.
 
 Testing connectors can be challenging because Pulsar IO connectors interact with two systems
 that may be difficult to mock - Pulsar and the system the connector is connecting to. It is
-recommended to write very specificially test the functionalities of the connector classes
+recommended to write very specifically test the functionalities of the connector classes
 while mocking the external services.
 
 Once you have written sufficient unit tests for your connector, we also recommend adding

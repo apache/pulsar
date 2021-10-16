@@ -155,8 +155,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
                                    ExecutorServicePtr executor,
                                    const ClientConfiguration& clientConfiguration,
                                    const AuthenticationPtr& authentication)
-    : state_(Pending),
-      operationsTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())),
+    : operationsTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())),
       authentication_(authentication),
       serverProtocolVersion_(ProtocolVersion_MIN),
       executor_(executor),
@@ -172,21 +171,14 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
       cnxString_("[<none> -> " + physicalAddress + "] "),
-      error_(boost::system::error_code()),
       incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-      incomingCmd_(),
       connectTimeoutTask_(std::make_shared<PeriodicTask>(executor_->getIOService(),
                                                          clientConfiguration.getConnectionTimeout())),
-      pendingWriteBuffers_(),
-      pendingWriteOperations_(0),
       outgoingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
-      outgoingCmd_(),
-      havePendingPingRequest_(false),
-      keepAliveTimer_(),
-      maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()),
       consumerStatsRequestTimer_(executor_->createDeadlineTimer()),
-      numOfPendingLookupRequest_(0),
-      isTlsAllowInsecureConnection_(false) {
+      maxPendingLookupRequest_(clientConfiguration.getConcurrentLookupRequest()) {
+
+    LOG_INFO(cnxString_ << "Create ClientConnection, timeout=" << clientConfiguration.getConnectionTimeout());
     if (clientConfiguration.isUseTls()) {
 #if BOOST_VERSION >= 105400
         boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
@@ -276,6 +268,7 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
     }
 
     state_ = Ready;
+    connectTimeoutTask_->stop();
     serverProtocolVersion_ = cmdConnected.protocol_version();
     connectPromise_.setValue(shared_from_this());
 
@@ -376,7 +369,6 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             LOG_INFO(cnxString_ << "Connected to broker through proxy. Logical broker: " << logicalAddress_);
         }
         state_ = TcpConnected;
-        connectTimeoutTask_->stop();
 
         boost::system::error_code error;
         socket_->set_option(tcp::no_delay(true), error);
@@ -433,21 +425,28 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             handleHandshake(boost::system::errc::make_error_code(boost::system::errc::success));
         }
     } else if (endpointIterator != tcp::resolver::iterator()) {
+        LOG_WARN(cnxString_ << "Failed to establish connection: " << err.message());
         // The connection failed. Try the next endpoint in the list.
-        boost::system::error_code err;
-        socket_->close(err);  // ignore the error of close
-        if (err) {
+        boost::system::error_code closeError;
+        socket_->close(closeError);  // ignore the error of close
+        if (closeError) {
             LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
         }
         connectTimeoutTask_->stop();
-        connectTimeoutTask_->start();
-        tcp::endpoint endpoint = *endpointIterator;
-        socket_->async_connect(endpoint, std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
-                                                   std::placeholders::_1, ++endpointIterator));
+        ++endpointIterator;
+        if (endpointIterator != tcp::resolver::iterator()) {
+            LOG_DEBUG(cnxString_ << "Connecting to " << endpointIterator->endpoint() << "...");
+            connectTimeoutTask_->start();
+            tcp::endpoint endpoint = *endpointIterator;
+            socket_->async_connect(endpoint,
+                                   std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
+                                             std::placeholders::_1, ++endpointIterator));
+        } else {
+            close();
+        }
     } else {
         LOG_ERROR(cnxString_ << "Failed to establish connection: " << err.message());
         close();
-        return;
     }
 }
 
@@ -459,7 +458,14 @@ void ClientConnection::handleHandshake(const boost::system::error_code& err) {
     }
 
     bool connectingThroughProxy = logicalAddress_ != physicalAddress_;
-    SharedBuffer buffer = Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
+    Result result = ResultOk;
+    SharedBuffer buffer =
+        Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy, result);
+    if (result != ResultOk) {
+        LOG_ERROR(cnxString_ << "Failed to establish connection: " << result);
+        close(result);
+        return;
+    }
     // Send CONNECT command to broker
     asyncWrite(buffer.const_asio_buffer(), std::bind(&ClientConnection::handleSentPulsarConnect,
                                                      shared_from_this(), std::placeholders::_1, buffer));
@@ -512,7 +518,7 @@ void ClientConnection::tcpConnectAsync() {
         return;
     }
 
-    LOG_DEBUG(cnxString_ << "Connecting to " << service_url.host() << ":" << service_url.port());
+    LOG_DEBUG(cnxString_ << "Resolving " << service_url.host() << ":" << service_url.port());
     tcp::resolver::query query(service_url.host(), std::to_string(service_url.port()));
     resolver_->async_resolve(query, std::bind(&ClientConnection::handleResolve, shared_from_this(),
                                               std::placeholders::_1, std::placeholders::_2));
@@ -528,20 +534,24 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
 
     auto self = shared_from_this();
     connectTimeoutTask_->setCallback([this, self](const PeriodicTask::ErrorCode& ec) {
-        if (state_ != TcpConnected) {
+        if (state_ != Ready) {
             LOG_ERROR(cnxString_ << "Connection was not established in " << connectTimeoutTask_->getPeriodMs()
                                  << " ms, close the socket");
-            PeriodicTask::ErrorCode ignoredError;
-            socket_->close(ignoredError);
+            PeriodicTask::ErrorCode err;
+            socket_->close(err);
+            if (err) {
+                LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+            }
         }
         connectTimeoutTask_->stop();
     });
 
+    LOG_DEBUG(cnxString_ << "Connecting to " << endpointIterator->endpoint() << "...");
     connectTimeoutTask_->start();
     if (endpointIterator != tcp::resolver::iterator()) {
         LOG_DEBUG(cnxString_ << "Resolved hostname " << endpointIterator->host_name()  //
                              << " to " << endpointIterator->endpoint());
-        socket_->async_connect(*endpointIterator++,
+        socket_->async_connect(*endpointIterator,
                                std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
                                          std::placeholders::_1, endpointIterator));
     } else {
@@ -566,7 +576,11 @@ void ClientConnection::handleRead(const boost::system::error_code& err, size_t b
 
     if (err || bytesTransferred == 0) {
         if (err) {
-            LOG_ERROR(cnxString_ << "Read failed: " << err.message());
+            if (err == boost::asio::error::operation_aborted) {
+                LOG_DEBUG(cnxString_ << "Read failed: " << err.message());
+            } else {
+                LOG_ERROR(cnxString_ << "Read operation was cancelled");
+            }
         }  // else: bytesTransferred == 0, which means server has closed the connection
         close();
     } else if (bytesTransferred < minReadSize) {
@@ -708,6 +722,26 @@ bool ClientConnection::verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& r
         incomingBuffer_.setReaderIndex(readerIndex);
     }
     return isChecksumValid;
+}
+
+void ClientConnection::handleActiveConsumerChange(const proto::CommandActiveConsumerChange& change) {
+    Lock lock(mutex_);
+    ConsumersMap::iterator it = consumers_.find(change.consumer_id());
+    if (it != consumers_.end()) {
+        ConsumerImplPtr consumer = it->second.lock();
+
+        if (consumer) {
+            lock.unlock();
+            consumer->activeConsumerChanged(change.is_active());
+        } else {
+            consumers_.erase(change.consumer_id());
+            LOG_DEBUG(cnxString_ << "Ignoring incoming message for already destroyed consumer "
+                                 << change.consumer_id());
+        }
+    } else {
+        LOG_DEBUG(cnxString_ << "Got invalid consumer Id in " << change.consumer_id()
+                             << " -- isActive: " << change.is_active());
+    }
 }
 
 void ClientConnection::handleIncomingMessage(const proto::CommandMessage& msg, bool isChecksumValid,
@@ -1117,16 +1151,25 @@ void ClientConnection::handleIncomingCommand() {
                 case BaseCommand::AUTH_CHALLENGE: {
                     LOG_DEBUG(cnxString_ << "Received auth challenge from broker");
 
-                    SharedBuffer buffer = Commands::newAuthResponse(authentication_);
+                    Result result;
+                    SharedBuffer buffer = Commands::newAuthResponse(authentication_, result);
+                    if (result != ResultOk) {
+                        LOG_ERROR(cnxString_ << "Failed to send auth response: " << result);
+                        close(result);
+                        break;
+                    }
                     asyncWrite(buffer.const_asio_buffer(),
                                std::bind(&ClientConnection::handleSentAuthResponse, shared_from_this(),
                                          std::placeholders::_1, buffer));
+                    break;
                 }
 
                 case BaseCommand::ACTIVE_CONSUMER_CHANGE: {
-                    LOG_DEBUG(cnxString_ << "Received notification about active consumer changes");
-                    // ignore this message for now.
-                    // TODO: @link{https://github.com/apache/pulsar/issues/1240}
+                    const CommandActiveConsumerChange& change = incomingCmd_.active_consumer_change();
+                    LOG_DEBUG(cnxString_
+                              << "Received notification about active consumer change, consumer_id: "
+                              << change.consumer_id() << " isActive: " << change.is_active());
+                    handleActiveConsumerChange(change);
                     break;
                 }
 
@@ -1442,7 +1485,7 @@ void ClientConnection::handleConsumerStatsTimeout(const boost::system::error_cod
     startConsumerStatsTimer(consumerStatsRequests);
 }
 
-void ClientConnection::close() {
+void ClientConnection::close(Result result) {
     Lock lock(mutex_);
     if (isClosed()) {
         return;
@@ -1455,7 +1498,10 @@ void ClientConnection::close() {
     }
 
     if (tlsSocket_) {
-        tlsSocket_->lowest_layer().close();
+        tlsSocket_->lowest_layer().close(err);
+        if (err) {
+            LOG_WARN(cnxString_ << "Failed to close TLS socket: " << err.message());
+        }
     }
 
     if (executor_) {
@@ -1496,7 +1542,7 @@ void ClientConnection::close() {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
 
-    connectPromise_.setFailed(ResultConnectError);
+    connectPromise_.setFailed(result);
 
     // Fail all pending requests, all these type are map whose value type contains the Promise object
     for (auto& kv : pendingRequests) {
@@ -1567,7 +1613,7 @@ Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consume
 
     pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendCommand(Commands::newGetLastMessageId(consumerId, requestId));
+    sendRequestWithId(Commands::newGetLastMessageId(consumerId, requestId), requestId);
     return promise.getFuture();
 }
 

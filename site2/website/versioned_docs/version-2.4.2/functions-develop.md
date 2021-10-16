@@ -730,7 +730,7 @@ Currently Pulsar Functions expose the following APIs for mutating and accessing 
 
 ```java
     /**
-     * Increment the builtin distributed counter refered by key
+     * Increment the builtin distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */

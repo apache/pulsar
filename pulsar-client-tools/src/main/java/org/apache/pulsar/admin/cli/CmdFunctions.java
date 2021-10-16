@@ -199,16 +199,16 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_className;
         @Parameter(names = "--classname", description = "The class name of a Pulsar Function")
         protected String className;
-        @Parameter(names = "--jar", description = "Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the JAR file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
         @Parameter(
                 names = "--py",
-                description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python)",
+                description = "Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.",
                 listConverter = StringConverter.class)
         protected String pyFile;
         @Parameter(
                 names = "--go",
-                description = "Path to the main Go executable binary for the function (if the function is written in Go)")
+                description = "Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.")
         protected String goFile;
         @Parameter(names = {"-i",
                 "--inputs"}, description = "The input topic or topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function")
@@ -271,7 +271,7 @@ public class CmdFunctions extends CmdBase {
         protected Boolean retainKeyOrdering;
         @Parameter(names = "--batch-builder", description = "BatcherBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
         protected String batchBuilder;
-        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing")
+        @Parameter(names = "--forward-source-message-property", description = "Forwarding input message's properties to output topic when processing (use false to disable it)", arity = 1)
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
@@ -325,22 +325,52 @@ public class CmdFunctions extends CmdBase {
         protected String userCodeFile;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_className)) className = DEPRECATED_className;
-            if (!StringUtils.isBlank(DEPRECATED_topicsPattern)) topicsPattern = DEPRECATED_topicsPattern;
-            if (!StringUtils.isBlank(DEPRECATED_logTopic)) logTopic = DEPRECATED_logTopic;
-            if (!StringUtils.isBlank(DEPRECATED_outputSerdeClassName)) outputSerdeClassName = DEPRECATED_outputSerdeClassName;
-            if (!StringUtils.isBlank(DEPRECATED_customSerdeInputString)) customSerdeInputString = DEPRECATED_customSerdeInputString;
+            if (isBlank(className) && !isBlank(DEPRECATED_className)) {
+                className = DEPRECATED_className;
+            }
+            if (isBlank(topicsPattern) && !isBlank(DEPRECATED_topicsPattern)) {
+                topicsPattern = DEPRECATED_topicsPattern;
+            }
+            if (isBlank(logTopic) && !isBlank(DEPRECATED_logTopic)) {
+                logTopic = DEPRECATED_logTopic;
+            }
+            if (isBlank(outputSerdeClassName) && !isBlank(DEPRECATED_outputSerdeClassName)) {
+                outputSerdeClassName = DEPRECATED_outputSerdeClassName;
+            }
+            if (isBlank(customSerdeInputString) && !isBlank(DEPRECATED_customSerdeInputString)) {
+                customSerdeInputString = DEPRECATED_customSerdeInputString;
+            }
 
-            if (!StringUtils.isBlank(DEPRECATED_fnConfigFile)) fnConfigFile = DEPRECATED_fnConfigFile;
-            if (DEPRECATED_processingGuarantees != null) processingGuarantees = DEPRECATED_processingGuarantees;
-            if (!StringUtils.isBlank(DEPRECATED_userConfigString)) userConfigString = DEPRECATED_userConfigString;
-            if (DEPRECATED_retainOrdering != null) retainOrdering = DEPRECATED_retainOrdering;
-            if (DEPRECATED_windowLengthCount != null) windowLengthCount = DEPRECATED_windowLengthCount;
-            if (DEPRECATED_windowLengthDurationMs != null) windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
-            if (DEPRECATED_slidingIntervalCount != null) slidingIntervalCount = DEPRECATED_slidingIntervalCount;
-            if (DEPRECATED_slidingIntervalDurationMs != null) slidingIntervalDurationMs = DEPRECATED_slidingIntervalDurationMs;
-            if (DEPRECATED_autoAck != null) autoAck = DEPRECATED_autoAck;
-            if (DEPRECATED_timeoutMs != null) timeoutMs = DEPRECATED_timeoutMs;
+            if (isBlank(fnConfigFile) && !isBlank(DEPRECATED_fnConfigFile)) {
+                fnConfigFile = DEPRECATED_fnConfigFile;
+            }
+            if (processingGuarantees == null && DEPRECATED_processingGuarantees != null) {
+                processingGuarantees = DEPRECATED_processingGuarantees;
+            }
+            if (isBlank(userConfigString) && !isBlank(DEPRECATED_userConfigString)) {
+                userConfigString = DEPRECATED_userConfigString;
+            }
+            if (retainOrdering == null && DEPRECATED_retainOrdering != null) {
+                retainOrdering = DEPRECATED_retainOrdering;
+            }
+            if (windowLengthCount == null && DEPRECATED_windowLengthCount != null) {
+                windowLengthCount = DEPRECATED_windowLengthCount;
+            }
+            if (windowLengthDurationMs == null && DEPRECATED_windowLengthDurationMs != null) {
+                windowLengthDurationMs = DEPRECATED_windowLengthDurationMs;
+            }
+            if (slidingIntervalCount == null && DEPRECATED_slidingIntervalCount != null) {
+                slidingIntervalCount = DEPRECATED_slidingIntervalCount;
+            }
+            if (slidingIntervalDurationMs == null && DEPRECATED_slidingIntervalDurationMs != null) {
+                slidingIntervalDurationMs = DEPRECATED_slidingIntervalDurationMs;
+            }
+            if (autoAck == null && DEPRECATED_autoAck != null) {
+                autoAck = DEPRECATED_autoAck;
+            }
+            if (timeoutMs == null && DEPRECATED_timeoutMs != null) {
+                timeoutMs = DEPRECATED_timeoutMs;
+            }
         }
 
         @Override
@@ -657,15 +687,33 @@ public class CmdFunctions extends CmdBase {
         protected String metricsPortStart;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
-            if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;
-            if (!StringUtils.isBlank(DEPRECATED_clientAuthParams)) clientAuthParams = DEPRECATED_clientAuthParams;
-            if (DEPRECATED_useTls != null) useTls = DEPRECATED_useTls;
-            if (DEPRECATED_tlsAllowInsecureConnection != null) tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
-            if (DEPRECATED_tlsHostNameVerificationEnabled != null) tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
-            if (!StringUtils.isBlank(DEPRECATED_tlsTrustCertFilePath)) tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
-            if (DEPRECATED_instanceIdOffset != null) instanceIdOffset = DEPRECATED_instanceIdOffset;
+            if (isBlank(stateStorageServiceUrl) && !isBlank(DEPRECATED_stateStorageServiceUrl)) {
+                stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
+            }
+            if (isBlank(brokerServiceUrl) && !isBlank(DEPRECATED_brokerServiceUrl)) {
+                brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            }
+            if (isBlank(clientAuthPlugin) && !isBlank(DEPRECATED_clientAuthPlugin)) {
+                clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            }
+            if (isBlank(clientAuthParams) && !isBlank(DEPRECATED_clientAuthParams)) {
+                clientAuthParams = DEPRECATED_clientAuthParams;
+            }
+            if (useTls == false && DEPRECATED_useTls != null) {
+                useTls = DEPRECATED_useTls;
+            }
+            if (tlsAllowInsecureConnection == false && DEPRECATED_tlsAllowInsecureConnection != null) {
+                tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
+            }
+            if (tlsHostNameVerificationEnabled == false && DEPRECATED_tlsHostNameVerificationEnabled != null) {
+                tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
+            }
+            if (isBlank(tlsTrustCertFilePath) && !isBlank(DEPRECATED_tlsTrustCertFilePath)) {
+                tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            }
+            if (instanceIdOffset == null && DEPRECATED_instanceIdOffset != null) {
+                instanceIdOffset = DEPRECATED_instanceIdOffset;
+            }
         }
 
         @Override
@@ -935,8 +983,12 @@ public class CmdFunctions extends CmdBase {
         protected String topic;
 
         public void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_triggerValue)) triggerValue = DEPRECATED_triggerValue;
-            if (!StringUtils.isBlank(DEPRECATED_triggerFile)) triggerFile = DEPRECATED_triggerFile;
+            if (isBlank(triggerValue) && !isBlank(DEPRECATED_triggerValue)) {
+                triggerValue = DEPRECATED_triggerValue;
+            }
+            if (isBlank(triggerFile) && !isBlank(DEPRECATED_triggerFile)) {
+                triggerFile = DEPRECATED_triggerFile;
+            }
         }
 
         @Override
@@ -971,7 +1023,9 @@ public class CmdFunctions extends CmdBase {
         protected String path;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_sourceFile)) sourceFile = DEPRECATED_sourceFile;
+            if (isBlank(sourceFile) && !isBlank(DEPRECATED_sourceFile)) {
+                sourceFile = DEPRECATED_sourceFile;
+            }
         }
 
         @Override
@@ -1006,7 +1060,9 @@ public class CmdFunctions extends CmdBase {
         protected String path;
 
         private void mergeArgs() {
-            if (!StringUtils.isBlank(DEPRECATED_destinationFile)) destinationFile = DEPRECATED_destinationFile;
+            if (isBlank(destinationFile) && !isBlank(DEPRECATED_destinationFile)) {
+                destinationFile = DEPRECATED_destinationFile;
+            }
         }
 
         @Override

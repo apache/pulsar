@@ -5,7 +5,7 @@ sidebar_label: Built-in connector
 original_id: io-connectors
 ---
 
-Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems. For a full set of third-party connectors that Pulsar supports, refer to [StreamNative Hub](https://hub.streamnative.io/).
+Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar. These connectors import and export data from some of the most commonly used data systems. 
 
 Using any of these connectors is as easy as writing a simple connector and running the connector locally or submitting the connector to a Pulsar Functions cluster.
 

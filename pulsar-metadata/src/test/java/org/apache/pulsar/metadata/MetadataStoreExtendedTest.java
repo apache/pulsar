@@ -21,12 +21,10 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.util.EnumSet;
 import java.util.Optional;
-
+import java.util.function.Supplier;
 import lombok.Cleanup;
-
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
@@ -36,11 +34,12 @@ import org.testng.annotations.Test;
 public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
-    public void sequentialKeys(String provider, String url) throws Exception {
+    public void sequentialKeys(String provider, Supplier<String> urlSupplier) throws Exception {
         final String basePath = "/my/path";
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(url, MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
 
         Stat stat1 = store.put(basePath, "value-1".getBytes(), Optional.of(-1L), EnumSet.of(CreateOption.Sequential))
                 .join();

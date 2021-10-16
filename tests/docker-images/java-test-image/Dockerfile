@@ -17,7 +17,7 @@
 # under the License.
 #
 
-FROM openjdk:11-jdk-slim
+FROM ubuntu:20.04
 
 RUN groupadd -g 10001 pulsar
 RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
@@ -30,23 +30,25 @@ RUN chown -R root:root /pulsar
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
-RUN echo networkaddress.cache.ttl=1 >> $JAVA_HOME/conf/security/java.security
-
 WORKDIR /pulsar
 
-RUN apt-get update
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+     && apt-get -y dist-upgrade \
+     && apt-get -y install openjdk-11-jdk-headless
+
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
-RUN apt-get install -y python3-kazoo python3-protobuf
-# use python3 for watch-znode.py and pulsar-managed-ledger-admin
-RUN sed -i '1 s/.*/#!\/usr\/bin\/python3/' /pulsar/bin/watch-znode.py /pulsar/bin/pulsar-managed-ledger-admin
-
-# required by gen-yml-from-env.py
-RUN apt-get install -y python-yaml
+# gen-yml-from-env.py requires python3-yaml
+# make python3 the default
+RUN apt-get install -y python3-kazoo python3-protobuf python3-yaml \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
 RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
-
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \
@@ -64,5 +66,7 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
 
 # cleanup
-RUN apt-get clean \
+RUN apt-get -y --purge autoremove \
+    && apt-get autoclean \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

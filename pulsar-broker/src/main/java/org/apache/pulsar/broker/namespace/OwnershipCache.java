@@ -28,7 +28,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -45,6 +49,7 @@ import org.slf4j.LoggerFactory;
  * as well as MetadataStore read/write functions for a) lookup of a service unit ownership to a broker; b) take
  * ownership of a service unit by the local broker
  */
+@Slf4j
 public class OwnershipCache {
 
     private static final Logger LOG = LoggerFactory.getLogger(OwnershipCache.class);
@@ -99,6 +104,8 @@ public class OwnershipCache {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
+                                    log.info("Resource lock for {} has expired", rl.getPath());
+                                    namespaceService.unloadNamespaceBundle(namespaceBundle);
                                     ownedBundlesCache.synchronous().invalidate(namespaceBundle);
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
                                 });
@@ -116,7 +123,7 @@ public class OwnershipCache {
                           NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
-        this.ownerBrokerUrl = pulsar.getSafeBrokerServiceUrl();
+        this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
@@ -258,7 +265,13 @@ public class OwnershipCache {
         CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(bundle);
 
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
-            return future.join();
+            try {
+                return future.get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            } catch (InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e.getCause());
+            }
         } else {
             return null;
         }
@@ -303,11 +316,9 @@ public class OwnershipCache {
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {
-        if (selfOwnerInfo.getNativeUrl() == null) {
-            this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getSafeBrokerServiceUrl(),
-                    pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
-                    pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
-        }
-        return selfOwnerInfo.getNativeUrl() != null;
+        this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
+        return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;
     }
 }

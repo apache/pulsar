@@ -166,7 +166,7 @@ class PULSAR_PUBLIC ClientConfiguration {
     /**
      * @return the path to the trusted TLS certificate file
      */
-    std::string getTlsTrustCertsFilePath() const;
+    const std::string& getTlsTrustCertsFilePath() const;
 
     /**
      * Configure whether the Pulsar client accepts untrusted TLS certificates from brokers.
