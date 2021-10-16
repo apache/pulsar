@@ -36,12 +36,6 @@ public interface OffloadFilter {
     PositionImpl getMaxReadPosition();
 
     /**
-     * Check whether the status of TransactionBuffer is Ready.
-     * @return
-     */
-    boolean isTransactionBufferReady();
-
-    /**
      * Check whether the status of TransactionBuffer is Initializing.
      * @return
      */

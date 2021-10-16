@@ -215,7 +215,6 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         @Override
         public void setOffloadFilter(OffloadFilter offloadFilter) {
-
         }
 
         @Override

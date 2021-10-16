@@ -139,7 +139,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     if (entryId >= nextExpectedId && entryId <= lastEntry) {
                         //Some transaction messages in this ledger have been filtered
                         if(entryId > nextExpectedId){
-                            log.warn("The read entry {} is not the expected entry {}", entryId, nextExpectedId);
                             nextExpectedId = entryId;
                         }
                         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);

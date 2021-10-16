@@ -1275,7 +1275,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         @Override
         public void setOffloadFilter(OffloadFilter offloadFilter) {
-
         }
 
         @Override
