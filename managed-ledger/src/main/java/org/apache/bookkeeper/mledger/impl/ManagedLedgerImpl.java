@@ -2253,8 +2253,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader().getOffloadPolicies() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+            //This means that the topic has not been created yet or the TB has not been started completely.
             if(config.isTransactionEnable()){
-                if(config.getLedgerOffloader().getOffloadFilter() == null || !config.getLedgerOffloader().getOffloadFilter().isTransactionBufferReady()){
+                if(config.getLedgerOffloader().getOffloadFilter() == null
+                        || config.getLedgerOffloader().getOffloadFilter().isTransactionBufferInitializing()){
                     return;
                 }
             }

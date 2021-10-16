@@ -17,7 +17,7 @@ public class OffloadFilterImp implements OffloadFilter {
     }
 
     @Override
-    public boolean CheckIfNeedOffload(LedgerEntry ledgerEntry) {
+    public boolean checkIfNeedOffload(LedgerEntry ledgerEntry) {
         MessageMetadata messageMetadata = Commands.parseMessageMetadata(ledgerEntry.getEntryBuffer());
 
         if (messageMetadata.hasTxnidLeastBits() && messageMetadata.hasTxnidMostBits()){
@@ -39,6 +39,16 @@ public class OffloadFilterImp implements OffloadFilter {
 
     @Override
     public boolean isTransactionBufferReady() {
-        return persistentTopic.getTransactionBufferStats().state.equals("Ready");
+        return "Ready".equals(persistentTopic.getTransactionBufferStats().state);
+    }
+
+    @Override
+    public boolean isTransactionBufferInitializing() {
+        return "Initializing".equals(persistentTopic.getTransactionBufferStats().state);
+    }
+
+    @Override
+    public boolean isTransactionBufferNoSnapshot() {
+        return "NoSnapshot".equals(persistentTopic.getTransactionBufferStats().state);
     }
 }

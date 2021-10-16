@@ -165,6 +165,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                         long entryId = groupedReader.dataStream.readLong();
 
                         if (entryId >= nextExpectedId && entryId <= lastEntry) {
+                            //Some transaction messages in this ledger have been filtered
                             if(entryId > nextExpectedId){
                                 nextExpectedId = entryId;
                             }

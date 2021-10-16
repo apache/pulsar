@@ -182,7 +182,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             long ledgerId = readHandle.getId();
-            if(offloadFilter != null && ledgerId >= offloadFilter.getMaxReadPosition().getLedgerId()){
+            //If the state of TB is noSnapshot, this ledger will not contain transaction messages
+            if(!offloadFilter.isTransactionBufferNoSnapshot()
+                    && ledgerId >= offloadFilter.getMaxReadPosition().getLedgerId()){
                 return;
             }
             String storagePath = getStoragePath(storageBasePath, extraMetadata.get(MANAGED_LEDGER_NAME));
@@ -288,7 +290,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
                 while (iterator.hasNext()) {
                     LedgerEntry entry = iterator.next();
-                    if(offloadFilter != null && !offloadFilter.CheckIfNeedOffload(entry)){
+                    if(!offloadFilter.checkIfNeedOffload(entry)){
                      continue;
                     }
                     long entryId = entry.getEntryId();

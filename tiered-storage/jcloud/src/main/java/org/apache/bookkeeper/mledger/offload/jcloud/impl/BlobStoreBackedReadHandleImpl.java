@@ -137,7 +137,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     long entryId = dataStream.readLong();
 
                     if (entryId >= nextExpectedId && entryId <= lastEntry) {
-                        //                        //The message sent by aborted txn or txn marker had  been filtered.
+                        //Some transaction messages in this ledger have been filtered
                         if(entryId > nextExpectedId){
                             log.warn("The read entry {} is not the expected entry {}", entryId, nextExpectedId);
                             nextExpectedId = entryId;

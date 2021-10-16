@@ -118,6 +118,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId >= nextExpectedId && entryId <= lastEntry) {
+                        //Some transaction messages in this ledger have been filtered
                         if(entryId > nextExpectedId){
                             nextExpectedId = entryId;
                         }

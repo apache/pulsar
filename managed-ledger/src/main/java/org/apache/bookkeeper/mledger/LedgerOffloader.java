@@ -55,12 +55,12 @@ public interface LedgerOffloader {
      * Set the filter  which used to filter transaction mark and aborted messages.
      * @param offloadFilter
      */
-    public void setOffloadFilter(OffloadFilter offloadFilter);
+    void setOffloadFilter(OffloadFilter offloadFilter);
 
     /**
      * Get the filter  which used to filter transaction mark and aborted messages .
      */
-    public OffloadFilter getOffloadFilter();
+    OffloadFilter getOffloadFilter();
 
     /**
      * Used to store driver info, buffer entries, mark progress, etc.

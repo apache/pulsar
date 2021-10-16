@@ -27,17 +27,29 @@ public interface OffloadFilter {
      * Check whether this Entry needs offload.Exclude the aborted message and transaction mark
      * @return
      */
-    public boolean CheckIfNeedOffload(LedgerEntry LedgerEntry);
+    boolean checkIfNeedOffload(LedgerEntry LedgerEntry);
 
     /**
      * The largest stable position that can be exposed to the consumer
      * @return
      */
-    public PositionImpl getMaxReadPosition();
+    PositionImpl getMaxReadPosition();
 
     /**
-     * Check the status of TransactionBuffer. If Ready, return true, else return false.
+     * Check whether the status of TransactionBuffer is Ready.
      * @return
      */
-    public boolean isTransactionBufferReady();
+    boolean isTransactionBufferReady();
+
+    /**
+     * Check whether the status of TransactionBuffer is Initializing.
+     * @return
+     */
+    boolean isTransactionBufferInitializing();
+
+    /**
+     * Check whether the status of TransactionBuffer is NoSnapshot.
+     * @return
+     */
+    boolean isTransactionBufferNoSnapshot();
 }

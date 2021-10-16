@@ -124,7 +124,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();
-                if(offloadFilter != null && offloadFilter.CheckIfNeedOffload(entry)){
+                if(!offloadFilter.checkIfNeedOffload(entry)){
                     continue;
                 }
                 ByteBuf buf = entry.getEntryBuffer().retain();

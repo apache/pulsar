@@ -165,8 +165,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                            Map<String, String> extraMetadata) {
         final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        if(offloadFilter != null && readHandle.getLedgerMetadata().getLedgerId() >= offloadFilter
-                .getMaxReadPosition().getLedgerId()){
+        //If the status of TB is noSnapshot, this ledger will not contain transaction messages
+        if(!offloadFilter.isTransactionBufferNoSnapshot()
+                && readHandle.getLedgerMetadata().getLedgerId() >= offloadFilter.getMaxReadPosition().getLedgerId()){
              promise.complete(null);
              return promise;
         }
