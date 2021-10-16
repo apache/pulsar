@@ -27,13 +27,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-
 import lombok.Data;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -118,16 +117,16 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             String firstKey = path.equals("/") ? path : path + "/";
             String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
-            List<String> children = new ArrayList<>();
+            Set<String> children = new TreeSet<>();
             map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
                 String relativePath = key.replace(firstKey, "");
-                if (!relativePath.contains("/")) {
-                    // Only return first-level children
-                    children.add(relativePath);
-                }
+
+                // Only return first-level children
+                String child = relativePath.split("/", 2)[0];
+                children.add(child);
             });
 
-            return FutureUtils.value(children);
+            return FutureUtils.value(new ArrayList<>(children));
         }
     }
 
@@ -172,10 +171,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                     return FutureUtils.exception(new BadVersionException(""));
                 } else {
                     receivedNotification(new Notification(NotificationType.Created, path));
-                    String parent = parent(path);
-                    if (parent != null) {
-                        receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-                    }
+                    notifyParentChildrenChanged(path);
                     return FutureUtils.value(new Stat(path, 0, now, now, newValue.isEphemeral(), true));
                 }
             } else {
@@ -194,10 +190,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                             existingValue == null ? NotificationType.Created : NotificationType.Modified;
                     receivedNotification(new Notification(type, path));
                     if (type == NotificationType.Created) {
-                        String parent = parent(path);
-                        if (parent != null) {
-                            receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-                        }
+                        notifyParentChildrenChanged(path);
                     }
                     return FutureUtils
                             .value(new Stat(path, newValue.version, newValue.createdTimestamp,
@@ -223,12 +216,18 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             } else {
                 map.remove(path);
                 receivedNotification(new Notification(NotificationType.Deleted, path));
-                String parent = parent(path);
-                if (parent != null) {
-                    receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
-                }
+
+                notifyParentChildrenChanged(path);
                 return FutureUtils.value(null);
             }
+        }
+    }
+
+    private void notifyParentChildrenChanged(String path) {
+        String parent = parent(path);
+        while (parent != null) {
+            receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+            parent = parent(parent);
         }
     }
 
