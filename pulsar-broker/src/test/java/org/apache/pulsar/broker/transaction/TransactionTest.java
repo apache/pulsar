@@ -20,14 +20,11 @@ package org.apache.pulsar.broker.transaction;
 
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import com.google.common.collect.Sets;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -362,15 +359,14 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(position4.getLedgerId(), messageId4.getLedgerId());
         Assert.assertEquals(position4.getEntryId(), messageId4.getEntryId());
 
-        //test publishing messages will not change maxReadPosition if the state o TB is Initializing.
-
+        //test publishing normal messages will not change maxReadPosition if the state o TB is Initializing.
         Class<TopicTransactionBufferState> transactionBufferStateClass =
                 (Class<TopicTransactionBufferState>) topicTransactionBuffer.getClass().getSuperclass();
+        Field field = transactionBufferStateClass.getDeclaredField("state");
+        field.setAccessible(true);
         Class<TopicTransactionBuffer> topicTransactionBufferClass = TopicTransactionBuffer.class;
         Field maxReadPositionField = topicTransactionBufferClass.getDeclaredField("maxReadPosition");
         maxReadPositionField.setAccessible(true);
-        Field field = transactionBufferStateClass.getDeclaredField("state");
-        field.setAccessible(true);
         field.set(topicTransactionBuffer, TopicTransactionBufferState.State.Initializing);
         MessageIdImpl messageId5 = (MessageIdImpl) normalProducer.newMessage().value("normal message").send();
         PositionImpl position5 = (PositionImpl) maxReadPositionField.get(topicTransactionBuffer);
