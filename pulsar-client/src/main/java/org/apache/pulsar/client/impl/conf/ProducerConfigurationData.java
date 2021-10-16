@@ -102,6 +102,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private ProducerAccessMode accessMode = ProducerAccessMode.Shared;
 
+    private boolean lazyStartPartitionedProducers = false;
+
     private SortedMap<String, String> properties = new TreeMap<>();
 
     /**
