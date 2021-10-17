@@ -342,6 +342,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove subscription types enabled for a namespace")
+    private class RemoveSubscriptionTypesEnabled extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeSubscriptionTypesEnabled(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set Message TTL for a namespace")
     private class SetMessageTTL extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2336,6 +2348,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
+        jcommander.addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
 
         jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
