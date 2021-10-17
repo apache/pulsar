@@ -58,10 +58,6 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         super.doInitConf();
         if (useListenerName) {
             conf.setAdvertisedAddress(null);
-            conf.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
-            conf.setBrokerServicePort(Optional.of(PortManager.nextFreePort()));
-            conf.setWebServicePort(Optional.of(PortManager.nextFreePort()));
-            conf.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
         }
     }
 
