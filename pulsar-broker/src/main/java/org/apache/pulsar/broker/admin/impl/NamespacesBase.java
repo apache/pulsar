@@ -2387,10 +2387,15 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaCompatibilityStrategy");
     }
 
-    protected boolean internalGetSchemaValidationEnforced() {
+    protected boolean internalGetSchemaValidationEnforced(boolean applied) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).schema_validation_enforced;
+        boolean schemaValidationEnforced = getNamespacePolicies(namespaceName).schema_validation_enforced;
+        if (!schemaValidationEnforced && applied) {
+            return pulsar().getConfiguration().isSchemaValidationEnforced();
+        } else {
+            return schemaValidationEnforced;
+        }
     }
 
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {

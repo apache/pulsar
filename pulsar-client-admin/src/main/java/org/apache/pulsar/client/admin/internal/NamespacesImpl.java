@@ -3060,11 +3060,21 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public boolean getSchemaValidationEnforced(String namespace)
+    public boolean getSchemaValidationEnforced(String namespace) throws PulsarAdminException {
+        return getSchemaValidationEnforced(namespace, false);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace) {
+        return getSchemaValidationEnforcedAsync(namespace, false);
+    }
+
+    @Override
+    public boolean getSchemaValidationEnforced(String namespace, boolean applied)
             throws PulsarAdminException {
         try {
-            return getSchemaValidationEnforcedAsync(namespace).
-                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getSchemaValidationEnforcedAsync(namespace, applied)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -3076,9 +3086,10 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace) {
+    public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace, boolean applied) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "schemaValidationEnforced");
+        path = path.queryParam("applied", applied);
         final CompletableFuture<Boolean> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Boolean>() {

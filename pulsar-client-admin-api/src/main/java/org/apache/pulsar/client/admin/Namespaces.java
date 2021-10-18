@@ -3539,6 +3539,7 @@ public interface Namespaces {
 
     /**
      * Get schema validation enforced for namespace.
+     * @param namespace namespace for this command.
      * @return the schema validation enforced flag
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -3547,15 +3548,38 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    boolean getSchemaValidationEnforced(String namespace)
-            throws PulsarAdminException;
+    boolean getSchemaValidationEnforced(String namespace) throws PulsarAdminException;
 
     /**
      * Get schema validation enforced for namespace asynchronously.
+     * @param namespace namespace for this command.
      *
      * @return the schema validation enforced flag
      */
     CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace);
+
+    /**
+     * Get schema validation enforced for namespace.
+     * @param namespace namespace for this command.
+     * @param applied applied for this command.
+     * @return the schema validation enforced flag
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    boolean getSchemaValidationEnforced(String namespace, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for namespace asynchronously.
+     * @param namespace namespace for this command.
+     * @param applied applied for this command.
+     *
+     * @return the schema validation enforced flag
+     */
+    CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String namespace, boolean applied);
 
     /**
      * Set schema validation enforced for namespace.
