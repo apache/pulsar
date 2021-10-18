@@ -35,15 +35,23 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -246,4 +254,45 @@ public class TransactionTest extends TransactionTestBase {
 
     }
 
+    @Test
+    public void testTakeSnapshotBeforeBuildTxnProducer() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/testSnapShot";
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(topic, false)
+                .get().get();
+
+        ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
+                .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
+                .startMessageId(MessageId.earliest)
+                .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
+
+        long waitSnapShotTime = getPulsarServiceList().get(0).getConfiguration()
+                .getTransactionBufferSnapshotMinTimeInMillis();
+        Awaitility.await().atMost(waitSnapShotTime * 2, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> Assert.assertFalse(reader.hasMessageAvailable()));
+
+        //test take snapshot by build producer by the transactionEnable client
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .producerName("testSnapshot").sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic).enableBatching(true)
+                .create();
+
+        Awaitility.await().untilAsserted(() -> {
+            Message<TransactionBufferSnapshot> message1 = reader.readNext();
+            TransactionBufferSnapshot snapshot1 = message1.getValue();
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), -1);
+        });
+
+        // test snapshot by publish  normal messages.
+        producer.newMessage(Schema.STRING).value("common message send").send();
+        producer.newMessage(Schema.STRING).value("common message send").send();
+
+        Awaitility.await().untilAsserted(() -> {
+            Message<TransactionBufferSnapshot> message1 = reader.readNext();
+            TransactionBufferSnapshot snapshot1 = message1.getValue();
+            Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 1);
+        });
+    }
 }
