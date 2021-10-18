@@ -81,14 +81,16 @@ brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 
 ### Log when soon-to-be non-compliant certificates are encountered
 
-Brokers can be configured (via properties in ```broker.conf```) to emit WARN/ERROR messages and increment Prometheus metrics when client certificates meeting the following criteria are encountered:
+You can configure Pulsar brokers (via properties in ```broker.conf```) to emit WARN/ERROR messages and increment Prometheus metrics when the certificates used by a Pulsar client are in the following situations: 
 * About to expire: ```tlsPrintWarnOnClientCertNearingExpirationMillis``` and ```tlsPrintErrorOnClientCertNearingExpirationMillis```
 * Long validity durations ```tlsPrintWarnOnClientCertValidityDurationExceedsMillis```
 * Self-Signed: ```tlsPrintWarnOnSelfSignedCertificate```
 * Small RSA public key size ```tlsPrintWarnOnRsaKeySizeLessThanBits```
 * Wildcard in the CN ```tlsPrintWarnOnWildcardCertificate```
 
->None of the above settings are hard limits that will prevent the broker from performing a TLS handshake. These configuration options are intended to be used in conjunction with a Prometheus monitoring and/or log collection. These settings can be useful for identifying certificates currently in use that are allowable but are in danger of becoming unusable in the near future due to upcoming policy changes or expiration.
+> **Note**
+>
+> None of the above settings are hard limits that prevent the broker from performing a TLS handshake. These configuration options are intended to be used together with a Prometheus monitoring and/or log collection. These settings can be useful for identifying existing certificates that are allowable but are in danger of becoming unusable in the near future due to upcoming policy changes or expiration.
 
 ## Enable TLS authentication on proxies
 
