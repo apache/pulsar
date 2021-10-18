@@ -48,7 +48,6 @@ class OpReadEntry implements ReadEntriesCallback {
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
         OpReadEntry op = RECYCLER.get();
-        op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
         op.cursor = cursor;
         op.count = count;
         op.callback = callback;
@@ -58,6 +57,11 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         op.maxPosition = maxPosition;
         op.ctx = ctx;
+        PositionImpl position = cursor.ledger.startReadOperationOnLedger(readPositionRef, op);
+        if (position == null) {
+            return null;
+        }
+        op.readPosition = position;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;
     }
