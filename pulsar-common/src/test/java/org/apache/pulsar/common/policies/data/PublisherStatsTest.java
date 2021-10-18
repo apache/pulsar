@@ -46,7 +46,8 @@ public class PublisherStatsTest {
             "address",
             "connectedSince",
             "clientVersion",
-            "producerName"
+            "producerName",
+            "partialProducerSupported"
         );
 
         PublisherStatsImpl stats = new PublisherStatsImpl();
