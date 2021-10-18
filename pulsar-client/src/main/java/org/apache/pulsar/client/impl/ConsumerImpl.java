@@ -199,6 +199,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
+    private ConcurrentOpenHashMap<String, MessageIdImpl> chunkMessageIds;
+
+
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -265,6 +268,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.expireTimeOfIncompleteChunkedMessageMillis = conf.getExpireTimeOfIncompleteChunkedMessageMillis();
         this.autoAckOldestChunkedMessageOnQueueFull = conf.isAutoAckOldestChunkedMessageOnQueueFull();
         this.poolMessages = conf.isPoolMessages();
+        chunkMessageIds = new ConcurrentOpenHashMap<>();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -1193,10 +1197,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             // right now, chunked messages are only supported by non-shared subscription
             if (isChunkedMessage) {
+                if(msgMetadata.getChunkId() == 0) {
+                    chunkMessageIds.put(msgMetadata.getUuid(), msgId);
+                }
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
                     return;
                 }
+                MessageIdImpl firstChunkMsgId = chunkMessageIds.get(msgMetadata.getUuid());
+                if(firstChunkMsgId != null) {
+                    msgId = new ChunkMessageIdImpl(firstChunkMsgId, msgId);
+                }
+                chunkMessageIds.remove(msgMetadata.getUuid());
             }
 
             if (isSameEntry(msgId) && isPriorEntryIndex(messageId.getEntryId())) {
@@ -1975,6 +1987,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 ackSet.recycle();
 
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
+            } else if(messageId instanceof ChunkMessageIdImpl){
+                ChunkMessageIdImpl msgId = (ChunkMessageIdImpl) messageId;
+                seek = Commands.newSeek(consumerId, requestId, msgId.getFirstChunkMessageId().getLedgerId(), msgId.getFirstChunkMessageId().getEntryId(), new long[0]);
             } else {
                 MessageIdImpl msgId = (MessageIdImpl) messageId;
                 seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), new long[0]);

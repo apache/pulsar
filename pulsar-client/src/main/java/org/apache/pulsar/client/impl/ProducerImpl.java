@@ -87,6 +87,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,6 +149,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
+    private ConcurrentOpenHashMap<String, MessageIdImpl> chunkMessageIds;
+
+
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
@@ -168,6 +172,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.semaphore = Optional.empty();
         }
+        this.chunkMessageIds = new ConcurrentOpenHashMap<>();
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
@@ -985,6 +990,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         OpSendMsg finalOp = op;
         LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
         op.setMessageId(ledgerId, entryId, partitionIndex);
+        if (op.totalChunks > 1) {
+            if (op.chunkId == 0) {
+                chunkMessageIds.put(op.msg.getMessageBuilder().getUuid(),
+                        new MessageIdImpl(ledgerId, entryId, partitionIndex));
+            } else if (op.chunkId == op.totalChunks - 1) {
+                MessageIdImpl firstChunkMsgId = chunkMessageIds.get(op.msg.getMessageBuilder().getUuid());
+                MessageIdImpl lastChunkMsgId = new MessageIdImpl(ledgerId, entryId, partitionIndex);
+                if (firstChunkMsgId != null) {
+                    op.setMessageId(new ChunkMessageIdImpl(firstChunkMsgId, lastChunkMsgId));
+                }
+                chunkMessageIds.remove(op.msg.getMessageBuilder().getUuid());
+            }
+        }
+
+
         // if message is chunked then call callback only on last chunk
         if (op.totalChunks <= 1 || (op.chunkId == op.totalChunks - 1)) {
             try {
@@ -1259,6 +1279,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msgs.get(batchIndex)
                             .setMessageId(new BatchMessageIdImpl(ledgerId, entryId, partitionIndex, batchIndex));
                 }
+            }
+        }
+
+        void setMessageId(ChunkMessageIdImpl chunkMessageId) {
+            if (msg != null) {
+                msg.setMessageId(chunkMessageId);
             }
         }
 
