@@ -543,8 +543,7 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
 
         if (ptr->state_ != Ready) {
             LOG_ERROR(ptr->cnxString_ << "Connection was not established in "
-                                      << ptr->connectTimeoutTask_->getPeriodMs()
-                                      << " ms, close the socket");
+                                      << ptr->connectTimeoutTask_->getPeriodMs() << " ms, close the socket");
             PeriodicTask::ErrorCode err;
             ptr->socket_->close(err);
             if (err) {
