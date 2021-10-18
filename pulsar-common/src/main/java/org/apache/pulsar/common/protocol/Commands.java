@@ -775,7 +775,8 @@ public class Commands {
                 .setUserProvidedProducerName(userProvidedProducerName)
                 .setEncrypted(encrypted)
                 .setTxnEnabled(isTxnEnabled)
-                .setProducerAccessMode(convertProducerAccessMode(accessMode));
+                .setProducerAccessMode(convertProducerAccessMode(accessMode))
+                .setPartialProducerSupported(true);
         if (producerName != null) {
             producer.setProducerName(producerName);
         }

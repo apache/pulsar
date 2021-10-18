@@ -98,7 +98,8 @@ public class Producer {
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
             boolean userProvidedProducerName,
             ProducerAccessMode accessMode,
-            Optional<Long> topicEpoch) {
+            Optional<Long> topicEpoch,
+            boolean partialProducerSupported) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -124,6 +125,7 @@ public class Producer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
         stats.producerId = producerId;
+        stats.setPartialProducerSupported(partialProducerSupported);
         stats.metadata = this.metadata;
         stats.accessMode = Commands.convertProducerAccessMode(accessMode);
 

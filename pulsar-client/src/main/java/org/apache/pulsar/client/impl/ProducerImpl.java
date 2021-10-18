@@ -161,7 +161,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
-                        ProducerInterceptors interceptors) {
+                        ProducerInterceptors interceptors, Optional<String> overrideProducerName) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
@@ -173,6 +173,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.semaphore = Optional.empty();
         }
+        overrideProducerName.ifPresent(key -> this.producerName = key);
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
@@ -1558,7 +1559,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             log.info("[{}] [{}] Producer epoch is {}", topic, producerName, response.getTopicEpoch());
                         }
                         topicEpoch = response.getTopicEpoch();
-
 
                         if (this.producerName == null) {
                             this.producerName = producerName;

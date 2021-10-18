@@ -490,6 +490,8 @@ message CommandProducer {
     optional uint64 topic_epoch = 11;
 
     optional bool txn_enabled = 12 [default = false];
+
+    optional bool partial_producer_supported = 13 [default = false];
 }
 
 message CommandSend {

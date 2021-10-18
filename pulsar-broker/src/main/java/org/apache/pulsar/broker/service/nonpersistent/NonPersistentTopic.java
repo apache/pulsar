@@ -824,7 +824,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             if (producer.isRemote()) {
                 remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             } else {
-                stats.getPublishers().add(publisherStats);
+                stats.addPublisher(publisherStats);
             }
         });
 
