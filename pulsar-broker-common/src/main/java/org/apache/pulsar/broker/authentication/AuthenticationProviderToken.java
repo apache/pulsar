@@ -253,15 +253,13 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
      * Try to get the validation key for tokens from several possible config options.
      */
     private Key getValidationKey(ServiceConfiguration conf) throws IOException {
-        Object tokenSecretKey = conf.getProperty(confTokenSecretKeySettingName);
-        Object tokenPublicKey = conf.getProperty(confTokenPublicKeySettingName);
-        if (tokenSecretKey != null && StringUtils.isNotBlank((String) tokenSecretKey)) {
-            final String validationKeyConfig = (String) tokenSecretKey;
-            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
+        String tokenSecretKey = (String) conf.getProperty(confTokenSecretKeySettingName);
+        String tokenPublicKey = (String) conf.getProperty(confTokenPublicKeySettingName);
+        if (StringUtils.isNotBlank(tokenSecretKey)) {
+            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(tokenSecretKey);
             return AuthTokenUtils.decodeSecretKey(validationKey);
-        } else if (tokenPublicKey != null && StringUtils.isNotBlank((String) tokenPublicKey)) {
-            final String validationKeyConfig = (String) tokenPublicKey;
-            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(validationKeyConfig);
+        } else if (StringUtils.isNotBlank(tokenPublicKey)) {
+            final byte[] validationKey = AuthTokenUtils.readKeyFromUrl(tokenPublicKey);
             return AuthTokenUtils.decodePublicKey(validationKey, publicKeyAlg);
         } else {
             throw new IOException("No secret key was provided for token authentication");
@@ -269,22 +267,21 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     private String getTokenRoleClaim(ServiceConfiguration conf) throws IOException {
-        Object tokenAuthClaim = conf.getProperty(confTokenAuthClaimSettingName);
-        if (tokenAuthClaim != null && StringUtils.isNotBlank((String) tokenAuthClaim)) {
-            return (String) tokenAuthClaim;
+        String tokenAuthClaim = (String) conf.getProperty(confTokenAuthClaimSettingName);
+        if (StringUtils.isNotBlank(tokenAuthClaim)) {
+            return tokenAuthClaim;
         } else {
             return Claims.SUBJECT;
         }
     }
 
     private SignatureAlgorithm getPublicKeyAlgType(ServiceConfiguration conf) throws IllegalArgumentException {
-        Object tokenPublicAlg = conf.getProperty(confTokenPublicAlgSettingName);
-        if (tokenPublicAlg != null && StringUtils.isNotBlank((String) tokenPublicAlg)) {
-            String alg = (String) tokenPublicAlg;
+        String tokenPublicAlg = (String) conf.getProperty(confTokenPublicAlgSettingName);
+        if (StringUtils.isNotBlank(tokenPublicAlg)) {
             try {
-                return SignatureAlgorithm.forName(alg);
+                return SignatureAlgorithm.forName(tokenPublicAlg);
             } catch (SignatureException ex) {
-                throw new IllegalArgumentException("invalid algorithm provided " + alg, ex);
+                throw new IllegalArgumentException("invalid algorithm provided " + tokenPublicAlg, ex);
             }
         } else {
             return SignatureAlgorithm.RS256;
@@ -293,9 +290,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // get Token Audience Claim from configuration, if not configured return null.
     private String getTokenAudienceClaim(ServiceConfiguration conf) throws IllegalArgumentException {
-        Object tokenAudienceClaim = conf.getProperty(confTokenAudienceClaimSettingName);
-        if (tokenAudienceClaim != null && StringUtils.isNotBlank((String) tokenAudienceClaim)) {
-            return (String) tokenAudienceClaim;
+        String tokenAudienceClaim = (String) conf.getProperty(confTokenAudienceClaimSettingName);
+        if (StringUtils.isNotBlank(tokenAudienceClaim)) {
+            return tokenAudienceClaim;
         } else {
             return null;
         }
@@ -303,9 +300,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // get Token Audience that stands for this broker from configuration, if not configured return null.
     private String getTokenAudience(ServiceConfiguration conf) throws IllegalArgumentException {
-        Object tokenAudience = conf.getProperty(confTokenAudienceSettingName);
-        if (tokenAudience != null && StringUtils.isNotBlank((String) tokenAudience)) {
-            return (String) tokenAudience;
+        String tokenAudience = (String) conf.getProperty(confTokenAudienceSettingName);
+        if (StringUtils.isNotBlank(tokenAudience)) {
+            return tokenAudience;
         } else {
             return null;
         }
