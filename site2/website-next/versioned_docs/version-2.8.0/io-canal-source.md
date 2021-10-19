@@ -1,7 +1,7 @@
 ---
 id: io-canal-source
 title: Canal source connector
-sidebar_label: Canal source connector
+sidebar_label: "Canal source connector"
 original_id: io-canal-source
 ---
 

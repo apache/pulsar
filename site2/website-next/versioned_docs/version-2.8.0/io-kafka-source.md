@@ -1,7 +1,7 @@
 ---
 id: io-kafka-source
 title: Kafka source connector
-sidebar_label: Kafka source connector
+sidebar_label: "Kafka source connector"
 original_id: io-kafka-source
 ---
 

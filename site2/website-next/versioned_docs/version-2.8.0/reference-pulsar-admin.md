@@ -1,7 +1,7 @@
 ---
 id: pulsar-admin
 title: Pulsar admin CLI
-sidebar_label: Pulsar Admin CLI
+sidebar_label: "Pulsar Admin CLI"
 original_id: pulsar-admin
 ---
 

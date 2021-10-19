@@ -1,7 +1,7 @@
 ---
 id: client-libraries-node
 title: The Pulsar Node.js client
-sidebar_label: Node.js
+sidebar_label: "Node.js"
 original_id: client-libraries-node
 ---
 
@@ -126,7 +126,7 @@ Here is an example:
 ```JavaScript
 
 const producer = await client.createProducer({
-  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace
+  topic: 'my-topic',
 });
 
 await producer.send({

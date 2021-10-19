@@ -1,7 +1,7 @@
 ---
 id: io-cdc-debezium
 title: Debezium source connector
-sidebar_label: Debezium source connector
+sidebar_label: "Debezium source connector"
 original_id: io-cdc-debezium
 ---
 

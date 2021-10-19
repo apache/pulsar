@@ -1,7 +1,7 @@
 ---
 id: admin-api-brokers
 title: Managing Brokers
-sidebar_label: Brokers
+sidebar_label: "Brokers"
 original_id: admin-api-brokers
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: io-jdbc-sink
 title: JDBC sink connector
-sidebar_label: JDBC sink connector
+sidebar_label: "JDBC sink connector"
 original_id: io-jdbc-sink
 ---
 

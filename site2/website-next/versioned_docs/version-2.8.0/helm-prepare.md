@@ -1,7 +1,7 @@
 ---
 id: helm-prepare
 title: Prepare Kubernetes resources
-sidebar_label: Prepare
+sidebar_label: "Prepare"
 original_id: helm-prepare
 ---
 

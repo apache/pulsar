@@ -1,7 +1,7 @@
 ---
 id: admin-api-clusters
 title: Managing Clusters
-sidebar_label: Clusters
+sidebar_label: "Clusters"
 original_id: admin-api-clusters
 ---
 

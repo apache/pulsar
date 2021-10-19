@@ -1,7 +1,7 @@
 ---
 id: tiered-storage-gcs
 title: Use GCS offloader with Pulsar
-sidebar_label: GCS offloader
+sidebar_label: "GCS offloader"
 original_id: tiered-storage-gcs
 ---
 

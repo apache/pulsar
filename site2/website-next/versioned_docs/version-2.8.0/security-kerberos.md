@@ -1,7 +1,7 @@
 ---
 id: security-kerberos
 title: Authentication using Kerberos
-sidebar_label: Authentication using Kerberos
+sidebar_label: "Authentication using Kerberos"
 original_id: security-kerberos
 ---
 

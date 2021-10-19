@@ -1,7 +1,7 @@
 ---
 id: io-solr-sink
 title: Solr sink connector
-sidebar_label: Solr sink connector
+sidebar_label: "Solr sink connector"
 original_id: io-solr-sink
 ---
 

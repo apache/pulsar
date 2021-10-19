@@ -1,7 +1,7 @@
 ---
 id: io-influxdb-sink
 title: InfluxDB sink connector
-sidebar_label: InfluxDB sink connector
+sidebar_label: "InfluxDB sink connector"
 original_id: io-influxdb-sink
 ---
 

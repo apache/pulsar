@@ -1,7 +1,7 @@
 ---
 id: io-hdfs2-sink
 title: HDFS2 sink connector
-sidebar_label: HDFS2 sink connector
+sidebar_label: "HDFS2 sink connector"
 original_id: io-hdfs2-sink
 ---
 

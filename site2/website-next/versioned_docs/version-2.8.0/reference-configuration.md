@@ -1,7 +1,7 @@
 ---
 id: reference-configuration
 title: Pulsar configuration
-sidebar_label: Pulsar configuration
+sidebar_label: "Pulsar configuration"
 original_id: reference-configuration
 ---
 

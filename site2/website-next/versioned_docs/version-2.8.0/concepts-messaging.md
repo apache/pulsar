@@ -1,7 +1,7 @@
 ---
 id: concepts-messaging
 title: Messaging
-sidebar_label: Messaging
+sidebar_label: "Messaging"
 original_id: concepts-messaging
 ---
 

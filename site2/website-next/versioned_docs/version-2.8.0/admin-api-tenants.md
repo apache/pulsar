@@ -1,7 +1,7 @@
 ---
 id: admin-api-tenants
 title: Managing Tenants
-sidebar_label: Tenants
+sidebar_label: "Tenants"
 original_id: admin-api-tenants
 ---
 

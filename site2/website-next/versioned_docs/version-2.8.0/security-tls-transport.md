@@ -1,7 +1,7 @@
 ---
 id: security-tls-transport
 title: Transport Encryption using TLS
-sidebar_label: Transport Encryption using TLS
+sidebar_label: "Transport Encryption using TLS"
 original_id: security-tls-transport
 ---
 

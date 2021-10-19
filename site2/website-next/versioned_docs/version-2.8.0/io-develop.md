@@ -1,7 +1,7 @@
 ---
 id: io-develop
 title: How to develop Pulsar connectors
-sidebar_label: Develop
+sidebar_label: "Develop"
 original_id: io-develop
 ---
 

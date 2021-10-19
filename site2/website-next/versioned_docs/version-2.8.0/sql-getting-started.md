@@ -1,7 +1,7 @@
 ---
 id: sql-getting-started
 title: Query data with Pulsar SQL
-sidebar_label: Query data
+sidebar_label: "Query data"
 original_id: sql-getting-started
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: develop-tools
 title: Simulation tools
-sidebar_label: Simulation tools
+sidebar_label: "Simulation tools"
 original_id: develop-tools
 ---
 

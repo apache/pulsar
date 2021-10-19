@@ -1,7 +1,7 @@
 ---
 id: security-tls-keystore
 title: Using TLS with KeyStore configure
-sidebar_label: Using TLS with KeyStore configure
+sidebar_label: "Using TLS with KeyStore configure"
 original_id: security-tls-keystore
 ---
 

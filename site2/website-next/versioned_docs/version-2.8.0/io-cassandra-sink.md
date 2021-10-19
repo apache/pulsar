@@ -1,7 +1,7 @@
 ---
 id: io-cassandra-sink
 title: Cassandra sink connector
-sidebar_label: Cassandra sink connector
+sidebar_label: "Cassandra sink connector"
 original_id: io-cassandra-sink
 ---
 

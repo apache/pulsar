@@ -1,7 +1,7 @@
 ---
 id: performance-pulsar-perf
 title: Pulsar Perf
-sidebar_label: Pulsar Perf
+sidebar_label: "Pulsar Perf"
 original_id: performance-pulsar-perf
 ---
 

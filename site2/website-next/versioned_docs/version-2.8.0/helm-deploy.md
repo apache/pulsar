@@ -1,7 +1,7 @@
 ---
 id: helm-deploy
 title: Deploy Pulsar cluster using Helm
-sidebar_label: Deployment
+sidebar_label: "Deployment"
 original_id: helm-deploy
 ---
 

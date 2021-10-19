@@ -1,7 +1,7 @@
 ---
 id: tiered-storage-aliyun
 title: Use Aliyun OSS offloader with Pulsar
-sidebar_label: Aliyun OSS offloader
+sidebar_label: "Aliyun OSS offloader"
 original_id: tiered-storage-aliyun
 ---
 

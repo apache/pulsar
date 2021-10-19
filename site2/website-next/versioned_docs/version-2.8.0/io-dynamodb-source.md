@@ -1,7 +1,7 @@
 ---
 id: io-dynamodb-source
 title: AWS DynamoDB source connector
-sidebar_label: AWS DynamoDB source connector
+sidebar_label: "AWS DynamoDB source connector"
 original_id: io-dynamodb-source
 ---
 

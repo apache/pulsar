@@ -1,7 +1,7 @@
 ---
 id: cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Message deduplication
+sidebar_label: "Message deduplication"
 original_id: cookbooks-deduplication
 ---
 

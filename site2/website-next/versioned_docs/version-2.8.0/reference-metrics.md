@@ -1,7 +1,7 @@
 ---
 id: reference-metrics
 title: Pulsar Metrics
-sidebar_label: Pulsar Metrics
+sidebar_label: "Pulsar Metrics"
 original_id: reference-metrics
 ---
 
@@ -275,7 +275,7 @@ All the cursor acknowledgment state metrics are labelled with the following labe
 
 Name	|Type	|Description
 |---|---|---
-brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to a ledger.|
+brk_ml_cursor_persistLedgerSucceed(namespace=", ledger_name="", cursor_name:")|Gauge|The number of acknowledgment states that is persistent to a ledger.|
 brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.|
 brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.

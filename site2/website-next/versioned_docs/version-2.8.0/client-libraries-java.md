@@ -1,7 +1,7 @@
 ---
 id: client-libraries-java
 title: Pulsar Java client
-sidebar_label: Java
+sidebar_label: "Java"
 original_id: client-libraries-java
 ---
 

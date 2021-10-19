@@ -1,7 +1,7 @@
 ---
 id: concepts-proxy-sni-routing
 title: Proxy support with SNI routing
-sidebar_label: Proxy support with SNI routing
+sidebar_label: "Proxy support with SNI routing"
 original_id: concepts-proxy-sni-routing
 ---
 

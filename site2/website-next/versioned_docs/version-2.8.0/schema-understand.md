@@ -1,7 +1,7 @@
 ---
 id: schema-understand
 title: Understand schema
-sidebar_label: Understand schema
+sidebar_label: "Understand schema"
 original_id: schema-understand
 ---
 
@@ -22,7 +22,7 @@ A `SchemaInfo` consists of the following fields:
 |  Field  |   Description  | 
 | --- | --- |
 |  `name`  |   Schema name (a string).  | 
-|  `type`  |   Schema type, which determines how to interpret the schema data. * Predefined schema: see [here](schema-understand.md#schema-type). * Customized schema: it is left as an empty string.  | 
+|  `type`  |   Schema type, which determines how to interpret the schema data. <li>Predefined schema: see [here](schema-understand.md#schema-type). </li><li>Customized schema: it is left as an empty string. </li> | 
 |  `schema`（`payload`)  |   Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific.  | 
 |  `properties`  |   It is a user defined properties as a string/string map. Applications can use this bag for carrying any application specific logics. Possible properties might be the Git hash associated with the schema, an environment string like `dev` or `prod`.  | 
 
@@ -494,8 +494,8 @@ The table below lists the possible scenarios when this connection attempt occurs
 
 | Scenario |  What happens | 
 | --- | --- |
-|  * No schema exists for the topic.  |   (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
-|  * A schema already exists. * The producer connects using the same schema that is already stored.  |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |   * A schema already exists. * The producer connects using a new schema that is compatible.  |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
+|  <li>No schema exists for the topic. </li> |   (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
+|  <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |   <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
 
 ## How does schema work
 

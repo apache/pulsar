@@ -1,7 +1,7 @@
 ---
 id: administration-pulsar-manager
 title: Pulsar Manager
-sidebar_label: Pulsar Manager
+sidebar_label: "Pulsar Manager"
 original_id: administration-pulsar-manager
 ---
 

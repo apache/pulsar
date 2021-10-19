@@ -1,7 +1,7 @@
 ---
 id: cookbooks-compaction
 title: Topic compaction
-sidebar_label: Topic compaction
+sidebar_label: "Topic compaction"
 original_id: cookbooks-compaction
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: sql-deployment-configurations
 title: Pulsar SQL configuration and deployment
-sidebar_label: Configuration and deployment
+sidebar_label: "Configuration and deployment"
 original_id: sql-deployment-configurations
 ---
 

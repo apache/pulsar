@@ -1,7 +1,7 @@
 ---
 id: pulsar-2.0
 title: Pulsar 2.0
-sidebar_label: Pulsar 2.0
+sidebar_label: "Pulsar 2.0"
 original_id: pulsar-2.0
 ---
 

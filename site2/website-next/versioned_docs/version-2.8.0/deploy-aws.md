@@ -1,7 +1,7 @@
 ---
 id: deploy-aws
 title: Deploying a Pulsar cluster on AWS using Terraform and Ansible
-sidebar_label: Amazon Web Services
+sidebar_label: "Amazon Web Services"
 original_id: deploy-aws
 ---
 

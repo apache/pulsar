@@ -1,7 +1,7 @@
 ---
 id: security-bouncy-castle
 title: Bouncy Castle Providers
-sidebar_label: Bouncy Castle Providers
+sidebar_label: "Bouncy Castle Providers"
 original_id: security-bouncy-castle
 ---
 

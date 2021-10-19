@@ -1,7 +1,7 @@
 ---
 id: helm-upgrade
 title: Upgrade Pulsar Helm release
-sidebar_label: Upgrade
+sidebar_label: "Upgrade"
 original_id: helm-upgrade
 ---
 

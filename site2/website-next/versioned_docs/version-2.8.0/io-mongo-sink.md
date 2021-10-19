@@ -1,7 +1,7 @@
 ---
 id: io-mongo-sink
 title: MongoDB sink connector
-sidebar_label: MongoDB sink connector
+sidebar_label: "MongoDB sink connector"
 original_id: io-mongo-sink
 ---
 

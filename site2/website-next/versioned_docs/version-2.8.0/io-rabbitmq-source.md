@@ -1,7 +1,7 @@
 ---
 id: io-rabbitmq-source
 title: RabbitMQ source connector
-sidebar_label: RabbitMQ source connector
+sidebar_label: "RabbitMQ source connector"
 original_id: io-rabbitmq-source
 ---
 

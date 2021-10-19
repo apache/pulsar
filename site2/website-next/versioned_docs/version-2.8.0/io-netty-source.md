@@ -1,7 +1,7 @@
 ---
 id: io-netty-source
 title: Netty source connector
-sidebar_label: Netty source connector
+sidebar_label: "Netty source connector"
 original_id: io-netty-source
 ---
 

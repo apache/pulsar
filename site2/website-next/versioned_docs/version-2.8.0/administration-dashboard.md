@@ -1,7 +1,7 @@
 ---
 id: administration-dashboard
 title: Pulsar dashboard
-sidebar_label: Dashboard
+sidebar_label: "Dashboard"
 original_id: administration-dashboard
 ---
 

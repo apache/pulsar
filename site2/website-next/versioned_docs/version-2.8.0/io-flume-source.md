@@ -1,7 +1,7 @@
 ---
 id: io-flume-source
 title: Flume source connector
-sidebar_label: Flume source connector
+sidebar_label: "Flume source connector"
 original_id: io-flume-source
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: io-flume-sink
 title: Flume sink connector
-sidebar_label: Flume sink connector
+sidebar_label: "Flume sink connector"
 original_id: io-flume-sink
 ---
 

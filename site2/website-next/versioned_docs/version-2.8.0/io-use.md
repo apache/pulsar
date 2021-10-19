@@ -1,7 +1,7 @@
 ---
 id: io-use
 title: How to use Pulsar connectors
-sidebar_label: Use
+sidebar_label: "Use"
 original_id: io-use
 ---
 

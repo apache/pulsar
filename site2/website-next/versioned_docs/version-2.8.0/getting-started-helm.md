@@ -1,7 +1,7 @@
 ---
 id: kubernetes-helm
 title: Get started in Kubernetes
-sidebar_label: Run Pulsar in Kubernetes
+sidebar_label: "Run Pulsar in Kubernetes"
 original_id: kubernetes-helm
 ---
 

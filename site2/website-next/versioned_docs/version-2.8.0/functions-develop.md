@@ -1530,7 +1530,7 @@ Currently Pulsar Functions expose the following APIs for mutating and accessing 
 ```python
 
   def incr_counter(self, key, amount):
-    """incr the counter of a given key in the managed state"""
+    ""incr the counter of a given key in the managed state""
 
 ```
 

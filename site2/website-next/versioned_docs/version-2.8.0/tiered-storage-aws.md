@@ -1,7 +1,7 @@
 ---
 id: tiered-storage-aws
 title: Use AWS S3 offloader with Pulsar
-sidebar_label: AWS S3 offloader
+sidebar_label: "AWS S3 offloader"
 original_id: tiered-storage-aws
 ---
 

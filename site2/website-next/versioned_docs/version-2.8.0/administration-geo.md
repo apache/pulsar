@@ -1,7 +1,7 @@
 ---
 id: administration-geo
 title: Pulsar geo-replication
-sidebar_label: Geo-replication
+sidebar_label: "Geo-replication"
 original_id: administration-geo
 ---
 

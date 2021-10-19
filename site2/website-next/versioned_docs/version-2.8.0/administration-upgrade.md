@@ -1,7 +1,7 @@
 ---
 id: administration-upgrade
 title: Upgrade Guide
-sidebar_label: Upgrade
+sidebar_label: "Upgrade"
 original_id: administration-upgrade
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: io-quickstart
 title: How to connect Pulsar to database
-sidebar_label: Get started
+sidebar_label: "Get started"
 original_id: io-quickstart
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: reference-cli-tools
 title: Pulsar command-line tools
-sidebar_label: Pulsar CLI tools
+sidebar_label: "Pulsar CLI tools"
 original_id: reference-cli-tools
 ---
 

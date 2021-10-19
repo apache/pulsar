@@ -1,7 +1,7 @@
 ---
 id: io-elasticsearch-sink
 title: ElasticSearch sink connector
-sidebar_label: ElasticSearch sink connector
+sidebar_label: "ElasticSearch sink connector"
 original_id: io-elasticsearch-sink
 ---
 

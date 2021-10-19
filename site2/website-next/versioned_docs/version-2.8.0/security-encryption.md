@@ -1,7 +1,7 @@
 ---
 id: security-encryption
 title: Pulsar Encryption
-sidebar_label: End-to-End Encryption
+sidebar_label: "End-to-End Encryption"
 original_id: security-encryption
 ---
 

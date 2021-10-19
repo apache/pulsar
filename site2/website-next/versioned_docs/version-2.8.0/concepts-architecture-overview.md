@@ -1,7 +1,7 @@
 ---
 id: concepts-architecture-overview
 title: Architecture Overview
-sidebar_label: Architecture
+sidebar_label: "Architecture"
 original_id: concepts-architecture-overview
 ---
 

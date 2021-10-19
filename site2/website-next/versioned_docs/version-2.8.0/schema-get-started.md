@@ -1,7 +1,7 @@
 ---
 id: schema-get-started
 title: Get started
-sidebar_label: Get started
+sidebar_label: "Get started"
 original_id: schema-get-started
 ---
 

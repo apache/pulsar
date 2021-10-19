@@ -1,7 +1,7 @@
 ---
 id: helm-overview
 title: Apache Pulsar Helm Chart
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: helm-overview
 ---
 

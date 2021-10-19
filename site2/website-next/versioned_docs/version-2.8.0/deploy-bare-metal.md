@@ -1,7 +1,7 @@
 ---
 id: deploy-bare-metal
 title: Deploy a cluster on bare metal
-sidebar_label: Bare metal
+sidebar_label: "Bare metal"
 original_id: deploy-bare-metal
 ---
 

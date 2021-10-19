@@ -1,7 +1,7 @@
 ---
 id: transactions-api
 title: Transactions API
-sidebar_label: Transactions API
+sidebar_label: "Transactions API"
 original_id: transactions-api
 ---
 

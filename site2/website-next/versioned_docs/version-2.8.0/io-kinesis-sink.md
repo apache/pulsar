@@ -1,7 +1,7 @@
 ---
 id: io-kinesis-sink
 title: Kinesis sink connector
-sidebar_label: Kinesis sink connector
+sidebar_label: "Kinesis sink connector"
 original_id: io-kinesis-sink
 ---
 

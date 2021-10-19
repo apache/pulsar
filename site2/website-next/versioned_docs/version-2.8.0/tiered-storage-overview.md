@@ -1,7 +1,7 @@
 ---
 id: tiered-storage-overview
 title: Overview of tiered storage
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: tiered-storage-overview
 ---
 

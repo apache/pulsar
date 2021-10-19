@@ -1,7 +1,7 @@
 ---
 id: io-debezium-source
 title: Debezium source connector
-sidebar_label: Debezium source connector
+sidebar_label: "Debezium source connector"
 original_id: io-debezium-source
 ---
 

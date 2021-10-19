@@ -1,7 +1,7 @@
 ---
 id: txn-use
 title: How to use transactions?
-sidebar_label: How to use transactions?
+sidebar_label: "How to use transactions?"
 original_id: txn-use
 ---
 

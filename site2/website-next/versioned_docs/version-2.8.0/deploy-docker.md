@@ -1,7 +1,7 @@
 ---
 id: deploy-docker
 title: Deploy a cluster on Docker
-sidebar_label: Docker
+sidebar_label: "Docker"
 original_id: deploy-docker
 ---
 

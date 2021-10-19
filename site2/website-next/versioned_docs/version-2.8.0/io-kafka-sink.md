@@ -1,7 +1,7 @@
 ---
 id: io-kafka-sink
 title: Kafka sink connector
-sidebar_label: Kafka sink connector
+sidebar_label: "Kafka sink connector"
 original_id: io-kafka-sink
 ---
 

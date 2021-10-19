@@ -1,7 +1,7 @@
 ---
 id: deploy-dcos
 title: Deploy Pulsar on DC/OS
-sidebar_label: DC/OS
+sidebar_label: "DC/OS"
 original_id: deploy-dcos
 ---
 

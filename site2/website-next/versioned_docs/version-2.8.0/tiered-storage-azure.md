@@ -1,7 +1,7 @@
 ---
 id: tiered-storage-azure
 title: Use Azure BlobStore offloader with Pulsar
-sidebar_label: Azure BlobStore offloader
+sidebar_label: "Azure BlobStore offloader"
 original_id: tiered-storage-azure
 ---
 

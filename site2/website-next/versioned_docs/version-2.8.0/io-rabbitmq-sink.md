@@ -1,7 +1,7 @@
 ---
 id: io-rabbitmq-sink
 title: RabbitMQ sink connector
-sidebar_label: RabbitMQ sink connector
+sidebar_label: "RabbitMQ sink connector"
 original_id: io-rabbitmq-sink
 ---
 

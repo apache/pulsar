@@ -1,7 +1,7 @@
 ---
 id: tiered-storage-filesystem
 title: Use filesystem offloader with Pulsar
-sidebar_label: Filesystem offloader
+sidebar_label: "Filesystem offloader"
 original_id: tiered-storage-filesystem
 ---
 
