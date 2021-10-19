@@ -60,7 +60,7 @@ It is created by the broker when the message arrived at the broker and passed wi
 | Field              | Required or optional       | Description                                                                                                                   |
 |:-------------------|:----------------|:------------------------------------------------------------------------------------------------------------------------------|
 | `broker_timestamp` | Optional        | The timestamp when the message arrived at the broker (i.e. as the number of milliseconds since January 1st, 1970 in UTC)      |
-| `index`            | Optional        | The index of the message, assigned by the broker
+| `index`            | Optional        | The index of the message. It is assigned by the broker.
 
 ## Message metadata
 
