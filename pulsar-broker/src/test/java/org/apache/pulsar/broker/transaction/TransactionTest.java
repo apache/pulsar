@@ -302,7 +302,7 @@ public class TransactionTest extends TransactionTestBase {
 
 
     @Test
-    public void testPublishTransactionMessageThrowException()
+    public void testAppendBufferWithNotManageLedgerExceptionCanCastToMLE()
             throws Exception {
         String topic = "persistent://pulsar/system/testReCreateTopic";
         admin.topics().createNonPartitionedTopic(topic);
