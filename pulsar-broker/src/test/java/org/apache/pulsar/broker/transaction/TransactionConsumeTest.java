@@ -84,7 +84,6 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
-        waitForCoordinatorToBeAvailable(1);
     }
 
     @AfterMethod(alwaysRun = true)
