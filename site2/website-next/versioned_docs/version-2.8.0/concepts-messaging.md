@@ -5,6 +5,10 @@ sidebar_label: Messaging
 original_id: concepts-messaging
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+
 Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) [subscribe](#subscription-modes) to those topics, process incoming messages, and send an acknowledgement when processing is complete.
 
 When a subscription is created, Pulsar [retains](concepts-architecture-overview.md#persistent-storage) all messages, even if the consumer is disconnected. Retained messages are discarded only when a consumer acknowledges that those messages are processed successfully.
@@ -15,8 +19,8 @@ Messages are the basic "unit" of Pulsar. The following table lists the component
 
 Component | Description
 :---------|:-------
-Value / data payload | The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data [schemas](schema-get-started.md).
-Key | Messages are optionally tagged with keys, which is useful for things like [topic compaction](concepts-topic-compaction.md).
+Value / data payload | The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data [schemas](schema-get-started).
+Key | Messages are optionally tagged with keys, which is useful for things like [topic compaction](concepts-topic-compaction).
 Properties | An optional key/value map of user-defined properties.
 Producer name | The name of the producer who produces the message. If you do not specify a producer name, the default name is used. 
 Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of the message is its order in that sequence.
@@ -29,17 +33,21 @@ The default size of a message is 5 MB. You can configure the max size of a messa
 - In the `broker.conf` file.
 
     ```bash
+
     # The max size of a message (in bytes).
     maxMessageSize=5242880
+
     ```
 
 - In the `bookkeeper.conf` file.
 
     ```bash
+
     # The max size of the netty frame (in bytes). Any messages received larger than this value are rejected. The default value is 5 MB.
     nettyMaxFrameSizeBytes=5253120
+
     ```
-> For more information on Pulsar message contents, see Pulsar [binary protocol](developing-binary-protocol.md).
+> For more information on Pulsar message contents, see Pulsar [binary protocol](developing-binary-protocol).
 
 ## Producers
 
@@ -64,11 +72,14 @@ You can have different types of access modes on topics for producers.
 `Exclusive`|Only one producer can publish on a topic. <br /><br />If there is already a producer connected, other producers trying to publish on this topic get errors immediately.<br /><br />The “old” producer is evicted and a “new” producer is selected to be the next exclusive producer if the “old” producer experiences a network partition with the broker.
 `WaitForExclusive`|If there is already a producer connected, the producer creation is pending (rather than timing out) until the producer gets the `Exclusive` access.<br /><br />The producer that succeeds in becoming the exclusive one is treated as the leader. Consequently, if you want to implement the leader election scheme for your application, you can use this access mode.
 
-> **Note**
->
-> Once an application creates a producer with the `Exclusive` or `WaitForExclusive` access mode successfully, the instance of the application is guaranteed to be the **only one writer** on the topic. Other producers trying to produce on this topic get errors immediately or have to wait until they get the `Exclusive` access. 
-> 
-> For more information, see [PIP 68: Exclusive Producer](https://github.com/apache/pulsar/wiki/PIP-68:-Exclusive-Producer).
+:::note
+
+
+Once an application creates a producer with the `Exclusive` or `WaitForExclusive` access mode successfully, the instance of the application is guaranteed to be the **only one writer** on the topic. Other producers trying to produce on this topic get errors immediately or have to wait until they get the `Exclusive` access. 
+
+For more information, see [PIP 68: Exclusive Producer](https://github.com/apache/pulsar/wiki/PIP-68:-Exclusive-Producer).
+
+:::
 
 You can set producer access mode through Java Client API. For more information, see `ProducerAccessMode` in [ProducerBuilder.java](https://github.com/apache/pulsar/blob/fc5768ca3bbf92815d142fe30e6bfad70a1b4fc6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ProducerBuilder.java).
 
@@ -135,7 +146,7 @@ Messages are received from [brokers](reference-terminology.md#broker) either syn
 
 ### Listeners
 
-Client libraries provide listener implementation for consumers. For example, the [Java client](client-libraries-java.md) provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
+Client libraries provide listener implementation for consumers. For example, the [Java client](client-libraries-java) provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
 
 ### Acknowledgement
 
@@ -148,8 +159,11 @@ Messages can be acknowledged in the following two ways:
 - Messages are acknowledged individually. With individual acknowledgement, the consumer needs to acknowledge each message and sends an acknowledgement request to the broker.
 - Messages are acknowledged cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message are not re-delivered to that consumer.
 
-> **Note**
-> Cumulative acknowledgement cannot be used in the [shared subscription mode](#subscription-modes), because the shared subscription mode involves multiple consumers who have access to the same subscription. In the shared subscription mode, messages are acknowledged individually.
+:::note
+
+Cumulative acknowledgement cannot be used in the [shared subscription mode](#subscription-modes), because the shared subscription mode involves multiple consumers who have access to the same subscription. In the shared subscription mode, messages are acknowledged individually.
+
+:::
 
 ### Negative acknowledgement
 
@@ -163,18 +177,27 @@ In the shared and Key_Shared subscription modes, you can negatively acknowledge 
 
 Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
 
-> **Note**
-> If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.
+:::note
+
+If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.
+
+:::
 
 ### Acknowledgement timeout
 
 If a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client tracks the unacknowledged messages within the entire `acktimeout` time range, and sends a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
 
-> **Note**
-> If batching is enabled, other messages and the unacknowledged messages in the same batch are redelivered to the consumer.
+:::note
 
-> **Note**    
-> Prefer negative acknowledgements over acknowledgement timeout. Negative acknowledgement controls the re-delivery of individual messages with more precision, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
+If batching is enabled, other messages and the unacknowledged messages in the same batch are redelivered to the consumer.
+
+:::
+
+:::note
+
+Prefer negative acknowledgements over acknowledgement timeout. Negative acknowledgement controls the re-delivery of individual messages with more precision, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
+
+:::
 
 ### Dead letter topic
 
@@ -183,6 +206,7 @@ Dead letter topic enables you to consume new messages when some messages cannot 
 The following example shows how to enable dead letter topic in a Java client using the default dead letter topic:
 
 ```java
+
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
               .topic(topic)
               .subscriptionName("my-subscription")
@@ -192,15 +216,19 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                     .build())
               .subscribe();
                 
+
 ```
 The default dead letter topic uses this format: 
+
 ```
 <topicname>-<subscriptionname>-DLQ
+
 ```
   
 If you want to specify the name of the dead letter topic, use this Java client example:
 
 ```java
+
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
               .topic(topic)
               .subscriptionName("my-subscription")
@@ -211,12 +239,16 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                     .build())
               .subscribe();
                 
+
 ```
   
 Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
-> **Note**    
-> Currently, dead letter topic is enabled in the Shared and Key_Shared subscription modes.
+:::note
+
+Currently, dead letter topic is enabled in the Shared and Key_Shared subscription modes.
+
+:::
 
 ### Retry letter topic
 
@@ -227,6 +259,7 @@ By default, automatic retry is disabled. You can set `enableRetry` to `true` to 
 This example shows how to consume messages from a retry letter topic.
 
 ```java
+
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -239,6 +272,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                         .build())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+
 ```
 
 ## Topics
@@ -246,7 +280,9 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from producers to consumers. Topic names are URLs that have a well-defined structure:
 
 ```http
+
 {persistent|non-persistent}://tenant/namespace/topic
+
 ```
 
 Topic name component | Description
@@ -345,6 +381,7 @@ When subscribing to multiple topics, the Pulsar client automatically makes a cal
 The following are multi-topic subscription examples for Java.
 
 ```java
+
 import java.util.regex.Pattern;
 
 import org.apache.pulsar.client.api.Consumer;
@@ -365,6 +402,7 @@ Consumer<byte[]> someTopicsConsumer = pulsarClient.newConsumer()
                 .topicsPattern(someTopicsInNamespace)
                 .subscriptionName("subscription-1")
                 .subscribe();
+
 ```
 
 For code examples, see [Java](client-libraries-java.md#multi-topic-subscriptions).
@@ -387,7 +425,7 @@ Decisions about routing and subscription modes can be made separately in most ca
 
 There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.
 
-Partitioned topics need to be explicitly created via the [admin API](admin-api-overview.md). The number of partitions can be specified when creating the topic.
+Partitioned topics need to be explicitly created via the [admin API](admin-api-overview). The number of partitions can be specified when creating the topic.
 
 ### Routing modes
 
@@ -399,7 +437,7 @@ Mode     | Description
 :--------|:------------
 `RoundRobinPartition` | If no key is provided, the producer will publish messages across all partitions in round-robin fashion to achieve maximum throughput. Please note that round-robin is not done per individual message but rather it's set to the same boundary of batching delay, to ensure batching is effective. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition. This is the default mode. 
 `SinglePartition`     | If no key is provided, the producer will randomly pick one single partition and publish all the messages into that partition. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition.
-`CustomPartition`     | Use custom message router implementation that will be called to determine the partition for a particular message. User can create a custom routing mode by using the [Java client](client-libraries-java.md) and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
+`CustomPartition`     | Use custom message router implementation that will be called to determine the partition for a particular message. User can create a custom routing mode by using the [Java client](client-libraries-java) and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
 
 ### Ordering guarantee
 
@@ -432,10 +470,12 @@ Pulsar also, however, supports **non-persistent topics**, which are topics on wh
 Non-persistent topics have names of this form (note the `non-persistent` in the name):
 
 ```http
+
 non-persistent://tenant/namespace/topic
+
 ```
 
-> For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](cookbooks-non-persistent.md).
+> For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](cookbooks-non-persistent).
 
 In non-persistent topics, brokers immediately deliver messages to all connected subscribers *without persisting them* in [BookKeeper](concepts-architecture-overview.md#persistent-storage). If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some of the core benefits of Pulsar are lost.
 
@@ -454,6 +494,7 @@ Producers and consumers can connect to non-persistent topics in the same way as 
 Here's an example [Java consumer](client-libraries-java.md#consumers) for a non-persistent topic:
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
@@ -464,14 +505,17 @@ Consumer<byte[]> consumer = client.newConsumer()
         .topic(npTopic)
         .subscriptionName(subscriptionName)
         .subscribe();
+
 ```
 
 Here's an example [Java producer](client-libraries-java.md#producer) for the same non-persistent topic:
 
 ```java
+
 Producer<byte[]> producer = client.newProducer()
                 .topic(npTopic)
                 .create();
+
 ```
 
 ## Message retention and expiry
@@ -486,7 +530,7 @@ Pulsar has two features, however, that enable you to override this default behav
 * Message **retention** enables you to store messages that have been acknowledged by a consumer
 * Message **expiry** enables you to set a time to live (TTL) for messages that have not yet been acknowledged
 
-> All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](cookbooks-retention-expiry.md) cookbook.
+> All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](cookbooks-retention-expiry) cookbook.
 
 The diagram below illustrates both concepts:
 
@@ -509,12 +553,12 @@ Message deduplication is disabled in the scenario shown at the top. Here, a prod
 
 In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.
 
-> Message deduplication is handled at the namespace level or the topic level. For more instructions, see the [message deduplication cookbook](cookbooks-deduplication.md).
+> Message deduplication is handled at the namespace level or the topic level. For more instructions, see the [message deduplication cookbook](cookbooks-deduplication).
 
 
 ### Producer idempotency
 
-The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the [broker](reference-terminology.md#broker) level, so you do not need to modify your Pulsar client code. Instead, you only need to make administrative changes. For details, see [Managing message deduplication](cookbooks-deduplication.md).
+The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the [broker](reference-terminology.md#broker) level, so you do not need to modify your Pulsar client code. Instead, you only need to make administrative changes. For details, see [Managing message deduplication](cookbooks-deduplication).
 
 ### Deduplication and effectively-once semantics
 
@@ -545,11 +589,15 @@ delayedDeliveryEnabled=true
 # affecting the accuracy of the delivery time compared to the scheduled time.
 # Default is 1 second.
 delayedDeliveryTickTimeMillis=1000
+
 ```
 
 ### Producer 
 The following is an example of delayed message delivery for a producer in Java:
+
 ```java
+
 // message to be delivered at the configured delay interval
 producer.newMessage().deliverAfter(3L, TimeUnit.Minute).value("Hello Pulsar!").send();
+
 ```

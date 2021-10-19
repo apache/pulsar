@@ -72,15 +72,15 @@ public class PulsarClientTool {
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
 
-    boolean tlsAllowInsecureConnection = false;
-    boolean tlsEnableHostnameVerification = false;
-    String tlsTrustCertsFilePath = null;
+    boolean tlsAllowInsecureConnection;
+    boolean tlsEnableHostnameVerification;
+    String tlsTrustCertsFilePath;
 
     // for tls with keystore type config
-    boolean useKeyStoreTls = false;
-    String tlsTrustStoreType = "JKS";
-    String tlsTrustStorePath = null;
-    String tlsTrustStorePassword = null;
+    boolean useKeyStoreTls;
+    String tlsTrustStoreType;
+    String tlsTrustStorePath;
+    String tlsTrustStorePassword;
 
     JCommander commandParser;
     IUsageFormatter usageFormatter;

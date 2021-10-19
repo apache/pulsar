@@ -322,6 +322,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers) {
+        conf.setLazyStartPartitionedProducers(lazyStartPartitionedProducers);
+        return this;
+    }
+
     private void setMessageRoutingMode() throws PulsarClientException {
         if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);

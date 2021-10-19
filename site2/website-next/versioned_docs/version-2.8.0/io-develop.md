@@ -12,15 +12,15 @@ import TabItem from '@theme/TabItem';
 This guide describes how to develop Pulsar connectors to move data
 between Pulsar and other systems. 
 
-Pulsar connectors are special [Pulsar Functions](functions-overview.md), so creating
+Pulsar connectors are special [Pulsar Functions](functions-overview), so creating
 a Pulsar connector is similar to creating a Pulsar function. 
 
 Pulsar connectors come in two types: 
 
 | Type | Description | Example
 |---|---|---
-{@inject: github:Source:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}|Import data from another system to Pulsar.|[RabbitMQ source connector](io-rabbitmq.md) imports the messages of a RabbitMQ queue to a Pulsar topic.
-{@inject: github:Sink:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java}|Export data from Pulsar to another system.|[Kinesis sink connector](io-kinesis.md) exports the messages of a Pulsar topic to a Kinesis stream.
+{@inject: github:Source:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}|Import data from another system to Pulsar.|[RabbitMQ source connector](io-rabbitmq) imports the messages of a RabbitMQ queue to a Pulsar topic.
+{@inject: github:Sink:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java}|Export data from Pulsar to another system.|[Kinesis sink connector](io-kinesis) exports the messages of a Pulsar topic to a Kinesis stream.
 
 ## Develop
 
@@ -34,6 +34,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
 1. Implement the {@inject: github:open:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method. 
 
     ```java
+
     /**
     * Open connector with configuration
     *
@@ -42,6 +43,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
     * @throws Exception IO type exceptions when opening a connector
     */
     void open(final Map<String, Object> config, SourceContext sourceContext) throws Exception;
+
     ```
 
     This method is called when the source connector is initialized. 
@@ -56,6 +58,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
 2. Implement the {@inject: github:read:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method.
 
     ```java
+
         /**
         * Reads the next message from source.
         * If source does not have any new messages, this call should block.
@@ -63,6 +66,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
         * @throws Exception
         */
         Record<T> read() throws Exception;
+
     ```
 
     If nothing to return, the implementation should be blocking rather than returning `null`. 
@@ -74,14 +78,14 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
       |Variable|Required|Description
       |---|---|---
       `TopicName`|No|Pulsar topic name from which the record is originated from.
-      `Key`|No| Messages can optionally be tagged with keys.<br/><br/>For more information, see [Routing modes](concepts-messaging.md#routing-modes).|
+      `Key`|No| Messages can optionally be tagged with keys.<br /><br />For more information, see [Routing modes](concepts-messaging.md#routing-modes).|
       `Value`|Yes|Actual data of the record.
       `EventTime`|No|Event time of the record from the source.
-      `PartitionId`|No| If the record is originated from a partitioned source, it returns its `PartitionId`. <br/><br/>`PartitionId` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
-      `RecordSequence`|No|If the record is originated from a sequential source, it returns its `RecordSequence`.<br/><br/>`RecordSequence` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
+      `PartitionId`|No| If the record is originated from a partitioned source, it returns its `PartitionId`. <br /><br />`PartitionId` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
+      `RecordSequence`|No|If the record is originated from a sequential source, it returns its `RecordSequence`.<br /><br />`RecordSequence` is used as a part of the unique identifier by Pulsar IO runtime to deduplicate messages and achieve exactly-once processing guarantee.
       `Properties` |No| If the record carries user-defined properties, it returns those properties.
       `DestinationTopic`|No|Topic to which message should be written.
-      `Message`|No|A class which carries data sent by users.<br/><br/>For more information, see [Message.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java).|
+      `Message`|No|A class which carries data sent by users.<br /><br />For more information, see [Message.java](https://github.com/apache/pulsar/blob/master/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/Message.java).|
 
      * {@inject: github:Record:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following methods:
 
@@ -99,6 +103,7 @@ If you know the schema type that you are producing, you can declare the Java cla
 public class MySource implements Source<String> {
     public Record<String> read() {}
 }
+
 ```
 If you want to implement a source that works with any schema, you can go with `byte[]` (of `ByteBuffer`) and use Schema.AUTO_PRODUCE_BYTES().
 
@@ -119,6 +124,7 @@ public class MySource implements Source<byte[]> {
          }
     }
 }
+
 ```
 
 To handle the `KeyValue` type properly, follow the guidelines for your record implementation:
@@ -132,10 +138,10 @@ When Pulsar IO runtime encounters a `KVRecord`, it brings the following changes 
 
 :::tip
 
+
 For more information about **how to create a source connector**, see {@inject: github:KafkaSource:/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java}.
 
 :::
-
 
 ### Sink
 
@@ -144,6 +150,7 @@ Developing a sink connector **is similar to** developing a source connector, tha
 1. Implement the {@inject: github:open:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
     ```java
+
         /**
         * Open connector with configuration
         *
@@ -152,17 +159,20 @@ Developing a sink connector **is similar to** developing a source connector, tha
         * @throws Exception IO type exceptions when opening a connector
         */
         void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
+
     ```
 
 2. Implement the {@inject: github:write:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
     ```java
+
         /**
         * Write a message to Sink
         * @param record record to write to sink
         * @throws Exception
         */
         void write(Record<T> record) throws Exception;
+
     ```
 
     During the implementation, you can decide how to write the `Value` and
@@ -180,6 +190,7 @@ If you know the Schema type that you are consuming from you can declare the Java
 public class MySink implements Sink<String> {
     public void write(Record<String> record) {}
 }
+
 ```
 
 If you want to implement a sink that works with any schema, you can you go with the special GenericObject interface.
@@ -197,6 +208,7 @@ public class MySink implements Sink<GenericObject> {
         ....
     }
 }
+
 ```
 
 In the case of AVRO, JSON, and Protobuf records (schemaType=AVRO,JSON,PROTOBUF_NATIVE), you can cast the
@@ -224,8 +236,8 @@ public class MySink implements Sink<GenericObject> {
         ....
     }
 }
-```
 
+```
 
 ## Test
 
@@ -245,38 +257,33 @@ You can create unit tests for your connector.
 Once you have written sufficient unit tests, you can add
 separate integration tests to verify end-to-end functionality. 
 
-Pulsar uses
-[testcontainers](https://www.testcontainers.org/) **for all integration tests**. 
+Pulsar uses [testcontainers](https://www.testcontainers.org/) **for all integration tests**. 
 
 :::tip
+
 
 For more information about **how to create integration tests for Pulsar connectors**, see {@inject: github:IntegrationTests:/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io}.
 
 :::
 
-
 ## Package
 
 Once you've developed and tested your connector, you need to package it so that it can be submitted
-to a [Pulsar Functions](functions-overview.md) cluster. 
+to a [Pulsar Functions](functions-overview) cluster. 
 
 There are two methods to
 work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-jar).
 
 :::note
 
+
 If you plan to package and distribute your connector for others to use, you are obligated to
 
 :::
-
 license and copyright your own code properly. Remember to add the license and copyright to
 all libraries your code uses and to your distribution. 
-:::note
-
-If you use the [NAR](#nar) method, the NAR plugin 
-
-:::
-
+>
+> If you use the [NAR](#nar) method, the NAR plugin 
 automatically creates a `DEPENDENCIES` file in the generated NAR package, including the proper
 licensing and copyrights of all libraries of your connector.
 
@@ -287,20 +294,19 @@ a bit of Java ClassLoader isolation.
 
 :::tip
 
-For more information about **how NAR works**, see
-[here](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd). 
+
+For more information about **how NAR works**, see [here](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd). 
 
 :::
 
-
 Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors). 
 
-The easiest approach to package a Pulsar connector is to create a NAR package using
-[nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin).
+The easiest approach to package a Pulsar connector is to create a NAR package using [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin).
 
 Include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin) in your maven project for your connector as below. 
 
 ```xml
+
 <plugins>
   <plugin>
     <groupId>org.apache.nifi</groupId>
@@ -308,25 +314,28 @@ Include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apac
     <version>1.2.0</version>
   </plugin>
 </plugins>
+
 ```
 
 You must also create a `resources/META-INF/services/pulsar-io.yaml` file with the following contents:
 
 ```yaml
+
 name: connector name
 description: connector description
 sourceClass: fully qualified class name (only if source connector)
 sinkClass: fully qualified class name (only if sink connector)
+
 ```
 
 For Gradle users, there is a [Gradle Nar plugin available on the Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.lhotari.gradle-nar-plugin).
 
 :::tip
 
+
 For more information about an **how to use NAR for Pulsar connectors**, see {@inject: github:TwitterFirehose:/pulsar-io/twitter/pom.xml}.
 
 :::
-
 
 ### Uber JAR
 
@@ -336,6 +345,7 @@ and other resource files. No directory internal structure is necessary.
 You can use [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/examples/includes-excludes.html) to create a uber JAR as below:
 
 ```xml
+
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-shade-plugin</artifactId>
@@ -356,6 +366,7 @@ You can use [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-pl
     </execution>
   </executions>
 </plugin>
+
 ```
 
 ## Monitor
@@ -364,7 +375,7 @@ Pulsar connectors enable you to move data in and out of Pulsar easily. It is imp
 
 - Check the metrics provided by Pulsar.
 
-  Pulsar connectors expose the metrics that can be collected and used for monitoring the health of **Java** connectors. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
+  Pulsar connectors expose the metrics that can be collected and used for monitoring the health of **Java** connectors. You can check the metrics by following the [monitoring](deploy-monitoring) guide.
 
 - Set and check your customized metrics.
 
@@ -400,6 +411,7 @@ public class TestMetricSink implements Sink<String> {
 
         }
     }
+
 ```
 
 </TabItem>

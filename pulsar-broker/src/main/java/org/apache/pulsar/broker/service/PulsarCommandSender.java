@@ -79,4 +79,8 @@ public interface PulsarCommandSender {
             int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
             RedeliveryTracker redeliveryTracker);
 
+    void sendTcClientConnectResponse(long requestId, ServerError error, String message);
+
+    void sendTcClientConnectResponse(long requestId);
+
 }

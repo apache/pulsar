@@ -1680,6 +1680,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void clearPendingAddEntries(ManagedLedgerException e) {
         while (!pendingAddEntries.isEmpty()) {
             OpAddEntry op = pendingAddEntries.poll();
+            op.close();
             op.failed(e);
         }
     }
@@ -3083,9 +3084,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Map<String, String> offloadDriverMetadata, String cleanupReason) {
         log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
                 name, ledgerId, uuid.toString(), cleanupReason);
+        Map<String, String> metadataMap = Maps.newHashMap();
+        metadataMap.putAll(offloadDriverMetadata);
+        metadataMap.put("ManagedLedgerName", name);
+
         Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
                 Retries.NonFatalPredicate,
-                () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, offloadDriverMetadata),
+                () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
                 scheduledExecutor, name).whenComplete((ignored, exception) -> {
                     if (exception != null) {
                         log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
@@ -3171,7 +3176,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // for previous ledgers, LedgerInfo in ZK has the number of entries
             if (currentLedger != null && currentLedgerId == currentLedger.getId()) {
                 lastLedger = true;
-                totalEntriesInCurrentLedger = lastConfirmedEntry.getEntryId() + 1;
+                if (currentLedgerEntries > 0) {
+                    totalEntriesInCurrentLedger = lastConfirmedEntry.getEntryId() + 1;
+                } else {
+                    totalEntriesInCurrentLedger = 0;
+                }
             } else {
                 totalEntriesInCurrentLedger = ledgers.get(currentLedgerId).getEntries();
             }
@@ -3199,6 +3208,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         PositionImpl positionToReturn = getPreviousPosition(PositionImpl.get(currentLedgerId, currentEntryId));
+        if (positionToReturn.compareTo(lastConfirmedEntry) > 0) {
+            positionToReturn = lastConfirmedEntry;
+        }
         if (log.isDebugEnabled()) {
             log.debug("getPositionAfterN: Start position {}:{}, startIncluded: {}, Return position {}:{}",
                     startPosition.getLedgerId(), startPosition.getEntryId(), startRange, positionToReturn.getLedgerId(),

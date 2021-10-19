@@ -69,6 +69,15 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
     }
 
     @Test
+    public void testGetSchemaValidationEnforcedApplied() throws Exception {
+        String namespace = "schema-validation-enforced/testApplied";
+        admin.namespaces().createNamespace(namespace);
+        this.conf.setSchemaValidationEnforced(true);
+        assertTrue(admin.namespaces().getSchemaValidationEnforced(namespace, true));
+        assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace, false));
+    }
+
+    @Test
     public void testDisableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/default-no-schema");
         String namespace = "schema-validation-enforced/default-no-schema";

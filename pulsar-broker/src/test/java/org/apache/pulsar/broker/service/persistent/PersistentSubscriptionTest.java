@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -120,7 +121,13 @@ public class PersistentSubscriptionTest {
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setTransactionCoordinatorEnabled(true);
         pulsarMock = spy(new PulsarService(svcConfig));
-        doReturn(mock(PulsarResources.class)).when(pulsarMock).getPulsarResources();
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        doReturn(pulsarResources).when(pulsarMock).getPulsarResources();
+        NamespaceResources namespaceResources = mock(NamespaceResources.class);
+        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
+
+        doReturn(Optional.of(new Policies())).when(namespaceResources).getPoliciesIfCached(any());
+
         doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
         doReturn(new TransactionPendingAckStoreProvider() {
             @Override
@@ -162,6 +169,11 @@ public class PersistentSubscriptionTest {
                         return CompletableFuture.completedFuture(null);
                     }
                 });
+            }
+
+            @Override
+            public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
+                return CompletableFuture.completedFuture(true);
             }
         }).when(pulsarMock).getTransactionPendingAckStoreProvider();
         doReturn(svcConfig).when(pulsarMock).getConfiguration();

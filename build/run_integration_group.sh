@@ -130,7 +130,7 @@ test_group_sql() {
 
 test_group_pulsar_io() {
   mvn_run_integration_test --no-retry "$@" -DintegrationTestSuiteFile=pulsar-io-sources.xml -DintegrationTests -Dgroups=source
-  #mvn_run_integration_test --no-retry "$@" -DintegrationTestSuiteFile=pulsar-io-sinks.xml -DintegrationTests -Dgroups=sink
+  mvn_run_integration_test --no-retry "$@" -DintegrationTestSuiteFile=pulsar-io-sinks.xml -DintegrationTests -Dgroups=sink
 }
 
 test_group_pulsar_io_ora() {
