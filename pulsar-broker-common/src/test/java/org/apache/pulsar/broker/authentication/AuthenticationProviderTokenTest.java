@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.authentication;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -240,7 +239,7 @@ public class AuthenticationProviderTokenTest {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
         Properties properties = new Properties();
-        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "file://" + secretKeyFile.toString());
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "file:///" + secretKeyFile.toString().replace('\\', '/'));
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
