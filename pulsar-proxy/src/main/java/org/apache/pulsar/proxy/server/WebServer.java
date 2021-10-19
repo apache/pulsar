@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import com.google.common.collect.Lists;
 
+import io.prometheus.client.filter.MetricsFilter;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -77,6 +78,15 @@ public class WebServer {
 
     private ServerConnector connector;
     private ServerConnector connectorTls;
+
+    // Set up Servlet Filter to measure and collect durations taken by servlet requests
+    private static final String METRIC_NAME = "jetty_request_time_seconds";
+    private static final String METRIC_HELP = null;
+    private static final Integer METRIC_PATH_COMPONENTS = null;           // depth of path measuring, null defaults to 1
+    private static final double[] METRIC_BUCKETS =                        // histogram buckets (seconds)
+            {0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10};
+    private final FilterHolder metricsFilter = new FilterHolder(
+            new MetricsFilter(METRIC_NAME, METRIC_HELP, METRIC_PATH_COMPONENTS, METRIC_BUCKETS));
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) throws IOException {
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
@@ -162,6 +172,10 @@ public class WebServer {
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
         }
+
+        // Metrics Filter
+        context.addFilter(metricsFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+
         if (config.isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
