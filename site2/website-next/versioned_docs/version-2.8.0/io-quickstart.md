@@ -496,11 +496,11 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
      `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
      `-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
 
-     :::tip
+    :::tip
 
-     For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
+    For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 
-     :::
+    :::
 
 3. Check if PostgreSQL has been started successfully.
 
