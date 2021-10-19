@@ -146,7 +146,7 @@
 <p>Pulsar producers publish messages to Pulsar topics. You can <a href="#producer-configuration">configure</a> Node.js producers using a producer configuration object.</p>
 <p>Here is an example:</p>
 <pre><code class="hljs css language-JavaScript"><span class="hljs-keyword">const</span> producer = <span class="hljs-keyword">await</span> client.createProducer({
-  <span class="hljs-attr">topic</span>: <span class="hljs-string">'my-topic'</span>,
+  <span class="hljs-attr">topic</span>: <span class="hljs-string">'my-topic'</span>, <span class="hljs-comment">// or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace</span>
 });
 
 <span class="hljs-keyword">await</span> producer.send({
@@ -178,7 +178,7 @@ In this example, using await operator instead of executor function.</p>
 <tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-TW/2.6.0/reference-terminology#topic">topic</a> to which the producer will publish messages.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-TW/2.6.0/reference-terminology#topic">topic</a> to which the producer publishes messages. The topic format is <code>&lt;topic-name&gt;</code> or <code>&lt;tenant-name&gt;/&lt;namespace-name&gt;/&lt;topic-name&gt;</code>. For example, <code>sample/ns1/my-topic</code>.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>producerName</code></td><td style="text-align:left">A name for the producer. If you do not explicitly assign a name, Pulsar will automatically generate a globally unique name.  If you choose to explicitly assign a name, it will need to be unique across <em>all</em> Pulsar clusters, otherwise the creation operation will throw an error.</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>sendTimeoutMs</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/zh-TW/2.6.0/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set <code>sendTimeoutMs</code> to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's <a href="/docs/zh-TW/2.6.0/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30000</td></tr>
 <tr><td style="text-align:left"><code>initialSequenceId</code></td><td style="text-align:left">The initial sequence ID of the message. When producer send message, add sequence ID to message. The ID is increased each time to send.</td><td style="text-align:left"></td></tr>
