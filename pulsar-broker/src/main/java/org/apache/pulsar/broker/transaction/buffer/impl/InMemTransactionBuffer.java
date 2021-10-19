@@ -211,10 +211,9 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;
     final Map<Long, Set<TxnID>> txnIndex;
-    public InMemTransactionBuffer(Topic topic, CompletableFuture<Void> transactionBufferFuture) {
+    public InMemTransactionBuffer(Topic topic) {
         this.buffers = new ConcurrentHashMap<>();
         this.txnIndex = new HashMap<>();
-        transactionBufferFuture.complete(null);
     }
 
     @Override
@@ -385,4 +384,8 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return null;
     }
 
+    @Override
+    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
+        return CompletableFuture.completedFuture(null);
+    }
 }

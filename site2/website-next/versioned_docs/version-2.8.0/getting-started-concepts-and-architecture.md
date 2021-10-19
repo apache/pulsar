@@ -5,6 +5,10 @@ sidebar_label: Concepts and architecture
 original_id: concepts-architecture
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+
 
 
 

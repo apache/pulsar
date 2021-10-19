@@ -1227,10 +1227,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertNull(admin.topics().getSubscriptionDispatchRate(topic)));
 
-        dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
-                .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
-        Assert.assertNotEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate.getDispatchThrottlingRateInByte());
-        Assert.assertNotEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate.getDispatchThrottlingRateInByte());
+        Awaitility.await().untilAsserted(() -> {
+            DispatchRateLimiter drl = pulsar.getBrokerService().getTopicIfExists(topic)
+                    .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+            Assert.assertNotEquals(drl.getDispatchRateOnMsg(), dispatchRate.getDispatchThrottlingRateInMsg());
+            Assert.assertNotEquals(drl.getDispatchRateOnByte(), dispatchRate.getDispatchThrottlingRateInByte());
+        });
 
         consumer.close();
         admin.topics().delete(topic, true);

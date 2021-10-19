@@ -788,7 +788,8 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}", required = true)
+        @Parameter(names = { "--bundle",
+                "-b" }, description = "{start-boundary}_{end-boundary} / LARGEST(bundle with highest topics)", required = true)
         private String bundle;
 
         @Parameter(names = { "--unload",
@@ -1876,11 +1877,14 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the namespace")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
 
-            System.out.println(getAdmin().namespaces().getSchemaValidationEnforced(namespace));
+            System.out.println(getAdmin().namespaces().getSchemaValidationEnforced(namespace, applied));
         }
     }
 

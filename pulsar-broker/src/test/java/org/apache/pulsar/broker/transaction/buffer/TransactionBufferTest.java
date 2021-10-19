@@ -70,7 +70,7 @@ public class TransactionBufferTest {
     @BeforeMethod
     public void setup() throws Exception {
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
-        this.buffer = this.provider.newTransactionBuffer(persistentTopic, new CompletableFuture<>());
+        this.buffer = this.provider.newTransactionBuffer(persistentTopic);
     }
 
     @AfterMethod(alwaysRun = true)
