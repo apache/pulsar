@@ -64,7 +64,7 @@ It is created by the broker when the message arrived at the broker and passed wi
 
 ## Message metadata
 
-Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without change to the consumer.
+Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without changes to the consumer.
 
 | Field                    | Necessity | Description                                                                                                                                                                                                                                               |
 |:-------------------------|:----------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
