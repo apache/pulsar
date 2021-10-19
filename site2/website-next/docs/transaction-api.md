@@ -90,7 +90,6 @@ txn.abort().get();
 
 ### Example
 The following example shows how messages are processed in transaction.
- 
 
 ```
 PulsarClient pulsarClient = PulsarClient.builder()

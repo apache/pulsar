@@ -603,7 +603,6 @@ Consumer consumer2 = client.newConsumer()
 //conumser1 is the active consumer, consumer2 is the standby consumer.
 //consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
 
-  
 
 ```
 
@@ -922,7 +921,6 @@ The following schema formats are currently available for Java:
   ```
 
 * Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
-  
 
   ```java
 

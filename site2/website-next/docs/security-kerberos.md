@@ -182,7 +182,6 @@ You need 2 parameters:
 When you authenticate between client and broker with the setting in above JAAS configuration file, we need to set `saslJaasClientSectionName` to `PulsarClient` and set `serverType` to `broker`.
 
 The following is an example of creating a Java client:
- 
 
  ```java
 

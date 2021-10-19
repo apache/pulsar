@@ -125,7 +125,6 @@ Before using the ElasticSearch sink connector, you need to create a configuratio
 
         ```
     * Use the **YAML** configuration file as shown previously.
-    
 
         ```bash
 

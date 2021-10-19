@@ -111,7 +111,6 @@ Here is an example of using the Kafka source connector with the configuration fi
     ```
 
 2. Create a network.
-   
 
    ```bash
 
@@ -120,7 +119,6 @@ Here is an example of using the Kafka source connector with the configuration fi
    ```
 
 3. Pull a ZooKeeper image and start ZooKeeper.
-   
 
    ```bash
 
@@ -131,7 +129,6 @@ Here is an example of using the Kafka source connector with the configuration fi
    ```
 
 4. Pull a Kafka image and start Kafka.
-   
 
    ```bash
 
@@ -142,7 +139,6 @@ Here is an example of using the Kafka source connector with the configuration fi
    ```
 
 5. Pull a Pulsar image and start Pulsar standalone.
-   
 
    ```bash
 
@@ -153,7 +149,6 @@ Here is an example of using the Kafka source connector with the configuration fi
    ```
 
 6. Create a producer file _kafka-producer.py_.
-   
 
    ```python
 
@@ -185,7 +180,6 @@ Here is an example of using the Kafka source connector with the configuration fi
     ```
 
 8. Copy the following files to Pulsar.
-   
 
     ```bash
 

@@ -171,7 +171,6 @@ To generate service account credentials or view the public credentials that you'
    :::
 
 6. You can get the following information and set this in `broker.conf`.
-   
 
     ```conf
 

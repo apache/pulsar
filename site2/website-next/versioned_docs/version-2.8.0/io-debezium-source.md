@@ -175,7 +175,6 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
         ```
 
     * Use the **YAML** configuration file as shown previously.
-  
 
         ```bash
 
@@ -323,7 +322,6 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
         ```
    
    * Use the **YAML** configuration file as shown previously.
-      
 
         ```bash
 
@@ -340,7 +338,6 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
     ```
 
 5. Start a PostgreSQL client in docker.
-   
 
     ```bash
 
@@ -382,7 +379,6 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
     ```
 
     In the terminal window of subscribing topic, you can receive the following messages.
-        
 
     ```bash
 
@@ -453,7 +449,6 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
     ```
      Use the following commands to initialize the data.
-    
 
      ``` bash
      ./usr/local/bin/init-inventory.sh
@@ -488,7 +483,6 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
         ```
    
    * Use the **YAML** configuration file as shown previously.
-      
 
         ```bash
 
@@ -505,7 +499,6 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
     ```
 
 5. Start a MongoDB client in docker.
-   
 
     ```bash
 
@@ -513,8 +506,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
     ```
 
-6. A MongoDB client pops out. 
-   
+6. A MongoDB client pops out.
 
     ```bash
 
@@ -524,7 +516,6 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
     ```
 
     In the terminal window of subscribing topic, you can receive the following messages.
-        
 
     ```bash
 

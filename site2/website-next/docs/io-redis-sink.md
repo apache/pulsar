@@ -98,8 +98,7 @@ This example shows how to write records to a Redis database using the Pulsar Red
    
 3. Start the Pulsar Redis connector in local run mode using one of the following methods.
 
-   * Use the **JSON** configuration file as shown previously. 
-     
+   * Use the **JSON** configuration file as shown previously.
 
         ```bash
 
@@ -114,7 +113,6 @@ This example shows how to write records to a Redis database using the Pulsar Red
         ```
    
    * Use the **YAML** configuration file as shown previously.
-      
 
         ```bash
 
@@ -140,7 +138,6 @@ This example shows how to write records to a Redis database using the Pulsar Red
     ```     
 
 5. Start a Redis client in Docker.
-   
 
     ```bash
 

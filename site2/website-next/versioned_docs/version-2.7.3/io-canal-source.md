@@ -100,7 +100,6 @@ Here is an example of storing MySQL data using the configuration file as above.
     ```
 
 3. Copy the configuration file `mysqld.cnf` to MySQL server.
-   
 
     ```bash
 
@@ -109,7 +108,6 @@ Here is an example of storing MySQL data using the configuration file as above.
     ```
 
 4.  Restart the MySQL server.
-   
 
     ```bash
 
@@ -118,7 +116,6 @@ Here is an example of storing MySQL data using the configuration file as above.
     ```
 
 5.  Create a test database in MySQL server.
-   
 
     ```bash
 
@@ -189,7 +186,6 @@ Here is an example of storing MySQL data using the configuration file as above.
     ```
 
 11. Download a Canal connector and start it.
-    
 
     ```bash
 
@@ -226,7 +222,6 @@ Here is an example of storing MySQL data using the configuration file as above.
     ```
 
 14. Create a table, and insert, delete, and update data in MySQL server.
-    
 
     ```bash
 

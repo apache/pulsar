@@ -56,7 +56,6 @@ Before using the Kafka sink connector, you need to create a configuration file t
     }
 
 * YAML
-  
 
     ```yaml
 

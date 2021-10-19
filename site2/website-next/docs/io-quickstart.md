@@ -230,7 +230,6 @@ You can create a configuration file through one of the following methods.
     ```
 
 * YAML
-  
 
     ```yaml
 

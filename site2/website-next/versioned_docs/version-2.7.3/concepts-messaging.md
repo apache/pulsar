@@ -174,7 +174,6 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                     .maxRedeliverCount(maxRedeliveryCount)
                     .build())
               .subscribe();
-                
 
 ```
 The default dead letter topic uses this format: 
@@ -197,7 +196,6 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                     .deadLetterTopic("your-topic-name")
                     .build())
               .subscribe();
-                
 
 ```
   

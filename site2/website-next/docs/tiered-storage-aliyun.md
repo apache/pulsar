@@ -29,7 +29,6 @@ This example uses Pulsar 2.8.0.
     **Output**
     
     As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
-    
 
     ```
     tiered-storage-file-system-2.8.0.nar
@@ -227,7 +226,6 @@ For more information about the `pulsar-admin topics offload options` command, in
     ```
 
     **Output**
-    
 
     ```
     Offload was a success

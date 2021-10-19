@@ -31,7 +31,6 @@ The configuration of the MongoDB sink connector has the following properties.
 Before using the Mongo sink connector, you need to create a configuration file through one of the following methods.
 
 * JSON
-  
 
     ```json
 
@@ -46,7 +45,6 @@ Before using the Mongo sink connector, you need to create a configuration file t
     ```
 
 * YAML
-  
 
     ```yaml
 

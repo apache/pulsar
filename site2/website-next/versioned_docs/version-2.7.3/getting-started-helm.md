@@ -152,7 +152,6 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
     ```
 
     **Output**
-    
 
     ```bash
 

@@ -87,7 +87,6 @@ For more information about the `localrun` command, see [`localrun`](reference-co
 Use one of the following methods to get a connector log in localrun mode:
 * After executing the `localrun` command, the **log is automatically printed on the console**.
 * The log is located at:
-  
 
     ```bash
 

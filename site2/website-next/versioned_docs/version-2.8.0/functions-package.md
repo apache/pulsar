@@ -407,7 +407,6 @@ To package a function in Go, complete the following steps.
     ```
 
     You can use context to connect to the Go function.
-    
 
     ```
     if fc, ok := pf.FromContext(ctx); ok {
@@ -420,7 +419,6 @@ To package a function in Go, complete the following steps.
     When writing a Go function, remember that
     - In `main()`, you **only** need to register the function name to `Start()`. **Only** one function name is received in `Start()`. 
     - Go function uses Go reflection, which is based on the received function name, to verify whether the parameter list and returned value list are correct. The parameter list and returned value list **must be** one of the following sample functions:
-    
 
       ```
        func ()

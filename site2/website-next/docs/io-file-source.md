@@ -89,7 +89,6 @@ Here is an example of using the File source connecter.
     ```
 
 2. Start Pulsar standalone.
-   
 
     ```bash
 
@@ -145,7 +144,6 @@ Here is an example of using the File source connecter.
     ```
 
 8. Write the message to the file _test.txt_.
-   
 
     ```bash
 

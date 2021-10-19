@@ -282,7 +282,6 @@ For more information about the `pulsar-admin topics offload options` command, in
     ```
 
     **Output**
-    
 
     ```
     Offload was a success

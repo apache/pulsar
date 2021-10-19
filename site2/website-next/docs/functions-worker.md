@@ -68,7 +68,6 @@ If you want to use Stateful-Functions related functions (for example,  `putState
    After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
 
    Input:
-   
 
     ```shell
 
@@ -109,7 +108,9 @@ curl <broker-ip>:8080/admin/v2/worker/cluster
 
 After entering the command above, a list of active function workers in the cluster is returned. The output is similar to the following.
 
-```json [{"workerId":"<worker-id>","workerHostname":"<worker-hostname>","port":8080}]
+```json
+
+[{"workerId":"<worker-id>","workerHostname":"<worker-hostname>","port":8080}]
 
 ```
 

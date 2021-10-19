@@ -74,7 +74,6 @@ The following examples show how to use the Netty source connector with TCP and H
     ```
 
 2. Create a configuration file _netty-source-config.yaml_.
-   
 
     ```yaml
 
@@ -104,7 +103,6 @@ The following examples show how to use the Netty source connector with TCP and H
     ```
     
 5. Start the Netty source connector.
-   
 
    ```bash
 
@@ -173,7 +171,6 @@ The following examples show how to use the Netty source connector with TCP and H
     ```
 
 2. Create a configuration file _netty-source-config.yaml_.
-   
 
     ```yaml
 
@@ -186,7 +183,6 @@ The following examples show how to use the Netty source connector with TCP and H
     ```
 
 3. Copy the configuration file _netty-source-config.yaml_ to Pulsar server.
-   
 
     ```bash
 
@@ -204,7 +200,6 @@ The following examples show how to use the Netty source connector with TCP and H
     ```
     
 5. Start the Netty source connector.
-   
 
    ```bash
 

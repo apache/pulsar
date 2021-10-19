@@ -121,7 +121,9 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessK
 
 4. Set the access credentials in ```~/.aws/credentials```.
 
-```conf [default]
+```conf
+
+[default]
 aws_access_key_id=ABC123456789
 aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 
@@ -270,7 +272,6 @@ The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can us
         <name>io.map.index.interval</name>
         <value>128</value>
     </property>
-    
 
 ```
 

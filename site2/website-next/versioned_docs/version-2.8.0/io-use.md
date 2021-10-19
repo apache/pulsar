@@ -329,7 +329,6 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
 <TabItem value="Java Admin API">
 
 * Create a sink connector with a **local file**.
-  
 
     ```java
 
@@ -846,7 +845,9 @@ List<String> listSources(String tenant,
 
 **Response example**
 
-```java ["f1", "f2", "f3"]
+```java
+
+["f1", "f2", "f3"]
 
 ```
 
@@ -913,7 +914,9 @@ List<String> listSinks(String tenant,
 
 **Response example**
 
-```java ["f1", "f2", "f3"]
+```java
+
+["f1", "f2", "f3"]
 
 ```
 
