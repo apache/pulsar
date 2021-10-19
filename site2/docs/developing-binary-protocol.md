@@ -29,31 +29,32 @@ The Pulsar protocol allows for two types of commands:
 
 Simple (payload-free) commands have this basic structure:
 
-| Component   | Description                                                                             | Size (in bytes) |
-|:------------|:----------------------------------------------------------------------------------------|:----------------|
-| totalSize   | The size of the frame, counting everything that comes after it (in bytes)               | 4               |
-| commandSize | The size of the protobuf-serialized command                                             | 4               |
-| message     | The protobuf message serialized in a raw binary format (rather than in protobuf format) |                 |
+| Component     | Description                                                                             | Size (in bytes) |
+|:--------------|:----------------------------------------------------------------------------------------|:----------------|
+| `totalSize`   | The size of the frame, counting everything that comes after it (in bytes)               | 4               |
+| `commandSize` | The size of the protobuf-serialized command                                             | 4               |
+| `message`     | The protobuf message serialized in a raw binary format (rather than in protobuf format) |                 |
 
 ### Payload commands
 
 Payload commands have this basic structure:
 
-| Component                        | Required or optional| Description                                                                                 | Size (in bytes) |
-|:---------------------------------|:----------|:--------------------------------------------------------------------------------------------|:----------------|
-| totalSize                        | Required  | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
-| commandSize                      | Required  | The size of the protobuf-serialized command                                                 | 4               |
-| message                          | Required  | The protobuf message serialized in a raw binary format (rather than in protobuf format)     |                 |
-| magicNumberOfBrokerEntryMetadata | Optional  | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**.                     | 2               |
-| brokerEntryMetadataSize          | Optional  | The size of the broker entry metadata                                                       | 4               |
-| brokerEntryMetadata              | Optional  | The broker entry metadata stored as a binary protobuf message                               |                 |
-| magicNumber                      | Required  | A 2-byte byte array (`0x0e01`) identifying the current format                               | 2               |
-| checksum                         | Required  | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it | 4               |
-| metadataSize                     | Required  | The size of the message [metadata](#message-metadata)                                       | 4               |
-| metadata                         | Required  | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
-| payload                          | Required  | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
+| Component                          | Required or optional| Description                                                                                 | Size (in bytes) |
+|:-----------------------------------|:----------|:--------------------------------------------------------------------------------------------|:----------------|
+| `totalSize`                        | Required  | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
+| `commandSize`                      | Required  | The size of the protobuf-serialized command                                                 | 4               |
+| `message`                          | Required  | The protobuf message serialized in a raw binary format (rather than in protobuf format)     |                 |
+| `magicNumberOfBrokerEntryMetadata` | Optional  | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**.                     | 2               |
+| `brokerEntryMetadataSize`          | Optional  | The size of the broker entry metadata                                                       | 4               |
+| `brokerEntryMetadata`              | Optional  | The broker entry metadata stored as a binary protobuf message                               |                 |
+| `magicNumber`                      | Required  | A 2-byte byte array (`0x0e01`) identifying the current format                               | 2               |
+| `checksum`                         | Required  | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it | 4               |
+| `metadataSize`                     | Required  | The size of the message [metadata](#message-metadata)                                       | 4               |
+| `metadata`                         | Required  | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
+| `payload`                          | Required  | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
 
 ## Broker entry metadata
+
 Broker entry metadata is stored alongside the message metadata as a serialized protobuf message.
 It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.
 
@@ -88,19 +89,19 @@ object.
 For a single batch, the payload format will look like this:
 
 
-| Field         | Description                                                 |
-|:--------------|:------------------------------------------------------------|
-| metadataSizeN | The size of the single message metadata serialized Protobuf |
-| metadataN     | Single message metadata                                     |
-| payloadN      | Message payload passed by application                       |
+| Field           | Required or optional | Description                                                |
+|:----------------|:---------------------|:-----------------------------------------------------------|
+| `metadataSizeN` | Required             |The size of the single message metadata serialized Protobuf |
+| `metadataN`     | Required             |Single message metadata                                     |
+| `payloadN`      | Required             |Message payload passed by application                       |
 
 Each metadata field looks like this;
 
-| Field                      | Description                                             |
-|:---------------------------|:--------------------------------------------------------|
-| properties                 | Application-defined properties                          |
-| partition key *(optional)* | Key to indicate the hashing to a particular partition   |
-| payload_size               | Size of the payload for the single message in the batch |
+| Field           | Required or optional  | Description                                             |
+|:----------------|:----------------------|:--------------------------------------------------------|
+| `properties`    | Required              | Application-defined properties                          |
+| `partition key` | Optional              | Key to indicate the hashing to a particular partition   |
+| `payload_size`  | Required              | Size of the payload for the single message in the batch |
 
 When compression is enabled, the whole batch will be compressed at once.
 
