@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.HashMap;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -96,5 +98,17 @@ public class SchemaDefinitionBuilderTest {
         Assert.assertTrue(definition.getSchemaWriterOpt().isPresent());
         Assert.assertSame(reader, definition.getSchemaReaderOpt().get());
         Assert.assertSame(writer, definition.getSchemaWriterOpt().get());
+    }
+
+    @Test
+    public void testJsr310ConversionsSetViaProperties() {
+        HashMap<String, String> properties = new HashMap<>();
+        properties.put(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "true");
+        SchemaDefinition<Object> definition = SchemaDefinition.builder()
+            .withPojo(Object.class)
+            .withProperties(properties)
+            .build();
+
+        Assert.assertTrue(definition.isJsr310ConversionEnabled());
     }
 }
