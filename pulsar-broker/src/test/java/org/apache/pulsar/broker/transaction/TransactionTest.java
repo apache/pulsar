@@ -302,7 +302,7 @@ public class TransactionTest extends TransactionTestBase {
 
 
     @Test
-    public void testAppendBufferWithNotManageLedgerExceptionCanCastToMLE()
+    public void testPublishTransactionMessageThrowException()
             throws Exception {
         String topic = "persistent://pulsar/system/testReCreateTopic";
         admin.topics().createNonPartitionedTopic(topic);
@@ -350,7 +350,7 @@ public class TransactionTest extends TransactionTestBase {
 
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
-                Assert.assertTrue(e.getCause() instanceof ManagedLedgerException);
+                Assert.assertTrue(e.getCause() instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
                 countDownLatch.countDown();
             }
         };
