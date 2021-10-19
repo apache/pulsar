@@ -75,9 +75,7 @@ You can have different types of access modes on topics for producers.
 
 :::note
 
-
 Once an application creates a producer with `Exclusive` or `WaitForExclusive` access mode successfully, the instance of this application is guaranteed to be the **only writer** to the topic. Any other producers trying to produce messages on this topic will either get errors immediately or have to wait until they get the `Exclusive` access. 
-
 For more information, see [PIP 68: Exclusive Producer](https://github.com/apache/pulsar/wiki/PIP-68:-Exclusive-Producer).
 
 :::
@@ -228,13 +226,13 @@ The following example shows how to enable dead letter topic in a Java client usi
 ```java
 
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-.topic(topic)
-.subscriptionName("my-subscription")
-.subscriptionType(SubscriptionType.Shared)
-.deadLetterPolicy(DeadLetterPolicy.builder()
-.maxRedeliverCount(maxRedeliveryCount)
-.build())
-.subscribe();
+              .topic(topic)
+              .subscriptionName("my-subscription")
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .build())
+              .subscribe();
 
 ```
 The default dead letter topic uses this format: 
@@ -249,14 +247,14 @@ If you want to specify the name of the dead letter topic, use this Java client e
 ```java
 
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-.topic(topic)
-.subscriptionName("my-subscription")
-.subscriptionType(SubscriptionType.Shared)
-.deadLetterPolicy(DeadLetterPolicy.builder()
-.maxRedeliverCount(maxRedeliveryCount)
-.deadLetterTopic("your-topic-name")
-.build())
-.subscribe();
+              .topic(topic)
+              .subscriptionName("my-subscription")
+              .subscriptionType(SubscriptionType.Shared)
+              .deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(maxRedeliveryCount)
+                    .deadLetterTopic("your-topic-name")
+                    .build())
+              .subscribe();
 
 ```
 

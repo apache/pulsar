@@ -230,7 +230,6 @@ With [Pulsar Functions CLI](reference-pulsar-admin.md#functions), you can debug 
 
 :::tip
 
-
 For complete commands of **Pulsar Functions CLI**, see [here](reference-pulsar-admin.md#functions)。
 
 :::
@@ -257,7 +256,6 @@ $ pulsar-admin functions get options
 |`--tenant`|The tenant of a Pulsar Function.
 
 :::tip
-
 
 `--fqfn` consists of `--name`, `--namespace` and `--tenant`, so you can specify either `--fqfn` or `--name`, `--namespace` and `--tenant`.
 
@@ -533,7 +531,6 @@ You must specify the [entire topic name](getting-started-pulsar.md#topic-names) 
 ```text
 
 Function in trigger function has unidentified topic
-
 Reason: Function in trigger function has unidentified topic
 
 ```

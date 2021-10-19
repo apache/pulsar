@@ -63,7 +63,6 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 :::note
 
 You can write Pulsar Functions in python2 or python3. However, Pulsar only looks for `python` as the interpreter.
-
 If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
 start the functions. In this case, you can create a symlink. Your system will fail if
 you subsequently install any other package that depends on Python 2.x. A solution is under development in [Issue 5518](https://github.com/apache/pulsar/issues/5518).

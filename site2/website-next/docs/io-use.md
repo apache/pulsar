@@ -16,7 +16,6 @@ Pulsar bundles several [builtin connectors](io-connectors) used to move data in 
 
 :::note
 
-
 When using a non-builtin connector, you need to specify the path of a archive file for the connector.
 
 :::

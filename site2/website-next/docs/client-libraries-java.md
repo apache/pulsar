@@ -405,9 +405,7 @@ consumer.acknowledge(messages)
 
 :::note
 
-
 Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
-
 The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
 
 ```java
@@ -483,7 +481,6 @@ pulsarClient.newConsumer()
 ```
 
 :::note
-
 
 By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
 
@@ -581,7 +578,6 @@ Only the first consumer is allowed to the subscription, other consumers receive 
 
 :::note
 
-
 If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error. 
 
 :::
@@ -633,7 +629,6 @@ consumer2 will receive:
 ```
 
 :::note
-
 
 If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers. 
 
@@ -753,7 +748,6 @@ Producer producer = client.newProducer()
 ```
 
 :::note
-
 
 If the message key is not specified, messages without key are dispatched to one consumer in order by default.
 

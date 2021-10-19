@@ -633,13 +633,13 @@ schema, see [Pulsar schema](schema-get-started).
 
 The following example shows how to create a producer and a consumer with a ProtobufNative schema.
 ​
-1. Generate the `User` class using Protobuf3.
+1. Generate the `User` class using Protobuf3. 
 
-:::note
+    :::note
 
-You need to use Protobuf3 or later versions.
+    You need to use Protobuf3 or later versions.
 
-:::
+    :::
 ​
 
    ```protobuf

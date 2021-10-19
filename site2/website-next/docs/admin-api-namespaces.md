@@ -1099,9 +1099,7 @@ disables the throttling.
 :::note
 
 - If neither `clusterDispatchRate` nor `topicDispatchRate` is configured, dispatch throttling is disabled.
-
 - If `topicDispatchRate` is not configured, `clusterDispatchRate` takes effect.
-
 - If `topicDispatchRate` is configured, `topicDispatchRate` takes effect.
 
 :::

@@ -527,7 +527,6 @@ To delete a schema for a topic, you can use one of the following methods.
 
 :::note
 
-
 In any case, the **delete** action deletes **all versions** of a schema registered for a topic.
 
 :::
@@ -647,7 +646,6 @@ public interface SchemaStorage {
 
 :::tip
 
-
 For a complete example of **schema storage** implementation, see [BookKeeperSchemaStorage](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorage.java) class.
 
 :::
@@ -666,7 +664,6 @@ public interface SchemaStorageFactory {
 ```
 
 :::tip
-
 
 For a complete example of **schema storage factory** implementation, see [BookKeeperSchemaStorageFactory](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.java) class.
 

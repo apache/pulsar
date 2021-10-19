@@ -36,17 +36,16 @@ This example uses Pulsar 2.8.0.
 
     ```
 
-:::note
+    :::note
 
-* If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-* If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+    * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+    * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
-:::
+    :::
 
 ## Configuration
 
 :::note
-
 
 Before offloading data from BookKeeper to Aliyun OSS, you need to configure some properties of the Aliyun OSS offload driver.
 
@@ -95,7 +94,6 @@ managedLedgerOffloadBucket=pulsar-topic-offload
 The endpoint is the region where a bucket is located.
 
 :::tip
-
 
 For more information about Aliyun OSS regions and endpoints,  see [International website](https://www.alibabacloud.com/help/doc-detail/31837.htm) or [Chinese website](https://help.aliyun.com/document_detail/31837.html).
 
@@ -162,7 +160,6 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
-
 For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-threshold-em-). 
 
 :::
@@ -195,11 +192,11 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
     ```
 
-:::tip
+    :::tip
 
-For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
+    For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
 
-:::
+    :::
 
 - This example checks the Aliyun OSS offloader status using pulsar-admin.
 
@@ -250,8 +247,8 @@ For more information about the `pulsar-admin topics offload options` command, in
 
     ````
 
-:::tip
+    :::tip
 
-For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
+    For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
 
-:::
+    :::

@@ -84,10 +84,8 @@ Directory | Contains
 :::tip
 
 If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：
-
 * [Install builtin connectors (optional)](#install-builtin-connectors-optional)
 * [Install tiered storage offloaders (optional)](#install-tiered-storage-offloaders-optional)
-
 Otherwise, skip this step and perform the next step [Start Pulsar standalone](#start-pulsar-standalone). Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.
 
 :::
@@ -128,7 +126,6 @@ pulsar-io-aerospike-@pulsar:version@.nar
 :::note
 
 * If you are running Pulsar in a bare metal cluster, make sure `connectors` tarball is unzipped in every pulsar directory of the broker (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).
-
 * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 :::
@@ -152,11 +149,11 @@ To get started with [tiered storage offloaders](concepts-tiered-storage), you ne
 
 * use [wget](https://www.gnu.org/software/wget):
 
-```shell
+  ```shell
 
-$ wget pulsar:offloader_release_url
+  $ wget pulsar:offloader_release_url
 
-```
+  ```
 
 After you download the tarball, untar the offloaders package and copy the offloaders as `offloaders`
 in the pulsar directory:
@@ -180,7 +177,6 @@ For more information on how to configure tiered storage, see [Tiered storage coo
 :::note
 
 * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's pulsar directory.
-
 * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
 :::
@@ -207,7 +203,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 :::tip
 
-* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.
+* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
 
 :::
 You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
@@ -267,7 +263,6 @@ Press `Ctrl+C` to stop a local standalone Pulsar.
 :::tip
 
 If the service runs as a background process using the `pulsar-daemon start standalone` command, then use the `pulsar-daemon stop standalone`  command to stop the service.
-
 For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 
 :::

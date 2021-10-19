@@ -75,7 +75,6 @@ $ cd /etc/pki/tls/misc/CA
 $ ./CA -newca
 
 ```
-
 to generate `cakey.pem` .
 
 :::

@@ -49,12 +49,12 @@ This example uses Pulsar 2.5.1.
 
     ```
 
-:::note
+    :::note
 
-* If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-* If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+    * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+    * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
-:::
+    :::
 
 3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
 
@@ -73,17 +73,16 @@ This example uses Pulsar 2.5.1.
 
     ```
 
-   :::note
+    :::note
 
-   * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+    * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+    * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
-   :::
+    :::
 
 ## Configuration
 
 :::note
-
 
 Before offloading data from BookKeeper to filesystem, you need to configure some properties of the filesystem offloader driver. 
 
@@ -187,7 +186,6 @@ You can set the following configurations in the _filesystem_offload_core_site.xm
 
 :::tip
 
-
 For more information about the Hadoop HDFS, see [here](https://hadoop.apache.org/docs/current/).
 
 :::
@@ -217,7 +215,6 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 ```
 
 :::tip
-
 
 For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#set-offload-threshold). 
 
@@ -251,11 +248,11 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 
     ```
 
-:::tip
+    :::tip
 
-For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
+    For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
 
-:::
+    :::
 
 - This example checks filesystem offloader status using pulsar-admin.
 
@@ -306,11 +303,11 @@ For more information about the `pulsar-admin topics offload options` command, in
 
     ````
 
-:::tip
+    :::tip
 
-For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
+    For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
 
-:::
+    :::
 
 ## Tutorial
 

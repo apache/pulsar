@@ -96,7 +96,6 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
 
 :::tip
 
-
 For more information about **how to create a source connector**, see {@inject: github:KafkaSource:/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java}.
 
 :::
@@ -161,7 +160,6 @@ Pulsar uses [testcontainers](https://www.testcontainers.org/) **for all integrat
 
 :::tip
 
-
 For more information about **how to create integration tests for Pulsar connectors**, see {@inject: github:IntegrationTests:/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io}.
 
 :::
@@ -175,7 +173,6 @@ There are two methods to
 work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-jar).
 
 :::note
-
 
 If you plan to package and distribute your connector for others to use, you are obligated to
 
@@ -193,7 +190,6 @@ licensing and copyrights of all libraries of your connector.
 a bit of Java ClassLoader isolation. 
 
 :::tip
-
 
 For more information about **how NAR works**, see [here](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd). 
 
@@ -231,7 +227,6 @@ sinkClass: fully qualified class name (only if sink connector)
 For Gradle users, there is a [Gradle Nar plugin available on the Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.lhotari.gradle-nar-plugin).
 
 :::tip
-
 
 For more information about an **how to use NAR for Pulsar connectors**, see {@inject: github:TwitterFirehose:/pulsar-io/twitter/pom.xml}.
 

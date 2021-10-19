@@ -33,7 +33,6 @@ Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**.
 
 :::note
 
-
 Broker is only supported on 64-bit JVM.
 
 :::
@@ -113,7 +112,6 @@ server.3=zk3.us-west.example.com:2888:3888
 On each host, you need to specify the ID of the node in the `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 
 :::tip
-
 
 See the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation for detailed information on `myid` and more.
 

@@ -189,7 +189,6 @@ The following is an example of `show catalogs`. The query continues until the re
 
 :::note
 
-
 Since the response data is not in sync with the query state from the perspective of clients, you cannot rely on the response data to determine whether the query completes.
 
 :::
