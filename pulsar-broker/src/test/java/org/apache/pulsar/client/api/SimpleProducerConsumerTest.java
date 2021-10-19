@@ -116,9 +116,9 @@ import org.testng.annotations.Test;
 @Test(groups = "flaky")
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
-    private static final int RECEIVE_TIMEOUT_SECONDS = 3;
-    private static final int RECEIVE_TIMEOUT_SHORT_MILLIS = 100;
-    private static final int RECEIVE_TIMEOUT_MEDIUM_MILLIS = 500;
+    private static final int RECEIVE_TIMEOUT_SECONDS = 15;
+    private static final int RECEIVE_TIMEOUT_SHORT_MILLIS = 500;
+    private static final int RECEIVE_TIMEOUT_MEDIUM_MILLIS = 2500;
 
     @BeforeMethod(alwaysRun = true)
     @Override
