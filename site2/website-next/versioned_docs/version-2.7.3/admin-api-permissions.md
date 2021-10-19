@@ -1,7 +1,7 @@
 ---
 id: admin-api-permissions
 title: Managing permissions
-sidebar_label: Permissions
+sidebar_label: "Permissions"
 original_id: admin-api-permissions
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: admin-api-topics
 title: Manage topics
-sidebar_label: Topics
+sidebar_label: "Topics"
 original_id: admin-api-topics
 ---
 

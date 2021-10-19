@@ -1,7 +1,7 @@
 ---
 id: client-libraries-python
 title: Pulsar Python client
-sidebar_label: Python
+sidebar_label: "Python"
 original_id: client-libraries-python
 ---
 

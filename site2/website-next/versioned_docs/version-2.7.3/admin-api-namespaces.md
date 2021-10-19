@@ -1,7 +1,7 @@
 ---
 id: admin-api-namespaces
 title: Managing Namespaces
-sidebar_label: Namespaces
+sidebar_label: "Namespaces"
 original_id: admin-api-namespaces
 ---
 

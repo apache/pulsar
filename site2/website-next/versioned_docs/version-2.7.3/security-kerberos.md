@@ -1,7 +1,7 @@
 ---
 id: security-kerberos
 title: Authentication using Kerberos
-sidebar_label: Authentication using Kerberos
+sidebar_label: "Authentication using Kerberos"
 original_id: security-kerberos
 ---
 
@@ -368,7 +368,7 @@ saslJaasBrokerSectionName=PulsarBroker
 
 ## Regarding authorization and role token
 
-For Kerberos authentication, we usually use the authenticated principal as the role token for Pulsar authorization. For more information of authorization in Pulsar, see [security authorization](security-authorization.md).
+For Kerberos authentication, we usually use the authenticated principal as the role token for Pulsar authorization. For more information of authorization in Pulsar, see [security authorization](security-authorization).
 
 If you enable 'authorizationEnabled', you need to set `superUserRoles` in `broker.conf` that corresponds to the name registered in kdc.
 

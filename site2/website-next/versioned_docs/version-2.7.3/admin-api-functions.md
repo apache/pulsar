@@ -1,7 +1,7 @@
 ---
 id: admin-api-functions
 title: Manage Functions
-sidebar_label: Functions
+sidebar_label: "Functions"
 original_id: admin-api-functions
 ---
 

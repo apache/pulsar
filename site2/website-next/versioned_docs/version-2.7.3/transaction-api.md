@@ -1,7 +1,7 @@
 ---
 id: transactions-api
 title: Transactions API (Developer Preview)
-sidebar_label: Transactions API
+sidebar_label: "Transactions API"
 original_id: transactions-api
 ---
 
@@ -18,12 +18,14 @@ Currently, Pulsar transaction is a developer preview feature. It is disabled by 
 
 ```
 transactionCoordinatorEnabled=true
+
 ```
 
 2. Initialize transaction coordinator metadata, so the transaction coordinators can leverage advantages of the partitioned topic, such as load balance.
 
 ```
 bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
+
 ```
 
 After initializing transaction coordinator metadata, you can use the transactions API. The following APIs are available.
@@ -37,6 +39,7 @@ PulsarClient pulsarClient = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .enableTransaction(true)
         .build();
+
 ```
 
 ## Start transactions
@@ -48,6 +51,7 @@ Transaction txn = pulsarClient
         .withTransactionTimeout(5, TimeUnit.MINUTES)
         .build()
         .get();
+
 ```
 
 ## Produce transaction messages
@@ -56,6 +60,7 @@ A transaction parameter is required when producing new transaction messages. The
 
 ```
 producer.newMessage(txn).value("Hello Pulsar Transaction".getBytes()).sendAsync();
+
 ```
 
 ## Acknowledge the messages with the transaction
@@ -65,6 +70,7 @@ The transaction acknowledgement requires a transaction parameter. The transactio
 ```
 Message<byte[]> message = consumer.receive();
 consumer.acknowledgeAsync(message.getMessageId(), txn);
+
 ```
 
 ## Commit transactions 
@@ -73,6 +79,7 @@ When the transaction is committed, consumers receive the transaction messages an
 
 ```
 txn.commit().get();
+
 ```
 
 ## Abort transaction
@@ -81,11 +88,13 @@ When the transaction is aborted, the transaction acknowledgement is canceled and
 
 ```
 txn.abort().get();
+
 ```
 
 ### Example
 The following example shows how messages are processed in transaction.
  
+
 ```
 PulsarClient pulsarClient = PulsarClient.builder()
         .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
@@ -129,6 +138,7 @@ sourceConsumer.acknowledgeAsync(message.getMessageId(), txn);
 sinkProducer.newMessage(txn).value("sink data").sendAsync();
 
 txn.commit().get();
+
 ```
 
 ## Enable batch messages in transactions
@@ -139,6 +149,7 @@ To enable batch index acknowledgement, you need to set `acknowledgmentAtBatchInd
 
 ```
 acknowledgmentAtBatchIndexLevelEnabled=true
+
 ```
 
 And then you need to call the `enableBatchIndexAcknowledgment(true)` method in the consumer builder.
@@ -152,4 +163,5 @@ Consumer<byte[]> sinkConsumer = pulsarClient
         .subscriptionType(SubscriptionType.Shared)
         .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
         .subscribe();
+
 ```

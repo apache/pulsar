@@ -1,7 +1,7 @@
 ---
 id: client-libraries-websocket
 title: Pulsar WebSocket API
-sidebar_label: WebSocket
+sidebar_label: "WebSocket"
 original_id: client-libraries-websocket
 ---
 
