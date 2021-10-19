@@ -34,8 +34,6 @@ typedef std::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &>
 typedef std::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
 typedef std::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
 class PULSAR_PUBLIC ExecutorService : public std::enable_shared_from_this<ExecutorService> {
-    friend class ClientConnection;
-
    public:
     using IOService = boost::asio::io_service;
 

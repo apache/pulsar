@@ -162,11 +162,11 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       resolver_(executor_->createTcpResolver()),
       socket_(executor_->createSocket()),
 #if BOOST_VERSION >= 107000
-      strand_(boost::asio::make_strand(executor_->io_service_.get_executor())),
+      strand_(boost::asio::make_strand(executor_->getIOService().get_executor())),
 #elif BOOST_VERSION >= 106600
-      strand_(executor_->io_service_->get_executor()),
+      strand_(executor_->getIOService().get_executor()),
 #else
-      strand_(executor_->io_service_),
+      strand_(executor_->getIOService()),
 #endif
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
