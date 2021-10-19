@@ -47,7 +47,6 @@ If you start Pulsar successfully, you will see `INFO`-level log messages like th
 
 :::tip
 
-
 When you start a local standalone cluster, a `public/default`
 
 :::

@@ -31,7 +31,6 @@ By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `
 
 :::note
 
-
 Broker is only supported on 64-bit JVM.
 
 :::
@@ -86,10 +85,8 @@ Directory | Contains
 :::tip
 
 If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：
-
 * [Install builtin connectors (optional)](#install-builtin-connectors-optional)
 * [Install tiered storage offloaders (optional)](#install-tiered-storage-offloaders-optional)
-
 Otherwise, skip this step and perform the next step [Start Pulsar standalone](#start-pulsar-standalone). Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.
 
 :::
@@ -129,10 +126,8 @@ pulsar-io-aerospike-@pulsar:version@.nar
 
 :::note
 
-
 * If you are running Pulsar in a bare metal cluster, make sure `connectors` tarball is unzipped in every pulsar directory of the broker
 (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).
-
 * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos)),
 you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
@@ -141,7 +136,6 @@ you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pul
 ### Install tiered storage offloaders (optional)
 
 :::tip
-
 
 Since `2.2.0` release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
 To enable tiered storage feature, follow the instructions below; otherwise skip this section.
@@ -185,9 +179,7 @@ For more information on how to configure tiered storage, see [Tiered storage coo
 
 :::note
 
-
 * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's pulsar directory.
-
 * If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DCOS](deploy-dcos)),
 you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
@@ -215,8 +207,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 :::tip
 
-
-* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.
+* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
 
 :::
 You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
@@ -248,7 +239,6 @@ If the message has been successfully consumed, you will see a confirmation like 
 
 :::tip
 
-
 As you have noticed that we do not explicitly create the `my-topic` topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.
 
 :::
@@ -276,9 +266,7 @@ Press `Ctrl+C` to stop a local standalone Pulsar.
 
 :::tip
 
-
 If the service runs as a background process using the `pulsar-daemon start standalone` command, then use the `pulsar-daemon stop standalone`  command to stop the service.
-
 For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 
 :::

@@ -49,7 +49,6 @@ To run Pulsar on bare metal, the following configuration is recommended:
 
 :::note
 
-
 Broker is only supported on 64-bit JVM.
 
 :::

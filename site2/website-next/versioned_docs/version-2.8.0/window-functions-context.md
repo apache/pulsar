@@ -297,10 +297,9 @@ You can access all logs produced by `LoggingFunction` via the `persistent://publ
 
 ## Metrics
 
-Pulsar window functions can publish arbitrary metrics to the metrics interface which can be queried.
+Pulsar window functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
 :::note
-
 
 If a Pulsar window function uses the language-native interface for Java, that function is not able to publish metrics and stats to Pulsar.
 
@@ -408,7 +407,6 @@ This example demonstrates how to access key/value pairs provided to Pulsar windo
 Java SDK context object enables you to access key/value pairs provided to Pulsar window functions via the command line (as JSON). 
 
 :::tip
-
 
 For all key/value pairs passed to Java window functions, both the `key` and the `value` are `String`. To set the value to be a different type, you need to deserialize it from the `String` type.
 

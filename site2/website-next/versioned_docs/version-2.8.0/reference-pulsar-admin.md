@@ -2393,13 +2393,9 @@ Create a partitioned topic. A partitioned topic must be created before producers
 
 :::note
 
-
 By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
-
 To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
-
 To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
-
 For more information about these two parameters, see [here](reference-configuration.md#broker).
 
 :::
@@ -2445,13 +2441,9 @@ Creates a non-partitioned topic. A non-partitioned topic must explicitly be crea
 
 :::note
 
-
 By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
-
 To disable this feature, set `brokerDeleteInactiveTopicsEnabled`  to `false`.
-
 To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
-
 For more information about these two parameters, see [here](reference-configuration.md#broker).
 
 :::

@@ -15,7 +15,6 @@ We also recommend that you need to provide all values using the `helm upgrade --
 
 :::note
 
-
 You can retrieve your previous `--set` arguments cleanly, with `helm get values <release-name>`. If you direct this into a file (`helm get values <release-name> > pulsar.yml`), you can safely
 
 :::

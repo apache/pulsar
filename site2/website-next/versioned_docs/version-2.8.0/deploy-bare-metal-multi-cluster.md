@@ -41,7 +41,6 @@ Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**.
 
 :::note
 
-
 Broker is only supported on 64-bit JVM.
 
 :::

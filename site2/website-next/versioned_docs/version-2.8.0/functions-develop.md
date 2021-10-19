@@ -63,7 +63,6 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 :::note
 
 You can write Pulsar Functions in python2 or python3. However, Pulsar only looks for `python` as the interpreter.
-
 If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
 start the functions. In this case, you can create a symlink. Your system will fail if
 you subsequently install any other package that depends on Python 2.x. A solution is under development in [Issue 5518](https://github.com/apache/pulsar/issues/5518).
@@ -1175,10 +1174,9 @@ $ bin/pulsar-admin functions localrun \
 
 ## Metrics
 
-Pulsar Functions allows you to deploy and manage processing functions that consume messages from and publish messages to Pulsar topics easily. It is important to ensure that the running functions are healthy at any time. Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried.
+Pulsar Functions allows you to deploy and manage processing functions that consume messages from and publish messages to Pulsar topics easily. It is important to ensure that the running functions are healthy at any time. Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
 :::note
-
 
 If a Pulsar Function uses the language-native interface for Java or Python, that function is not able to publish metrics and stats to Pulsar.
 
