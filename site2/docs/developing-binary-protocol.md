@@ -55,7 +55,7 @@ Payload commands have this basic structure:
 
 ## Broker entry metadata
 Broker entry metadata is stored alongside the message metadata as a serialized protobuf message.
-It is created by the broker when the message arrived at the broker and passed without change to the consumer if configured.
+It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.
 
 | Field              | Necessity       | Description                                                                                                                   |
 |:-------------------|:----------------|:------------------------------------------------------------------------------------------------------------------------------|
