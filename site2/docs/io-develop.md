@@ -272,7 +272,7 @@ a bit of Java ClassLoader isolation.
 > For more information about **how NAR works**, see
 > [here](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd). 
 
-Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors). 
+Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors.md). 
 
 The easiest approach to package a Pulsar connector is to create a NAR package using
 [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin).
