@@ -1,7 +1,7 @@
 ---
 id: client-libraries-go
 title: Pulsar Go client
-sidebar_label: Go
+sidebar_label: "Go"
 ---
 
 import Tabs from '@theme/Tabs';

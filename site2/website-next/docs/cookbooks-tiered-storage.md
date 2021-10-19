@@ -1,7 +1,7 @@
 ---
 id: cookbooks-tiered-storage
 title: Tiered Storage
-sidebar_label: Tiered Storage
+sidebar_label: "Tiered Storage"
 ---
 
 import Tabs from '@theme/Tabs';

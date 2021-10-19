@@ -1,7 +1,7 @@
 ---
 id: client-libraries-dotnet
 title: Pulsar C# client
-sidebar_label: C#
+sidebar_label: "C#"
 ---
 
 import Tabs from '@theme/Tabs';

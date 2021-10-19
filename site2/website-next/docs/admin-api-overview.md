@@ -1,7 +1,7 @@
 ---
 id: admin-api-overview
 title: Pulsar admin interface
-sidebar_label: Overview
+sidebar_label: "Overview"
 ---
 
 import Tabs from '@theme/Tabs';

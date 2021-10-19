@@ -1,7 +1,7 @@
 ---
 id: io-rabbitmq-source
 title: RabbitMQ source connector
-sidebar_label: RabbitMQ source connector
+sidebar_label: "RabbitMQ source connector"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -42,6 +42,7 @@ Before using the RabbitMQ source connector, you need to create a configuration f
 * JSON 
 
     ```json
+
     {
         "host": "localhost",
         "port": "5672",
@@ -59,11 +60,13 @@ Before using the RabbitMQ source connector, you need to create a configuration f
         "prefetchGlobal": "false",
         "passive": "false"
     }
+
     ```
 
 * YAML
 
     ```yaml
+
     configs:
         host: "localhost"
         port: 5672
@@ -80,5 +83,6 @@ Before using the RabbitMQ source connector, you need to create a configuration f
         prefetchCount: 0
         prefetchGlobal: "false"
         passive: "false"
+
     ```
 

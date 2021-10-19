@@ -1,7 +1,7 @@
 ---
 id: develop-load-manager
 title: Modular load manager
-sidebar_label: Modular load manager
+sidebar_label: "Modular load manager"
 ---
 
 import Tabs from '@theme/Tabs';

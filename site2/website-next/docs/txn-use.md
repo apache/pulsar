@@ -1,7 +1,7 @@
 ---
 id: txn-use
 title: How to use transactions?
-sidebar_label: How to use transactions?
+sidebar_label: "How to use transactions?"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -28,6 +28,7 @@ This section provides an example of how to use the transaction API to send and r
 
     ```
     transactionCoordinatorEnabled=true
+
     ```
 
     If you want to enable batch messages in transactions, follow the steps below.
@@ -36,6 +37,7 @@ This section provides an example of how to use the transaction API to send and r
 
       ```
       acknowledgmentAtBatchIndexLevelEnabled=true
+
       ```
 
 3. Initialize transaction coordinator metadata.
@@ -46,12 +48,14 @@ This section provides an example of how to use the transaction API to send and r
 
     ```
     bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
+
     ```
 
     **Output**
 
     ```
     Transaction coordinator metadata setup success
+
     ```
 
 4. Initialize a Pulsar client.
@@ -64,6 +68,7 @@ This section provides an example of how to use the transaction API to send and r
     .enableTransaction(true)
 
     .build();
+
     ```
 
 Now you can start using the transaction API to send and receive messages. Below is an example of a `consume-process-produce` application written in Java.
@@ -92,5 +97,6 @@ Consumer<byte[]> sinkConsumer = pulsarClient
     .subscriptionType(SubscriptionType.Shared)
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
     .subscribe();
+
 ```
 

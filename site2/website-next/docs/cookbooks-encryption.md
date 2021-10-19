@@ -1,7 +1,7 @@
 ---
 id: cookbooks-encryption
 title: Pulsar Encryption
-sidebar_label: Encryption 
+sidebar_label: "Encryption "
 ---
 
 import Tabs from '@theme/Tabs';

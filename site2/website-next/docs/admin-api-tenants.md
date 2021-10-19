@@ -1,7 +1,7 @@
 ---
 id: admin-api-tenants
 title: Managing Tenants
-sidebar_label: Tenants
+sidebar_label: "Tenants"
 ---
 
 import Tabs from '@theme/Tabs';

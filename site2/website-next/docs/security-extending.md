@@ -1,7 +1,7 @@
 ---
 id: security-extending
 title: Extending Authentication and Authorization in Pulsar
-sidebar_label: Extending
+sidebar_label: "Extending"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -12,7 +12,7 @@ Pulsar provides a way to use custom authentication and authorization mechanisms.
 
 ## Authentication
 
-Pulsar supports mutual TLS and Athenz authentication plugins. For how to use these authentication plugins, you can refer to the description in [Security](security-overview.md).
+Pulsar supports mutual TLS and Athenz authentication plugins. For how to use these authentication plugins, you can refer to the description in [Security](security-overview).
 
 You can use a custom authentication mechanism by providing the implementation in the form of two plugins. One plugin is for the Client library and the other plugin is for the Pulsar Proxy and/or Pulsar Broker to validate the credentials.
 
@@ -181,8 +181,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
@@ -196,8 +196,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,

@@ -1,7 +1,7 @@
 ---
 id: txn-what
 title: What are transactions?
-sidebar_label: What are transactions?
+sidebar_label: "What are transactions?"
 ---
 
 import Tabs from '@theme/Tabs';

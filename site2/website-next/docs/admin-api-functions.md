@@ -1,7 +1,7 @@
 ---
 id: admin-api-functions
 title: Manage Functions
-sidebar_label: Functions
+sidebar_label: "Functions"
 ---
 
 import Tabs from '@theme/Tabs';

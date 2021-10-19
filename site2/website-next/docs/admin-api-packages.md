@@ -1,7 +1,7 @@
 ---
 id: admin-api-packages
 title: Manage packages
-sidebar_label: Packages
+sidebar_label: "Packages"
 ---
 
 import Tabs from '@theme/Tabs';

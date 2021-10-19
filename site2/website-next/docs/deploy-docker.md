@@ -1,7 +1,7 @@
 ---
 id: deploy-docker
 title: Deploy a cluster on Docker
-sidebar_label: Docker
+sidebar_label: "Docker"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -23,6 +23,7 @@ You can pull a Pulsar image from [Docker Hub](https://hub.docker.com/r/apachepul
 
 ```
 docker pull apachepulsar/pulsar-all:latest
+
 ```
 
 ### Create three containers
@@ -32,6 +33,7 @@ Create containers for ZooKeeper, BookKeeper and broker. In this example, they ar
 docker run -it --name bookkeeper apachepulsar/pulsar-all:latest /bin/bash
 docker run -it --name zookeeper apachepulsar/pulsar-all:latest /bin/bash
 docker run -it --name broker apachepulsar/pulsar-all:latest /bin/bash
+
 ```
 
 ### Create a network
@@ -39,6 +41,7 @@ To deploy a Pulsar cluster on Docker, you need to create a `network` and connect
 
 ```
 docker network create pulsar
+
 ```
 
 ### Connect containers to network
@@ -48,8 +51,9 @@ Connect the containers of ZooKeeper, BookKeeper and broker to the `pulsar` netwo
 docker network connect pulsar zookeeper
 docker network connect pulsar bookkeeper
 docker network connect pulsar broker
+
 ```
 
 To check whether the containers are successfully connected to the network, enter the `docker network inspect pulsar` command.
 
-For detailed information about how to deploy ZooKeeper cluster, BookKeeper cluster, brokers, see [deploy a cluster on bare metal](deploy-bare-metal.md).
+For detailed information about how to deploy ZooKeeper cluster, BookKeeper cluster, brokers, see [deploy a cluster on bare metal](deploy-bare-metal).

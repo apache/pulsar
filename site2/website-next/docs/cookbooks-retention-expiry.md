@@ -1,7 +1,7 @@
 ---
 id: cookbooks-retention-expiry
 title: Message retention and expiry
-sidebar_label: Message retention and expiry
+sidebar_label: "Message retention and expiry"
 ---
 
 import Tabs from '@theme/Tabs';

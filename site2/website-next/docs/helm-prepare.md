@@ -1,7 +1,7 @@
 ---
 id: helm-prepare
 title: Prepare Kubernetes resources
-sidebar_label: Prepare
+sidebar_label: "Prepare"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -58,13 +58,17 @@ The following table describes all variables.
 Run the script, by passing in your desired parameters. It can work with the default parameters except for `PROJECT` which is required:
 
 ```bash
+
 PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh up
+
 ```
 
 The script can also be used to clean up the created GKE resources.
 
 ```bash
+
 PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh down
+
 ```
 
 #### Create cluster with local SSDs
@@ -73,4 +77,5 @@ To install a Pulsar Helm chart using local persistent volumes, you need to creat
 
 ```
 PROJECT=<gcloud project id> USE_LOCAL_SSD=true LOCAL_SSD_COUNT=<local-ssd-count> scripts/pulsar/gke_bootstrap_script.sh up
+
 ```

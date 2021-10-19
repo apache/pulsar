@@ -1,7 +1,7 @@
 ---
 id: reference-terminology
 title: Pulsar Terminology
-sidebar_label: Terminology
+sidebar_label: "Terminology"
 ---
 
 import Tabs from '@theme/Tabs';

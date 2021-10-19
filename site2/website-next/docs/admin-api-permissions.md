@@ -1,7 +1,7 @@
 ---
 id: admin-api-permissions
 title: Managing permissions
-sidebar_label: Permissions
+sidebar_label: "Permissions"
 ---
 
 import Tabs from '@theme/Tabs';

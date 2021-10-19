@@ -1,7 +1,7 @@
 ---
 id: client-libraries-node
 title: The Pulsar Node.js client
-sidebar_label: Node.js
+sidebar_label: "Node.js"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -125,7 +125,7 @@ Here is an example:
 ```JavaScript
 
 const producer = await client.createProducer({
-  topic: 'my-topic',
+  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace 
 });
 
 await producer.send({
@@ -147,7 +147,7 @@ Pulsar Node.js producers have the following methods available:
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
 | `send(Object)` | Publishes a [message](#messages) to the producer's topic. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object whose result is the message ID runs executor function. | `Promise<Object>` |
-| `flush()` | Sends message from send queue to Pulser broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
+| `flush()` | Sends message from send queue to Pulsar broker. When the message is successfully acknowledged by the Pulsar broker, or an error is thrown, the Promise object runs executor function. | `Promise<null>` |
 | `close()` | Closes the producer and releases all resources allocated to it. Once `close()` is called, no more messages are accepted from the publisher. This method returns a Promise object. It runs the executor function when all pending publish requests are persisted by Pulsar. If an error is thrown, no pending writes are retried. | `Promise<null>` |
 | `getProducerName()` | Getter method of the producer name. | `string` |
 | `getTopic()` | Getter method of the name of the topic. | `string` |

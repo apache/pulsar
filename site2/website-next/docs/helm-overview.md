@@ -1,7 +1,7 @@
 ---
 id: helm-overview
 title: Apache Pulsar Helm Chart
-sidebar_label: Overview
+sidebar_label: "Overview"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -55,9 +55,9 @@ Moreover, Helm chart supports:
 
 ## Quick start
 
-To run with Apache Pulsar Helm chart as fast as possible in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
+To run with Apache Pulsar Helm chart as fast as possible in a **non-production** use case, we provide a [quick start guide](getting-started-helm) for Proof of Concept (PoC) deployments.
 
-This guide walks you through deploying Apache Pulsar Helm chart with default values and features, but it is *not* suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete [Installation Guide](helm-install.md).
+This guide walks you through deploying Apache Pulsar Helm chart with default values and features, but it is *not* suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete [Installation Guide](helm-install).
 
 ## Troubleshooting
 
@@ -67,30 +67,34 @@ Although we have done our best to make these charts as seamless as possible, tro
 
 The Apache Pulsar Helm chart contains all required dependencies.
 
-If you deploy a PoC for testing, we strongly suggest you follow this [Quick Start Guide](getting-started-helm.md) for your first iteration.
+If you deploy a PoC for testing, we strongly suggest you follow this [Quick Start Guide](getting-started-helm) for your first iteration.
 
-1. [Preparation](helm-prepare.md)
-2. [Deployment](helm-deploy.md)
+1. [Preparation](helm-prepare)
+2. [Deployment](helm-deploy)
 
 ## Upgrading
 
 Once the Apache Pulsar Helm chart is installed, you can use `helm upgrade` command to configure and update it.
 
 ```bash
+
 helm repo add apache https://pulsar.apache.org/charts
 helm repo update
 helm get values <pulsar-release-name> > pulsar.yaml
 helm upgrade <pulsar-release-name> apache/pulsar -f pulsar.yaml
+
 ```
 
-For more detailed information, see [Upgrading](helm-upgrade.md).
+For more detailed information, see [Upgrading](helm-upgrade).
 
 ## Uninstallation
 
 To uninstall the Apache Pulsar Helm chart, run the following command:
 
 ```bash
+
 helm delete <pulsar-release-name>
+
 ```
 
 For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by `helm delete` command. It is recommended to *consciously* remove these items, as they affect re-deployment.

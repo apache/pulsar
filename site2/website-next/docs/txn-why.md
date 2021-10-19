@@ -1,7 +1,7 @@
 ---
 id: txn-why
 title: Why transactions?
-sidebar_label: Why transactions?
+sidebar_label: "Why transactions?"
 ---
 
 import Tabs from '@theme/Tabs';
