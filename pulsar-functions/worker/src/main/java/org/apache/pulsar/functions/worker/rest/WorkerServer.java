@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.client.filter.MetricsFilter;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -68,6 +69,15 @@ public class WorkerServer {
 
     private ServerConnector httpConnector;
     private ServerConnector httpsConnector;
+
+    // Set up Servlet Filter to measure and collect durations taken by servlet requests
+    private static final String METRIC_NAME = "jetty_request_time_seconds";
+    private static final String METRIC_HELP = null;
+    private static final Integer METRIC_PATH_COMPONENTS = null;           // depth of path measuring, null defaults to 1
+    private static final double[] METRIC_BUCKETS =                        // histogram buckets (seconds)
+            {0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10};
+    private static final FilterHolder metricsFilter = new FilterHolder(
+            new MetricsFilter(METRIC_NAME, METRIC_HELP, METRIC_PATH_COMPONENTS, METRIC_BUCKETS));
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
@@ -176,6 +186,10 @@ public class WorkerServer {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
+
+        // Metrics Filter
+        contextHandler.addFilter(metricsFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+
         if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
             contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
