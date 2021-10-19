@@ -39,7 +39,7 @@ Simple (payload-free) commands have this basic structure:
 
 Payload commands have this basic structure:
 
-| Component                        | Necessity | Description                                                                                 | Size (in bytes) |
+| Component                        | Required or optional| Description                                                                                 | Size (in bytes) |
 |:---------------------------------|:----------|:--------------------------------------------------------------------------------------------|:----------------|
 | totalSize                        | Required  | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
 | commandSize                      | Required  | The size of the protobuf-serialized command                                                 | 4               |
