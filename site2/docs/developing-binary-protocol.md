@@ -57,7 +57,7 @@ Payload commands have this basic structure:
 Broker entry metadata is stored alongside the message metadata as a serialized protobuf message.
 It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.
 
-| Field              | Necessity       | Description                                                                                                                   |
+| Field              | Required or optional       | Description                                                                                                                   |
 |:-------------------|:----------------|:------------------------------------------------------------------------------------------------------------------------------|
 | `broker_timestamp` | Optional        | The timestamp when the message arrived at the broker (i.e. as the number of milliseconds since January 1st, 1970 in UTC)      |
 | `index`            | Optional        | The index of the message, assigned by the broker
