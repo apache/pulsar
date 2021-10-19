@@ -532,18 +532,25 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
         return;
     }
 
-    auto self = shared_from_this();
-    connectTimeoutTask_->setCallback([this, self](const PeriodicTask::ErrorCode& ec) {
-        if (state_ != Ready) {
-            LOG_ERROR(cnxString_ << "Connection was not established in " << connectTimeoutTask_->getPeriodMs()
-                                 << " ms, close the socket");
+    auto self = ClientConnectionWeakPtr(shared_from_this());
+
+    connectTimeoutTask_->setCallback([self](const PeriodicTask::ErrorCode& ec) {
+        ClientConnectionPtr ptr = self.lock();
+        if (!ptr) {
+            // Connection was already destroyed
+            return;
+        }
+
+        if (ptr->state_ != Ready) {
+            LOG_ERROR(ptr->cnxString_ << "Connection was not established in "
+                                      << ptr->connectTimeoutTask_->getPeriodMs() << " ms, close the socket");
             PeriodicTask::ErrorCode err;
-            socket_->close(err);
+            ptr->socket_->close(err);
             if (err) {
-                LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+                LOG_WARN(ptr->cnxString_ << "Failed to close socket: " << err.message());
             }
         }
-        connectTimeoutTask_->stop();
+        ptr->connectTimeoutTask_->stop();
     });
 
     LOG_DEBUG(cnxString_ << "Connecting to " << endpointIterator->endpoint() << "...");
