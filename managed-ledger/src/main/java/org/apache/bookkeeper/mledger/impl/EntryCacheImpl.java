@@ -158,8 +158,8 @@ public class EntryCacheImpl implements EntryCache {
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
+        if (log.isTraceEnabled()) {
+            log.trace("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
                     lastPosition, entriesRemoved, sizeRemoved);
         }
 
