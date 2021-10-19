@@ -66,7 +66,7 @@ It is created by the broker when the message arrived at the broker and passed wi
 
 Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without changes to the consumer.
 
-| Field                    | Necessity | Description                                                                                                                                                                                                                                               |
+| Field                    | Required or optional | Description                                                                                                                                                                                                                                               |
 |:-------------------------|:----------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `producer_name`          | Required  | The name of the producer that published the message                                                                                                                                                                                         |
 | `sequence_id`            | Required  | The sequence ID of the message, assigned by producer                                                                                                                                                                                        |
