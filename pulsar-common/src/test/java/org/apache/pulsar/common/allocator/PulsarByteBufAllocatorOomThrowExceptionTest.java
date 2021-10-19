@@ -45,15 +45,19 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
 
     @Test
     public void testDefaultConfig() throws Exception {
-        System.setProperty("pulsar.allocator.out_of_memory_policy", "ThrowException");
-        final ByteBufAllocatorImpl mockAllocator = PowerMockito.mock(ByteBufAllocatorImpl.class);
-        PowerMockito.whenNew(ByteBufAllocatorImpl.class).withAnyArguments().thenReturn(mockAllocator);
-        final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
-        // use the variable, in case the compiler optimization
-        log.trace("{}", byteBufAllocator);
-        PowerMockito.verifyNew(ByteBufAllocatorImpl.class).withArguments(Mockito.any(ByteBufAllocator.class), Mockito.any(),
-                Mockito.eq(PoolingPolicy.PooledDirect), Mockito.any(), Mockito.eq(OutOfMemoryPolicy.ThrowException),
-                Mockito.any(), Mockito.eq(LeakDetectionPolicy.Advanced));
+        try {
+            System.setProperty("pulsar.allocator.out_of_memory_policy", "ThrowException");
+            final ByteBufAllocatorImpl mockAllocator = PowerMockito.mock(ByteBufAllocatorImpl.class);
+            PowerMockito.whenNew(ByteBufAllocatorImpl.class).withAnyArguments().thenReturn(mockAllocator);
+            final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
+            // use the variable, in case the compiler optimization
+            log.trace("{}", byteBufAllocator);
+            PowerMockito.verifyNew(ByteBufAllocatorImpl.class).withArguments(Mockito.any(ByteBufAllocator.class), Mockito.any(),
+                    Mockito.eq(PoolingPolicy.PooledDirect), Mockito.any(), Mockito.eq(OutOfMemoryPolicy.ThrowException),
+                    Mockito.any(), Mockito.eq(LeakDetectionPolicy.Advanced));
+        } finally {
+            System.clearProperty("pulsar.allocator.out_of_memory_policy");
+        }
     }
 
 }
