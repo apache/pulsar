@@ -38,24 +38,21 @@ import java.util.Set;
 public final class MultipleListenerValidator {
 
     /**
-     * validate the configure of `advertisedListeners`, `internalListenerName`, `advertisedAddress`.
-     * 1. `advertisedListeners` and `advertisedAddress` must not appear together.
-     * 2. the listener name in `advertisedListeners` must not duplicate.
-     * 3. user can not assign same 'host:port' to different listener.
-     * 4. if `internalListenerName` is absent, the first `listener` in the `advertisedListeners` will be the `internalListenerName`.
-     * 5. if pulsar do not specify `brokerServicePortTls`, should only contain one entry of `pulsar://` per listener name.
+     * Validate the configuration of `advertisedListeners`, `internalListenerName`.
+     * 1. `advertisedListeners` consists of a comma-separated list of endpoints.
+     * 2. Each endpoint consists of a listener name and an associated address (`listener:scheme://host:port`).
+     * 3. A listener name may be repeated to define both a non-TLS and a TLS endpoint.
+     * 4. Duplicate definitions are disallowed.
+     * 5. If `internalListenerName` is absent, set it to the first listener defined in `advertisedListeners`.
      * @param config the pulsar broker configure.
      * @return
      */
     public static Map<String, AdvertisedListener> validateAndAnalysisAdvertisedListener(ServiceConfiguration config) {
-        if (StringUtils.isNotBlank(config.getAdvertisedListeners()) && StringUtils.isNotBlank(config.getAdvertisedAddress())) {
-            throw new IllegalArgumentException("`advertisedListeners` and `advertisedAddress` must not appear together");
-        }
         if (StringUtils.isBlank(config.getAdvertisedListeners())) {
             return Collections.emptyMap();
         }
         Optional<String> firstListenerName = Optional.empty();
-        Map<String, List<String>> listeners = Maps.newHashMap();
+        Map<String, List<String>> listeners = Maps.newLinkedHashMap();
         for (final String str : StringUtils.split(config.getAdvertisedListeners(), ",")) {
             int index = str.indexOf(":");
             if (index <= 0) {
@@ -76,8 +73,8 @@ public final class MultipleListenerValidator {
         if (!listeners.containsKey(config.getInternalListenerName())) {
             throw new IllegalArgumentException("the `advertisedListeners` configure do not contain `internalListenerName` entry");
         }
-        final Map<String, AdvertisedListener> result = Maps.newHashMap();
-        final Map<String, Set<String>> reverseMappings = Maps.newHashMap();
+        final Map<String, AdvertisedListener> result = Maps.newLinkedHashMap();
+        final Map<String, Set<String>> reverseMappings = Maps.newLinkedHashMap();
         for (final Map.Entry<String, List<String>> entry : listeners.entrySet()) {
             if (entry.getValue().size() > 2) {
                 throw new IllegalArgumentException("there are redundant configure for listener `" + entry.getKey() + "`");

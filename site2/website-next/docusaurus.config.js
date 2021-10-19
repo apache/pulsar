@@ -98,6 +98,9 @@ module.exports = {
   favicon: "img/favicon.ico",
   organizationName: "apache",
   projectName: "pulsar",
+  customFields: {
+    githubUrl,
+  },
   themeConfig: {
     navbar: {
       title: "",
@@ -145,26 +148,7 @@ module.exports = {
     },
     footer: {
       style: "dark",
-      links: [
-        {
-          title: "More",
-          items: [
-            {
-              label: "Docs",
-              to: "/docs",
-            },
-            {
-              label: "Blog",
-              to: "/blog",
-            },
-            {
-              label: "GitHub",
-              href: "https://github.com/apache/pulsar",
-            },
-          ],
-        },
-      ],
-      copyright: `Copyright © ${new Date().getFullYear()} Apache Pulsar, Inc.`,
+      copyright: `Inc.Copyright © ${new Date().getFullYear()} The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.`,
     },
     prism: {
       // theme: lightCodeTheme,
@@ -210,5 +194,6 @@ module.exports = {
         fromExtensions: ["md"],
       },
     ],
+    "./postcss-tailwind-loader",
   ],
 };
