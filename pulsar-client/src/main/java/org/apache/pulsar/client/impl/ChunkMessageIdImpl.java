@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.util.Objects;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 
 public class ChunkMessageIdImpl extends MessageIdImpl implements MessageId {
     private final MessageIdImpl firstChunkMsgId;
@@ -34,6 +38,53 @@ public class ChunkMessageIdImpl extends MessageIdImpl implements MessageId {
 
     public MessageIdImpl getLastChunkMessageId() {
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return new StringBuilder()
+                // First chunk message id part
+                .append(firstChunkMsgId.ledgerId)
+                .append(':')
+                .append(firstChunkMsgId.entryId)
+                .append(':')
+                .append(firstChunkMsgId.partitionIndex)
+                .append(';')
+
+                // Last chunk message id part
+                .append(ledgerId)
+                .append(':')
+                .append(entryId)
+                .append(':')
+                .append(partitionIndex)
+                .toString();
+    }
+
+    @Override
+    public byte[] toByteArray() {
+
+        // write last chunk message id
+        MessageIdData msgId = super.writeMessageIdData(null,-1, 0);
+
+        // write first chunk message id
+        msgId.setFirstChunkMessageId();
+        firstChunkMsgId.writeMessageIdData(msgId.getFirstChunkMessageId(), -1, 0);
+
+        int size = msgId.getSerializedSize();
+        ByteBuf serialized = Unpooled.buffer(size, size);
+        msgId.writeTo(serialized);
+
+        return serialized.array();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return super.equals(o);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), firstChunkMsgId.hashCode());
     }
 
 }
