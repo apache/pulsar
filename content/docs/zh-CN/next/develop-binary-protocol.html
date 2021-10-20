@@ -99,44 +99,59 @@
 <tr><th style="text-align:left">组件</th><th style="text-align:left">说明</th><th style="text-align:left">长度 (in bytes)</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">totalSize</td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">commandSize</td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">message</td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>totalSize</code></td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>commandSize</code></td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>message</code></td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="有效载荷命令"></a><a href="#有效载荷命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>有效载荷命令</h3>
 <p>有效载荷命令的基本结构如下：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">组件</th><th style="text-align:left">说明</th><th style="text-align:left">长度 (in bytes)</th></tr>
+<tr><th style="text-align:left">组件</th><th style="text-align:left">Required or optional</th><th style="text-align:left">说明</th><th style="text-align:left">长度 (in bytes)</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">totalSize</td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">commandSize</td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">message</td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left">magicNumber</td><td style="text-align:left">消息格式版本号，是一个2 byte长的字节数组(如<code>0x0e01</code>)</td><td style="text-align:left">2</td></tr>
-<tr><td style="text-align:left">checksum</td><td style="text-align:left"><a href="http://www.evanjones.ca/crc32c.html">CRC32-C 校验码</a>，对之后的所有内容(metadataSize + metadata + payload)生成的一个校验码，用来校验是否有数据丢失或者被篡改。</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">metadataSize</td><td style="text-align:left">消息<a href="#message-metadata">元数据</a>的长度</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">metadata</td><td style="text-align:left">消息<a href="#message-metadata">元数据</a>存储成二进制 protobuf 消息。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left">payload</td><td style="text-align:left">帧中剩下的任何内容都被认为是有效负载，可以包括任何字节序列。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>totalSize</code></td><td style="text-align:left">Required</td><td style="text-align:left">帧的总长度，帧中所有字段的总长度，以字节为单位。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>commandSize</code></td><td style="text-align:left">Required</td><td style="text-align:left">Protobuf 序列化命令的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>message</code></td><td style="text-align:left">Required</td><td style="text-align:left">以原始二进制格式(而不是 protobuf 格式)序列化的 protobuf 消息</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>magicNumberOfBrokerEntryMetadata</code></td><td style="text-align:left">可选</td><td style="text-align:left">A 2-byte byte array (<code>0x0e02</code>) identifying the broker entry metadata</td></tr>
+<tr><td style="text-align:left"><strong>Note</strong>: <code>magicNumberOfBrokerEntryMetadata</code> , <code>brokerEntryMetadataSize</code>, and <code>brokerEntryMetadata</code> should be used <strong>together</strong>.</td><td style="text-align:left">2</td></tr>
+<tr><td style="text-align:left"><code>brokerEntryMetadataSize</code></td><td style="text-align:left">可选</td><td style="text-align:left">The size of the broker entry metadata</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>brokerEntryMetadata</code></td><td style="text-align:left">可选</td><td style="text-align:left">The broker entry metadata stored as a binary protobuf message</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>magicNumber</code></td><td style="text-align:left">Required</td><td style="text-align:left">消息格式版本号，是一个2 byte长的字节数组(如<code>0x0e01</code>)</td><td style="text-align:left">2</td></tr>
+<tr><td style="text-align:left"><code>checksum</code></td><td style="text-align:left">Required</td><td style="text-align:left"><a href="http://www.evanjones.ca/crc32c.html">CRC32-C 校验码</a>，对之后的所有内容(metadataSize + metadata + payload)生成的一个校验码，用来校验是否有数据丢失或者被篡改。</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>metadataSize</code></td><td style="text-align:left">Required</td><td style="text-align:left">消息<a href="#message-metadata">元数据</a>的长度</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>metadata</code></td><td style="text-align:left">Required</td><td style="text-align:left">消息<a href="#message-metadata">元数据</a>存储成二进制 protobuf 消息。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">Required</td><td style="text-align:left">帧中剩下的任何内容都被认为是有效负载，可以包括任何字节序列。</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="broker-entry-metadata"></a><a href="#broker-entry-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker entry metadata</h2>
+<p>Broker entry metadata is stored alongside the message metadata as a serialized protobuf message. It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">Required or optional</th><th style="text-align:left">说明</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>broker_timestamp</code></td><td style="text-align:left">可选</td><td style="text-align:left">The timestamp when a message arrived at the broker (<code>id est</code> as the number of milliseconds since January 1st, 1970 in UTC)</td></tr>
+<tr><td style="text-align:left"><code>index</code></td><td style="text-align:left">可选</td><td style="text-align:left">The index of the message. It is assigned by the broker.</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="消息元数据"></a><a href="#消息元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息元数据</h2>
-<p>消息的元数据和应用的消息内容一起序列化为 protobuf 消息。元数据由生产者创建，并原封不动的传递给消费者。</p>
+<p>Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without changes to the consumer.</p>
 <table>
 <thead>
-<tr><th style="text-align:left">字段</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">Required or optional</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>producer_name</code></td><td style="text-align:left">发布消息的生产者的名称</td></tr>
-<tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">生产者指定的消息的序号ID</td></tr>
-<tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">生产者发布消息的时间，Unix 时间戳格式(即自1970年1月1日起的毫秒数)</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键/值对序列(使用<a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>Key Value</code></a>格式的消息)。 这是应用指定的键和值，在 Pulsar 中没有特殊的意义。</td></tr>
-<tr><td style="text-align:left"><code>replicated_from</code> <em>(可选)</em></td><td style="text-align:left">发送消息的时候，指定消息能被复制的<a href="/docs/zh-CN/next/reference-terminology#cluster">目标集群</a>的集群名称。</td></tr>
-<tr><td style="text-align:left"><code>partition_key</code> <em>(可选)</em></td><td style="text-align:left">While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose. Partition key is used as the message key.</td></tr>
-<tr><td style="text-align:left"><code>compression</code> <em>(可选)</em></td><td style="text-align:left">表示消息内容将被哪种压缩协议进行压缩。</td></tr>
-<tr><td style="text-align:left"><code>uncompressed_size</code> <em>(可选)</em></td><td style="text-align:left">如果使用压缩，生产者必须用原始有效载荷大小填充未压缩的大小字段</td></tr>
-<tr><td style="text-align:left"><code>num_messages_in_batch</code> <em>(可选)</em></td><td style="text-align:left">如果消息是多个消息组成的<a href="#batch-messages">批量</a>消息，则这个字段必须指定这个批消息里面包含的消息的数量。</td></tr>
+<tr><td style="text-align:left"><code>producer_name</code></td><td style="text-align:left">Required</td><td style="text-align:left">发布消息的生产者的名称</td></tr>
+<tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">Required</td><td style="text-align:left">生产者指定的消息的序号ID</td></tr>
+<tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">Required</td><td style="text-align:left">生产者发布消息的时间，Unix 时间戳格式(即自1970年1月1日起的毫秒数)</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">Required</td><td style="text-align:left">键/值对序列(使用<a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>Key Value</code></a>格式的消息)。 这是应用指定的键和值，在 Pulsar 中没有特殊的意义。</td></tr>
+<tr><td style="text-align:left"><code>replicated_from</code></td><td style="text-align:left">可选</td><td style="text-align:left">发送消息的时候，指定消息能被复制的<a href="/docs/zh-CN/next/reference-terminology#cluster">目标集群</a>的集群名称。</td></tr>
+<tr><td style="text-align:left"><code>partition_key</code></td><td style="text-align:left">可选</td><td style="text-align:left">While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose. Partition key is used as the message key.</td></tr>
+<tr><td style="text-align:left"><code>compression</code></td><td style="text-align:left">可选</td><td style="text-align:left">表示消息内容将被哪种压缩协议进行压缩。</td></tr>
+<tr><td style="text-align:left"><code>uncompressed_size</code></td><td style="text-align:left">可选</td><td style="text-align:left">如果使用压缩，生产者必须用原始有效载荷大小填充未压缩的大小字段</td></tr>
+<tr><td style="text-align:left"><code>num_messages_in_batch</code></td><td style="text-align:left">可选</td><td style="text-align:left">如果消息是多个消息组成的<a href="#batch-messages">批量</a>消息，则这个字段必须指定这个批消息里面包含的消息的数量。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="批量消息"></a><a href="#批量消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>批量消息</h3>
@@ -144,23 +159,23 @@
 <p>对于单个批次，payload 字段的格式如下：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">字段</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">Required or optional</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">metadataSizeN</td><td style="text-align:left">单条消息元数据序列为 Protobuf 格式数据后的大小。</td></tr>
-<tr><td style="text-align:left">metadataN</td><td style="text-align:left">单条消息元数据</td></tr>
-<tr><td style="text-align:left">payloadN</td><td style="text-align:left">应用发送的消息内容</td></tr>
+<tr><td style="text-align:left"><code>metadataSizeN</code></td><td style="text-align:left">Required</td><td style="text-align:left">单条消息元数据序列为 Protobuf 格式数据后的大小。</td></tr>
+<tr><td style="text-align:left"><code>metadataN</code></td><td style="text-align:left">Required</td><td style="text-align:left">单条消息元数据</td></tr>
+<tr><td style="text-align:left"><code>payloadN</code></td><td style="text-align:left">Required</td><td style="text-align:left">应用发送的消息内容</td></tr>
 </tbody>
 </table>
 <p>每条元数据的格式如下：</p>
 <table>
 <thead>
-<tr><th style="text-align:left">字段</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">Required or optional</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">properties</td><td style="text-align:left">应用程序定义的属性</td></tr>
-<tr><td style="text-align:left">partition key <em>(optional)</em></td><td style="text-align:left">指定某个分区的散列的键。</td></tr>
-<tr><td style="text-align:left">payload_size</td><td style="text-align:left">批量消息里面的单条消息的消息内容的长度。</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">Required</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left"><code>partition key</code></td><td style="text-align:left">可选</td><td style="text-align:left">指定某个分区的散列的键。</td></tr>
+<tr><td style="text-align:left"><code>payload_size</code></td><td style="text-align:left">Required</td><td style="text-align:left">批量消息里面的单条消息的消息内容的长度。</td></tr>
 </tbody>
 </table>
 <p>当启用压缩时，batch 消息只会被压缩一次。</p>
@@ -241,7 +256,7 @@
 <p>消费者创建以后，客户端需要<em>允许</em>代理推送消息。这是通过<code>Flow</code>命令实现的。</p>
 <p><code>Flow</code>命令提供向消费者发送消息的附加<em>许可</em>。 典型的使用者实现将在应用程序准备使用这些消息之前使用队列来累积这些消息。</p>
 <p>应用程序将队列中一半的消息从队列中取出后，消费者会向 broker 发送许可请求更多消息(等于队列中一半的消息)。</p>
-<p>例如，如果队列的长度是1000，消费者从队列消费了500条消息。然后消费者向 broker 发送许可来请求500条消息。</p>
+<p>For example, if the queue size is 1000 and the consumer consumes 500 messages in the queue. Then the consumer sends permits to the broker to ask for 500 messages.</p>
 <h5><a class="anchor" aria-hidden="true" id="订阅命令"></a><a href="#订阅命令" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>订阅命令</h5>
 <pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandSubscribe</span> </span>{
   <span class="hljs-string">"topic"</span> : <span class="hljs-string">"persistent://my-property/my-cluster/my-namespace/my-topic"</span>,
@@ -359,7 +374,7 @@
 <h2><a class="anchor" aria-hidden="true" id="protobuf-接口"></a><a href="#protobuf-接口" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Protobuf 接口</h2>
 <p>All Pulsar's Protobuf definitions can be found <a href="https://github.com/apache/pulsar/tree/master//pulsar-common/src/main/proto/PulsarApi.proto">here</a>
 .</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/develop-tools"><span class="arrow-prev">← </span><span>模拟工具</span></a><a class="docs-next button" href="/docs/zh-CN/next/develop-schema"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#框架">框架</a><ul class="toc-headings"><li><a href="#简单命令">简单命令</a></li><li><a href="#有效载荷命令">有效载荷命令</a></li></ul></li><li><a href="#消息元数据">消息元数据</a><ul class="toc-headings"><li><a href="#批量消息">批量消息</a></li></ul></li><li><a href="#数据交互">数据交互</a><ul class="toc-headings"><li><a href="#建立连接">建立连接</a></li><li><a href="#保持连接">保持连接</a></li><li><a href="#生产者producer">生产者（Producer）</a></li><li><a href="#消费者consumer">消费者（Consumer）</a></li></ul></li><li><a href="#服务发现">服务发现</a><ul class="toc-headings"><li><a href="#搜索主题">搜索主题</a></li><li><a href="#发现分区主题">发现分区主题</a></li></ul></li><li><a href="#protobuf-接口">Protobuf 接口</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/develop-tools"><span class="arrow-prev">← </span><span>模拟工具</span></a><a class="docs-next button" href="/docs/zh-CN/next/develop-schema"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#框架">框架</a><ul class="toc-headings"><li><a href="#简单命令">简单命令</a></li><li><a href="#有效载荷命令">有效载荷命令</a></li></ul></li><li><a href="#broker-entry-metadata">Broker entry metadata</a></li><li><a href="#消息元数据">消息元数据</a><ul class="toc-headings"><li><a href="#批量消息">批量消息</a></li></ul></li><li><a href="#数据交互">数据交互</a><ul class="toc-headings"><li><a href="#建立连接">建立连接</a></li><li><a href="#保持连接">保持连接</a></li><li><a href="#生产者producer">生产者（Producer）</a></li><li><a href="#消费者consumer">消费者（Consumer）</a></li></ul></li><li><a href="#服务发现">服务发现</a><ul class="toc-headings"><li><a href="#搜索主题">搜索主题</a></li><li><a href="#发现分区主题">发现分区主题</a></li></ul></li><li><a href="#protobuf-接口">Protobuf 接口</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

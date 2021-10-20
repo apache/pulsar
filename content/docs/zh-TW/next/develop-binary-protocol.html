@@ -98,44 +98,59 @@
 <tr><th style="text-align:left">Component</th><th style="text-align:left">Description</th><th style="text-align:left">Size (in bytes)</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">totalSize</td><td style="text-align:left">The size of the frame, counting everything that comes after it (in bytes)</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">commandSize</td><td style="text-align:left">The size of the protobuf-serialized command</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">message</td><td style="text-align:left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>totalSize</code></td><td style="text-align:left">The size of the frame, counting everything that comes after it (in bytes)</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>commandSize</code></td><td style="text-align:left">The size of the protobuf-serialized command</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>message</code></td><td style="text-align:left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td><td style="text-align:left"></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="payload-commands"></a><a href="#payload-commands" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Payload commands</h3>
 <p>Payload commands have this basic structure:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Component</th><th style="text-align:left">Description</th><th style="text-align:left">Size (in bytes)</th></tr>
+<tr><th style="text-align:left">Component</th><th style="text-align:left">Required or optional</th><th style="text-align:left">Description</th><th style="text-align:left">Size (in bytes)</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">totalSize</td><td style="text-align:left">The size of the frame, counting everything that comes after it (in bytes)</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">commandSize</td><td style="text-align:left">The size of the protobuf-serialized command</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">message</td><td style="text-align:left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left">magicNumber</td><td style="text-align:left">A 2-byte byte array (<code>0x0e01</code>) identifying the current format</td><td style="text-align:left">2</td></tr>
-<tr><td style="text-align:left">checksum</td><td style="text-align:left">A <a href="http://www.evanjones.ca/crc32c.html">CRC32-C checksum</a> of everything that comes after it</td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">metadataSize</td><td style="text-align:left">The size of the message <a href="#message-metadata">metadata</a></td><td style="text-align:left">4</td></tr>
-<tr><td style="text-align:left">metadata</td><td style="text-align:left">The message <a href="#message-metadata">metadata</a> stored as a binary protobuf message</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left">payload</td><td style="text-align:left">Anything left in the frame is considered the payload and can include any sequence of bytes</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>totalSize</code></td><td style="text-align:left">Required</td><td style="text-align:left">The size of the frame, counting everything that comes after it (in bytes)</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>commandSize</code></td><td style="text-align:left">Required</td><td style="text-align:left">The size of the protobuf-serialized command</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>message</code></td><td style="text-align:left">Required</td><td style="text-align:left">The protobuf message serialized in a raw binary format (rather than in protobuf format)</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>magicNumberOfBrokerEntryMetadata</code></td><td style="text-align:left">Optional</td><td style="text-align:left">A 2-byte byte array (<code>0x0e02</code>) identifying the broker entry metadata</td></tr>
+<tr><td style="text-align:left"><strong>Note</strong>: <code>magicNumberOfBrokerEntryMetadata</code> , <code>brokerEntryMetadataSize</code>, and <code>brokerEntryMetadata</code> should be used <strong>together</strong>.</td><td style="text-align:left">2</td></tr>
+<tr><td style="text-align:left"><code>brokerEntryMetadataSize</code></td><td style="text-align:left">Optional</td><td style="text-align:left">The size of the broker entry metadata</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>brokerEntryMetadata</code></td><td style="text-align:left">Optional</td><td style="text-align:left">The broker entry metadata stored as a binary protobuf message</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>magicNumber</code></td><td style="text-align:left">Required</td><td style="text-align:left">A 2-byte byte array (<code>0x0e01</code>) identifying the current format</td><td style="text-align:left">2</td></tr>
+<tr><td style="text-align:left"><code>checksum</code></td><td style="text-align:left">Required</td><td style="text-align:left">A <a href="http://www.evanjones.ca/crc32c.html">CRC32-C checksum</a> of everything that comes after it</td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>metadataSize</code></td><td style="text-align:left">Required</td><td style="text-align:left">The size of the message <a href="#message-metadata">metadata</a></td><td style="text-align:left">4</td></tr>
+<tr><td style="text-align:left"><code>metadata</code></td><td style="text-align:left">Required</td><td style="text-align:left">The message <a href="#message-metadata">metadata</a> stored as a binary protobuf message</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">Required</td><td style="text-align:left">Anything left in the frame is considered the payload and can include any sequence of bytes</td><td style="text-align:left"></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="broker-entry-metadata"></a><a href="#broker-entry-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker entry metadata</h2>
+<p>Broker entry metadata is stored alongside the message metadata as a serialized protobuf message. It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.</p>
+<table>
+<thead>
+<tr><th style="text-align:left">Field</th><th style="text-align:left">Required or optional</th><th style="text-align:left">Description</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>broker_timestamp</code></td><td style="text-align:left">Optional</td><td style="text-align:left">The timestamp when a message arrived at the broker (<code>id est</code> as the number of milliseconds since January 1st, 1970 in UTC)</td></tr>
+<tr><td style="text-align:left"><code>index</code></td><td style="text-align:left">Optional</td><td style="text-align:left">The index of the message. It is assigned by the broker.</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="message-metadata"></a><a href="#message-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Message metadata</h2>
-<p>Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed on unchanged to the consumer.</p>
+<p>Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without changes to the consumer.</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Field</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Field</th><th style="text-align:left">Required or optional</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>producer_name</code></td><td style="text-align:left">The name of the producer that published the message</td></tr>
-<tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">The sequence ID of the message, assigned by producer</td></tr>
-<tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">A sequence of key/value pairs (using the <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>KeyValue</code></a> message). These are application-defined keys and values with no special meaning to Pulsar.</td></tr>
-<tr><td style="text-align:left"><code>replicated_from</code> <em>(optional)</em></td><td style="text-align:left">Indicates that the message has been replicated and specifies the name of the <a href="/docs/zh-TW/next/reference-terminology#cluster">cluster</a> where the message was originally published</td></tr>
-<tr><td style="text-align:left"><code>partition_key</code> <em>(optional)</em></td><td style="text-align:left">While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose. Partition key is used as the message key.</td></tr>
-<tr><td style="text-align:left"><code>compression</code> <em>(optional)</em></td><td style="text-align:left">Signals that payload has been compressed and with which compression library</td></tr>
-<tr><td style="text-align:left"><code>uncompressed_size</code> <em>(optional)</em></td><td style="text-align:left">If compression is used, the producer must fill the uncompressed size field with the original payload size</td></tr>
-<tr><td style="text-align:left"><code>num_messages_in_batch</code> <em>(optional)</em></td><td style="text-align:left">If this message is really a <a href="#batch-messages">batch</a> of multiple entries, this field must be set to the number of messages in the batch</td></tr>
+<tr><td style="text-align:left"><code>producer_name</code></td><td style="text-align:left">Required</td><td style="text-align:left">The name of the producer that published the message</td></tr>
+<tr><td style="text-align:left"><code>sequence_id</code></td><td style="text-align:left">Required</td><td style="text-align:left">The sequence ID of the message, assigned by producer</td></tr>
+<tr><td style="text-align:left"><code>publish_time</code></td><td style="text-align:left">Required</td><td style="text-align:left">The publish timestamp in Unix time (i.e. as the number of milliseconds since January 1st, 1970 in UTC)</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">Required</td><td style="text-align:left">A sequence of key/value pairs (using the <a href="https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto#L32"><code>KeyValue</code></a> message). These are application-defined keys and values with no special meaning to Pulsar.</td></tr>
+<tr><td style="text-align:left"><code>replicated_from</code></td><td style="text-align:left">Optional</td><td style="text-align:left">Indicates that the message has been replicated and specifies the name of the <a href="/docs/zh-TW/next/reference-terminology#cluster">cluster</a> where the message was originally published</td></tr>
+<tr><td style="text-align:left"><code>partition_key</code></td><td style="text-align:left">Optional</td><td style="text-align:left">While publishing on a partition topic, if the key is present, the hash of the key is used to determine which partition to choose. Partition key is used as the message key.</td></tr>
+<tr><td style="text-align:left"><code>compression</code></td><td style="text-align:left">Optional</td><td style="text-align:left">Signals that payload has been compressed and with which compression library</td></tr>
+<tr><td style="text-align:left"><code>uncompressed_size</code></td><td style="text-align:left">Optional</td><td style="text-align:left">If compression is used, the producer must fill the uncompressed size field with the original payload size</td></tr>
+<tr><td style="text-align:left"><code>num_messages_in_batch</code></td><td style="text-align:left">Optional</td><td style="text-align:left">If this message is really a <a href="#batch-messages">batch</a> of multiple entries, this field must be set to the number of messages in the batch</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="batch-messages"></a><a href="#batch-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Batch messages</h3>
@@ -143,23 +158,23 @@
 <p>For a single batch, the payload format will look like this:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Field</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Field</th><th style="text-align:left">Required or optional</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">metadataSizeN</td><td style="text-align:left">The size of the single message metadata serialized Protobuf</td></tr>
-<tr><td style="text-align:left">metadataN</td><td style="text-align:left">Single message metadata</td></tr>
-<tr><td style="text-align:left">payloadN</td><td style="text-align:left">Message payload passed by application</td></tr>
+<tr><td style="text-align:left"><code>metadataSizeN</code></td><td style="text-align:left">Required</td><td style="text-align:left">The size of the single message metadata serialized Protobuf</td></tr>
+<tr><td style="text-align:left"><code>metadataN</code></td><td style="text-align:left">Required</td><td style="text-align:left">Single message metadata</td></tr>
+<tr><td style="text-align:left"><code>payloadN</code></td><td style="text-align:left">Required</td><td style="text-align:left">Message payload passed by application</td></tr>
 </tbody>
 </table>
 <p>Each metadata field looks like this;</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Field</th><th style="text-align:left">Description</th></tr>
+<tr><th style="text-align:left">Field</th><th style="text-align:left">Required or optional</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">properties</td><td style="text-align:left">Application-defined properties</td></tr>
-<tr><td style="text-align:left">partition key <em>(optional)</em></td><td style="text-align:left">Key to indicate the hashing to a particular partition</td></tr>
-<tr><td style="text-align:left">payload_size</td><td style="text-align:left">Size of the payload for the single message in the batch</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">Required</td><td style="text-align:left">Application-defined properties</td></tr>
+<tr><td style="text-align:left"><code>partition key</code></td><td style="text-align:left">Optional</td><td style="text-align:left">Key to indicate the hashing to a particular partition</td></tr>
+<tr><td style="text-align:left"><code>payload_size</code></td><td style="text-align:left">Required</td><td style="text-align:left">Size of the payload for the single message in the batch</td></tr>
 </tbody>
 </table>
 <p>When compression is enabled, the whole batch will be compressed at once.</p>
@@ -358,7 +373,7 @@
 <h2><a class="anchor" aria-hidden="true" id="protobuf-interface"></a><a href="#protobuf-interface" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Protobuf interface</h2>
 <p>All Pulsar's Protobuf definitions can be found <a href="https://github.com/apache/pulsar/tree/master//pulsar-common/src/main/proto/PulsarApi.proto">here</a>
 .</p>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/next/develop-tools"><span class="arrow-prev">← </span><span>Simulation tools</span></a><a class="docs-next button" href="/docs/zh-TW/next/develop-schema"><span>Next</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#framing">Framing</a><ul class="toc-headings"><li><a href="#simple-commands">Simple commands</a></li><li><a href="#payload-commands">Payload commands</a></li></ul></li><li><a href="#message-metadata">Message metadata</a><ul class="toc-headings"><li><a href="#batch-messages">Batch messages</a></li></ul></li><li><a href="#interactions">Interactions</a><ul class="toc-headings"><li><a href="#connection-establishment">Connection establishment</a></li><li><a href="#keep-alive">Keep Alive</a></li><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li><li><a href="#service-discovery">Service discovery</a><ul class="toc-headings"><li><a href="#topic-lookup">Topic lookup</a></li><li><a href="#partitioned-topics-discovery">Partitioned topics discovery</a></li></ul></li><li><a href="#protobuf-interface">Protobuf interface</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/next/develop-tools"><span class="arrow-prev">← </span><span>Simulation tools</span></a><a class="docs-next button" href="/docs/zh-TW/next/develop-schema"><span>Next</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#framing">Framing</a><ul class="toc-headings"><li><a href="#simple-commands">Simple commands</a></li><li><a href="#payload-commands">Payload commands</a></li></ul></li><li><a href="#broker-entry-metadata">Broker entry metadata</a></li><li><a href="#message-metadata">Message metadata</a><ul class="toc-headings"><li><a href="#batch-messages">Batch messages</a></li></ul></li><li><a href="#interactions">Interactions</a><ul class="toc-headings"><li><a href="#connection-establishment">Connection establishment</a></li><li><a href="#keep-alive">Keep Alive</a></li><li><a href="#producer">Producer</a></li><li><a href="#consumer">Consumer</a></li></ul></li><li><a href="#service-discovery">Service discovery</a><ul class="toc-headings"><li><a href="#topic-lookup">Topic lookup</a></li><li><a href="#partitioned-topics-discovery">Partitioned topics discovery</a></li></ul></li><li><a href="#protobuf-interface">Protobuf interface</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

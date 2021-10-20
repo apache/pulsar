@@ -181,7 +181,7 @@ In this example, using await operator instead of executor function.</p>
 <tr><th style="text-align:left">参数名</th><th style="text-align:left">说明</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.7.3/reference-terminology#topic">topic</a> to which the producer publishes messages. The topic format is <code>&lt;topic-name&gt;</code> or <code>&lt;tenant-name&gt;/&lt;namespace-name&gt;/&lt;topic-name&gt;</code>. For example, <code>sample/ns1/my-topic</code>.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">Pulsar <a href="/docs/zh-CN/2.7.3/reference-terminology#topic">topic</a>接收从producer发送过来的消息。 Topic格式是<code>&lt;topic-name&gt;</code>或者<code>&lt;tenant-name&gt;/&lt;namespace-name&gt;/&lt;topic-name&gt;</code>。 例如：<code>sample/ns1/my-topic</code>。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>producerName</code></td><td style="text-align:left">A name for the producer. 如果没有指定名称，Pulsar 将自动生成全局唯一的名称。  如果指定名称，则指定的名称必须在<em>所有</em> Pulsar 集群中唯一，否则创建操作将会抛出异常。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>sendTimeoutMs</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/zh-CN/2.7.3/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. 如果将 <code>sendTimeoutMs</code> 设为 -1，那么超时时间将为无穷大（因而移除超时限定）。 Removing the send timeout is recommended when using Pulsar's <a href="/docs/zh-CN/2.7.3/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30000</td></tr>
 <tr><td style="text-align:left"><code>initialSequenceId</code></td><td style="text-align:left">消息的初始序列号 Producer 在发送消息时，将序列号添加到消息中。 只要发送消息，序列号就会相应增加。</td><td style="text-align:left"></td></tr>
@@ -321,7 +321,7 @@ In this example, using await operator instead of executor function.</p>
     <span class="hljs-built_in">console</span>.log(msg.getData().toString());
     msgConsumer.acknowledge(msg);
   },
-});
+})
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="reader"></a><a href="#reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader</h2>
 <p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recently unacked message). You can <a href="#reader-configuration">configure</a> Node.js readers using a reader configuration object.</p>
@@ -436,7 +436,7 @@ In this example, using await operator instead of executor function.</p>
 <tr><td style="text-align:left"><code>getMessageId()</code></td><td style="text-align:left"><a href="#message-id-object-operations">消息 id 对象</a>的 Getter 方法。</td><td style="text-align:left"><code>对象</code></td></tr>
 <tr><td style="text-align:left"><code>getPublishTimestamp()</code></td><td style="text-align:left">发布时间戳的 Getter 方法。</td><td style="text-align:left"><code>数值</code></td></tr>
 <tr><td style="text-align:left"><code>getEventTimestamp()</code></td><td style="text-align:left">事件时间戳的 Getter 方法。</td><td style="text-align:left"><code>数值</code></td></tr>
-<tr><td style="text-align:left"><code>getRedeliveryCount()</code></td><td style="text-align:left">Getter method of redelivery count.</td><td style="text-align:left"><code>数值</code></td></tr>
+<tr><td style="text-align:left"><code>getRedeliveryCount()</code></td><td style="text-align:left">获取重新投递数量的Getter方法</td><td style="text-align:left"><code>数值</code></td></tr>
 <tr><td style="text-align:left"><code>getPartitionKey()</code></td><td style="text-align:left">分区键的 Getter 方法。</td><td style="text-align:left"><code>String</code></td></tr>
 </tbody>
 </table>
@@ -472,7 +472,7 @@ In this example, using await operator instead of executor function.</p>
 <span class="hljs-symbol">privateKeyPath:</span> <span class="hljs-string">"./private.pem"</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="教程"></a><a href="#教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>教程</h3>
-<p>This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Node.js client.</p>
+<p>本节提供详细步骤，说明在 Node.js客户端中如何使用端到端加密功能。</p>
 <p><strong>前提条件</strong></p>
 <ul>
 <li>Pulsar C++ 客户端版本为2.7.1或者更高</li>
