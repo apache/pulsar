@@ -2602,11 +2602,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
         try {
-            Policies policies = pulsar.getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, topicName.getNamespace()));
+            Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
             // If namespace policies have the field set, it will override the broker-level setting
-            if (policies != null && policies.autoSubscriptionCreationOverride != null) {
-                return policies.autoSubscriptionCreationOverride;
+            if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
+                return policies.get().autoSubscriptionCreationOverride;
             }
         } catch (Throwable t) {
             // Ignoring since if we don't have policies, we fallback on the default

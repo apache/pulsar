@@ -1216,7 +1216,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Replicator replicator = pulsar1.getBrokerService().getTopicReference(topicName)
                 .get().getReplicators().get(cluster4);
 
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
+        Awaitility.waitAtMost(30, TimeUnit.SECONDS)
+            .untilAsserted(() -> Assert.assertTrue(replicator.isConnected()));
 
         admin1.clusters().deleteCluster(cluster4);
 
