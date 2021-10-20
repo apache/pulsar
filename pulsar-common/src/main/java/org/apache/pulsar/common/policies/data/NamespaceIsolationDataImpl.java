@@ -59,7 +59,7 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
     private List<String> primary;
 
     @ApiModelProperty(
-            name = "primary",
+            name = "secondary",
             value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
     )
     private List<String> secondary;
