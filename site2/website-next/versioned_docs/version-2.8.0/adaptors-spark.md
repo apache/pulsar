@@ -92,3 +92,4 @@ SparkStreamingPulsarReceiver pulsarReceiver = new SparkStreamingPulsarReceiver(
         new AuthenticationToken("token:<secret-JWT-token>"));
 
 ```
+

@@ -34,6 +34,7 @@ Prior to version 2.0, *all* Pulsar topics had the following form:
 {persistent|non-persistent}://property/cluster/namespace/topic
 
 ```
+
 Two important changes have been made in Pulsar 2.0:
 
 * There is no longer a [cluster component](#no-cluster)

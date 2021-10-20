@@ -34,7 +34,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
 1. Implement the {@inject: github:open:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method. 
 
     ```java
-
+    
     /**
     * Open connector with configuration
     *
@@ -43,7 +43,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
     * @throws Exception IO type exceptions when opening a connector
     */
     void open(final Map<String, Object> config, SourceContext sourceContext) throws Exception;
-
+    
     ```
 
     This method is called when the source connector is initialized. 
@@ -58,7 +58,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
 2. Implement the {@inject: github:read:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method.
 
     ```java
-
+    
         /**
         * Reads the next message from source.
         * If source does not have any new messages, this call should block.
@@ -66,7 +66,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
         * @throws Exception
         */
         Record<T> read() throws Exception;
-
+    
     ```
 
     If nothing to return, the implementation should be blocking rather than returning `null`. 
@@ -100,14 +100,17 @@ Pulsar IO automatically handles the schema and provides a strongly typed API bas
 If you know the schema type that you are producing, you can declare the Java class relative to that type in your sink declaration.
 
 ```
+
 public class MySource implements Source<String> {
     public Record<String> read() {}
 }
 
 ```
+
 If you want to implement a source that works with any schema, you can go with `byte[]` (of `ByteBuffer`) and use Schema.AUTO_PRODUCE_BYTES().
 
 ```
+
 public class MySource implements Source<byte[]> {
     public Record<byte[]> read() {
         
@@ -149,7 +152,7 @@ Developing a sink connector **is similar to** developing a source connector, tha
 1. Implement the {@inject: github:open:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
     ```java
-
+    
         /**
         * Open connector with configuration
         *
@@ -158,20 +161,20 @@ Developing a sink connector **is similar to** developing a source connector, tha
         * @throws Exception IO type exceptions when opening a connector
         */
         void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
-
+    
     ```
 
 2. Implement the {@inject: github:write:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
     ```java
-
+    
         /**
         * Write a message to Sink
         * @param record record to write to sink
         * @throws Exception
         */
         void write(Record<T> record) throws Exception;
-
+    
     ```
 
     During the implementation, you can decide how to write the `Value` and
@@ -186,6 +189,7 @@ Pulsar IO handles automatically the Schema and provides a strongly typed API bas
 If you know the Schema type that you are consuming from you can declare the Java class relative to that type in your Sink declaration.
 
 ```
+
 public class MySink implements Sink<String> {
     public void write(Record<String> record) {}
 }
@@ -195,6 +199,7 @@ public class MySink implements Sink<String> {
 If you want to implement a sink that works with any schema, you can you go with the special GenericObject interface.
 
 ```
+
 public class MySink implements Sink<GenericObject> {
     public void write(Record<GenericObject> record) {
         Schema schema = record.getSchema();
@@ -217,6 +222,7 @@ You are able to access the native AVRO record using  `genericObject.getNativeObj
 In the case of KeyValue type, you can access both the schema for the key and the schema for the value using this code.
 
 ```
+
 public class MySink implements Sink<GenericObject> {
     public void write(Record<GenericObject> record) {
         Schema schema = record.getSchema();
@@ -389,6 +395,7 @@ Here is an example of how to customize metrics for a Java connector.
 <TabItem value="Java">
 
 ```
+
 public class TestMetricSink implements Sink<String> {
 
         @Override

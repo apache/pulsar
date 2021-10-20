@@ -40,7 +40,7 @@ Before using the Solr sink connector, you need to create a configuration file th
 * JSON
 
     ```json
-
+    
     {
         "solrUrl": "localhost:2181,localhost:2182/chroot",
         "solrMode": "SolrCloud",
@@ -49,13 +49,13 @@ Before using the Solr sink connector, you need to create a configuration file th
         "username": "fakeuser",
         "password": "fake@123"
     }
-
+    
     ```
 
 * YAML
 
     ```yaml
-
+    
     {
         solrUrl: "localhost:2181,localhost:2182/chroot"
         solrMode: "SolrCloud"
@@ -64,6 +64,6 @@ Before using the Solr sink connector, you need to create a configuration file th
         username: "fakeuser"
         password: "fake@123"
     }
-
+    
     ```
 

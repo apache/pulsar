@@ -28,8 +28,9 @@ This section provides an example of how to use the transaction API to send and r
     Change the configuration in the `broker.conf` file.
 
     ```
+    
     transactionCoordinatorEnabled=true
-
+    
     ```
 
     If you want to enable batch messages in transactions, follow the steps below.
@@ -37,8 +38,9 @@ This section provides an example of how to use the transaction API to send and r
     Set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
       ```
+      
       acknowledgmentAtBatchIndexLevelEnabled=true
-
+      
       ```
 
 3. Initialize transaction coordinator metadata.
@@ -48,20 +50,23 @@ This section provides an example of how to use the transaction API to send and r
     **Input**
 
     ```
+    
     bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
-
+    
     ```
 
     **Output**
 
     ```
+    
     Transaction coordinator metadata setup success
-
+    
     ```
 
 4. Initialize a Pulsar client.
 
     ```
+    
     PulsarClient client = PulsarClient.builder()
 
     .serviceUrl(“pulsar://localhost:6650”)
@@ -69,7 +74,7 @@ This section provides an example of how to use the transaction API to send and r
     .enableTransaction(true)
 
     .build();
-
+    
     ```
 
 Now you can start using the transaction API to send and receive messages. Below is an example of a `consume-process-produce` application written in Java.
@@ -89,6 +94,7 @@ Let’s walk through this example step by step.
 [1] Example of enabling batch messages ack in transactions in the consumer builder.
 
 ```
+
 Consumer<byte[]> sinkConsumer = pulsarClient
     .newConsumer()
     .topic(transferTopic)

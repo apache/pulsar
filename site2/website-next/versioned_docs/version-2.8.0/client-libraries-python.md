@@ -166,6 +166,7 @@ while True:
     # No acknowledgment
 
 ```
+
 ### Multi-topic subscriptions
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
@@ -350,6 +351,7 @@ class Example(Record):
 To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
 
 ```
+
 publicKeyPath: "./public.pem"
 privateKeyPath: "./private.pem"
 
@@ -370,10 +372,10 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     **Input**
 
     ```shell
-
+    
     openssl genrsa -out private.pem 2048
     openssl rsa -in private.pem -pubout -out public.pem
-
+    
     ```
 
 2. Create a producer to send encrypted messages.
@@ -381,7 +383,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     **Input**
 
     ```python
-
+    
     import pulsar
 
     publicKeyPath = "./public.pem"
@@ -393,7 +395,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     print('sent message')
     producer.close()
     client.close()
-
+    
     ```
 
 3. Create a consumer to receive encrypted messages.
@@ -401,7 +403,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     **Input**
 
     ```python
-
+    
     import pulsar
 
     publicKeyPath = "./public.pem"
@@ -413,7 +415,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     print("Received msg '{}' id = '{}'".format(msg.data(), msg.message_id()))
     consumer.close()
     client.close()
-
+    
     ```
 
 4. Run the consumer to receive encrypted messages.
@@ -421,9 +423,9 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     **Input**
 
     ```shell
-
+    
     python consumer.py
-
+    
     ```
 
 5. In a new terminal tab, run the producer to produce encrypted messages.
@@ -431,9 +433,9 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     **Input**
 
     ```shell
-
+    
     python producer.py
-
+    
     ```
 
     Now you can see the producer sends messages and the consumer receives messages successfully.
@@ -443,13 +445,16 @@ This section provides step-by-step instructions on how to use the end-to-end enc
     This is from the producer side.
 
     ```
+    
     sent message
-
+    
     ```
 
     This is from the consumer side.
 
     ```
+    
     Received msg 'b'encryption message'' id = '(0,0,-1,-1)'
-
+    
     ```
+

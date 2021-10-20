@@ -48,6 +48,7 @@ $ openssl req -config openssl.cnf \
       -key admin.key.pem -new -sha256 -out admin.csr.pem
 
 ```
+
 :::note
 
 If openssl.cnf is not specified, read [Certificate authority](http://pulsar.apache.org/docs/en/security-tls-transport/#certificate-authority) to get the openssl.cnf.
@@ -76,6 +77,7 @@ $ cd /etc/pki/tls/misc/CA
 $ ./CA -newca
 
 ```
+
 to generate `cakey.pem` .
 
 :::
@@ -129,7 +131,7 @@ When you use TLS authentication, client connects via TLS transport. You need to 
 
 You need to add the following parameters to that file to use TLS authentication with the CLI tools of Pulsar:
 
-```properties
+```
 
 webServiceUrl=https://broker.example.com:8443/
 brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
@@ -143,7 +145,7 @@ authParams=tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key
 
 ### Java client
 
-```java
+```
 
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -159,7 +161,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Python client
 
-```python
+```
 
 from pulsar import Client, AuthenticationTLS
 
@@ -173,7 +175,8 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 
 ### C++ client
 
-```c++
+```
+
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
@@ -191,7 +194,7 @@ pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 
 ### Node.js client
 
-```JavaScript
+```
 
 const Pulsar = require('pulsar-client');
 
@@ -212,10 +215,12 @@ const Pulsar = require('pulsar-client');
 
 ### C# client
 
-```c#
+```
+
 var clientCertificate = new X509Certificate2("admin.pfx");
 var client = PulsarClient.Builder()
                          .AuthenticateUsingClientCertificate(clientCertificate)
                          .Build();
 
 ```
+

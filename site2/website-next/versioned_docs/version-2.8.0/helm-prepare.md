@@ -86,9 +86,11 @@ PROJECT=<gcloud project id> scripts/pulsar/gke_bootstrap_script.sh down
 To install a Pulsar Helm chart using local persistent volumes, you need to create a GKE cluster with local SSDs. You can do so Specifying the `USE_LOCAL_SSD` to be `true` in the following command to create a Pulsar cluster with local SSDs.
 
 ```
+
 PROJECT=<gcloud project id> USE_LOCAL_SSD=true LOCAL_SSD_COUNT=<local-ssd-count> scripts/pulsar/gke_bootstrap_script.sh up
 
 ```
+
 ## Next Steps
 
 Continue with the [installation of the chart](helm-deploy) once you have the cluster up and running.

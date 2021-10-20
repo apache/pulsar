@@ -172,20 +172,20 @@ e.g.
 1. for [Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
     ```properties
-
+    
     webServiceUrl=https://broker.example.com:8443/
     brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
     useKeyStoreTls=true
     tlsTrustStoreType=JKS
     tlsTrustStorePath=/var/private/tls/client.truststore.jks
     tlsTrustStorePassword=clientpw
-
+    
     ```
 
 1. for java client
 
     ```java
-
+    
     import org.apache.pulsar.client.api.PulsarClient;
     
     PulsarClient client = PulsarClient.builder()
@@ -196,7 +196,7 @@ e.g.
         .tlsTrustStorePassword("clientpw")
         .allowTlsInsecureConnection(false)
         .build();
-
+    
     ```
 
 1. for java admin client
@@ -265,7 +265,7 @@ e.g.
 1. for [Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
     ```properties
-
+    
     webServiceUrl=https://broker.example.com:8443/
     brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
     useKeyStoreTls=true
@@ -274,13 +274,13 @@ e.g.
     tlsTrustStorePassword=clientpw
     authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
     authParams={"keyStoreType":"JKS","keyStorePath":"/path/to/keystorefile","keyStorePassword":"keystorepw"}
-
+    
     ```
 
 1. for java client
 
     ```java
-
+    
     import org.apache.pulsar.client.api.PulsarClient;
     
     PulsarClient client = PulsarClient.builder()
@@ -294,13 +294,13 @@ e.g.
                 "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
                 "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
         .build();
-
+    
     ```
 
 1. for java admin client
 
     ```java
-
+    
         PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl("https://broker.example.com:8443")
             .useKeyStoreTls(true)
             .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
@@ -310,7 +310,7 @@ e.g.
                    "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
                    "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
             .build();
-
+    
     ```
 
 ## Enabling TLS Logging

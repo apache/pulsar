@@ -46,7 +46,7 @@ Before using the DynamoDB source connector, you need to create a configuration f
 * JSON 
 
     ```json
-
+    
     {
         "awsEndpoint": "https://some.endpoint.aws",
         "awsRegion": "us-east-1",
@@ -60,13 +60,13 @@ Before using the DynamoDB source connector, you need to create a configuration f
         "initialPositionInStream": "TRIM_HORIZON",
         "startAtTime": "2019-03-05T19:28:58.000Z"
     }
-
+    
     ```
 
 * YAML
 
     ```yaml
-
+    
     configs:
         awsEndpoint: "https://some.endpoint.aws"
         awsRegion: "us-east-1"
@@ -79,6 +79,6 @@ Before using the DynamoDB source connector, you need to create a configuration f
         receiveQueueSize: 2000
         initialPositionInStream: "TRIM_HORIZON"
         startAtTime: "2019-03-05T19:28:58.000Z"
-
+    
     ```
 

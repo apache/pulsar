@@ -24,6 +24,7 @@ send signals to clients to start incurring load. The client implementation is in
 To Start a simulation client, use the `pulsar-perf` script with the command `simulation-client` as follows:
 
 ```
+
 pulsar-perf simulation-client --port <listen port> --service-url <pulsar service url>
 
 ```
@@ -39,6 +40,7 @@ command with.
 To start a simulation controller, use the `pulsar-perf` script with the command `simulation-controller` as follows:
 
 ```
+
 pulsar-perf simulation-controller --cluster <cluster to simulate on> --client-port <listen port for clients>
 --clients <comma-separated list of client host names>
 
@@ -105,6 +107,7 @@ console as it is updated using watchers.
 To start a broker monitor, use the `monitor-brokers` command in the `pulsar-perf` script:
 
 ```
+
 pulsar-perf monitor-brokers --connect-string <zookeeper host:port>
 
 ```

@@ -293,9 +293,10 @@ PostSchemaPayload payload = new PostSchemaPayload();
 payload.setType("INT8");
 payload.setSchema("");
 
-admin.createSchema("my-tenant/my-ns/my-topic", payload); 
+admin.createSchema("my-tenant/my-ns/my-topic", payload);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -395,7 +396,7 @@ Here is an example of `SchemaInfo`:
 
 PulsarAdmin admin = …;
 
-SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic"); 
+SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic");
 
 ```
 
@@ -430,7 +431,7 @@ Use the `get` subcommand.
 
 ```bash
 
-$ pulsar-admin schemas get <topic-name> --version=<version> 
+$ pulsar-admin schemas get <topic-name> --version=<version>
 
 ```
 
@@ -595,7 +596,7 @@ Here is an example of deleting a schema.
 
 PulsarAdmin admin = …;
 
-admin.deleteSchema("my-tenant/my-ns/my-topic"); 
+admin.deleteSchema("my-tenant/my-ns/my-topic");
 
 ```
 

@@ -100,6 +100,7 @@ Again, given the very low expected load on the configuration store servers, you 
 For example, you can assume a Pulsar instance with the following clusters `us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`. Also you can assume, each cluster has its own local ZK servers named such as
 
 ```
+
 zk[1-3].${CLUSTER}.example.com
 
 ```

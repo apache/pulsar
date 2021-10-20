@@ -34,7 +34,7 @@ Before using the Mongo sink connector, you need to create a configuration file t
 * JSON
 
     ```json
-
+    
     {
         "mongoUri": "mongodb://localhost:27017",
         "database": "pulsar",
@@ -42,13 +42,13 @@ Before using the Mongo sink connector, you need to create a configuration file t
         "batchSize": "2",
         "batchTimeMs": "500"
     }
-
+    
     ```
 
 * YAML
 
     ```yaml
-
+    
     {
         mongoUri: "mongodb://localhost:27017"
         database: "pulsar"
@@ -56,5 +56,6 @@ Before using the Mongo sink connector, you need to create a configuration file t
         batchSize: 2
         batchTimeMs: 500
     }
-
+    
     ```
+

@@ -420,7 +420,7 @@ bin/pulsar-admin functions create \
    --user-config '{"word-of-the-day":"verdure"}' \
   # Other function configs
 
- ```
+```
 
 This example accesses values in a Java window function.
 

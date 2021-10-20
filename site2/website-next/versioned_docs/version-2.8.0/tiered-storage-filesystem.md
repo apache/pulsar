@@ -34,19 +34,19 @@ This example uses Pulsar 2.5.1.
    * Use [wget](https://www.gnu.org/software/wget)
 
      ```shell
-
+     
      wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
-
+     
      ```
 
 2. Download and untar the Pulsar offloaders package. 
 
     ```bash
-
+    
     wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
 
     tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
-
+    
     ```
 
     :::note
@@ -59,18 +59,20 @@ This example uses Pulsar 2.5.1.
 3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
 
     ```
+    
     mv apache-pulsar-offloaders-2.5.1/offloaders apache-pulsar-2.5.1/offloaders
 
     ls offloaders
-
+    
     ```
 
     **Output**
 
     ```
+    
     tiered-storage-file-system-2.5.1.nar
     tiered-storage-jcloud-2.5.1.nar
-
+    
     ```
 
     :::note
@@ -152,6 +154,7 @@ fileSystemProfilePath=../conf/filesystem_offload_core_site.xml
 You can set the following configurations in the _filesystem_offload_core_site.xml_ file.
 
 ```
+
 <property>
     <name>fs.defaultFS</name>
     <value></value>
@@ -235,17 +238,17 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 - This example triggers the filesystem offloader to run manually using pulsar-admin.
 
     ```bash
-
+    
     pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
-
-    ``` 
+    
+    ```
 
     **Output**
 
     ```bash
-
+    
     Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-
+    
     ```
 
     :::tip
@@ -257,51 +260,55 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 - This example checks filesystem offloader status using pulsar-admin.
 
     ```bash
-
+    
     pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
+    
     ```
 
     **Output**
 
     ```bash
-
+    
     Offload is currently running
-
+    
     ```
 
     To wait for the filesystem to complete the job, add the `-w` flag.
 
     ```bash
-
+    
     pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-
+    
     ```
 
     **Output**
 
     ```
+    
     Offload was a success
-
+    
     ```
 
     If there is an error in the offloading operation, the error is propagated to the `pulsar-admin topics offload-status` command.
 
     ```bash
-
+    
     pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
+    
     ```
 
     **Output**
 
     ```
+    
     Error in offload
     null
 
     Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+    
+    ```
 
-    ````
+`
 
     :::tip
 

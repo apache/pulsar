@@ -38,7 +38,7 @@ Before using the HBase sink connector, you need to create a configuration file t
 * JSON 
 
     ```json
-
+    
     {
         "hbaseConfigResources": "hbase-site.xml",
         "zookeeperQuorum": "localhost",
@@ -49,13 +49,13 @@ Before using the HBase sink connector, you need to create a configuration file t
         "familyName": "info",
         "qualifierNames": [ 'name', 'address', 'age']
     }
-
+    
     ```
 
 * YAML
 
     ```yaml
-
+    
     configs:
         hbaseConfigResources: "hbase-site.xml"
         zookeeperQuorum: "localhost"
@@ -65,7 +65,7 @@ Before using the HBase sink connector, you need to create a configuration file t
         rowKeyName: "rowKey"
         familyName: "info"
         qualifierNames: [ 'name', 'address', 'age']
-
+    
     ```
 
     

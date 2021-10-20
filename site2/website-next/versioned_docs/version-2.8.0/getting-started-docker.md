@@ -20,7 +20,7 @@ and follow the instructions for your OS.
 * For MacOS, Linux, and Windows:
 
   ```shell
-
+  
   $ docker run -it \
     -p 6650:6650 \
     -p 8080:8080 \
@@ -28,7 +28,7 @@ and follow the instructions for your OS.
     --mount source=pulsarconf,target=/pulsar/conf \
     apachepulsar/pulsar:@pulsar:version@ \
     bin/pulsar standalone
-
+  
   ```
 
 A few things to note about this command:
@@ -39,6 +39,7 @@ time the container is restarted. For details on the volumes you can use `docker 
 If you start Pulsar successfully, you will see `INFO`-level log messages like this:
 
 ```
+
 2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
 2017-08-09 22:34:04,038 - INFO  - [main:PulsarService@335] - messaging service is ready, bootstrap service on port=8080, broker url=pulsar://127.0.0.1:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@4db60246
 ...
@@ -178,3 +179,4 @@ The output is something like this:
 }
 
 ```
+

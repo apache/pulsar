@@ -235,6 +235,7 @@ $ bin/pulsar-admin functions trigger \
 The consumer listening on the output topic produces something as follows in the log.
 
 ```
+
 ----- got message -----
 This function has been triggered with a value of hello world
 

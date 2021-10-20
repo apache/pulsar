@@ -102,19 +102,19 @@ This example demonstrates how to use a string schema.
 1. Create a producer with a string schema and send messages.
 
     ```java
-
+    
     Producer<String> producer = client.newProducer(Schema.STRING).create();
     producer.newMessage().value("Hello Pulsar!").send();
-
+    
     ```
 
 2. Create a consumer with a string schema and receive messages.  
 
     ```java
-
+    
     Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
     consumer.receive();
-
+    
     ```
 
 ### Complex type
@@ -169,31 +169,31 @@ This example shows how to construct a key/value schema and then use it to produc
 1. Construct a key/value schema with `INLINE` encoding type.
 
     ```java
-
+    
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,
     KeyValueEncodingType.INLINE
     );
-
+    
     ```
 
 2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
 
     ```java
-
+    
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,
     KeyValueEncodingType.SEPARATED
     );
-
+    
     ```
 
 3. Produce messages using a key/value schema.
 
     ```java
-
+    
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,
@@ -211,13 +211,13 @@ This example shows how to construct a key/value schema and then use it to produc
     producer.newMessage()
     .value(new KeyValue(key, value))
     .send();
-
+    
     ```
 
 4. Consume messages using a key/value schema.
 
     ```java
-
+    
     Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
     Schema.INT32,
     Schema.STRING,
@@ -232,7 +232,7 @@ This example shows how to construct a key/value schema and then use it to produc
     // receive key/value pair
     Message<KeyValue<Integer, String>> msg = consumer.receive();
     KeyValue<Integer, String> kv = msg.getValue();
-
+    
     ```
 
 </TabItem>
@@ -290,7 +290,7 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
     ```java
-
+    
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
@@ -298,25 +298,25 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
         String name;
         int age;
     }
-
+    
     ```
 
 2. Create a producer with a `struct` schema and send messages.
 
     ```java
-
+    
     Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
     producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
-
+    
     ```
 
 3. Create a consumer with a `struct` schema and receive messages
 
     ```java
-
+    
     Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
     User user = consumer.receive();
-
+    
     ```
 
 </TabItem>
@@ -331,23 +331,23 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
 1. Use `RecordSchemaBuilder` to build a schema.
 
     ```java
-
+    
     RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
     recordSchemaBuilder.field("intField").type(SchemaType.INT32);
     SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
 
     Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
-
+    
     ```
 
 2. Use `RecordBuilder` to build the struct records.
 
     ```java
-
+    
     producer.newMessage().value(schema.newRecordBuilder()
                 .set("intField", 32)
                 .build()).send();
-
+    
     ```
 
 </TabItem>
@@ -360,7 +360,7 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
     ```java
-
+    
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
@@ -368,27 +368,27 @@ You can define the `schemaDefinition` to generate a `struct` schema.
         String name;
         int age;
     }
-
+    
     ```
 
 2. Create a producer with a `SchemaDefinition` and send messages.
 
     ```java
-
+    
     SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
     Producer<User> producer = client.newProducer(Schema.AVRO(schemaDefinition)).create();
     producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
-
+    
     ```
 
 3. Create a consumer with a `SchemaDefinition` schema and receive messages
 
     ```java
-
+    
     SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
     Consumer<User> consumer = client.newConsumer(Schema.AVRO(schemaDefinition)).subscribe();
     User user = consumer.receive().getValue();
-
+    
     ```
 
 </TabItem>

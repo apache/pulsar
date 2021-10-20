@@ -43,6 +43,7 @@ To configure a default folder for builtin connectors, set the `connectorsDirecto
 Set the `./connectors` folder as the default storage location for builtin connectors.
 
 ```
+
 ########################
 # Connectors
 ########################
@@ -212,6 +213,7 @@ Create a source connector.
 Use the `create` subcommand.
 
 ```
+
 $ pulsar-admin sources create options
 
 ```
@@ -229,11 +231,11 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/source
 * Create a source connector with a **local file**.
 
     ```java
-
+    
     void createSource(SourceConfig sourceConfig,
                       String fileName)
                throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -253,11 +255,11 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/source
 * Create a source connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
     ```java
-
+    
     void createSourceWithUrl(SourceConfig sourceConfig,
                              String pkgUrl)
                       throws PulsarAdminException
-
+    
     ```
 
     Supported URLs are `http` and `file`.
@@ -313,6 +315,7 @@ Create a sink connector.
 Use the `create` subcommand.
 
 ```
+
 $ pulsar-admin sinks create options
 
 ```
@@ -330,11 +333,11 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
 * Create a sink connector with a **local file**.
 
     ```java
-
+    
     void createSink(SinkConfig sinkConfig,
                     String fileName)
              throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -354,11 +357,11 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
 * Create a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
     ```java
-
+    
     void createSinkWithUrl(SinkConfig sinkConfig,
                         String pkgUrl)
                     throws PulsarAdminException
-
+    
     ```
 
     Supported URLs are `http` and `file`.
@@ -414,6 +417,7 @@ Start a source connector.
 Use the `start` subcommand.
 
 ```
+
 $ pulsar-admin sources start options
 
 ```
@@ -457,6 +461,7 @@ Start a sink connector.
 Use the `start` subcommand.
 
 ```
+
 $ pulsar-admin sinks start options
 
 ```
@@ -500,6 +505,7 @@ Run a source connector locally.
 Use the `localrun` subcommand.
 
 ```
+
 $ pulsar-admin sources localrun options
 
 ```
@@ -528,6 +534,7 @@ Run a sink connector locally.
 Use the `localrun` subcommand.
 
 ```
+
 $ pulsar-admin sinks localrun options
 
 ```
@@ -578,6 +585,7 @@ Get the information of a source connector.
 Use the `get` subcommand.
 
 ```
+
 $ pulsar-admin sources get options
 
 ```
@@ -628,6 +636,7 @@ This is a sourceConfig.
 This is a sourceConfig example.
 
 ```
+
 {
  "tenant": "public",
  "namespace": "default",
@@ -700,6 +709,7 @@ Get the information of a sink connector.
 Use the `get` subcommand.
 
 ```
+
 $ pulsar-admin sinks get options
 
 ```
@@ -820,6 +830,7 @@ Get the list of all running source connectors.
 Use the `list` subcommand.
 
 ```
+
 $ pulsar-admin sources list options
 
 ```
@@ -889,6 +900,7 @@ Get the list of all running sink connectors.
 Use the `list` subcommand.
 
 ```
+
 $ pulsar-admin sinks list options
 
 ```
@@ -962,6 +974,7 @@ Get the current status of a source connector.
 Use the `status` subcommand.
 
 ```
+
 $ pulsar-admin sources status options
 
 ```
@@ -985,12 +998,12 @@ For more information, see [here](io-cli.md#status).
 * Get the current status of **all** source connectors.
 
     ```java
-
+    
     SourceStatus getSourceStatus(String tenant,
                                 String namespace,
                                 String source)
                         throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1012,13 +1025,13 @@ For more information, see [here](io-cli.md#status).
 * Gets the current status of a **specified** source connector.
 
     ```java
-
+    
     SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(String tenant,
                                                                                String namespace,
                                                                                String source,
                                                                                int id)
                                                                         throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1068,6 +1081,7 @@ Get the current status of a Pulsar sink connector.
 Use the `status` subcommand.
 
 ```
+
 $ pulsar-admin sinks status options
 
 ```
@@ -1091,12 +1105,12 @@ For more information, see [here](io-cli.md#status-1).
 * Get the current status of **all** sink connectors.
 
     ```java
-
+    
     SinkStatus getSinkStatus(String tenant,
                              String namespace,
                              String sink)
                       throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1118,13 +1132,13 @@ For more information, see [here](io-cli.md#status-1).
 * Gets the current status of a **specified** source connector.
 
     ```java
-
+    
     SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant,
                                                                        String namespace,
                                                                        String sink,
                                                                        int id)
                                                                 throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1180,6 +1194,7 @@ Update a running Pulsar source connector.
 Use the `update` subcommand.
 
 ```
+
 $ pulsar-admin sources update options
 
 ```
@@ -1197,11 +1212,11 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
 * Update a running source connector with a **local file**.
 
     ```java
-
+    
     void updateSource(SourceConfig sourceConfig,
                     String fileName)
             throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1223,11 +1238,11 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
 * Update a source connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
     ```java
-
+    
     void updateSourceWithUrl(SourceConfig sourceConfig,
                          String pkgUrl)
                   throws PulsarAdminException
-
+    
     ```
 
     Supported URLs are `http` and `file`.
@@ -1285,6 +1300,7 @@ Update a running Pulsar sink connector.
 Use the `update` subcommand.
 
 ```
+
 $ pulsar-admin sinks update options
 
 ```
@@ -1302,11 +1318,11 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
 * Update a running sink connector with a **local file**.
 
     ```java
-
+    
     void updateSink(SinkConfig sinkConfig,
                     String fileName)
          throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1328,11 +1344,11 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
 * Update a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
     ```java
-
+    
     void updateSinkWithUrl(SinkConfig sinkConfig,
                            String pkgUrl)
                     throws PulsarAdminException
-
+    
     ```
 
     Supported URLs are `http` and `file`.
@@ -1396,6 +1412,7 @@ Stop a source connector.
 Use the `stop` subcommand.
 
 ```
+
 $ pulsar-admin sources stop options
 
 ```
@@ -1419,12 +1436,12 @@ For more information, see [here](io-cli.md#stop).
 * Stop **all** source connectors.
 
     ```java
-
+    
     void stopSource(String tenant,
                     String namespace,
                     String source)
             throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1446,13 +1463,13 @@ For more information, see [here](io-cli.md#stop).
 * Stop a **specified** source connector. 
 
     ```java
-
+    
     void stopSource(String tenant,
                     String namespace,
                     String source,
                     int instanceId)
              throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1502,6 +1519,7 @@ Stop a sink connector.
 Use the `stop` subcommand.
 
 ```
+
 $ pulsar-admin sinks stop options
 
 ```
@@ -1525,12 +1543,12 @@ For more information, see [here](io-cli.md#stop-1).
 * Stop **all** sink connectors.
 
     ```java
-
+    
     void stopSink(String tenant,
                 String namespace,
                 String sink)
         throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1552,13 +1570,13 @@ For more information, see [here](io-cli.md#stop-1).
 * Stop a **specified** sink connector. 
 
     ```java
-
+    
     void stopSink(String tenant,
                   String namespace,
                   String sink,
                   int instanceId)
            throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1614,6 +1632,7 @@ Restart a source connector.
 Use the `restart` subcommand.
 
 ```
+
 $ pulsar-admin sources restart options
 
 ```
@@ -1637,12 +1656,12 @@ For more information, see [here](io-cli.md#restart).
 * Restart **all** source connectors.
 
     ```java
-
+    
     void restartSource(String tenant,
                        String namespace,
                        String source)
                 throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1664,13 +1683,13 @@ For more information, see [here](io-cli.md#restart).
 * Restart a **specified** source connector. 
 
     ```java
-
+    
     void restartSource(String tenant,
                        String namespace,
                        String source,
                        int instanceId)
                 throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1720,6 +1739,7 @@ Restart a sink connector.
 Use the `restart` subcommand.
 
 ```
+
 $ pulsar-admin sinks restart options
 
 ```
@@ -1743,12 +1763,12 @@ For more information, see [here](io-cli.md#restart-1).
 * Restart all Pulsar sink connectors.
 
     ```java
-
+    
     void restartSink(String tenant,
                      String namespace,
                      String sink)
               throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1770,13 +1790,13 @@ For more information, see [here](io-cli.md#restart-1).
 * Restart a **specified** sink connector. 
 
     ```java
-
+    
     void restartSink(String tenant,
                      String namespace,
                      String sink,
                      int instanceId)
               throws PulsarAdminException
-
+    
     ```
 
     **Parameter**
@@ -1832,6 +1852,7 @@ Delete a source connector.
 Use the `delete` subcommand.
 
 ```
+
 $ pulsar-admin sources delete options
 
 ```
@@ -1908,6 +1929,7 @@ Delete a sink connector.
 Use the `delete` subcommand.
 
 ```
+
 $ pulsar-admin sinks delete options
 
 ```

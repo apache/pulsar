@@ -28,9 +28,9 @@ In order to run Pulsar on DC/OS, you need the following:
 * The [`PulsarGroups.json`](https://github.com/apache/pulsar/blob/master/deployment/dcos/PulsarGroups.json) configuration file from the Pulsar GitHub repo.
 
   ```bash
-
+  
   $ curl -O https://raw.githubusercontent.com/apache/pulsar/master/deployment/dcos/PulsarGroups.json
-
+  
   ```
 
 Each node in the DC/OS-managed Mesos cluster must have at least:
@@ -195,7 +195,8 @@ You can shut down and uninstall the `pulsar` application from DC/OS at any time 
 2. You can use the following command:
 
     ```bash
-
+    
     $ dcos marathon group remove /pulsar
-
+    
     ```
+

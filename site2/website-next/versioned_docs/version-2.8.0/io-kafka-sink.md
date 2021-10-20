@@ -39,7 +39,7 @@ Before using the Kafka sink connector, you need to create a configuration file t
 * JSON 
 
     ```json
-
+    
     {
         "bootstrapServers": "localhost:6667",
         "topic": "test",
@@ -57,9 +57,10 @@ Before using the Kafka sink connector, you need to create a configuration file t
     }
 
 * YAML
+    
+    ```
 
-    ```yaml
-
+yaml
     configs:
         bootstrapServers: "localhost:6667"
         topic: "test"
@@ -72,5 +73,4 @@ Before using the Kafka sink connector, you need to create a configuration file t
             sasl.mechanism: "GSSAPI"
             sasl.kerberos.service.name: "kafka"
             acks: "all"   
-
     ```

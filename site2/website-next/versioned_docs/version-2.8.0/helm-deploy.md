@@ -211,6 +211,7 @@ certs:
     type: selfsigning
 
 ```
+
 You can also customize the generated TLS certificates by configuring the fields as the following.
 
 ```yaml
@@ -341,6 +342,7 @@ To use local persistent volumes as the persistent storage, you need to install a
 One of the easiest way to get started is to use the local storage provisioner provided along with the Pulsar Helm chart.
 
 ```
+
 helm repo add streamnative https://charts.streamnative.io
 helm repo update
 helm install pulsar-storage-provisioner streamnative/local-storage-provisioner
@@ -403,6 +405,7 @@ helm install pulsar apache/pulsar \
     --set [your configuration options]
 
 ```
+
 :::note
 
 For the first deployment, add `--set initialize=true` option to initialize bookie and Pulsar cluster metadata.
@@ -432,3 +435,4 @@ To find the IP addresses of those components, run the following command:
 kubectl get service -n <k8s-namespace>
 
 ```
+

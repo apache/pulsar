@@ -585,6 +585,7 @@ Create a Pulsar Function in cluster mode (i.e. deploy it on a Pulsar cluster)
 Usage
 
 ```
+
 $ pulsar-admin functions create options
 
 ```
@@ -2113,6 +2114,7 @@ Usage
 $ pulsar-admin namespaces get-max-subscriptions-per-topic tenant/namespace
 
 ```
+
 ### `remove-max-subscriptions-per-topic`
 Remove the maximum subscription per topic for a namespace.
 
@@ -2333,6 +2335,7 @@ Run compaction on the specified topic (persistent topics only)
 Usage
 
 ```
+
 $ pulsar-admin topics compact persistent://tenant/namespace/topic
 
 ```
@@ -2500,6 +2503,7 @@ Get the list of topics under a namespace
 Usage
 
 ```
+
 $ pulsar-admin topics list tenant/cluster/namespace
 
 ```
@@ -2920,6 +2924,7 @@ Usage
 $ pulsar-admin topics remove-persistence tenant/namespace/topic
 
 ```
+
 ### `get-message-ttl`
 Get the message TTL for a topic.
 
@@ -2954,7 +2959,7 @@ Usage
 
 ```bash
 
-$ pulsar-admin topics remove-message-ttl tenant/namespace/topic 
+$ pulsar-admin topics remove-message-ttl tenant/namespace/topic
 
 ```
 
@@ -2997,14 +3002,12 @@ $ pulsar-admin topics remove-deduplication tenant/namespace/topic
 
 ```
 
-```
-
 ## `tenants`
 Operations for managing tenants
 
 Usage
 
-```
+```bash
 
 $ pulsar-admin tenants subcommand
 
@@ -3175,6 +3178,7 @@ Operations related to Schemas associated with Pulsar topics.
 Usage
 
 ```
+
 $ pulsar-admin schemas subcommand
 
 ```
