@@ -1626,9 +1626,10 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
     public boolean getSchemaValidtionEnforced(@PathParam("tenant") String tenant,
-                                           @PathParam("namespace") String namespace) {
+                                              @PathParam("namespace") String namespace,
+                                              @QueryParam("applied") @DefaultValue("false") boolean applied) {
         validateNamespaceName(tenant, namespace);
-        return internalGetSchemaValidationEnforced();
+        return internalGetSchemaValidationEnforced(applied);
     }
 
     @POST
