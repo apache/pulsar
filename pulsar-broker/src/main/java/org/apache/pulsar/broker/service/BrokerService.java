@@ -1000,7 +1000,7 @@ public class BrokerService implements Closeable {
     public void deleteTopicAuthenticationWithRetry(String topic, CompletableFuture<Void> future, int count) {
         if (count == 0) {
             log.error("The number of retries has exhausted for topic {}", topic);
-            future.completeExceptionally(new RuntimeException("The number of retries has exhausted"));
+            future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
         NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
