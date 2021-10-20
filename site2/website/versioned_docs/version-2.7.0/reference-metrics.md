@@ -108,6 +108,7 @@ The following metrics are available for broker:
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
 * [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
+* [Jetty metrics](#jetty-metrics)
 
 ### Namespace metrics
 

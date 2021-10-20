@@ -112,6 +112,7 @@ Broker has the following kinds of metrics:
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
 * [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
+* [Jetty metrics](#jetty-metrics)
 
 ### Namespace metrics
 

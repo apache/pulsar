@@ -120,6 +120,7 @@ The following metrics are available for broker:
   - [Token metrics](#token-metrics)
   - [Authentication metrics](#authentication-metrics)
   - [Connection metrics](#connection-metrics)
+  - [Jetty metrics](#jetty-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)

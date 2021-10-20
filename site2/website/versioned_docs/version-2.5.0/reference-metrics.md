@@ -103,6 +103,7 @@ Broker has the following kinds of metrics:
     * [Replication metrics](#replication-metrics-1)
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
+* [Jetty metrics](#jetty-metrics)
 
 ### Namespace metrics
 

@@ -111,6 +111,7 @@ The following metrics are available for broker:
 * [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
 * [Token metrics](#token-metrics)
 * [Authentication metrics](#authentication-metrics)
+* [Jetty metrics](#jetty-metrics)
 
 ### Namespace metrics
 
