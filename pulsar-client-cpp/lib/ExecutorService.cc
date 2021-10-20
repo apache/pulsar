@@ -46,6 +46,16 @@ void ExecutorService::start() {
     t.detach();
 }
 
+ExecutorServicePtr ExecutorService::create() {
+    // make_shared cannot access the private constructor, so we need to expose the private constructor via a
+    // derived class.
+    struct ExecutorServiceImpl : public ExecutorService {};
+
+    auto executor = std::make_shared<ExecutorServiceImpl>();
+    executor->start();
+    return std::static_pointer_cast<ExecutorService>(executor);
+}
+
 /*
  *  factory method of boost::asio::ip::tcp::socket associated with io_service_ instance
  *  @ returns shared_ptr to this socket
@@ -90,9 +100,7 @@ ExecutorServicePtr ExecutorServiceProvider::get() {
 
     int idx = executorIdx_++ % executors_.size();
     if (!executors_[idx]) {
-        auto executor = std::make_shared<ExecutorService>();
-        executor->start();
-        executors_[idx] = executor;
+        executors_[idx] = ExecutorService::create();
     }
 
     return executors_[idx];

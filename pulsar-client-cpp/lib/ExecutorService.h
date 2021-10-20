@@ -36,8 +36,9 @@ typedef std::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
 class PULSAR_PUBLIC ExecutorService : public std::enable_shared_from_this<ExecutorService> {
    public:
     using IOService = boost::asio::io_service;
+    using SharedPtr = std::shared_ptr<ExecutorService>;
 
-    ExecutorService();
+    static SharedPtr create();
     ~ExecutorService();
 
     ExecutorService(const ExecutorService &) = delete;
@@ -49,7 +50,6 @@ class PULSAR_PUBLIC ExecutorService : public std::enable_shared_from_this<Execut
     DeadlineTimerPtr createDeadlineTimer();
     void postWork(std::function<void(void)> task);
 
-    void start();
     void close();
 
     IOService &getIOService() { return io_service_; }
@@ -68,9 +68,13 @@ class PULSAR_PUBLIC ExecutorService : public std::enable_shared_from_this<Execut
     IOService::work work_{io_service_};
 
     std::atomic_bool closed_{false};
+
+    ExecutorService();
+
+    void start();
 };
 
-typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;
+using ExecutorServicePtr = ExecutorService::SharedPtr;
 
 class PULSAR_PUBLIC ExecutorServiceProvider {
    public:
