@@ -575,42 +575,67 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                             });
                 }
-                for (int i = 0; i < numPartitions; i++) {
-                    TopicName topicNamePartition = topicName.getPartition(i);
-                    try {
-                        pulsar().getAdminClient().topics()
-                                .deleteAsync(topicNamePartition.toString(), force)
-                                .whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        if (ex instanceof NotFoundException) {
-                                            // if the sub-topic is not found, the client might not have called create
-                                            // producer or it might have been deleted earlier,
-                                            //so we ignore the 404 error.
-                                            // For all other exception,
-                                            //we fail the delete partition method even if a single
-                                            // partition is failed to be deleted
-                                            if (log.isDebugEnabled()) {
-                                                log.debug("[{}] Partition not found: {}", clientAppId(),
-                                                        topicNamePartition);
+                // delete authentication policies of the partitioned topic
+                CompletableFuture<Void> deleteAuthFuture = new CompletableFuture<>();
+                pulsar().getPulsarResources().getNamespaceResources()
+                        .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
+                            for (int i = 0; i < numPartitions; i++) {
+                                p.auth_policies.getTopicAuthentication().remove(topicName.getPartition(i).toString());
+                            }
+                            p.auth_policies.getTopicAuthentication().remove(topicName.toString());
+                            return p;
+                        }).thenAccept(v -> {
+                            log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
+                            deleteAuthFuture.complete(null);
+                        }).exceptionally(ex -> {
+                            log.error("Failed to delete authentication policies for partitioned topic {}", topicName,
+                                    ex);
+                            deleteAuthFuture.completeExceptionally(ex);
+                            return null;
+                        });
+
+                deleteAuthFuture.whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        future.completeExceptionally(ex);
+                        return;
+                    }
+                    for (int i = 0; i < numPartitions; i++) {
+                        TopicName topicNamePartition = topicName.getPartition(i);
+                        try {
+                            pulsar().getAdminClient().topics()
+                                    .deleteAsync(topicNamePartition.toString(), force)
+                                    .whenComplete((r1, ex1) -> {
+                                        if (ex1 != null) {
+                                            if (ex1 instanceof NotFoundException) {
+                                                // if the sub-topic is not found, the client might not have called
+                                                // create producer or it might have been deleted earlier,
+                                                //so we ignore the 404 error.
+                                                // For all other exception,
+                                                //we fail the delete partition method even if a single
+                                                // partition is failed to be deleted
+                                                if (log.isDebugEnabled()) {
+                                                    log.debug("[{}] Partition not found: {}", clientAppId(),
+                                                            topicNamePartition);
+                                                }
+                                            } else {
+                                                log.error("[{}] Failed to delete partition {}", clientAppId(),
+                                                        topicNamePartition, ex1);
+                                                future.completeExceptionally(ex1);
+                                                return;
                                             }
                                         } else {
-                                            log.error("[{}] Failed to delete partition {}", clientAppId(),
-                                                    topicNamePartition, ex);
-                                            future.completeExceptionally(ex);
-                                            return;
+                                            log.info("[{}] Deleted partition {}", clientAppId(), topicNamePartition);
                                         }
-                                    } else {
-                                        log.info("[{}] Deleted partition {}", clientAppId(), topicNamePartition);
-                                    }
-                                    if (count.decrementAndGet() == 0) {
-                                        future.complete(null);
-                                    }
-                                });
-                    } catch (Exception e) {
-                        log.error("[{}] Failed to delete partition {}", clientAppId(), topicNamePartition, e);
-                        future.completeExceptionally(e);
+                                        if (count.decrementAndGet() == 0) {
+                                            future.complete(null);
+                                        }
+                                    });
+                        } catch (Exception e) {
+                            log.error("[{}] Failed to delete partition {}", clientAppId(), topicNamePartition, e);
+                            future.completeExceptionally(e);
+                        }
                     }
-                }
+                });
             } else {
                 future.complete(null);
             }
@@ -636,47 +661,32 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
             }
-            // Only tries to delete the authentication policies for partitioned topic when all its partitions are
-            // successfully deleted
-            CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
-            pulsar().getBrokerService()
-                    .deleteTopicAuthenticationWithRetry(topicName.toString(), deleteTopicAuthenticationFuture, 5);
-            deleteTopicAuthenticationFuture.whenComplete((r1, ex1) -> {
-                if (ex1 != null) {
-                    asyncResponse.resume(new RestException(ex1));
-                    return;
-                }
-                // Only tries to delete the znode for partitioned topic when its authentication policies are
-                // successfully deleted
-                try {
-                    namespaceResources().getPartitionedTopicResources()
-                            .deletePartitionedTopicAsync(topicName).thenAccept(r2 -> {
-                                log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
-                                asyncResponse.resume(Response.noContent().build());
-                            }).exceptionally(ex2 -> {
-                                log.error("[{}] Failed to delete partitioned topic {}", clientAppId(),
-                                        topicName,
-                                        ex2.getCause());
-                                if (ex2.getCause()
-                                        instanceof MetadataStoreException.NotFoundException) {
-                                    asyncResponse.resume(new RestException(
-                                            new RestException(Status.NOT_FOUND, "Partitioned topic does not exist")));
-                                } else if (ex2
-                                        .getCause()
-                                        instanceof MetadataStoreException.BadVersionException) {
-                                    asyncResponse.resume(
-                                            new RestException(
-                                                    new RestException(Status.CONFLICT, "Concurrent modification")));
-                                } else {
-                                    asyncResponse.resume(new RestException((ex2.getCause())));
-                                }
-                                return null;
-                            });
-                } catch (Exception e1) {
-                    log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e1);
-                    asyncResponse.resume(new RestException(e1));
-                }
-            });
+            // Only tries to delete the znode for partitioned topic when all its partitions are successfully deleted
+            try {
+                namespaceResources().getPartitionedTopicResources()
+                        .deletePartitionedTopicAsync(topicName).thenAccept(r2 -> {
+                            log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
+                            asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex1 -> {
+                    log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, ex1.getCause());
+                    if (ex1.getCause()
+                            instanceof org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(
+                                new RestException(Status.NOT_FOUND, "Partitioned topic does not exist")));
+                    } else if (ex1
+                            .getCause()
+                            instanceof org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException) {
+                        asyncResponse.resume(
+                                new RestException(new RestException(Status.CONFLICT, "Concurrent modification")));
+                    } else {
+                        asyncResponse.resume(new RestException((ex1.getCause())));
+                    }
+                    return null;
+                });
+            } catch (Exception e1) {
+                log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e1);
+                asyncResponse.resume(new RestException(e1));
+            }
         });
     }
 

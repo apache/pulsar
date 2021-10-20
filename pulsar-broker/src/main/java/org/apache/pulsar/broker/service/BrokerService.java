@@ -1003,26 +1003,41 @@ public class BrokerService implements Closeable {
             future.completeExceptionally(new RuntimeException("The number of retries has exhausted"));
             return;
         }
-        pulsar.getPulsarResources().getNamespaceResources()
-                .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
-                    p.auth_policies.getTopicAuthentication().remove(topic);
-                    return p;
-                }).thenAccept(v -> {
-                    log.info("Successfully delete authentication policies for topic {}", topic);
-                    future.complete(null);
-                }).exceptionally(ex1 -> {
-                    if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
-                        log.warn(
-                                "Failed to delete authentication policies because of bad version. "
-                                        + "Retry to delete authentication policies for topic {}",
-                                topic);
-                        deleteTopicAuthenticationWithRetry(topic, future, count - 1);
-                    } else {
-                        log.error("Failed to delete authentication policies for topic {}", topic, ex1);
-                        future.completeExceptionally(ex1);
-                    }
-                    return null;
-                });
+        NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
+        // Check whether there are auth policies for the topic
+        pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(optPolicies -> {
+            if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
+                    .containsKey(topic)) {
+                // if there is no auth policy for the topic, just complete and return
+                log.info("Auth policies not found for topic {}", topic);
+                future.complete(null);
+                return;
+            }
+            pulsar.getPulsarResources().getNamespaceResources()
+                    .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
+                        p.auth_policies.getTopicAuthentication().remove(topic);
+                        return p;
+                    }).thenAccept(v -> {
+                        log.info("Successfully delete authentication policies for topic {}", topic);
+                        future.complete(null);
+                    }).exceptionally(ex1 -> {
+                        if (ex1.getCause() instanceof MetadataStoreException.BadVersionException) {
+                            log.warn(
+                                    "Failed to delete authentication policies because of bad version. "
+                                            + "Retry to delete authentication policies for topic {}",
+                                    topic);
+                            deleteTopicAuthenticationWithRetry(topic, future, count - 1);
+                        } else {
+                            log.error("Failed to delete authentication policies for topic {}", topic, ex1);
+                            future.completeExceptionally(ex1);
+                        }
+                        return null;
+                    });
+        }).exceptionally(ex -> {
+            log.error("Failed to get policies for topic {}", topic, ex);
+            future.completeExceptionally(ex);
+            return null;
+        });
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
