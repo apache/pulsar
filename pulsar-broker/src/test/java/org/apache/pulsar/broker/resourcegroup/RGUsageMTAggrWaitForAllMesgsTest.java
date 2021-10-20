@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.collect.Sets;
 import io.prometheus.client.Summary;
-import java.util.Collections;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
@@ -350,13 +349,10 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             }
         }
         if ((numEqualRGs + numUnEqualRGs != numTopics) || (numEqualRGs > 0 && numUnEqualRGs > 0)) {
-            String errMesg = String.format("Found {} topics with equal RGs and {} with unequal, on {} topics",
+            String errMesg = String.format("Found %s topics with equal RGs and %s with unequal, on %s topics",
                     numEqualRGs, numUnEqualRGs, numTopics);
             throw new PulsarClientException(errMesg);
-        } else if (numEqualRGs == numTopics) {
-            return true;
-        }
-        return false;
+        } else return numEqualRGs == numTopics;
     }
 
     private void registerTenantsAndNamespaces(String[] topicStrings) throws Exception {
