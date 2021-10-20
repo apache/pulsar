@@ -67,12 +67,12 @@ This example uses Pulsar 2.6.2.
     
     ```
 
-    :::note
-
-    * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-    * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-    :::
+  :::note
+  
+  * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+  * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+  
+  :::
 
 ## Configuration
 
@@ -203,11 +203,11 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
     
     ```
 
-    :::tip
-
-    For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
-
-    :::
+  :::tip
+  
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
+  
+  :::
 
 - This example checks the Azure BlobStore offloader status using pulsar-admin.
 
@@ -260,10 +260,9 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
     
     ```
 
-`
+  :::tip
+  
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
+  
+  :::
 
-    :::tip
-
-    For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
-
-    :::

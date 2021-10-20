@@ -8,7 +8,6 @@ original_id: administration-dashboard
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-
 :::note
 
 Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](administration-pulsar-manager). 

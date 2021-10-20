@@ -190,3 +190,4 @@ For more information about deployment in Presto, refer to [Presto deployment](ht
 The broker does not advance LAC, so when Pulsar SQL bypass broker to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting "bookkeeperExplicitLacIntervalInMills" in the broker.conf.
 
 :::
+

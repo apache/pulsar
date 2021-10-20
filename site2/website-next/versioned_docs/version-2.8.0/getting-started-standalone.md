@@ -210,6 +210,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 * The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
 
 :::
+
 You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 > 
 > * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview) document to secure your deployment.
@@ -272,3 +273,4 @@ If the service runs as a background process using the `pulsar-daemon start stand
 For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 
 :::
+

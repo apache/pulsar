@@ -129,11 +129,11 @@ This example uses `cassandra` Docker image to start a single-node Cassandra clus
     
     ```
 
-    :::note
-
-    Before moving to the next steps, make sure the Cassandra cluster is running.
-
-    :::
+  :::note
+  
+  Before moving to the next steps, make sure the Cassandra cluster is running.
+  
+  :::
 
 2. Make sure the Docker process is running.
 
@@ -457,6 +457,7 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 * The JDBC sink connector pulls messages from Pulsar topics 
 
 :::
+
 and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. 
 >For more information, see [JDBC sink connector](io-jdbc-sink).
 
@@ -497,11 +498,11 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
      `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
      `-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
 
-    :::tip
-
-    For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
-
-    :::
+  :::tip
+  
+  For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
+  
+  :::
 
 3. Check if PostgreSQL has been started successfully.
 
@@ -584,12 +585,11 @@ In this section, you need to configure a JDBC sink connector.
     
     ```
 
-    :::tip
-
-    For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.9.1/).
-
-    :::
-
+  :::tip
+  
+  For more information about AVRO, see [Apache Avro](https://avro.apache.org/docs/1.9.1/).
+  
+  :::
 
 3. Upload a schema to a topic.  
 

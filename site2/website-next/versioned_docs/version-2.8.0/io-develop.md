@@ -283,6 +283,7 @@ work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-j
 If you plan to package and distribute your connector for others to use, you are obligated to
 
 :::
+
 license and copyright your own code properly. Remember to add the license and copyright to
 all libraries your code uses and to your distribution. 
 >
