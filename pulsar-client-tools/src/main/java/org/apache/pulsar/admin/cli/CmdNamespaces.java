@@ -2198,15 +2198,18 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             Map<String, String> map = new HashMap<>();
             if (properties.size() == 0) {
-                throw new IllegalArgumentException("Required at least one property for the namespace.");
+                throw new ParameterException(String.format("Required at least one property for the namespace, " +
+                        "but found %d.", properties.size()));
             }
             for (String property : properties) {
                 if (!property.contains("=")) {
-                    throw new IllegalArgumentException("Invalid key value pair format.");
+                    throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                            "valid format like 'a=a,b=b,c=c'.", property));
                 } else {
                     String[] keyValue = property.split("=");
                     if (keyValue.length != 2) {
-                        throw new IllegalArgumentException("Invalid key value pair format.");
+                        throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                                "valid format like 'a=a,b=b,c=c'.", property));
                     }
                     map.put(keyValue[0], keyValue[1]);
                 }
