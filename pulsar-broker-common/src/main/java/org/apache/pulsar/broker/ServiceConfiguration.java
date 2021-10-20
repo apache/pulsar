@@ -699,6 +699,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default number of message-bytes dispatching throttling-limit for every topic. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Apply dispatch rate limiting on batch message instead individual "
+                    + "messages with in batch message. (Default is disabled)")
+        private boolean dispatchThrottlingOnBatchMessageEnabled = false;
 
     @FieldContext(
         dynamic = true,
