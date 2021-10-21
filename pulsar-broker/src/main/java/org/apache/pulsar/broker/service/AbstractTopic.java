@@ -146,11 +146,11 @@ public abstract class AbstractTopic implements Topic {
             Policies policies;
             try {
                 policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+                        .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                    .orElseGet(Policies::new);
             } catch (Exception e) {
                 policies = new Policies();
             }
-
             maxProducers = policies.max_producers_per_topic;
         }
         maxProducers = maxProducers != null ? maxProducers : brokerService.pulsar()
@@ -193,10 +193,12 @@ public abstract class AbstractTopic implements Topic {
                 // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
                 policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                         .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+                if (policies == null) {
+                    policies = new Policies();
+                }
             } catch (Exception e) {
                 policies = new Policies();
             }
-
             maxConsumers = policies.max_consumers_per_topic;
         }
         final int maxConsumersPerTopic = maxConsumers != null ? maxConsumers
@@ -773,10 +775,8 @@ public abstract class AbstractTopic implements Topic {
                 policies = optPolicies.get();
             } else {
                 policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
-                if (policies == null) {
-                    policies = new Policies();
-                }
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                    .orElseGet(Policies::new);
             }
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());

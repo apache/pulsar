@@ -324,16 +324,18 @@ public class DispatchRateLimiter {
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
         final String path = path(POLICIES, namespace.toString());
-        Policies policies = null;
+        Optional<Policies >policies = Optional.empty();
         try {
             ConfigurationCacheService configurationCacheService = brokerService.pulsar().getConfigurationCache();
             if (configurationCacheService != null) {
-                policies = configurationCacheService.policiesCache().getDataIfPresent(path);
+                policies = configurationCacheService.policiesCache().getAsync(path)
+                    .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(),
+                        TimeUnit.SECONDS);
             }
         } catch (Exception e) {
             log.warn("Failed to get message-rate for {} ", topicName, e);
         }
-        return Optional.ofNullable(policies);
+        return policies;
     }
 
     /**
