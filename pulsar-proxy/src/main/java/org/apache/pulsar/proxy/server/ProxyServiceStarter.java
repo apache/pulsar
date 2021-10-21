@@ -313,6 +313,11 @@ public class ProxyServiceStarter {
         return config;
     }
 
+    @VisibleForTesting
+    public WebServer getServer() {
+        return server;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ProxyServiceStarter.class);
 
 }
