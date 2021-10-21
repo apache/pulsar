@@ -73,6 +73,7 @@ public class PulsarCluster {
         return new PulsarCluster(spec);
     }
 
+    @Getter
     private final PulsarClusterSpec spec;
 
     @Getter
@@ -150,6 +151,7 @@ public class PulsarCluster {
                         .withEnv("journalMaxGroupWaitMSec", "0")
                         .withEnv("clusterName", clusterName)
                         .withEnv("diskUsageThreshold", "0.99")
+                        .withEnv("nettyMaxFrameSizeBytes", "" + spec.maxMessageSize)
                 )
         );
 
@@ -166,7 +168,8 @@ public class PulsarCluster {
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
-                        .withEnv("AWS_SECRET_KEY", "secretkey");
+                        .withEnv("AWS_SECRET_KEY", "secretkey")
+                        .withEnv("maxMessageSize", "" + spec.maxMessageSize);
                     if (spec.queryLastMessage) {
                         brokerContainer.withEnv("bookkeeperExplicitLacIntervalInMills", "10");
                         brokerContainer.withEnv("bookkeeperUseV2WireProtocol", "false");
@@ -420,6 +423,7 @@ public class PulsarCluster {
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
+                .withEnv("pulsar.max-message-size", "" + spec.maxMessageSize)
                 .withClasspathResourceMapping(
                         resourcePath, "/pulsar/conf/presto/config.properties", BindMode.READ_WRITE);
         if (spec.queryLastMessage) {
