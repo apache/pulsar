@@ -123,7 +123,7 @@ public class OwnershipCache {
                           NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
-        this.ownerBrokerUrl = pulsar.getSafeBrokerServiceUrl();
+        this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
@@ -316,11 +316,9 @@ public class OwnershipCache {
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {
-        if (selfOwnerInfo.getNativeUrl() == null) {
-            this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getSafeBrokerServiceUrl(),
-                    pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
-                    pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
-        }
-        return selfOwnerInfo.getNativeUrl() != null;
+        this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
+        return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;
     }
 }

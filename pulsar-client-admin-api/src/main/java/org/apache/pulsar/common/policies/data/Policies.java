@@ -66,6 +66,7 @@ public class Policies {
     public boolean deleted = false;
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
+    public static final String LARGEST_BUNDLE = "LARGEST";
 
     @SuppressWarnings("checkstyle:MemberName")
     public boolean encryption_required = false;

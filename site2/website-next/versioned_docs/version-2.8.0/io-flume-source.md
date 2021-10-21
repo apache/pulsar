@@ -29,16 +29,12 @@ The configuration of the Flume source connector has the following properties.
 
 Before using the Flume source connector, you need to create a configuration file through one of the following methods.
 
-:::note
-
-For more information about the `source.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/source.conf).
-
-:::
-
+> For more information about the `source.conf` in the example below, see [here](https://github.com/apache/pulsar/blob/master/pulsar-io/flume/src/main/resources/flume/source.conf).
 
 * JSON 
 
     ```json
+
     {
         "name": "a1",
         "confFile": "source.conf",
@@ -46,16 +42,19 @@ For more information about the `source.conf` in the example below, see [here](ht
         "zkConnString": "",
         "zkBasePath": ""
     }
+
     ```
 
 * YAML
 
     ```yaml
+
     configs:
         name: a1
         confFile: source.conf
         noReloadConf: false
         zkConnString: ""
         zkBasePath: ""
+
     ```
 

@@ -71,6 +71,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
 
     protected PulsarMultiListenersWithInternalListenerNameTest(boolean withInternalListener) {
         this.withInternalListener = withInternalListener;
+        // enable port forwarding from the configured advertised port to the dynamic listening port
+        this.enableBrokerGateway = true;
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -98,7 +100,6 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     protected void doInitConf() throws Exception {
         super.doInitConf();
         this.conf.setClusterName("localhost");
-        this.conf.setAdvertisedAddress(null);
         this.conf.setAdvertisedListeners(String.format("internal:pulsar://%s,internal:pulsar+ssl://%s",
                 hostAndBrokerPort, hostAndBrokerPortSsl));
         if (withInternalListener) {

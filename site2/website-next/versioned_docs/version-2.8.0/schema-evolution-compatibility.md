@@ -8,6 +8,7 @@ original_id: schema-evolution-compatibility
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
+
 Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs. 
 
 This chapter examines how Pulsar schema evolves and what Pulsar schema compatibility check strategies are.
@@ -54,304 +55,23 @@ Pulsar has 8 schema compatibility check strategies, which are summarized in the 
 
 Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:
 
-<table className={"table"}>
-<tbody>
-
-<tr>
-
-<th>
-    
-Compatibility check strategy
-
-</th>
-
-<th>
-    
-Definition
-
-</th>
-
-<th>
-    
-Changes allowed
-
-</th>
-
-<th>
-    
-Check against which schema
-
-</th>
-
-<th>
-    
-Upgrade first
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_COMPATIBLE`
-</td> 
-
-<td> 
-Disable schema compatibility check.
-</td> 
-
-<td> 
-All changes are allowed
-</td> 
-
-<td> 
-All previous versions
-</td> 
-
-<td> 
-Any order
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_INCOMPATIBLE`
-</td> 
-
-<td> 
-Disable schema evolution.
-</td> 
-
-<td> 
-All changes are disabled
-</td> 
-
-<td> 
-None
-</td> 
-
-<td> 
-None
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`BACKWARD`
-</td> 
-
-<td> 
-Consumers using the schema V3 can process data written by producers using the schema V3 or V2.
-</td> 
-
-<td> 
-* Add optional fields
-* Delete fields
-</td> 
-
-<td> 
-Latest version
-</td> 
-
-<td> 
-Consumers
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`BACKWARD_TRANSITIVE`
-</td> 
-
-<td> 
-Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.
-</td> 
-
-<td> 
-* Add optional fields
-* Delete fields
-</td> 
-
-<td> 
-All previous versions
-</td> 
-
-<td> 
-Consumers
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FORWARD`
-</td> 
-
-<td> 
-Consumers using the schema V3 or V2 can process data written by producers using the schema V3.
-</td> 
-
-<td> 
-* Add fields
-* Delete optional fields
-</td> 
-
-<td> 
-Latest version
-</td> 
-
-<td> 
-Producers
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FORWARD_TRANSITIVE`
-</td> 
-
-<td> 
-Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3.
-</td> 
-
-<td> 
-* Add fields
-* Delete optional fields
-</td> 
-
-<td> 
-All previous versions
-</td> 
-
-<td> 
-Producers
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FULL`
-</td> 
-
-<td> 
-Backward and forward compatible between the schema V3 and V2.
-</td> 
-
-<td> 
-* Modify optional fields
-</td> 
-
-<td> 
-Latest version
-</td> 
-
-<td> 
-Any order
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FULL_TRANSITIVE`
-</td> 
-
-<td> 
-Backward and forward compatible among the schema V3, V2, and V1.
-</td> 
-
-<td> 
-* Modify optional fields
-</td> 
-
-<td> 
-All previous versions
-</td> 
-
-<td> 
-Any order
-</td> 
-
-</tr>
-
-</tbody>
-</table>
+|  Compatibility check strategy  |   Definition  |   Changes allowed  |   Check against which schema  |   Upgrade first  | 
+| --- | --- | --- | --- | --- |
+|  `ALWAYS_COMPATIBLE`  |   Disable schema compatibility check.  |   All changes are allowed  |   All previous versions  |   Any order  | 
+|  `ALWAYS_INCOMPATIBLE`  |   Disable schema evolution.  |   All changes are disabled  |   None  |   None  | 
+|  `BACKWARD`  |   Consumers using the schema V3 can process data written by producers using the schema V3 or V2.  |   * Add optional fields * Delete fields  |   Latest version  |   Consumers  | 
+|  `BACKWARD_TRANSITIVE`  |   Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.  |   * Add optional fields * Delete fields  |   All previous versions  |   Consumers  | 
+|  `FORWARD`  |   Consumers using the schema V3 or V2 can process data written by producers using the schema V3.  |   * Add fields * Delete optional fields  |   Latest version  |   Producers  | 
+|  `FORWARD_TRANSITIVE`  |   Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3.  |   * Add fields * Delete optional fields  |   All previous versions  |   Producers  | 
+|  `FULL`  |   Backward and forward compatible between the schema V3 and V2.  |   * Modify optional fields  |   Latest version  |   Any order  | 
+|  `FULL_TRANSITIVE`  |   Backward and forward compatible among the schema V3, V2, and V1.  |   * Modify optional fields  |   All previous versions  |   Any order  | 
 
 ### ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE 
 
-<table className={"table"}>
-<tbody>
-
-<tr>
-
-<th>
-    
-Compatibility check strategy
-
-</th>
-
-<th>
-    
-Definition
-
-</th>
-
-<th>
-    
-Note 
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_COMPATIBLE`
-</td> 
-
-<td> 
-Disable schema compatibility check.
-</td> 
-
-<td> 
-None
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_INCOMPATIBLE`
-</td> 
-
-<td> 
-Disable schema evolution, that is, any schema change is rejected.
-</td> 
-
-<td> 
-* For all schema types except Avro and JSON, the default schema compatibility check strategy is `ALWAYS_INCOMPATIBLE`. 
-* For Avro and JSON, the default schema compatibility check strategy is `FULL`.
-</td> 
-
-</tr>
-
-</tbody>
-</table> 
+|  Compatibility check strategy  |   Definition  |   Note  | 
+| --- | --- | --- |
+|  `ALWAYS_COMPATIBLE`  |   Disable schema compatibility check.  |   None  | 
+|  `ALWAYS_INCOMPATIBLE`  |   Disable schema evolution, that is, any schema change is rejected.  |   * For all schema types except Avro and JSON, the default schema compatibility check strategy is `ALWAYS_INCOMPATIBLE`. * For Avro and JSON, the default schema compatibility check strategy is `FULL`.  |  
 
 #### Example 
   
@@ -429,87 +149,10 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
 
 Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:
 
-<table className={"table"}>
-<tbody>
-
-<tr>
-
-<th>
-    
-Compatibility check strategy
-
-</th>
-
-<th>
-    
-Definition
-
-</th>
-
-<th>
-    
-Description
-
-</th>
-
-<th>
-    
-Note
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-`FULL`
-</td> 
-
-<td> 
-Schemas are both backward and forward compatible, which means:
-Consumers using the last schema can process data written by producers using the new schema. 
-AND
-Consumers using the new schema can process data written by producers using the last schema.
-</td> 
-
-<td> 
-Consumers using the schema V3 can process data written by producers using the schema V3 or V2.
-AND
-Consumers using the schema V3 or V2 can process data written by producers using the schema V3. 
-</td> 
-
-<td> 
-* For Avro and JSON, the default schema compatibility check strategy is `FULL`. 
-* For all schema types except Avro and JSON, the default schema compatibility check strategy is `ALWAYS_INCOMPATIBLE`. 
-</td>
-
-</tr>
-
-<tr>
-
-<td> 
-`FULL_TRANSITIVE`
-</td> 
-
-<td> 
-The new schema is backward and forward compatible with all previously registered schemas.
-</td> 
-
-<td> 
-Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.
-AND 
-Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3. 
-</td> 
-
-<td> 
-None
-</td>
-
-</tr>
-
-</tbody>
-</table>
+|  Compatibility check strategy  |   Definition  |   Description  |   Note  | 
+| --- | --- | --- | --- |
+|  `FULL`  |   Schemas are both backward and forward compatible, which means: Consumers using the last schema can process data written by producers using the new schema. AND Consumers using the new schema can process data written by producers using the last schema.  |   Consumers using the schema V3 can process data written by producers using the schema V3 or V2. AND Consumers using the schema V3 or V2 can process data written by producers using the schema V3.  |   * For Avro and JSON, the default schema compatibility check strategy is `FULL`. * For all schema types except Avro and JSON, the default schema compatibility check strategy is `ALWAYS_INCOMPATIBLE`.  | 
+|  `FULL_TRANSITIVE`  |   The new schema is backward and forward compatible with all previously registered schemas.  |   Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1. AND Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3.  |   None  | 
 
 #### Example  
 
@@ -532,123 +175,16 @@ When a producer tries to connect to a topic (suppose ignore the schema auto crea
 ### Consumer
 When a consumer tries to connect to a topic, a broker checks if a carried schema is compatible with a registered schema based on the configured schema compatibility check strategy.
 
-<table className={"table"}>
-<tbody>
-
-<tr>
-
-<th>
-
-Compatibility check strategy
-
-</th>
-
-<th>
-
-Check logic
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_COMPATIBLE`
-</td> 
-
-<td> 
-All pass
-</td> 
- 
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_INCOMPATIBLE`
-</td> 
-
-<td> 
-No pass
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`BACKWARD`
-</td> 
-
-<td> 
-Can read the last schema
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`BACKWARD_TRANSITIVE`
-</td> 
-
-<td> 
-Can read all schemas
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FORWARD`
-</td> 
-
-<td> 
-Can read the last schema
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FORWARD_TRANSITIVE`
-</td> 
-
-<td> 
-Can read the last schema
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FULL`
-</td> 
-
-<td> 
-Can read the last schema
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`FULL_TRANSITIVE`
-</td> 
-
-<td> 
-Can read all schemas
-</td> 
-
-</tr>
-
-</tbody>
-</table>
+|  Compatibility check strategy  |   Check logic  | 
+| --- | --- |
+|  `ALWAYS_COMPATIBLE`  |   All pass  | 
+|  `ALWAYS_INCOMPATIBLE`  |   No pass  | 
+|  `BACKWARD`  |   Can read the last schema  | 
+|  `BACKWARD_TRANSITIVE`  |   Can read all schemas  | 
+|  `FORWARD`  |   Can read the last schema  | 
+|  `FORWARD_TRANSITIVE`  |   Can read the last schema  | 
+|  `FULL`  |   Can read the last schema  | 
+|  `FULL_TRANSITIVE`  |   Can read all schemas  | 
 
 ## Order of upgrading clients
 
@@ -656,120 +192,13 @@ The order of upgrading client applications is determined by the compatibility ch
 
 For example, the producers using schemas to write data to Pulsar and the consumers using schemas to read data from Pulsar. 
 
-<table className={"table"}>
-<tbody>
-
-<tr>
-
-<th>
-    
-Compatibility check strategy
-
-</th>
-
-<th>
-    
-Upgrade first
-
-</th>
-
-<th>
-    
-Description
-
-</th>
-
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_COMPATIBLE`
-</td> 
-
-<td> 
-Any order
-</td> 
-
-<td> 
-The compatibility check is disabled.
-Consequently, you can upgrade the producers and consumers in **any order**. 
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-`ALWAYS_INCOMPATIBLE`
-</td> 
-
-<td> 
-None
-</td> 
-
-<td> 
-The schema evolution is disabled.
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-* `BACKWARD`
-* `BACKWARD_TRANSITIVE` 
-</td> 
-
-<td> 
-Consumers
-</td> 
-
-<td> 
-There is no guarantee that consumers using the old schema can read data produced using the new schema. 
-Consequently, **upgrade all consumers first**, and then start producing new data.
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-* `FORWARD`
-* `FORWARD_TRANSITIVE` 
-</td> 
-
-<td> 
-Producers
-</td> 
-
-<td> 
-There is no guarantee that consumers using the new schema can read data produced using the old schema. 
-Consequently, **upgrade all producers first** to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers.
-</td> 
-
-</tr>
-
-<tr>
-
-<td> 
-* `FULL`
-* `FULL_TRANSITIVE` 
-</td> 
-
-<td> 
-Any order
-</td> 
-
-<td> 
-There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema. 
-Consequently, you can upgrade the producers and consumers in **any order**.
-</td> 
-
-</tr>
-
-</tbody>
-</table>
+|  Compatibility check strategy  |   Upgrade first  |   Description  | 
+| --- | --- | --- |
+|  `ALWAYS_COMPATIBLE`  |   Any order  |   The compatibility check is disabled. Consequently, you can upgrade the producers and consumers in **any order**.  | 
+|  `ALWAYS_INCOMPATIBLE`  |   None  |   The schema evolution is disabled.  | 
+|  * `BACKWARD` * `BACKWARD_TRANSITIVE`  |   Consumers  |   There is no guarantee that consumers using the old schema can read data produced using the new schema. Consequently, **upgrade all consumers first**, and then start producing new data.  | 
+|  * `FORWARD` * `FORWARD_TRANSITIVE`  |   Producers  |   There is no guarantee that consumers using the new schema can read data produced using the old schema. Consequently, **upgrade all producers first** to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers.  | 
+|  * `FULL` * `FULL_TRANSITIVE`  |   Any order  |   There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema. Consequently, you can upgrade the producers and consumers in **any order**.  | 
 
 
 

@@ -1,0 +1,68 @@
+{
+  "version-2.7.2/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/kubernetes-helm"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Concepts and Architecture",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-messaging"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-architecture-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-clients"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-replication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-multi-tenancy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-topic-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-proxy-sni-routing"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/concepts-multiple-advertised-listeners"
+        }
+      ]
+    }
+  ]
+}
