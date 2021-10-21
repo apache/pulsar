@@ -213,6 +213,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     redeliveryTracker)
             .addListener(future -> {
                 if (future.isSuccess()) {
+                    int permits = dispatchThrottlingOnBatchMessageEnabled ? entries.size()
+                            : sendMessageInfo.getTotalMessages();
                     // acquire message-dispatch permits for already delivered messages
                     if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
                         if (topic.getBrokerDispatchRateLimiter().isPresent()) {
@@ -221,12 +223,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                         }
 
                         if (topic.getDispatchRateLimiter().isPresent()) {
-                            topic.getDispatchRateLimiter().get().tryDispatchPermit(sendMessageInfo.getTotalMessages(),
+                            topic.getDispatchRateLimiter().get().tryDispatchPermit(permits,
                                     sendMessageInfo.getTotalBytes());
                         }
-
                         dispatchRateLimiter.ifPresent(rateLimiter ->
-                                rateLimiter.tryDispatchPermit(sendMessageInfo.getTotalMessages(),
+                                rateLimiter.tryDispatchPermit(permits,
                                         sendMessageInfo.getTotalBytes()));
                     }
 

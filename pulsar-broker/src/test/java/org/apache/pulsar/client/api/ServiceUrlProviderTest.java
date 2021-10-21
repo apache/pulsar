@@ -56,7 +56,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrlProvider(new TestServiceUrlProvider(pulsar.getSafeBrokerServiceUrl()))
+                .serviceUrlProvider(new TestServiceUrlProvider(pulsar.getBrokerServiceUrl()))
                 .statsInterval(1, TimeUnit.SECONDS)
                 .build();
         Assert.assertTrue(((PulsarClientImpl) client).getConfiguration().getServiceUrlProvider() instanceof TestServiceUrlProvider);
@@ -70,7 +70,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             producer.send("Hello Pulsar[" + i + "]");
         }
-        client.updateServiceUrl(pulsar.getSafeBrokerServiceUrl());
+        client.updateServiceUrl(pulsar.getBrokerServiceUrl());
         for (int i = 100; i < 200; i++) {
             producer.send("Hello Pulsar[" + i + "]");
         }
@@ -88,7 +88,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
     @Test
     public void testCreateClientWithAutoChangedServiceUrlProvider() throws Exception {
 
-        AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getSafeBrokerServiceUrl());
+        AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getBrokerServiceUrl());
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -112,26 +112,26 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         restartBroker();
         PulsarService pulsarService2 = pulsar;
 
-        log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getSafeBrokerServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
-        Assert.assertNotEquals(pulsarService1.getSafeBrokerServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
+        log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        Assert.assertNotEquals(pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
 
         log.info("Service url : producer = {}, consumer = {}",
             producer.getClient().getLookup().getServiceUrl(),
             consumer.getClient().getLookup().getServiceUrl());
 
-        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService1.getSafeBrokerServiceUrl());
-        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService1.getSafeBrokerServiceUrl());
+        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
+        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService1.getBrokerServiceUrl());
 
         log.info("Changing service url from {} to {}",
-            pulsarService1.getSafeBrokerServiceUrl(),
-            pulsarService2.getSafeBrokerServiceUrl());
+            pulsarService1.getBrokerServiceUrl(),
+            pulsarService2.getBrokerServiceUrl());
 
-        serviceUrlProvider.onServiceUrlChanged(pulsarService2.getSafeBrokerServiceUrl());
+        serviceUrlProvider.onServiceUrlChanged(pulsarService2.getBrokerServiceUrl());
         log.info("Service url changed : producer = {}, consumer = {}",
             producer.getClient().getLookup().getServiceUrl(),
             consumer.getClient().getLookup().getServiceUrl());
-        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
-        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());
+        Assert.assertEquals(producer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        Assert.assertEquals(consumer.getClient().getLookup().getServiceUrl(), pulsarService2.getBrokerServiceUrl());
         producer.close();
         consumer.close();
     }

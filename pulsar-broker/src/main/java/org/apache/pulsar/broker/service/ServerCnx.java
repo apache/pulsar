@@ -1124,6 +1124,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final ProducerAccessMode producerAccessMode = cmdProducer.getProducerAccessMode();
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
                 ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
+        final boolean isTxnEnabled = cmdProducer.isTxnEnabled();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -1235,67 +1236,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             });
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
-                                CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
-                                Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
-                                        getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                                        userProvidedProducerName, producerAccessMode, topicEpoch);
-
-                                topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
-                                    if (isActive()) {
-                                        if (producerFuture.complete(producer)) {
-                                            log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                                            commandSender.sendProducerSuccessResponse(requestId, producerName,
-                                                    producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                    newTopicEpoch, true /* producer is ready now */);
-                                            return;
-                                        } else {
-                                            // The producer's future was completed before by
-                                            // a close command
-                                            producer.closeNow(true);
-                                            log.info("[{}] Cleared producer created after"
-                                                            + " timeout on client side {}",
-                                                    remoteAddress, producer);
-                                        }
-                                        } else {
-                                            producer.closeNow(true);
-                                        log.info("[{}] Cleared producer created after connection was closed: {}",
-                                                remoteAddress, producer);
-                                        producerFuture.completeExceptionally(
-                                                new IllegalStateException(
-                                                        "Producer created after connection was closed"));
-                                        }
-
-                                        producers.remove(producerId, producerFuture);
-                                }).exceptionally(ex -> {
-                                    log.error("[{}] Failed to add producer to topic {}: producerId={}, {}",
-                                              remoteAddress, topicName, producerId, ex.getMessage());
-
-                                    producer.closeNow(true);
-                                    if (producerFuture.completeExceptionally(ex)) {
-                                        commandSender.sendErrorResponse(requestId,
-                                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-                                    }
+                                topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
+                                    buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                                            metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
+                                            producerAccessMode, topicEpoch, producerFuture);
+                                }).exceptionally(exception -> {
+                                    Throwable cause = exception.getCause();
+                                    log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
+                                            producerId, requestId, exception);
+                                    commandSender.sendErrorResponse(requestId,
+                                            ServiceUnitNotReadyException.getClientErrorCode(cause),
+                                            cause.getMessage());
                                     return null;
-                                });
-
-                                producerQueuedFuture.thenRun(() -> {
-                                    // If the producer is queued waiting, we will get an immediate notification
-                                    // that we need to pass to client
-                                    if (isActive()) {
-                                        log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
-                                        commandSender.sendProducerSuccessResponse(requestId, producerName,
-                                                producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                Optional.empty(), false/* producer is not ready now */);
-                                    }
                                 });
                             });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
-
                             if (cause instanceof NoSuchElementException) {
                                 cause = new TopicNotFoundException("Topic Not Found.");
                             }
-
                             if (!Exceptions.areExceptionsPresentInChain(cause,
                                     ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
                                 // Do not print stack traces for expected exceptions
@@ -1327,6 +1286,65 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
+    private void buildProducerAndAddTopic(Topic topic, long producerId, String producerName, long requestId,
+                             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+                             boolean userProvidedProducerName, TopicName topicName,
+                             ProducerAccessMode producerAccessMode,
+                             Optional<Long> topicEpoch, CompletableFuture<Producer> producerFuture){
+        CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
+        Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
+                getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
+                userProvidedProducerName, producerAccessMode, topicEpoch);
+
+        topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
+            if (isActive()) {
+                if (producerFuture.complete(producer)) {
+                    log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                    commandSender.sendProducerSuccessResponse(requestId, producerName,
+                            producer.getLastSequenceId(), producer.getSchemaVersion(),
+                            newTopicEpoch, true /* producer is ready now */);
+                    return;
+                } else {
+                    // The producer's future was completed before by
+                    // a close command
+                    producer.closeNow(true);
+                    log.info("[{}] Cleared producer created after"
+                                    + " timeout on client side {}",
+                            remoteAddress, producer);
+                }
+            } else {
+                producer.closeNow(true);
+                log.info("[{}] Cleared producer created after connection was closed: {}",
+                        remoteAddress, producer);
+                producerFuture.completeExceptionally(
+                        new IllegalStateException(
+                                "Producer created after connection was closed"));
+            }
+
+            producers.remove(producerId, producerFuture);
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to add producer to topic {}: producerId={}, {}",
+                    remoteAddress, topicName, producerId, ex.getMessage());
+
+            producer.closeNow(true);
+            if (producerFuture.completeExceptionally(ex)) {
+                commandSender.sendErrorResponse(requestId,
+                        BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            }
+            return null;
+        });
+
+        producerQueuedFuture.thenRun(() -> {
+            // If the producer is queued waiting, we will get an immediate notification
+            // that we need to pass to client
+            if (isActive()) {
+                log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
+                commandSender.sendProducerSuccessResponse(requestId, producerName,
+                        producer.getLastSequenceId(), producer.getSchemaVersion(),
+                        Optional.empty(), false/* producer is not ready now */);
+            }
+        });
+    }
     @Override
     protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
         checkArgument(state == State.Connected);
