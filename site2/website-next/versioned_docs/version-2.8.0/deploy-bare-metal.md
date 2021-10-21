@@ -411,19 +411,19 @@ If you want to enable [Pulsar Functions](functions-overview), you can follow the
 
 1. Edit `conf/broker.conf` to enable functions worker, by setting `functionsWorkerEnabled` to `true`.
 
-    ```conf
-    
-    functionsWorkerEnabled=true
-    
-    ```
+   ```conf
+   
+   functionsWorkerEnabled=true
+   
+   ```
 
 2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata). 
 
-    ```conf
-    
-    pulsarFunctionsCluster: pulsar-cluster-1
-    
-    ```
+   ```conf
+   
+   pulsarFunctionsCluster: pulsar-cluster-1
+   
+   ```
 
 If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker).
 

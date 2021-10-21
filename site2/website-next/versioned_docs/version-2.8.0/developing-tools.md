@@ -53,32 +53,32 @@ names. In all cases, the BASE name of the tenants, namespaces, and topics are us
 `my_namespace`, and the topic name is `my_topic`. The controller can perform the following actions:
 
 * Create a topic with a producer and a consumer
-    * `trade <tenant> <namespace> <topic> [--rate <message rate per second>]
-    [--rand-rate <lower bound>,<upper bound>]
-    [--size <message size in bytes>]`
+  * `trade <tenant> <namespace> <topic> [--rate <message rate per second>]
+  [--rand-rate <lower bound>,<upper bound>]
+  [--size <message size in bytes>]`
 * Create a group of topics with a producer and a consumer
-    * `trade_group <tenant> <group> <num_namespaces> [--rate <message rate per second>]
-    [--rand-rate <lower bound>,<upper bound>]
-    [--separation <separation between creating topics in ms>] [--size <message size in bytes>]
-    [--topics-per-namespace <number of topics to create per namespace>]`
+  * `trade_group <tenant> <group> <num_namespaces> [--rate <message rate per second>]
+  [--rand-rate <lower bound>,<upper bound>]
+  [--separation <separation between creating topics in ms>] [--size <message size in bytes>]
+  [--topics-per-namespace <number of topics to create per namespace>]`
 * Change the configuration of an existing topic
-    * `change <tenant> <namespace> <topic> [--rate <message rate per second>]
-    [--rand-rate <lower bound>,<upper bound>]
-    [--size <message size in bytes>]`
+  * `change <tenant> <namespace> <topic> [--rate <message rate per second>]
+  [--rand-rate <lower bound>,<upper bound>]
+  [--size <message size in bytes>]`
 * Change the configuration of a group of topics
-    * `change_group <tenant> <group> [--rate <message rate per second>] [--rand-rate <lower bound>,<upper bound>]
-    [--size <message size in bytes>] [--topics-per-namespace <number of topics to create per namespace>]`
+  * `change_group <tenant> <group> [--rate <message rate per second>] [--rand-rate <lower bound>,<upper bound>]
+  [--size <message size in bytes>] [--topics-per-namespace <number of topics to create per namespace>]`
 * Shutdown a previously created topic
-    * `stop <tenant> <namespace> <topic>`
+  * `stop <tenant> <namespace> <topic>`
 * Shutdown a previously created group of topics
-    * `stop_group <tenant> <group>`
+  * `stop_group <tenant> <group>`
 * Copy the historical data from one ZooKeeper to another and simulate based on the message rates and sizes in that
 history
     * `copy <tenant> <source zookeeper> <target zookeeper> [--rate-multiplier value]`
 * Simulate the load of the historical data on the current ZooKeeper (should be same ZooKeeper being simulated on)
-    * `simulate <tenant> <zookeeper> [--rate-multiplier value]`
+  * `simulate <tenant> <zookeeper> [--rate-multiplier value]`
 * Stream the latest data from the given active ZooKeeper to simulate the real-time load of that ZooKeeper.
-    * `stream <tenant> <zookeeper> [--rate-multiplier value]`
+  * `stream <tenant> <zookeeper> [--rate-multiplier value]`
 
 The "group" arguments in these commands allow the user to create or affect multiple topics at once. Groups are created
 when calling the `trade_group` command, and all topics from these groups may be subsequently modified or stopped

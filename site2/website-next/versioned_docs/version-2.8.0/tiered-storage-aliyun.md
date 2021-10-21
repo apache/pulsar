@@ -61,21 +61,21 @@ You can configure the Aliyun OSS offloader driver in the configuration file `bro
 
 - **Required** configurations are as below.
   
-    | Required configuration | Description | Example value |
-    | --- | --- |--- |
-    | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss |
-    | `offloadersDirectory` | Offloader directory | offloaders |
-    | `managedLedgerOffloadBucket` | Bucket | pulsar-topic-offload |
-    | `managedLedgerOffloadServiceEndpoint` | Endpoint | http://oss-cn-hongkong.aliyuncs.com |
+  | Required configuration | Description | Example value |
+  | --- | --- |--- |
+  | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss |
+  | `offloadersDirectory` | Offloader directory | offloaders |
+  | `managedLedgerOffloadBucket` | Bucket | pulsar-topic-offload |
+  | `managedLedgerOffloadServiceEndpoint` | Endpoint | http://oss-cn-hongkong.aliyuncs.com |
 
 - **Optional** configurations are as below.
 
-    | Optional | Description | Example value |
-    | --- | --- | --- |
-    | `managedLedgerOffloadReadBufferSizeInBytes` | Size of block read | 1 MB |
-    | `managedLedgerOffloadMaxBlockSizeInBytes` | Size of block write | 64 MB |
-    | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
-    | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
+  | Optional | Description | Example value |
+  | --- | --- | --- |
+  | `managedLedgerOffloadReadBufferSizeInBytes` | Size of block read | 1 MB |
+  | `managedLedgerOffloadMaxBlockSizeInBytes` | Size of block write | 64 MB |
+  | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
+  | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
 
 #### Bucket (required)
 
@@ -176,7 +176,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
 - Use CLI tools (such as pulsar-admin). 
 
-    To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Aliyun OSS until the threshold is no longer exceeded. Older segments are moved first.
+  To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Aliyun OSS until the threshold is no longer exceeded. Older segments are moved first.
 
 #### Example
 
@@ -204,58 +204,58 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
 - This example checks the Aliyun OSS offloader status using pulsar-admin.
 
-    ```bash
-    
-    bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-    
-    ```
+  ```bash
+  
+  bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+  
+  ```
 
-    **Output**
+  **Output**
 
-    ```bash
-    
-    Offload is currently running
-    
-    ```
+  ```bash
+  
+  Offload is currently running
+  
+  ```
 
-    To wait for the Aliyun OSS offloader to complete the job, add the `-w` flag.
+  To wait for the Aliyun OSS offloader to complete the job, add the `-w` flag.
 
-    ```bash
-    
-    bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-    
-    ```
+  ```bash
+  
+  bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
+  
+  ```
 
-    **Output**
+  **Output**
 
-    ```
-    
-    Offload was a success
-    
-    ```
+  ```
+  
+  Offload was a success
+  
+  ```
 
-    If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
+  If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
-    ```bash
-    
-    bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-    
-    ```
+  ```bash
+  
+  bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+  
+  ```
 
-    **Output**
+  **Output**
 
-    ```
-    
-    Error in offload
-    null
+  ```
+  
+  Error in offload
+  null
 
-    Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-    
-    ```
+  Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+  
+  ```
 
-    :::tip
+  :::tip
 
-    For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
 
-    :::
+  :::
 

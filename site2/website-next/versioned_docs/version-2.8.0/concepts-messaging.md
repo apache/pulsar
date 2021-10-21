@@ -32,21 +32,21 @@ The default size of a message is 5 MB. You can configure the max size of a messa
 
 - In the `broker.conf` file.
 
-    ```bash
-    
-    # The max size of a message (in bytes).
-    maxMessageSize=5242880
-    
-    ```
+  ```bash
+  
+  # The max size of a message (in bytes).
+  maxMessageSize=5242880
+  
+  ```
 
 - In the `bookkeeper.conf` file.
 
-    ```bash
-    
-    # The max size of the netty frame (in bytes). Any messages received larger than this value are rejected. The default value is 5 MB.
-    nettyMaxFrameSizeBytes=5253120
-    
-    ```
+  ```bash
+  
+  # The max size of the netty frame (in bytes). Any messages received larger than this value are rejected. The default value is 5 MB.
+  nettyMaxFrameSizeBytes=5253120
+  
+  ```
 
 > For more information on Pulsar message contents, see Pulsar [binary protocol](developing-binary-protocol).
 

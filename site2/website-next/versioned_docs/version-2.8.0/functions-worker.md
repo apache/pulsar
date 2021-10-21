@@ -60,41 +60,41 @@ If you want to use Stateful-Functions related functions (for example,  `putState
 
    Currently, the service uses the NAR package, so you need to set the configuration in `bookkeeper.conf`.
 
-    ```text
-    
-    extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-    
-    ```
+   ```text
+   
+   extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+   
+   ```
 
    After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
 
    Input:
 
-    ```shell
-    
-    telnet localhost 4181
-    
-    ```
+   ```shell
+   
+   telnet localhost 4181
+   
+   ```
 
    Output:
 
-    ```text
-    
-    Trying 127.0.0.1...
-    Connected to localhost.
-    Escape character is '^]'.
-    
-    ```
+   ```text
+   
+   Trying 127.0.0.1...
+   Connected to localhost.
+   Escape character is '^]'.
+   
+   ```
 
 2. Turn on this function in `functions_worker.yml`.
 
-    ```text
-    
-    stateStorageServiceUrl: bk://<bk-service-url>:4181
-    
-    ```
+   ```text
+   
+   stateStorageServiceUrl: bk://<bk-service-url>:4181
+   
+   ```
 
-    `bk-service-url` is the service URL pointing to the BookKeeper table service.
+   `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
 ### Start Functions-worker with broker
 

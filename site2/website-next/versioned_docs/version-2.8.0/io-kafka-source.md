@@ -71,30 +71,30 @@ Before using the Kafka source connector, you need to create a configuration file
 
 * JSON 
 
-    ```json
-    
-    {
-        "bootstrapServers": "pulsar-kafka:9092",
-        "groupId": "test-pulsar-io",
-        "topic": "my-topic",
-        "sessionTimeoutMs": "10000",
-        "autoCommitEnabled": false
-    }
-    
-    ```
+  ```json
+  
+  {
+      "bootstrapServers": "pulsar-kafka:9092",
+      "groupId": "test-pulsar-io",
+      "topic": "my-topic",
+      "sessionTimeoutMs": "10000",
+      "autoCommitEnabled": false
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    
-    configs:
-        bootstrapServers: "pulsar-kafka:9092"
-        groupId: "test-pulsar-io"
-        topic: "my-topic"
-        sessionTimeoutMs: "10000"
-        autoCommitEnabled: false
-    
-    ```
+  ```yaml
+  
+  configs:
+      bootstrapServers: "pulsar-kafka:9092"
+      groupId: "test-pulsar-io"
+      topic: "my-topic"
+      sessionTimeoutMs: "10000"
+      autoCommitEnabled: false
+  
+  ```
 
 ## Usage
 
@@ -102,13 +102,13 @@ Here is an example of using the Kafka source connector with the configuration fi
 
 1. Download a Kafka client and a Kafka connector.
 
-    ```bash
-    
-    $ wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/0.10.2.1/kafka-clients-0.10.2.1.jar
+   ```bash
+   
+   $ wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/0.10.2.1/kafka-clients-0.10.2.1.jar
 
-    $ wget https://archive.apache.org/dist/pulsar/pulsar-2.4.0/connectors/pulsar-io-kafka-2.4.0.nar
-    
-    ```
+   $ wget https://archive.apache.org/dist/pulsar/pulsar-2.4.0/connectors/pulsar-io-kafka-2.4.0.nar
+   
+   ```
 
 2. Create a network.
 
@@ -161,70 +161,70 @@ Here is an example of using the Kafka source connector with the configuration fi
 
 7. Create a consumer file _pulsar-client.py_.
 
-    ```python
-    
-    import pulsar
+   ```python
+   
+   import pulsar
 
-    client = pulsar.Client('pulsar://localhost:6650')
-    consumer = client.subscribe('my-topic', subscription_name='my-aa')
+   client = pulsar.Client('pulsar://localhost:6650')
+   consumer = client.subscribe('my-topic', subscription_name='my-aa')
 
-    while True:
-        msg = consumer.receive()
-        print msg
-        print dir(msg)
-        print("Received message: '%s'" % msg.data())
-        consumer.acknowledge(msg)
+   while True:
+       msg = consumer.receive()
+       print msg
+       print dir(msg)
+       print("Received message: '%s'" % msg.data())
+       consumer.acknowledge(msg)
 
-    client.close()
-    
-    ```
+   client.close()
+   
+   ```
 
 8. Copy the following files to Pulsar.
 
-    ```bash
-    
-    $ docker cp pulsar-io-kafka-@pulsar:version@.nar pulsar-kafka-standalone:/pulsar
-    $ docker cp kafkaSourceConfig.yaml pulsar-kafka-standalone:/pulsar/conf
-    $ docker cp pulsar-client.py pulsar-kafka-standalone:/pulsar/
-    $ docker cp kafka-producer.py pulsar-kafka-standalone:/pulsar/
-    
-    ```
+   ```bash
+   
+   $ docker cp pulsar-io-kafka-@pulsar:version@.nar pulsar-kafka-standalone:/pulsar
+   $ docker cp kafkaSourceConfig.yaml pulsar-kafka-standalone:/pulsar/conf
+   $ docker cp pulsar-client.py pulsar-kafka-standalone:/pulsar/
+   $ docker cp kafka-producer.py pulsar-kafka-standalone:/pulsar/
+   
+   ```
 
 9. Open a new terminal window and start the Kafka source connector in local run mode. 
 
-    ```bash
-    
-    $ docker exec -it pulsar-kafka-standalone /bin/bash
+   ```bash
+   
+   $ docker exec -it pulsar-kafka-standalone /bin/bash
 
-    $ ./bin/pulsar-admin source localrun \
-    --archive ./pulsar-io-kafka-@pulsar:version@.nar \
-    --classname org.apache.pulsar.io.kafka.KafkaBytesSource \
-    --tenant public \
-    --namespace default \
-    --name kafka \
-    --destination-topic-name my-topic \
-    --source-config-file ./conf/kafkaSourceConfig.yaml \
-    --parallelism 1
-    
-    ```
+   $ ./bin/pulsar-admin source localrun \
+   --archive ./pulsar-io-kafka-@pulsar:version@.nar \
+   --classname org.apache.pulsar.io.kafka.KafkaBytesSource \
+   --tenant public \
+   --namespace default \
+   --name kafka \
+   --destination-topic-name my-topic \
+   --source-config-file ./conf/kafkaSourceConfig.yaml \
+   --parallelism 1
+   
+   ```
 
 10. Open a new terminal window and run the consumer.
 
-    ```bash
-    
-    $ docker exec -it pulsar-kafka-standalone /bin/bash
+   ```bash
+   
+   $ docker exec -it pulsar-kafka-standalone /bin/bash
 
-    $ pip install kafka-python
+   $ pip install kafka-python
 
-    $ python3 kafka-producer.py
-    
-    ```
+   $ python3 kafka-producer.py
+   
+   ```
 
-    The following information appears on the consumer terminal window.
+   The following information appears on the consumer terminal window.
 
-    ```bash
-    
-    Received message: 'hello world'
-    
-    ```
+   ```bash
+   
+   Received message: 'hello world'
+   
+   ```
 

@@ -381,9 +381,9 @@ The `prepare_helm_release` creates the following resources:
 
 - A Kubernetes namespace for installing the Pulsar release
 - JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
-    - `proxy-admin` role is used for proxies to communicate to brokers.
-    - `broker-admin` role is used for inter-broker communications.
-    - `admin` role is used by the admin tools.
+  - `proxy-admin` role is used for proxies to communicate to brokers.
+  - `broker-admin` role is used for inter-broker communications.
+  - `admin` role is used by the admin tools.
 
 ## Deploy Pulsar cluster using Helm
 

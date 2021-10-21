@@ -35,23 +35,23 @@ To upgrade an Apache Pulsar cluster, follow the upgrade sequence.
 2. Upgrade bookies  
 - Canary test: test an upgraded version in one or a small set of bookies.
 - Rolling upgrade:  
-    - a. Disable `autorecovery` with the following command.
+  - a. Disable `autorecovery` with the following command.
 
-       ```shell
-       
-       bin/bookkeeper shell autorecovery -disable
-       
-       ```
+     ```shell
+     
+     bin/bookkeeper shell autorecovery -disable
+     
+     ```
 
   
-    - b. Rollout the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.  
-    - c. After you upgrade all bookies, re-enable `autorecovery` with the following command.
+  - b. Rollout the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.  
+  - c. After you upgrade all bookies, re-enable `autorecovery` with the following command.
 
-       ```shell
-       
-       bin/bookkeeper shell autorecovery -enable
-       
-       ```
+     ```shell
+     
+     bin/bookkeeper shell autorecovery -enable
+     
+     ```
 
 3. Upgrade brokers
 - Canary test: test an upgraded version in one or a small set of brokers.

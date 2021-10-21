@@ -33,28 +33,28 @@ Before using the Flume sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-    
-    {
-        "name": "a1",
-        "confFile": "sink.conf",
-        "noReloadConf": "false",
-        "zkConnString": "",
-        "zkBasePath": ""
-    }
-    
-    ```
+  ```json
+  
+  {
+      "name": "a1",
+      "confFile": "sink.conf",
+      "noReloadConf": "false",
+      "zkConnString": "",
+      "zkBasePath": ""
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    
-    configs:
-        name: a1
-        confFile: sink.conf
-        noReloadConf: false
-        zkConnString: ""
-        zkBasePath: ""
-    
-    ```
+  ```yaml
+  
+  configs:
+      name: a1
+      confFile: sink.conf
+      noReloadConf: false
+      zkConnString: ""
+      zkBasePath: ""
+  
+  ```
 

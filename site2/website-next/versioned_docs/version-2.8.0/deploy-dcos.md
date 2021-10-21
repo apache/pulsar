@@ -190,13 +190,13 @@ You can shut down and uninstall the `pulsar` application from DC/OS at any time 
 
 1. Using the DC/OS GUI, you can choose **Delete** at the right end of Pulsar group.
 
-    ![DC/OS pulsar uninstall](/assets/dcos_uninstall.png)
+   ![DC/OS pulsar uninstall](/assets/dcos_uninstall.png)
 
 2. You can use the following command:
 
-    ```bash
-    
-    $ dcos marathon group remove /pulsar
-    
-    ```
+   ```bash
+   
+   $ dcos marathon group remove /pulsar
+   
+   ```
 

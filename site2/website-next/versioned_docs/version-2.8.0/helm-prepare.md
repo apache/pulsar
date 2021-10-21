@@ -14,7 +14,7 @@ For a fully functional Pulsar cluster, you need a few resources before deploying
 - [Google Kubernetes Engine](#google-kubernetes-engine)
   - [Manual cluster creation](#manual-cluster-creation)
   - [Scripted cluster creation](#scripted-cluster-creation)
-    - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
+  - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
 - [Next Steps](#next-steps)
 
 ## Google Kubernetes Engine
@@ -24,7 +24,7 @@ To get started easier, a script is provided to create the cluster automatically.
 - [Google Kubernetes Engine](#google-kubernetes-engine)
   - [Manual cluster creation](#manual-cluster-creation)
   - [Scripted cluster creation](#scripted-cluster-creation)
-    - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
+  - [Create cluster with local SSDs](#create-cluster-with-local-ssds)
 - [Next Steps](#next-steps)
 
 ### Manual cluster creation

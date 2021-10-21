@@ -67,18 +67,18 @@ Suppose that you have 3 replication clusters: `us-west`, `us-cent`, and `us-east
    ```shell
    
    $ bin/pulsar-admin clusters create \
-     --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
-     --url http://<DNS-OF-US-EAST>:<PORT> \
-     us-east
+    --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
+    --url http://<DNS-OF-US-EAST>:<PORT> \
+    us-east
    
    ```
 
-  :::tip
+   :::tip
 
-  - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](https://pulsar.apache.org/tools/pulsar-admin/).
-  - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication).
+   - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](https://pulsar.apache.org/tools/pulsar-admin/).
+   - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication).
 
-  :::
+   :::
 
 2. Configure the connection from `us-west` to `us-cent`.
 
@@ -87,9 +87,9 @@ Suppose that you have 3 replication clusters: `us-west`, `us-cent`, and `us-east
    ```shell
    
    $ bin/pulsar-admin clusters create \
-     --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
-     --url http://<DNS-OF-US-CENT>:<PORT> \
-     us-cent
+    --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
+    --url http://<DNS-OF-US-CENT>:<PORT> \
+    us-cent
    
    ```
 

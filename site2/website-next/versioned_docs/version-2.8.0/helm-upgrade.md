@@ -29,21 +29,21 @@ To upgrade Apache Pulsar to a newer version, follow these steps:
 2. Go through [deployment documentation](helm-deploy) step by step.
 3. Extract your previous `--set` arguments with the following command.
 
-    ```bash
-    
-    helm get values <release-name> > pulsar.yaml
-    
-    ```
+   ```bash
+   
+   helm get values <release-name> > pulsar.yaml
+   
+   ```
 
 4. Decide all the values you need to set.
 5. Perform the upgrade, with all `--set` arguments extracted in step 4.
 
-    ```bash
-    
-    helm upgrade <release-name> apache/pulsar \
-        --version <new version> \
-        -f pulsar.yaml \
-        --set ...
-    
-    ```
+   ```bash
+   
+   helm upgrade <release-name> apache/pulsar \
+       --version <new version> \
+       -f pulsar.yaml \
+       --set ...
+   
+   ```
 

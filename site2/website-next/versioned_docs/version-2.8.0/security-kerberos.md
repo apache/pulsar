@@ -113,7 +113,7 @@ In the `pulsar_jaas.conf` file above
 
 1. `PulsarBroker` is a section name in the JAAS file that each broker uses. This section tells the broker to use which principal inside Kerberos and the location of the keytab where the principal is stored. `PulsarBroker` allows the broker to use the keytab specified in this section.
 2. `PulsarClient` is a section name in the JASS file that each broker uses. This section tells the client to use which principal inside Kerberos and the location of the keytab where the principal is stored. `PulsarClient` allows the client to use the keytab specified in this section.
-    The following example also reuses this `PulsarClient` section in both the Pulsar internal admin configuration and in CLI command of `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`. You can also add different sections for different use cases.
+   The following example also reuses this `PulsarClient` section in both the Pulsar internal admin configuration and in CLI command of `bin/pulsar-client`, `bin/pulsar-perf` and `bin/pulsar-admin`. You can also add different sections for different use cases.
 
 You can have 2 separate JAAS configuration files: 
 * the file for a broker that has sections of both `PulsarBroker` and `PulsarClient`; 

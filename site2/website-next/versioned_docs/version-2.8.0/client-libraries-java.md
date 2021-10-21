@@ -884,8 +884,8 @@ The following schema formats are currently available for Java:
   ```java
   
   Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
-        .topic("some-raw-bytes-topic")
-        .create();
+      .topic("some-raw-bytes-topic")
+      .create();
   
   ```
 
@@ -894,8 +894,8 @@ The following schema formats are currently available for Java:
   ```java
   
   Producer<byte[]> bytesProducer = client.newProducer()
-        .topic("some-raw-bytes-topic")
-        .create();
+      .topic("some-raw-bytes-topic")
+      .create();
   
   ```
 
@@ -904,8 +904,8 @@ The following schema formats are currently available for Java:
   ```java
   
   Producer<String> stringProducer = client.newProducer(Schema.STRING)
-        .topic("some-string-topic")
-        .create();
+      .topic("some-string-topic")
+      .create();
   
   ```
 
@@ -914,8 +914,8 @@ The following schema formats are currently available for Java:
   ```java
   
   Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
-        .topic("some-pojo-topic")
-        .create();
+      .topic("some-pojo-topic")
+      .create();
   
   ```
 
@@ -924,8 +924,8 @@ The following schema formats are currently available for Java:
   ```java
   
   Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
-        .topic("some-protobuf-topic")
-        .create();
+      .topic("some-protobuf-topic")
+      .create();
   
   ```
 
@@ -934,8 +934,8 @@ The following schema formats are currently available for Java:
   ```java
   
   Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
-        .topic("some-avro-topic")
-        .create();
+      .topic("some-avro-topic")
+      .create();
   
   ```
 

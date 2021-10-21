@@ -24,13 +24,13 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
 
-    With Hadoop, it is easy to add support for more filesystems in the future.
+  With Hadoop, it is easy to add support for more filesystems in the future.
 
-    :::tip
+  :::tip
 
-    For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem).
+  For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem).
 
-    :::
+  :::
 
 ## When to use tiered storage?
 
