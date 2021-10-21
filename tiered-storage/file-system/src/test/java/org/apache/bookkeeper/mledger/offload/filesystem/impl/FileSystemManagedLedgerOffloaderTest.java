@@ -27,6 +27,7 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.OffloadFilterDisabe;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileStoreTestBase;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -80,7 +81,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     public void testOffloadAndRead() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
         UUID uuid = UUID.randomUUID();
-        offloader.offload(toWrite, uuid, map, null).get();
+        offloader.offload(toWrite, uuid, map, new OffloadFilterDisabe()).get();
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
@@ -115,7 +116,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     public void testDeleteOffload() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
         UUID uuid = UUID.randomUUID();
-        offloader.offload(toWrite, uuid, map, null).get();
+        offloader.offload(toWrite, uuid, map, new OffloadFilterDisabe()).get();
         Configuration configuration = new Configuration();
         FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration);
         assertTrue(fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));

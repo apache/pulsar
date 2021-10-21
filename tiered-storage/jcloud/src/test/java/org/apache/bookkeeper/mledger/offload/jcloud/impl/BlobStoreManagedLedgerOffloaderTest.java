@@ -91,7 +91,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
     @Test(timeOut = 600000)  // 10 minutes.
     public void testHappyCase() throws Exception {
         LedgerOffloader offloader = getOffloader();
-        offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>(), null).get();
+        offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>(), new OffloadFilterDisabe()).get();
     }
 
     @Test(timeOut = 600000)  // 10 minutes.
@@ -104,7 +104,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
         LedgerOffloader offloader = getOffloader("some-non-existant-bucket-name");
         try {
-            offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>(), null).get();
+            offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>(), new OffloadFilterDisabe()).get();
             Assert.fail("Shouldn't be able to add to bucket");
         } catch (ExecutionException e) {
             log.error("Exception: ", e);
@@ -148,7 +148,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         LedgerOffloader offloader = getOffloader();
 
         UUID uuid = UUID.randomUUID();
-        offloader.offload(toWrite, uuid, new HashMap<>(), null).get();
+        offloader.offload(toWrite, uuid, new HashMap<>(), new OffloadFilterDisabe()).get();
 
         BlobStoreBackedReadHandleImpl toTest = (BlobStoreBackedReadHandleImpl) offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
         Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
@@ -283,7 +283,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         LedgerOffloader offloader = getOffloader();
 
         UUID uuid = UUID.randomUUID();
-        offloader.offload(toWrite, uuid, new HashMap<>(), null).get();
+        offloader.offload(toWrite, uuid, new HashMap<>(), new OffloadFilterDisabe()).get();
 
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
         Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
@@ -314,7 +314,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         LedgerOffloader offloader = getOffloader();
         UUID uuid = UUID.randomUUID();
-        offloader.offload(toWrite, uuid, new HashMap<>(), null).get();
+        offloader.offload(toWrite, uuid, new HashMap<>(), new OffloadFilterDisabe()).get();
 
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
         Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
@@ -396,7 +396,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         LedgerOffloader offloader = getOffloader();
 
         try {
-            offloader.offload(readHandle, uuid, new HashMap<>(), null).get();
+            offloader.offload(readHandle, uuid, new HashMap<>(), new OffloadFilterDisabe()).get();
             Assert.fail("Shouldn't have been able to offload");
         } catch (ExecutionException e) {
             Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
