@@ -96,7 +96,6 @@ public class ManagedLedgerConfig {
         isTransactionEnable = transactionEnable;
     }
 
-
     /**
      * @return the lazyCursorRecovery
      */

@@ -94,7 +94,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-         if (log.isDebugEnabled()) {
+        if (log.isDebugEnabled()) {
             log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();

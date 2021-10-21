@@ -54,7 +54,6 @@ public class OffloadFilterImp implements OffloadFilter {
         return persistentTopic.getMaxReadPosition();
     }
 
-
     @Override
     public boolean isTransactionBufferInitializing() {
         return "Initializing".equals(persistentTopic.getTransactionBufferStats().state);

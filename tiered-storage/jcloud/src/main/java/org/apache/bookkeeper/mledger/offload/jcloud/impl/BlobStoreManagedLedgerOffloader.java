@@ -605,7 +605,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return OffloadPoliciesImpl.create(properties);
     }
 
-
     @Override
     public void close() {
         for (BlobStore readBlobStore : blobStores.values()) {

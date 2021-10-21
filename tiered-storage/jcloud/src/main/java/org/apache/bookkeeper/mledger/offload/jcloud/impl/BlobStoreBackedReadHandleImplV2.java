@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -203,6 +204,10 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                         } else {
                             val skipped = groupedReader.inputStream.skip(length);
                         }
+                    }
+                    if (entries.isEmpty()) {
+                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(0, 0);
+                        entries.add(LedgerEntryImpl.create(ledgerId, 0, 0, buf));
                     }
                 } catch (Throwable t) {
                     promise.completeExceptionally(t);

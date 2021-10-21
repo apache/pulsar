@@ -148,7 +148,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             }
             conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             conf.setProperties(properties);
-            log.error("properties: " + properties);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));

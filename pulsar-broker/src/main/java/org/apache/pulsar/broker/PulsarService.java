@@ -1174,8 +1174,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * @param offloadPolicies the OffloadPolicies
      * @return LedgerOffloader
      */
-        public LedgerOffloader getManagedLedgerOffloader(NamespaceName namespaceName,
-                                                         OffloadPoliciesImpl offloadPolicies) {
+    public LedgerOffloader getManagedLedgerOffloader(NamespaceName namespaceName, OffloadPoliciesImpl offloadPolicies) {
         if (offloadPolicies == null) {
             return getDefaultOffloader();
         }

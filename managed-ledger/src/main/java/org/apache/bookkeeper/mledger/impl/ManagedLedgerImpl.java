@@ -786,7 +786,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 addOperation.setCloseWhenDone(true);
                 STATE_UPDATER.set(this, State.ClosingLedger);
             }
-            System.out.println("entries  "  + ledgers.firstEntry().getValue().getEntries());
             addOperation.initiate();
         }
     }
@@ -1565,7 +1564,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         long entriesInLedger = lh.getLastAddConfirmed() + 1;
-        log.info("getLastAddConfirmed : {}", lh.getLastAddConfirmed());
         if (log.isDebugEnabled()) {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
