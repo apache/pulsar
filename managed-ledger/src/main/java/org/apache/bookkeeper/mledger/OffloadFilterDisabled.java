@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
-public class OffloadFilterDisabe implements OffloadFilter {
+public class OffloadFilterDisabled implements OffloadFilter {
 
     @Override
     public boolean checkIfNeedOffload(LedgerEntry LedgerEntry) {
