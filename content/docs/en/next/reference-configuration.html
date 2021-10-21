@@ -559,176 +559,177 @@
 <tr><td>subscribeRatePeriodPerConsumerInSecond</td><td>Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.</td><td>30</td></tr>
 <tr><td>dispatchThrottlingRatePerTopicInMsg</td><td>Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerTopicInByte</td><td>Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled.</td><td>0</td></tr>
-<tr><td>dispatchThrottlingRateRelativeToPublishRate</td><td>Enable dispatch rate-limiting relative to publish rate.</td><td>false</td></tr>
-<tr><td>dispatchThrottlingRatePerSubscriptionInMsg</td><td>The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.</td><td>0</td></tr>
-<tr><td>dispatchThrottlingRatePerSubscriptionInByte</td><td>The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.</td><td>0</td></tr>
-<tr><td>dispatchThrottlingOnNonBacklogConsumerEnabled</td><td>Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs.</td><td>true</td></tr>
-<tr><td>dispatcherMaxReadBatchSize</td><td>The maximum number of entries to read from BookKeeper. By default, it is 100 entries.</td><td>100</td></tr>
-<tr><td>dispatcherMaxReadSizeBytes</td><td>The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.</td><td>5242880</td></tr>
-<tr><td>dispatcherMinReadBatchSize</td><td>The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.</td><td>1</td></tr>
-<tr><td>dispatcherMaxRoundRobinBatchSize</td><td>The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.</td><td>20</td></tr>
-<tr><td>preciseDispatcherFlowControl</td><td>Precise dispathcer flow control according to history message number of each entry.</td><td>false</td></tr>
-<tr><td>streamingDispatch</td><td>Whether to use streaming read dispatcher. It can be useful when there's a huge backlog to drain and instead of read with micro batch we can streamline the read from bookkeeper to make the most of consumer capacity till we hit bookkeeper read limit or consumer process limit, then we can use consumer flow control to tune the speed. This feature is currently in preview and can be changed in subsequent release.</td><td>false</td></tr>
-<tr><td>maxConcurrentLookupRequest</td><td>Maximum number of concurrent lookup request that the broker allows to throttle heavy incoming lookup traffic.</td><td>50000</td></tr>
-<tr><td>maxConcurrentTopicLoadRequest</td><td>Maximum number of concurrent topic loading request that the broker allows to control the number of zk-operations.</td><td>5000</td></tr>
-<tr><td>maxConcurrentNonPersistentMessagePerConnection</td><td>Maximum number of concurrent non-persistent message that can be processed per connection.</td><td>1000</td></tr>
-<tr><td>numWorkerThreadsForNonPersistentTopic</td><td>Number of worker threads to serve non-persistent topic.</td><td>8</td></tr>
-<tr><td>enablePersistentTopics</td><td>Enable broker to load persistent topics.</td><td>true</td></tr>
-<tr><td>enableNonPersistentTopics</td><td>Enable broker to load non-persistent topics.</td><td>true</td></tr>
-<tr><td>maxProducersPerTopic</td><td>Maximum number of producers allowed to connect to topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, maxProducersPerTopic-limit check is disabled.</td><td>0</td></tr>
-<tr><td>maxConsumersPerTopic</td><td>Maximum number of consumers allowed to connect to topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerTopic-limit check is disabled.</td><td>0</td></tr>
-<tr><td>maxConsumersPerSubscription</td><td>Maximum number of consumers allowed to connect to subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerSubscription-limit check is disabled.</td><td>0</td></tr>
-<tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled.</td><td>0</td></tr>
-<tr><td>tlsCertRefreshCheckDurationSec</td><td>TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection.</td><td>300</td></tr>
-<tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file.</td><td></td></tr>
-<tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file.</td><td></td></tr>
-<tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate file.</td><td></td></tr>
-<tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from the client. If it is set to true, a client with a certificate which cannot be verified with the 'tlsTrustCertsFilePath' certificate is allowed to connect to the server, though the certificate is not be used for client authentication.</td><td>false</td></tr>
-<tr><td>tlsProtocols</td><td>Specify the TLS protocols the broker uses to negotiate during TLS handshake.</td><td></td></tr>
-<tr><td>tlsCiphers</td><td>Specify the TLS cipher the broker uses to negotiate during TLS Handshake.</td><td></td></tr>
-<tr><td>tlsRequireTrustedClientCertOnConnect</td><td>Trusted client certificates are required for to connect TLS. Reject the Connection if the client certificate is not trusted. In effect, this requires that all connecting clients perform TLS client authentication.</td><td>false</td></tr>
-<tr><td>tlsEnabledWithKeyStore</td><td>Enable TLS with KeyStore type configuration in broker.</td><td>false</td></tr>
-<tr><td>tlsProvider</td><td>TLS Provider for KeyStore type.</td><td></td></tr>
-<tr><td>tlsKeyStoreType</td><td>TLS KeyStore type configuration in the broker.<li>JKS <li>PKCS12</td><td>JKS</td></tr>
-<tr><td>tlsKeyStore</td><td>TLS KeyStore path in the broker.</td><td></td></tr>
-<tr><td>tlsKeyStorePassword</td><td>TLS KeyStore password for the broker.</td><td></td></tr>
-<tr><td>tlsTrustStoreType</td><td>TLS TrustStore type configuration in the broker<li>JKS <li>PKCS12</td><td>JKS</td></tr>
-<tr><td>tlsTrustStore</td><td>TLS TrustStore path in the broker.</td><td></td></tr>
-<tr><td>tlsTrustStorePassword</td><td>TLS TrustStore password for the broker.</td><td></td></tr>
-<tr><td>brokerClientTlsEnabledWithKeyStore</td><td>Configure whether the internal client uses the KeyStore type to authenticate with Pulsar brokers.</td><td>false</td></tr>
-<tr><td>brokerClientSslProvider</td><td>The TLS Provider used by the internal client to authenticate with other Pulsar brokers.</td><td></td></tr>
-<tr><td>brokerClientTlsTrustStoreType</td><td>TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS <li>PKCS12</td><td>JKS</td></tr>
-<tr><td>brokerClientTlsTrustStore</td><td>TLS TrustStore path for the internal client to authenticate with Pulsar brokers.</td><td></td></tr>
-<tr><td>brokerClientTlsTrustStorePassword</td><td>TLS TrustStore password for the internal client to authenticate with Pulsar brokers.</td><td></td></tr>
-<tr><td>brokerClientTlsCiphers</td><td>Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake.</td><td></td></tr>
-<tr><td>brokerClientTlsProtocols</td><td>Specify the TLS protocols that the broker uses to negotiate during TLS handshake.</td><td></td></tr>
-<tr><td>systemTopicEnabled</td><td>Enable/Disable system topics.</td><td>false</td></tr>
-<tr><td>topicLevelPoliciesEnabled</td><td>Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first.</td><td>false</td></tr>
-<tr><td>proxyRoles</td><td>Role names that are treated as &quot;proxy roles&quot;. If the broker sees a request with role as proxyRoles, it demands to see a valid original principal.</td><td></td></tr>
-<tr><td>authenticateOriginalAuthData</td><td>If this flag is set, the broker authenticates the original Auth data. Otherwise, it just accepts the originalPrincipal and authorizes it (if required).</td><td>false</td></tr>
-<tr><td>authenticationEnabled</td><td>Enable authentication for the broker.</td><td>false</td></tr>
-<tr><td>authenticationProviders</td><td>A comma-separated list of class names for authentication providers.</td><td>false</td></tr>
-<tr><td>authorizationEnabled</td><td>Enforce authorization in brokers.</td><td>false</td></tr>
-<tr><td>authorizationProvider</td><td>Authorization provider fully qualified class-name.</td><td>org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</td></tr>
-<tr><td>authorizationAllowWildcardsMatching</td><td>Allow wildcard matching in authorization. Wildcard matching is applicable only when the wildcard-character (*) presents at the <strong>first</strong> or <strong>last</strong> position.</td><td>false</td></tr>
-<tr><td>superUserRoles</td><td>Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks.</td><td></td></tr>
-<tr><td>brokerClientAuthenticationPlugin</td><td>The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters.</td><td></td></tr>
-<tr><td>brokerClientAuthenticationParameters</td><td>The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.</td><td></td></tr>
-<tr><td>athenzDomainNames</td><td>Supported Athenz authentication provider domain names as a comma-separated list.</td><td></td></tr>
-<tr><td>anonymousUserRole</td><td>When this parameter is not empty, unauthenticated users perform as anonymousUserRole.</td><td></td></tr>
-<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.</td><td></td></tr>
-<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.</td><td></td></tr>
-<tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
-<tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified.</td><td></td></tr>
-<tr><td>tokenAudience</td><td>The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.</td><td></td></tr>
-<tr><td>saslJaasClientAllowedIds</td><td>This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL. By default, it is set to <code>SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT</code>, which is &quot;.<em>pulsar.</em>&quot;, so only clients whose id contains 'pulsar' are allowed to connect.</td><td>N/A</td></tr>
-<tr><td>saslJaasBrokerSectionName</td><td>Service Principal, for login context name. By default, it is set to <code>SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME</code>, which is &quot;Broker&quot;.</td><td>N/A</td></tr>
-<tr><td>httpMaxRequestSize</td><td>If the value is larger than 0, it rejects all HTTP requests with bodies larged than the configured limit.</td><td>-1</td></tr>
-<tr><td>exposePreciseBacklogInPrometheus</td><td>Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate.</td><td>false</td></tr>
-<tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri is what BookKeeper used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <code>zk+hierarchical://localhost:2181/ledgers</code>. The metadata service uri list can also be semicolon separated values like: <code>zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers</code>.</td><td>N/A</td></tr>
-<tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to be used when connecting to bookies (BookKeeper servers).</td><td></td></tr>
-<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper authentication plugin implementation parameters and values.</td><td></td></tr>
-<tr><td>bookkeeperClientAuthenticationParameters</td><td>Parameters associated with the bookkeeperClientAuthenticationParametersName</td><td></td></tr>
-<tr><td>bookkeeperClientNumWorkerThreads</td><td>Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()</td><td></td></tr>
-<tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BookKeeper add and read operations.</td><td>30</td></tr>
-<tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.</td><td>0</td></tr>
-<tr><td>bookkeeperUseV2WireProtocol</td><td>Use older Bookkeeper wire protocol with bookie.</td><td>true</td></tr>
-<tr><td>bookkeeperClientHealthCheckEnabled</td><td>Enable bookie health checks.</td><td>true</td></tr>
-<tr><td>bookkeeperClientHealthCheckIntervalSeconds</td><td>The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.</td><td>60</td></tr>
-<tr><td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td><td>Error threshold for health checks.</td><td>5</td></tr>
-<tr><td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td><td>If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds</td><td>1800</td></tr>
-<tr><td>bookkeeperClientGetBookieInfoIntervalSeconds</td><td>Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.</td><td>86400</td></tr>
-<tr><td>bookkeeperClientGetBookieInfoRetryIntervalSeconds</td><td>Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.</td><td>60</td></tr>
-<tr><td>bookkeeperClientRackawarePolicyEnabled</td><td></td><td>true</td></tr>
-<tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td></td><td>false</td></tr>
-<tr><td>bookkeeperClientMinNumRacksPerWriteQuorum</td><td></td><td>2</td></tr>
-<tr><td>bookkeeperClientMinNumRacksPerWriteQuorum</td><td></td><td>false</td></tr>
-<tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td></td><td>false</td></tr>
-<tr><td>bookkeeperClientIsolationGroups</td><td></td><td></td></tr>
-<tr><td>bookkeeperClientSecondaryIsolationGroups</td><td>Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.</td><td></td></tr>
-<tr><td>bookkeeperClientMinAvailableBookiesInIsolationGroups</td><td>Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.</td><td></td></tr>
-<tr><td>bookkeeperTLSProviderFactoryClass</td><td>Set the client security provider factory class name.</td><td>org.apache.bookkeeper.tls.TLSContextFactory</td></tr>
-<tr><td>bookkeeperTLSClientAuthentication</td><td>Enable TLS authentication with bookie.</td><td>false</td></tr>
-<tr><td>bookkeeperTLSKeyFileType</td><td>Supported type: PEM, JKS, PKCS12.</td><td>PEM</td></tr>
-<tr><td>bookkeeperTLSTrustCertTypes</td><td>Supported type: PEM, JKS, PKCS12.</td><td>PEM</td></tr>
-<tr><td>bookkeeperTLSKeyStorePasswordPath</td><td>Path to file containing keystore password, if the client keystore is password protected.</td><td></td></tr>
-<tr><td>bookkeeperTLSTrustStorePasswordPath</td><td>Path to file containing truststore password, if the client truststore is password protected.</td><td></td></tr>
-<tr><td>bookkeeperTLSKeyFilePath</td><td>Path for the TLS private key file.</td><td></td></tr>
-<tr><td>bookkeeperTLSCertificateFilePath</td><td>Path for the TLS certificate file.</td><td></td></tr>
-<tr><td>bookkeeperTLSTrustCertsFilePath</td><td>Path for the trusted TLS certificate file.</td><td></td></tr>
-<tr><td>bookkeeperTlsCertFilesRefreshDurationSeconds</td><td>Tls cert refresh duration at bookKeeper-client in seconds (0 to disable check).</td><td></td></tr>
-<tr><td>bookkeeperDiskWeightBasedPlacementEnabled</td><td>Enable/Disable disk weight based placement.</td><td>false</td></tr>
-<tr><td>bookkeeperExplicitLacIntervalInMills</td><td>Set the interval to check the need for sending an explicit LAC. When the value is set to 0, no explicit LAC is sent.</td><td>0</td></tr>
-<tr><td>bookkeeperClientExposeStatsToPrometheus</td><td>Expose BookKeeper client managed ledger stats to Prometheus.</td><td>false</td></tr>
-<tr><td>managedLedgerDefaultEnsembleSize</td><td></td><td>1</td></tr>
-<tr><td>managedLedgerDefaultWriteQuorum</td><td></td><td>1</td></tr>
-<tr><td>managedLedgerDefaultAckQuorum</td><td></td><td>1</td></tr>
-<tr><td>managedLedgerDigestType</td><td>Default type of checksum to use when writing to BookKeeper.</td><td>CRC32C</td></tr>
-<tr><td>managedLedgerNumWorkerThreads</td><td>Number of threads to be used for managed ledger tasks dispatching.</td><td>8</td></tr>
-<tr><td>managedLedgerNumSchedulerThreads</td><td>Number of threads to be used for managed ledger scheduled tasks.</td><td>8</td></tr>
-<tr><td>managedLedgerCacheSizeMB</td><td></td><td>N/A</td></tr>
-<tr><td>managedLedgerCacheCopyEntries</td><td>Whether to copy the entry payloads when inserting in cache.</td><td>false</td></tr>
-<tr><td>managedLedgerCacheEvictionWatermark</td><td></td><td>0.9</td></tr>
-<tr><td>managedLedgerCacheEvictionFrequency</td><td>Configure the cache eviction frequency for the managed ledger cache (evictions/sec)</td><td>100.0</td></tr>
-<tr><td>managedLedgerCacheEvictionTimeThresholdMillis</td><td>All entries that have stayed in cache for more than the configured time, will be evicted</td><td>1000</td></tr>
-<tr><td>managedLedgerCursorBackloggedThreshold</td><td>Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive.</td><td>1000</td></tr>
-<tr><td>managedLedgerUnackedRangesOpenCacheSetEnabled</td><td>Use Open Range-Set to cache unacknowledged messages</td><td>true</td></tr>
-<tr><td>managedLedgerDefaultMarkDeleteRateLimit</td><td></td><td>0.1</td></tr>
-<tr><td>managedLedgerMaxEntriesPerLedger</td><td></td><td>50000</td></tr>
-<tr><td>managedLedgerMinLedgerRolloverTimeMinutes</td><td></td><td>10</td></tr>
-<tr><td>managedLedgerMaxLedgerRolloverTimeMinutes</td><td></td><td>240</td></tr>
-<tr><td>managedLedgerCursorMaxEntriesPerLedger</td><td></td><td>50000</td></tr>
-<tr><td>managedLedgerCursorRolloverTimeInSeconds</td><td></td><td>14400</td></tr>
-<tr><td>managedLedgerMaxSizePerLedgerMbytes</td><td>Maximum ledger size before triggering a rollover for a topic.</td><td>2048</td></tr>
-<tr><td>managedLedgerMaxUnackedRangesToPersist</td><td>Maximum number of &quot;acknowledgment holes&quot; that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in &quot;ranges&quot; of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes.</td><td>10000</td></tr>
-<tr><td>managedLedgerMaxUnackedRangesToPersistInZooKeeper</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper.</td><td>1000</td></tr>
-<tr><td>autoSkipNonRecoverableData</td><td></td><td>false</td></tr>
-<tr><td>managedLedgerMetadataOperationsTimeoutSeconds</td><td>Operation timeout while updating managed-ledger metadata.</td><td>60</td></tr>
-<tr><td>managedLedgerReadEntryTimeoutSeconds</td><td>Read entries timeout when the broker tries to read messages from BookKeeper.</td><td>0</td></tr>
-<tr><td>managedLedgerAddEntryTimeoutSeconds</td><td>Add entry timeout when the broker tries to publish message to BookKeeper.</td><td>0</td></tr>
-<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.</td><td>10 ms</td></tr>
-<tr><td>managedLedgerPrometheusStatsLatencyRolloverSeconds</td><td>Managed ledger prometheus stats latency rollover seconds.</td><td>60</td></tr>
-<tr><td>managedLedgerTraceTaskExecution</td><td>Whether to trace managed ledger task execution time.</td><td>true</td></tr>
-<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.</td><td>10</td></tr>
-<tr><td>loadBalancerEnabled</td><td></td><td>false</td></tr>
-<tr><td>loadBalancerPlacementStrategy</td><td></td><td>weightedRandomSelection</td></tr>
-<tr><td>loadBalancerReportUpdateThresholdPercentage</td><td></td><td>10</td></tr>
-<tr><td>loadBalancerReportUpdateMaxIntervalMinutes</td><td></td><td>15</td></tr>
-<tr><td>loadBalancerHostUsageCheckIntervalMinutes</td><td></td><td>1</td></tr>
-<tr><td>loadBalancerSheddingIntervalMinutes</td><td></td><td>30</td></tr>
-<tr><td>loadBalancerSheddingGracePeriodMinutes</td><td></td><td>30</td></tr>
-<tr><td>loadBalancerBrokerMaxTopics</td><td></td><td>50000</td></tr>
-<tr><td>loadBalancerBrokerUnderloadedThresholdPercentage</td><td></td><td>1</td></tr>
-<tr><td>loadBalancerBrokerOverloadedThresholdPercentage</td><td></td><td>85</td></tr>
-<tr><td>loadBalancerResourceQuotaUpdateIntervalMinutes</td><td></td><td>15</td></tr>
-<tr><td>loadBalancerBrokerComfortLoadLevelPercentage</td><td></td><td>65</td></tr>
-<tr><td>loadBalancerAutoBundleSplitEnabled</td><td></td><td>false</td></tr>
-<tr><td>loadBalancerAutoUnloadSplitBundlesEnabled</td><td>Enable/Disable automatic unloading of split bundles.</td><td>true</td></tr>
-<tr><td>loadBalancerNamespaceBundleMaxTopics</td><td></td><td>1000</td></tr>
-<tr><td>loadBalancerNamespaceBundleMaxSessions</td><td></td><td>1000</td></tr>
-<tr><td>loadBalancerNamespaceBundleMaxMsgRate</td><td></td><td>1000</td></tr>
-<tr><td>loadBalancerNamespaceBundleMaxBandwidthMbytes</td><td></td><td>100</td></tr>
-<tr><td>loadBalancerNamespaceMaximumBundles</td><td></td><td>128</td></tr>
-<tr><td>loadBalancerBrokerThresholdShedderPercentage</td><td>The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdShedder strategy.</td><td>10</td></tr>
-<tr><td>loadBalancerHistoryResourcePercentage</td><td>The history usage when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>0.9</td></tr>
-<tr><td>loadBalancerBandwithInResourceWeight</td><td>The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
-<tr><td>loadBalancerBandwithOutResourceWeight</td><td>The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
-<tr><td>loadBalancerCPUResourceWeight</td><td>The CPU usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
-<tr><td>loadBalancerMemoryResourceWeight</td><td>The heap memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
-<tr><td>loadBalancerDirectMemoryResourceWeight</td><td>The direct memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy.</td><td>1.0</td></tr>
-<tr><td>loadBalancerBundleUnloadMinThroughputThreshold</td><td>Bundle unload minimum throughput threshold. Avoid bundle unload frequently. It only takes effect in the ThresholdShedder strategy.</td><td>10</td></tr>
-<tr><td>replicationMetricsEnabled</td><td></td><td>true</td></tr>
-<tr><td>replicationConnectionsPerBroker</td><td></td><td>16</td></tr>
-<tr><td>replicationProducerQueueSize</td><td></td><td>1000</td></tr>
-<tr><td>replicationPolicyCheckDurationSeconds</td><td>Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy.</td><td>600</td></tr>
-<tr><td>defaultRetentionTimeInMinutes</td><td></td><td>0</td></tr>
-<tr><td>defaultRetentionSizeInMB</td><td></td><td>0</td></tr>
-<tr><td>keepAliveIntervalSeconds</td><td></td><td>30</td></tr>
-<tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
-<tr><td>bookieId</td><td>If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the <code>bookieId</code>. <br><br>Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>).<br><br> The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.</td><td>/</td></tr>
-<tr><td>maxTopicsPerNamespace</td><td>The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingOnBatchMessageEnabled</td><td>Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled).</td><td>false</td></tr>
 </tbody>
 </table>
+<p>| dispatchThrottlingRateRelativeToPublishRate | Enable dispatch rate-limiting relative to publish rate. | false |
+|dispatchThrottlingRatePerSubscriptionInMsg|The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.|0|
+|dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.|0|
+| dispatchThrottlingOnNonBacklogConsumerEnabled | Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs. | true |
+|dispatcherMaxReadBatchSize|The maximum number of entries to read from BookKeeper. By default, it is 100 entries.|100|
+|dispatcherMaxReadSizeBytes|The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.|5242880|
+|dispatcherMinReadBatchSize|The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.|1|
+|dispatcherMaxRoundRobinBatchSize|The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.|20|
+| preciseDispatcherFlowControl | Precise dispathcer flow control according to history message number of each entry. | false |
+| streamingDispatch | Whether to use streaming read dispatcher. It can be useful when there's a huge backlog to drain and instead of read with micro batch we can streamline the read from bookkeeper to make the most of consumer capacity till we hit bookkeeper read limit or consumer process limit, then we can use consumer flow control to tune the speed. This feature is currently in preview and can be changed in subsequent release. | false |
+| maxConcurrentLookupRequest | Maximum number of concurrent lookup request that the broker allows to throttle heavy incoming lookup traffic. | 50000 |
+| maxConcurrentTopicLoadRequest | Maximum number of concurrent topic loading request that the broker allows to control the number of zk-operations. | 5000 |
+| maxConcurrentNonPersistentMessagePerConnection | Maximum number of concurrent non-persistent message that can be processed per connection. | 1000 |
+| numWorkerThreadsForNonPersistentTopic | Number of worker threads to serve non-persistent topic. | 8 |
+| enablePersistentTopics | Enable broker to load persistent topics. | true |
+| enableNonPersistentTopics | Enable broker to load non-persistent topics. | true |
+| maxProducersPerTopic | Maximum number of producers allowed to connect to topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, maxProducersPerTopic-limit check is disabled. | 0 |
+| maxConsumersPerTopic | Maximum number of consumers allowed to connect to topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerTopic-limit check is disabled. | 0 |
+| maxConsumersPerSubscription | Maximum number of consumers allowed to connect to subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerSubscription-limit check is disabled. | 0 |
+| maxNumPartitionsPerPartitionedTopic | Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled. | 0 |
+| tlsCertRefreshCheckDurationSec | TLS certificate refresh duration in seconds. When the value is set to 0, check the TLS certificate on every new connection. | 300 |
+| tlsCertificateFilePath | Path for the TLS certificate file. | |
+| tlsKeyFilePath | Path for the TLS private key file. | |
+| tlsTrustCertsFilePath | Path for the trusted TLS certificate file.| |
+| tlsAllowInsecureConnection | Accept untrusted TLS certificate from the client. If it is set to true, a client with a certificate which cannot be verified with the 'tlsTrustCertsFilePath' certificate is allowed to connect to the server, though the certificate is not be used for client authentication. | false |
+| tlsProtocols | Specify the TLS protocols the broker uses to negotiate during TLS handshake. | |
+| tlsCiphers | Specify the TLS cipher the broker uses to negotiate during TLS Handshake. | |
+| tlsRequireTrustedClientCertOnConnect | Trusted client certificates are required for to connect TLS. Reject the Connection if the client certificate is not trusted. In effect, this requires that all connecting clients perform TLS client authentication. | false |
+| tlsEnabledWithKeyStore | Enable TLS with KeyStore type configuration in broker. | false |
+| tlsProvider | TLS Provider for KeyStore type. | |
+| tlsKeyStoreType | TLS KeyStore type configuration in the broker.<li>JKS <li>PKCS12 |JKS|
+| tlsKeyStore | TLS KeyStore path in the broker. | |
+| tlsKeyStorePassword | TLS KeyStore password for the broker. | |
+| tlsTrustStoreType | TLS TrustStore type configuration in the broker<li>JKS <li>PKCS12 |JKS|
+| tlsTrustStore | TLS TrustStore path in the broker. | |
+| tlsTrustStorePassword | TLS TrustStore password for the broker. | |
+| brokerClientTlsEnabledWithKeyStore | Configure whether the internal client uses the KeyStore type to authenticate with Pulsar brokers. | false |
+| brokerClientSslProvider | The TLS Provider used by the internal client to authenticate with other Pulsar brokers. | |
+| brokerClientTlsTrustStoreType | TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS <li>PKCS12 | JKS |
+| brokerClientTlsTrustStore | TLS TrustStore path for the internal client to authenticate with Pulsar brokers. | |
+| brokerClientTlsTrustStorePassword | TLS TrustStore password for the internal client to authenticate with Pulsar brokers. | |
+| brokerClientTlsCiphers | Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake. | |
+| brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. | |
+| systemTopicEnabled | Enable/Disable system topics. | false |
+| topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
+| proxyRoles | Role names that are treated as &quot;proxy roles&quot;. If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
+| authenticateOriginalAuthData | If this flag is set, the broker authenticates the original Auth data. Otherwise, it just accepts the originalPrincipal and authorizes it (if required). | false |
+|authenticationEnabled| Enable authentication for the broker. |false|
+|authenticationProviders| A comma-separated list of class names for authentication providers. |false|
+|authorizationEnabled|  Enforce authorization in brokers. |false|
+| authorizationProvider | Authorization provider fully qualified class-name. | org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider |
+| authorizationAllowWildcardsMatching | Allow wildcard matching in authorization. Wildcard matching is applicable only when the wildcard-character (<em>) presents at the <strong>first</strong> or <strong>last</strong> position. | false |
+|superUserRoles|  Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks. | |
+|brokerClientAuthenticationPlugin|  The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters. | |
+|brokerClientAuthenticationParameters|  The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.  | |
+|athenzDomainNames| Supported Athenz authentication provider domain names as a comma-separated list.  | |
+| anonymousUserRole | When this parameter is not empty, unauthenticated users perform as anonymousUserRole. | |
+|tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.||
+|tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code>.  Note: key file must be DER-encoded.||
+|tokenAuthClaim| Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank ||
+|tokenAudienceClaim| The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified. ||
+| tokenAudience | The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.| |
+|saslJaasClientAllowedIds|This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL. By default, it is set to <code>SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT</code>, which is &quot;.</em>pulsar.*&quot;, so only clients whose id contains 'pulsar' are allowed to connect.|N/A|
+|saslJaasBrokerSectionName|Service Principal, for login context name. By default, it is set to <code>SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME</code>, which is &quot;Broker&quot;.|N/A|
+|httpMaxRequestSize|If the value is larger than 0, it rejects all HTTP requests with bodies larged than the configured limit.|-1|
+|exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
+|bookkeeperMetadataServiceUri|Metadata service uri is what BookKeeper used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <code>zk+hierarchical://localhost:2181/ledgers</code>. The metadata service uri list can also be semicolon separated values like: <code>zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers</code>.|N/A|
+|bookkeeperClientAuthenticationPlugin|  Authentication plugin to be used when connecting to bookies (BookKeeper servers). ||
+|bookkeeperClientAuthenticationParametersName|  BookKeeper authentication plugin implementation parameters and values.  ||
+|bookkeeperClientAuthenticationParameters|  Parameters associated with the bookkeeperClientAuthenticationParametersName ||
+|bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  ||
+|bookkeeperClientTimeoutInSeconds|  Timeout for BookKeeper add and read operations. |30|
+|bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.  |0|
+|bookkeeperUseV2WireProtocol|Use older Bookkeeper wire protocol with bookie.|true|
+|bookkeeperClientHealthCheckEnabled|  Enable bookie health checks.  |true|
+|bookkeeperClientHealthCheckIntervalSeconds|  The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.  |60|
+|bookkeeperClientHealthCheckErrorThresholdPerInterval|  Error threshold for health checks.  |5|
+|bookkeeperClientHealthCheckQuarantineTimeInSeconds|  If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds |1800|
+|bookkeeperClientGetBookieInfoIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|86400|
+|bookkeeperClientGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
+|bookkeeperClientRackawarePolicyEnabled|    |true|
+|bookkeeperClientRegionawarePolicyEnabled|    |false|
+|bookkeeperClientMinNumRacksPerWriteQuorum|    |2|
+|bookkeeperClientMinNumRacksPerWriteQuorum|    |false|
+|bookkeeperClientReorderReadSequenceEnabled|    |false|
+|bookkeeperClientIsolationGroups|||
+|bookkeeperClientSecondaryIsolationGroups| Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.  ||
+|bookkeeperClientMinAvailableBookiesInIsolationGroups| Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.  ||
+| bookkeeperTLSProviderFactoryClass | Set the client security provider factory class name. | org.apache.bookkeeper.tls.TLSContextFactory |
+| bookkeeperTLSClientAuthentication | Enable TLS authentication with bookie. | false |
+| bookkeeperTLSKeyFileType | Supported type: PEM, JKS, PKCS12.  | PEM |
+| bookkeeperTLSTrustCertTypes | Supported type: PEM, JKS, PKCS12.  | PEM |
+| bookkeeperTLSKeyStorePasswordPath | Path to file containing keystore password, if the client keystore is password protected. | |
+| bookkeeperTLSTrustStorePasswordPath | Path to file containing truststore password, if the client truststore is password protected. | |
+| bookkeeperTLSKeyFilePath | Path for the TLS private key file. | |
+| bookkeeperTLSCertificateFilePath | Path for the TLS certificate file. | |
+| bookkeeperTLSTrustCertsFilePath | Path for the trusted TLS certificate file. | |
+| bookkeeperTlsCertFilesRefreshDurationSeconds | Tls cert refresh duration at bookKeeper-client in seconds (0 to disable check). | |
+| bookkeeperDiskWeightBasedPlacementEnabled | Enable/Disable disk weight based placement. | false |
+| bookkeeperExplicitLacIntervalInMills | Set the interval to check the need for sending an explicit LAC. When the value is set to 0, no explicit LAC is sent. | 0 |
+| bookkeeperClientExposeStatsToPrometheus | Expose BookKeeper client managed ledger stats to Prometheus. | false |
+|managedLedgerDefaultEnsembleSize|    |1|
+|managedLedgerDefaultWriteQuorum|   |1|
+|managedLedgerDefaultAckQuorum|   |1|
+| managedLedgerDigestType | Default type of checksum to use when writing to BookKeeper. | CRC32C |
+| managedLedgerNumWorkerThreads | Number of threads to be used for managed ledger tasks dispatching. | 8 |
+| managedLedgerNumSchedulerThreads | Number of threads to be used for managed ledger scheduled tasks. | 8 |
+|managedLedgerCacheSizeMB|    |N/A|
+|managedLedgerCacheCopyEntries| Whether to copy the entry payloads when inserting in cache.| false|
+|managedLedgerCacheEvictionWatermark|   |0.9|
+|managedLedgerCacheEvictionFrequency| Configure the cache eviction frequency for the managed ledger cache (evictions/sec) | 100.0 |
+|managedLedgerCacheEvictionTimeThresholdMillis| All entries that have stayed in cache for more than the configured time, will be evicted | 1000 |
+|managedLedgerCursorBackloggedThreshold| Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive. | 1000|
+|managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true|
+|managedLedgerDefaultMarkDeleteRateLimit|   |0.1|
+|managedLedgerMaxEntriesPerLedger|    |50000|
+|managedLedgerMinLedgerRolloverTimeMinutes|   |10|
+|managedLedgerMaxLedgerRolloverTimeMinutes|   |240|
+|managedLedgerCursorMaxEntriesPerLedger|    |50000|
+|managedLedgerCursorRolloverTimeInSeconds|    |14400|
+| managedLedgerMaxSizePerLedgerMbytes | Maximum ledger size before triggering a rollover for a topic. | 2048 |
+| managedLedgerMaxUnackedRangesToPersist | Maximum number of &quot;acknowledgment holes&quot; that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in &quot;ranges&quot; of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes. | 10000 |
+| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of &quot;acknowledgment holes&quot; that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper. | 1000 |
+|autoSkipNonRecoverableData|    |false|
+| managedLedgerMetadataOperationsTimeoutSeconds | Operation timeout while updating managed-ledger metadata. | 60 |
+| managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
+| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish message to BookKeeper. | 0 |
+| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.|10 ms|
+| managedLedgerPrometheusStatsLatencyRolloverSeconds | Managed ledger prometheus stats latency rollover seconds.  | 60 |
+| managedLedgerTraceTaskExecution | Whether to trace managed ledger task execution time. | true |
+|managedLedgerNewEntriesCheckDelayInMillis|New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.|10|
+|loadBalancerEnabled|   |false|
+|loadBalancerPlacementStrategy|   |weightedRandomSelection|
+|loadBalancerReportUpdateThresholdPercentage|   |10|
+|loadBalancerReportUpdateMaxIntervalMinutes|    |15|
+|loadBalancerHostUsageCheckIntervalMinutes|  |1|
+|loadBalancerSheddingIntervalMinutes|   |30|
+|loadBalancerSheddingGracePeriodMinutes|    |30|
+|loadBalancerBrokerMaxTopics|   |50000|
+|loadBalancerBrokerUnderloadedThresholdPercentage|    |1|
+|loadBalancerBrokerOverloadedThresholdPercentage|   |85|
+|loadBalancerResourceQuotaUpdateIntervalMinutes|    |15|
+|loadBalancerBrokerComfortLoadLevelPercentage|    |65|
+|loadBalancerAutoBundleSplitEnabled|    |false|
+| loadBalancerAutoUnloadSplitBundlesEnabled | Enable/Disable automatic unloading of split bundles. | true |
+|loadBalancerNamespaceBundleMaxTopics|    |1000|
+|loadBalancerNamespaceBundleMaxSessions|    |1000|
+|loadBalancerNamespaceBundleMaxMsgRate|   |1000|
+|loadBalancerNamespaceBundleMaxBandwidthMbytes|   |100|
+|loadBalancerNamespaceMaximumBundles|   |128|
+| loadBalancerBrokerThresholdShedderPercentage | The broker resource usage threshold. When the broker resource usage is greater than the pulsar cluster average resource usage, the threshold shedder is triggered to offload bundles from the broker. It only takes effect in the ThresholdShedder strategy. | 10 |
+| loadBalancerHistoryResourcePercentage | The history usage when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 0.9 |
+| loadBalancerBandwithInResourceWeight | The BandWithIn usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerBandwithOutResourceWeight | The BandWithOut usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerCPUResourceWeight | The CPU usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerMemoryResourceWeight | The heap memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerDirectMemoryResourceWeight | The direct memory usage weight when calculating new resource usage. It only takes effect in the ThresholdShedder strategy. | 1.0 |
+| loadBalancerBundleUnloadMinThroughputThreshold | Bundle unload minimum throughput threshold. Avoid bundle unload frequently. It only takes effect in the ThresholdShedder strategy. | 10 |
+|replicationMetricsEnabled|   |true|
+|replicationConnectionsPerBroker|   |16|
+|replicationProducerQueueSize|    |1000|
+| replicationPolicyCheckDurationSeconds | Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy. | 600 |
+|defaultRetentionTimeInMinutes|   |0|
+|defaultRetentionSizeInMB|    |0|
+|keepAliveIntervalSeconds|    |30|
+|haProxyProtocolEnabled | Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol. |false|
+|bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the <code>bookieId</code>. <br><br>Bookie advertises itself using the <code>bookieId</code> rather than the <code>BookieSocketAddress</code> (<code>hostname:port</code> or <code>IP:port</code>).<br><br> The <code>bookieId</code> is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br><br>For more information about <code>bookieId</code>, see <a href="http://bookkeeper.apache.org/bps/BP-41-bookieid/">here</a>.|/|
+| maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |</p>
 <h2><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h2>
 <table>
 <thead>
