@@ -425,7 +425,11 @@ public interface ManagedCursor {
      * @param newReadPosition
      *            the position where to move the cursor
      */
-    void seek(Position newReadPosition);
+    default void seek(Position newReadPosition) {
+        seek(newReadPosition, false);
+    }
+
+    void seek(Position newReadPosition, boolean force);
 
     /**
      * Clear the cursor backlog.

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Sets;
 
@@ -448,5 +449,49 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(reader.hasMessageAvailable());
         reader.readNext();
         Assert.assertFalse(reader.hasMessageAvailable());
+    }
+
+    @Test
+    public void testDoNotLossTheLastCompactedLedgerData() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/testDoNotLossTheLastCompactedLedgerData-" +
+                UUID.randomUUID();
+        final int numMessages = 2000;
+        final int keys = 200;
+        final String msg = "Test";
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .blockIfQueueFull(true)
+                .maxPendingMessages(numMessages)
+                .enableBatching(false)
+                .create();
+        CompletableFuture<MessageId> lastMessage = null;
+        for (int i = 0; i < numMessages; ++i) {
+            lastMessage = producer.newMessage().key(i % keys + "").value(msg).sendAsync();
+        }
+        producer.flush();
+        lastMessage.join();
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
+            Assert.assertEquals(stats.compactedLedger.entries, keys);
+            Assert.assertEquals(admin.topics().getStats(topic)
+                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+        });
+        admin.topics().unload(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            Assert.assertEquals(stats.ledgers.size(), 1);
+            Assert.assertEquals(admin.topics().getStats(topic)
+                    .getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 0);
+        });
+        admin.topics().unload(topic);
+        // Send one more key to and then to trigger the compaction
+        producer.newMessage().key(keys + "").value(msg).send();
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+            Assert.assertEquals(stats.compactedLedger.entries, keys + 1);
+        });
     }
 }
