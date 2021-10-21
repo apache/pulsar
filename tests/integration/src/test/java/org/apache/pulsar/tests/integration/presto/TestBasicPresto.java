@@ -56,6 +56,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     private void setupPresto() throws Exception {
         log.info("[TestBasicPresto] setupPresto...");
         pulsarCluster.startPrestoWorker();
+        initJdbcConnection();
     }
 
     private void teardownPresto() {
@@ -332,7 +333,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 1000 * 30)
     public void testQueueBigEntry() throws Exception {
         String tableName = "big_data_" + randomName(5);
         String topic = "persistent://public/default/" + tableName;

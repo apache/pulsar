@@ -69,14 +69,20 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
     }
 
     @Override
-    protected void setupCluster(PulsarClusterSpec spec) throws Exception {
-        super.setupCluster(spec);
-        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
-        connection = DriverManager.getConnection(url, "test", null);
-
+    public void setupCluster() throws Exception {
+        super.setupCluster();
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
+    }
+
+    protected void initJdbcConnection() throws SQLException {
+        if (pulsarCluster.getPrestoWorkerContainer() == null) {
+            log.error("The presto work container isn't exist.");
+            return;
+        }
+        String url = String.format("jdbc:presto://%s",  pulsarCluster.getPrestoWorkerContainer().getUrl());
+        connection = DriverManager.getConnection(url, "test", null);
     }
 
     @Override
