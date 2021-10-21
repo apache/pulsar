@@ -811,7 +811,7 @@ $ pulsar-admin topics reset-cursor \
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
-admin.topics().skipAllMessages(topic, subName, timestamp);
+admin.topics().resetCursor(topic, subName, timestamp);
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
