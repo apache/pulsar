@@ -65,7 +65,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     protected volatile boolean havePendingRead = false;
 
     protected volatile int readBatchSize;
-    protected final Backoff readFailureBackoff = new Backoff(15, TimeUnit.SECONDS,
+    protected final Backoff readFailureBackoff = new Backoff(1, TimeUnit.SECONDS,
             1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
