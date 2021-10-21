@@ -60,14 +60,14 @@ public class BatchMessageContainerImplTest {
         messageMetadata1.setProducerName("producer1");
         messageMetadata1.setPublishTime(System.currentTimeMillis());
         ByteBuffer payload1 = ByteBuffer.wrap("payload1".getBytes(StandardCharsets.UTF_8));
-        final MessageImpl<byte[]> message1 = MessageImpl.create(messageMetadata1, payload1, Schema.BYTES, null);
+        final MessageImpl<byte[]> message1 = MessageImpl.create(messageMetadata1, payload1, Schema.BYTES);
         batchMessageContainer.add(message1, null);
         MessageMetadata messageMetadata2 = new MessageMetadata();
         messageMetadata2.setSequenceId(1L);
         messageMetadata2.setProducerName("producer1");
         messageMetadata2.setPublishTime(System.currentTimeMillis());
         ByteBuffer payload2 = ByteBuffer.wrap("payload2".getBytes(StandardCharsets.UTF_8));
-        final MessageImpl<byte[]> message2 = MessageImpl.create(messageMetadata2, payload2, Schema.BYTES, null);
+        final MessageImpl<byte[]> message2 = MessageImpl.create(messageMetadata2, payload2, Schema.BYTES);
         // after oom, our add can self-healing, won't throw exception
         batchMessageContainer.add(message2, null);
     }
