@@ -29,11 +29,11 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 TEST(PeriodicTaskTest, testCountdownTask) {
-    ExecutorService executor;
+    auto executor = ExecutorService::create();
 
     std::atomic_int count{5};
 
-    auto task = std::make_shared<PeriodicTask>(executor.getIOService(), 200);
+    auto task = std::make_shared<PeriodicTask>(executor->getIOService(), 200);
     task->setCallback([task, &count](const PeriodicTask::ErrorCode& ec) {
         if (--count <= 0) {
             task->stop();
@@ -56,13 +56,13 @@ TEST(PeriodicTaskTest, testCountdownTask) {
     ASSERT_EQ(count.load(), 0);
     task->stop();
 
-    executor.close();
+    executor->close();
 }
 
 TEST(PeriodicTaskTest, testNegativePeriod) {
-    ExecutorService executor;
+    auto executor = ExecutorService::create();
 
-    auto task = std::make_shared<PeriodicTask>(executor.getIOService(), -1);
+    auto task = std::make_shared<PeriodicTask>(executor->getIOService(), -1);
     std::atomic_bool callbackTriggered{false};
     task->setCallback([&callbackTriggered](const PeriodicTask::ErrorCode& ec) { callbackTriggered = true; });
 
@@ -71,5 +71,5 @@ TEST(PeriodicTaskTest, testNegativePeriod) {
     ASSERT_EQ(callbackTriggered.load(), false);
     task->stop();
 
-    executor.close();
+    executor->close();
 }
