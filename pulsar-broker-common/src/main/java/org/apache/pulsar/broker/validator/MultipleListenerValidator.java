@@ -100,7 +100,6 @@ public final class MultipleListenerValidator {
                         }
                     }
                     String hostPort = String.format("%s:%d", uri.getHost(), uri.getPort());
-                    reverseMappings.computeIfAbsent(hostPort, k -> Sets.newTreeSet());
                     Set<String> sets = reverseMappings.computeIfAbsent(hostPort, k -> Sets.newTreeSet());
                     sets.add(entry.getKey());
                     if (sets.size() > 1) {
