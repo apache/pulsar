@@ -2304,7 +2304,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     } else if (sizeSummed > threshold) {
                         //If the state of TB is noSnapshot, this ledger will not contain transaction messages
                         if(config.isTransactionEnable()
-                                &&!offloadFilter.isTransactionBufferNoSnapshot()
+                                && !offloadFilter.isTransactionBufferNoSnapshot()
                                 && e.getValue().getLedgerId() > offloadFilter.getMaxReadPosition().getLedgerId()){
                             continue;
                         }
@@ -2842,6 +2842,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
                     // don't offload if ledger has already been offloaded, or is empty
                     if (!ls.getOffloadContext().getComplete() && ls.getSize() > 0) {
+                        //If the state of TB is noSnapshot, this ledger will not contain transaction messages
+                        if(config.isTransactionEnable()
+                                && !offloadFilter.isTransactionBufferNoSnapshot()
+                                && ls.getLedgerId() > offloadFilter.getMaxReadPosition().getLedgerId()){
+                            continue;
+                        }
                         ledgersToOffload.add(ls);
                     }
                 } else {
