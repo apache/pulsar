@@ -1495,6 +1495,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                     log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
                     // Close the producer since topic does not exist.
+                    if (cause instanceof PulsarClientException.ProducerFencedException) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] Failed to create producer: {}",
+                                    topic, producerName, cause.getMessage());
+                        }
+                    } else {
+                        log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
+                    }
+
+                    // Close the producer since topic does not exists.
                     if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                         closeAsync().whenComplete((v, ex) -> {
                             if (ex != null) {

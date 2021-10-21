@@ -352,7 +352,9 @@ public final class WorkerUtils {
                 }
                 tries++;
                 if (tries % 6 == 0) {
-                    log.warn("Failed to acquire exclusive producer to topic {} after {} attempts.  Will retry if we are still the leader.", topic, tries);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Failed to acquire exclusive producer to topic {} after {} attempts.  Will retry if we are still the leader.", topic, tries);
+                    }
                 }
                 Thread.sleep(sleepInBetweenMs);
             } while (isLeader.get());
