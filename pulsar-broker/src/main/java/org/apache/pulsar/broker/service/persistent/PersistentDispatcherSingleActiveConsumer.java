@@ -218,8 +218,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     // acquire message-dispatch permits for already delivered messages
                     if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
                         if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                            topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(
-                                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
+                            topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(permits,
+                                    sendMessageInfo.getTotalBytes());
                         }
 
                         if (topic.getDispatchRateLimiter().isPresent()) {
