@@ -588,9 +588,14 @@ public class PersistentTopicsBase extends AdminResource {
                             log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
                             deleteAuthFuture.complete(null);
                         }).exceptionally(ex -> {
-                            log.error("Failed to delete authentication policies for partitioned topic {}", topicName,
-                                    ex);
-                            deleteAuthFuture.completeExceptionally(ex);
+                            if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                                log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
+                                deleteAuthFuture.complete(null);
+                            } else {
+                                log.error("Failed to delete authentication policies for partitioned topic {}",
+                                        topicName, ex);
+                                deleteAuthFuture.completeExceptionally(ex);
+                            }
                             return null;
                         });
 
