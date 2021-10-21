@@ -64,14 +64,14 @@ Suppose that you have 3 replication clusters: `us-west`, `us-cent`, and `us-east
 
    Run the following command on `us-west`.
 
-```shell
-
-$ bin/pulsar-admin clusters create \
-  --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
-  --url http://<DNS-OF-US-EAST>:<PORT> \
-  us-east
-
-```
+   ```shell
+   
+   $ bin/pulsar-admin clusters create \
+     --broker-url pulsar://<DNS-OF-US-EAST>:<PORT>	\
+     --url http://<DNS-OF-US-EAST>:<PORT> \
+     us-east
+   
+   ```
 
   :::tip
 
@@ -84,14 +84,14 @@ $ bin/pulsar-admin clusters create \
 
    Run the following command on `us-west`.
 
-```shell
-
-$ bin/pulsar-admin clusters create \
-  --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
-  --url http://<DNS-OF-US-CENT>:<PORT> \
-  us-cent
-
-```
+   ```shell
+   
+   $ bin/pulsar-admin clusters create \
+     --broker-url pulsar://<DNS-OF-US-CENT>:<PORT>	\
+     --url http://<DNS-OF-US-CENT>:<PORT> \
+     us-cent
+   
+   ```
 
 3. Run similar commands on `us-east` and `us-cent` to create connections among clusters.
 

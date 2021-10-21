@@ -120,11 +120,11 @@ To clearly explain the log information, here breaks down the large block of info
     
     ```
 
-  :::tip
-  
-  If `class cannot be found` exception is thrown, check whether the nar file is decompressed in the folder `file:/tmp/pulsar-nar/pulsar-io-mongo-2.4.0.nar-unpacked/META-INF/bundled-dependencies/` or not.
-  
-  :::
+    :::tip
+
+    If `class cannot be found` exception is thrown, check whether the nar file is decompressed in the folder `file:/tmp/pulsar-nar/pulsar-io-mongo-2.4.0.nar-unpacked/META-INF/bundled-dependencies/` or not.
+
+    :::
 
 * This piece of log information illustrates the basic information about the Mongo sink connector, such as tenant, namespace, name, parallelism, resources, and so on, which can be used to **check whether the Mongo sink connector is configured correctly or not**.
 

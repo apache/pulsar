@@ -27,23 +27,23 @@ This example uses Pulsar 2.8.0.
 
 2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory, see [here](https://pulsar.apache.org/docs/en/standalone/#install-tiered-storage-offloaders-optional).
 
-    **Output**
-    
-    As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
+   **Output**
+   
+   As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
 
-    ```
-    
-    tiered-storage-file-system-2.8.0.nar
-    tiered-storage-jcloud-2.8.0.nar
-    
-    ```
+   ```
+   
+   tiered-storage-file-system-2.8.0.nar
+   tiered-storage-jcloud-2.8.0.nar
+   
+   ```
 
-  :::note
-  
-  * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-  * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-  
-  :::
+   :::note
+
+   * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+
+   :::
 
 ## Configuration
 
@@ -182,24 +182,24 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
 - This example triggers the Aliyun OSS offloader to run manually using pulsar-admin.
 
-    ```bash
-    
-    bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
-    
-    ```
+  ```bash
+  
+  bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
+  
+  ```
 
-    **Output**
+  **Output**
 
-    ```bash
-    
-    Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-    
-    ```
+  ```bash
+  
+  Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
+  
+  ```
 
   :::tip
-  
+
   For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
-  
+
   :::
 
 - This example checks the Aliyun OSS offloader status using pulsar-admin.
@@ -253,9 +253,9 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
     
     ```
 
-  :::tip
-  
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
-  
-  :::
+    :::tip
+
+    For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
+
+    :::
 

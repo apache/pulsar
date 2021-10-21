@@ -49,12 +49,12 @@ This example uses Pulsar 2.5.1.
     
     ```
 
-  :::note
-  
-  * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-  * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-  
-  :::
+    :::note
+
+    * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+    * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+
+    :::
 
 3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
 
@@ -75,12 +75,12 @@ This example uses Pulsar 2.5.1.
     
     ```
 
-  :::note
-  
-  * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-  * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-  
-  :::
+    :::note
+
+    * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+    * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+
+    :::
 
 ## Configuration
 
@@ -251,11 +251,11 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
     
     ```
 
-  :::tip
-  
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
-  
-  :::
+    :::tip
+
+    For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
+
+    :::
 
 - This example checks filesystem offloader status using pulsar-admin.
 
@@ -308,11 +308,11 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
     
     ```
 
-  :::tip
-  
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
-  
-  :::
+    :::tip
+
+    For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
+
+    :::
 
 ## Tutorial
 
