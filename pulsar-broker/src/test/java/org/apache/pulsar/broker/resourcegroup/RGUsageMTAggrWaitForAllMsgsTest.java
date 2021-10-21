@@ -58,7 +58,7 @@ import java.util.concurrent.TimeUnit;
 // The tenants and namespaces in those topics are associated with a set of resource-groups (RGs).
 // After sending/receiving all the messages, traffic usage statistics, and Prometheus-metrics
 // are verified on the RGs.
-public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
+public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -352,7 +352,9 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
             String errMesg = String.format("Found %s topics with equal RGs and %s with unequal, on %s topics",
                     numEqualRGs, numUnEqualRGs, numTopics);
             throw new PulsarClientException(errMesg);
-        } else return numEqualRGs == numTopics;
+        } else {
+            return numEqualRGs == numTopics;
+        }
     }
 
     private void registerTenantsAndNamespaces(String[] topicStrings) throws Exception {
@@ -784,7 +786,7 @@ public class RGUsageMTAggrWaitForAllMesgsTest extends ProducerConsumerBase {
         Assert.assertNotEquals(ninetethPercentileValue, 0);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(RGUsageMTAggrWaitForAllMesgsTest.class);
+    private static final Logger log = LoggerFactory.getLogger(RGUsageMTAggrWaitForAllMsgsTest.class);
 
     // Empirically, there appears to be a 45-byte overhead for metadata, imposed by Pulsar runtime.
     private static final int PER_MESSAGE_METADATA_OHEAD = 45;
