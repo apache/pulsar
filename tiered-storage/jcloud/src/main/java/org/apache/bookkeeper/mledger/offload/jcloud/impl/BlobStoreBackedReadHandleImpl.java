@@ -19,7 +19,9 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.io.DataInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -129,12 +131,20 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
-                    int length = dataStream.readInt();
-                    if (length < 0) { // hit padding or new block
-                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                        continue;
+                    long entryId;
+                    int length;
+                    try {
+                        length = dataStream.readInt();
+                        if (length < 0) { // hit padding or new block
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            continue;
+                        }
+                        entryId = dataStream.readLong();
+                    } catch (EOFException ioException) {
+                        //Some entries in this ledger may be filtered. If the last entry in this ledger was filtered,
+                        //we can`t read the next bytes.
+                        break;
                     }
-                    long entryId = dataStream.readLong();
 
                     if (entryId >= nextExpectedId && entryId <= lastEntry) {
                         //Some transaction messages in this ledger have been filtered
@@ -163,7 +173,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         long ignore = inputStream.skip(length);
                     }
                 }
-
+                if (entries.isEmpty()) {
+                    ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(0, 0);
+                    entries.add(LedgerEntryImpl.create(ledgerId, 0, 0, buf));
+                }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
                 promise.completeExceptionally(t);

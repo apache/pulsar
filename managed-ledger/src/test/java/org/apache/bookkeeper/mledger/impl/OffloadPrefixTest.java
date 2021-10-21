@@ -261,9 +261,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 @Override
                 public CompletableFuture<Void> offload(ReadHandle ledger,
                                                        UUID uuid,
-                                                       Map<String, String> extraMetadata) {
+                                                       Map<String, String> extraMetadata,
+                                                       OffloadFilter offloadFilter) {
                     offloadStarted.countDown();
-                    return blocker.thenCompose((f) -> super.offload(ledger, uuid, extraMetadata));
+                    return blocker.thenCompose((f) -> super.offload(ledger, uuid, extraMetadata,
+                            offloadFilter));
                 }
             };
 
@@ -316,7 +318,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 @Override
                 public CompletableFuture<Void> offload(ReadHandle ledger,
                                                        UUID uuid,
-                                                       Map<String, String> extraMetadata) {
+                                                       Map<String, String> extraMetadata,
+                                                       OffloadFilter offloadFilter) {
                     offloadStarted.countDown();
                     return blocker.thenCompose(
                             (trimmedLedger) -> {
@@ -325,7 +328,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                     future.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
                                     return future;
                                 } else {
-                                    return super.offload(ledger, uuid, extraMetadata);
+                                    return super.offload(ledger, uuid, extraMetadata, offloadFilter);
                                 }
                             });
                 }
@@ -528,7 +531,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 @Override
                 public CompletableFuture<Void> offload(ReadHandle ledger,
                                                        UUID uuid,
-                                                       Map<String, String> extraMetadata) {
+                                                       Map<String, String> extraMetadata,
+                                                       OffloadFilter offloadFilter) {
                     return errorLedgers.thenCompose(
                             (errors) -> {
                                 if (errors.remove(ledger.getId())) {
@@ -537,7 +541,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                     future.completeExceptionally(new Exception("Some kind of error"));
                                     return future;
                                 } else {
-                                    return super.offload(ledger, uuid, extraMetadata);
+                                    return super.offload(ledger, uuid, extraMetadata, offloadFilter);
                                 }
                             });
                 }
@@ -643,8 +647,9 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 @Override
                 public CompletableFuture<Void> offload(ReadHandle ledger,
                                                        UUID uuid,
-                                                       Map<String, String> extraMetadata) {
-                    return super.offload(ledger, uuid, extraMetadata)
+                                                       Map<String, String> extraMetadata,
+                                                       OffloadFilter offloadFilter) {
+                    return super.offload(ledger, uuid, extraMetadata, offloadFilter)
                         .thenCompose((res) -> {
                                 CompletableFuture<Void> f = new CompletableFuture<>();
                                 f.completeExceptionally(new Exception("Fail after offload occurred"));
@@ -774,9 +779,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 @Override
                 public CompletableFuture<Void> offload(ReadHandle ledger,
                                                        UUID uuid,
-                                                       Map<String, String> extraMetadata) {
+                                                       Map<String, String> extraMetadata,
+                                                       OffloadFilter offloadFilter) {
                     offloadRunning.countDown();
-                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata,
+                            offloadFilter));
                 }
             };
 
@@ -835,9 +842,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 @Override
                 public CompletableFuture<Void> offload(ReadHandle ledger,
                                                        UUID uuid,
-                                                       Map<String, String> extraMetadata) {
+                                                       Map<String, String> extraMetadata,
+                                                       OffloadFilter offloadFilter) {
                     offloadRunning.countDown();
-                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata,
+                            offloadFilter));
                 }
             };
 
@@ -886,9 +895,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 @Override
                 public CompletableFuture<Void> offload(ReadHandle ledger,
                                                        UUID uuid,
-                                                       Map<String, String> extraMetadata) {
+                                                       Map<String, String> extraMetadata,
+                                                       OffloadFilter offloadFilter) {
                     offloadRunning.countDown();
-                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata));
+                    return slowOffload.thenCompose((res) -> super.offload(ledger, uuid, extraMetadata,
+                            offloadFilter));
                 }
             };
 
@@ -1002,16 +1013,6 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
 
         @Override
-        public void setOffloadFilter(OffloadFilter offloadFilter) {
-
-        }
-
-        @Override
-        public OffloadFilter getOffloadFilter() {
-            return null;
-        }
-
-        @Override
         public String getOffloadDriverName() {
             return "mock";
         }
@@ -1019,7 +1020,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
                                                UUID uuid,
-                                               Map<String, String> extraMetadata) {
+                                               Map<String, String> extraMetadata,
+                                               OffloadFilter offloadFilter) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
             if (offloads.putIfAbsent(ledger.getId(), uuid) == null) {
                 promise.complete(null);
@@ -1112,7 +1114,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
                                                UUID uuid,
-                                               Map<String, String> extraMetadata) {
+                                               Map<String, String> extraMetadata,
+                                               OffloadFilter offloadFilter) {
             return errorLedgers.thenCompose(
                             (errors) -> {
                                 if (errors.contains(ledger.getId())) {
@@ -1120,7 +1123,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                     future.completeExceptionally(new Exception("Some kind of error"));
                                     return future;
                                 } else {
-                                    return super.offload(ledger, uuid, extraMetadata);
+                                    return super.offload(ledger, uuid, extraMetadata, offloadFilter);
                                 }
                             });
         }

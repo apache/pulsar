@@ -34,15 +34,6 @@ public class NullLedgerOffloader implements LedgerOffloader {
     public static NullLedgerOffloader INSTANCE = new NullLedgerOffloader();
 
     @Override
-    public void setOffloadFilter(OffloadFilter offloadFilter) {
-    }
-
-    @Override
-    public OffloadFilter getOffloadFilter() {
-        return null;
-    }
-
-    @Override
     public String getOffloadDriverName() {
         return "NullLedgerOffloader";
     }
@@ -50,7 +41,8 @@ public class NullLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<Void> offload(ReadHandle ledger,
                                            UUID uid,
-                                           Map<String, String> extraMetadata) {
+                                           Map<String, String> extraMetadata,
+                                           OffloadFilter offloadFilter) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;

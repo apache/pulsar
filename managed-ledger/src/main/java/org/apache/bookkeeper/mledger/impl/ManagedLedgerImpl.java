@@ -110,6 +110,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundExce
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
+import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
@@ -221,6 +222,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     volatile PositionImpl lastConfirmedEntry;
 
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+
+    private OffloadFilter offloadFilter;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
@@ -783,6 +786,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 addOperation.setCloseWhenDone(true);
                 STATE_UPDATER.set(this, State.ClosingLedger);
             }
+            System.out.println("entries  "  + ledgers.firstEntry().getValue().getEntries());
             addOperation.initiate();
         }
     }
@@ -1561,6 +1565,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         long entriesInLedger = lh.getLastAddConfirmed() + 1;
+        log.info("getLastAddConfirmed : {}", lh.getLastAddConfirmed());
         if (log.isDebugEnabled()) {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
@@ -2255,8 +2260,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
             //This means that the topic has not been created yet or the TB has not been started completely.
             if(config.isTransactionEnable()){
-                if(config.getLedgerOffloader().getOffloadFilter() == null
-                        || config.getLedgerOffloader().getOffloadFilter().isTransactionBufferInitializing()){
+                if(offloadFilter == null || offloadFilter.isTransactionBufferInitializing()){
                     return;
                 }
             }
@@ -2300,6 +2304,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (alreadyOffloaded) {
                         alreadyOffloadedSize += size;
                     } else if (sizeSummed > threshold) {
+                        //If the state of TB is noSnapshot, this ledger will not contain transaction messages
+                        if(config.isTransactionEnable()
+                                &&!offloadFilter.isTransactionBufferNoSnapshot()
+                                && e.getValue().getLedgerId() > offloadFilter.getMaxReadPosition().getLedgerId()){
+                            continue;
+                        }
                         toOffloadSize += size;
                         toOffload.addFirst(e.getValue());
                     }
@@ -2889,7 +2899,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                 .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
+                .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid,
+                        extraMetadata, offloadFilter))
                 .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
                                                                        TimeUnit.SECONDS.toHours(1)).limit(10),
@@ -4012,6 +4023,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.checkLedgerRollTask = this.scheduledExecutor.schedule(
                     safeRun(this::rollCurrentLedgerIfFull), this.maximumRolloverTimeMs, TimeUnit.MILLISECONDS);
         }
+    }
+
+    public void setOffloadFilter(OffloadFilter offloadFilter) {
+        this.offloadFilter = offloadFilter;
     }
 
 }

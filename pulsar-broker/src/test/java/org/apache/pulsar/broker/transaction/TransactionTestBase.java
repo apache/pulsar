@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -37,6 +39,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -75,10 +78,15 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     private final List<ServiceConfiguration> serviceConfigurationList = new ArrayList<>();
     @Getter
     protected final List<PulsarService> pulsarServiceList = new ArrayList<>();
-
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
 
+    @Setter
+    private Properties properties = new Properties();
+    @Setter
+    private LedgerOffloader ledgerOffloader;
+    @Setter
+    private int maxEntriesPerLedger = 0;
     private MockZooKeeper mockZooKeeper;
     private OrderedExecutor bkExecutor;
     private NonClosableMockBookKeeper mockBookKeeper;
@@ -135,6 +143,12 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
             conf.setTopicLevelPoliciesEnabled(true);
+            if (maxEntriesPerLedger != 0) {
+                conf.setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
+            }
+            conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            conf.setProperties(properties);
+            log.error("properties: " + properties);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));
@@ -149,7 +163,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         // Override default providers with mocked ones
         doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
-
+        doReturn(ledgerOffloader).when(pulsar).createManagedLedgerOffloader(any());
+        doReturn(ledgerOffloader).when(pulsar).getManagedLedgerOffloader(any(), any());
         MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper);
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperSession)).when(pulsar).createConfigurationMetadataStore();

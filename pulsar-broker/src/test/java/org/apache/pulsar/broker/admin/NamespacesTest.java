@@ -1274,15 +1274,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         @Override
-        public void setOffloadFilter(OffloadFilter offloadFilter) {
-        }
-
-        @Override
-        public OffloadFilter getOffloadFilter() {
-            return null;
-        }
-
-        @Override
         public String getOffloadDriverName() {
             return "mock";
         }
@@ -1290,7 +1281,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
                                                UUID uuid,
-                                               Map<String, String> extraMetadata) {
+                                               Map<String, String> extraMetadata, OffloadFilter offloadFilter) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
             if (offloads.putIfAbsent(ledger.getId(), uuid) == null) {
                 promise.complete(null);

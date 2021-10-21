@@ -95,7 +95,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         doReturn(offloader).when(pulsar).getManagedLedgerOffloader(any(), any());
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        doReturn(promise).when(offloader).offload(any(), any(), any());
+        doReturn(promise).when(offloader).offload(any(), any(), any(), any());
 
         MessageId currentId = MessageId.latest;
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).enableBatching(false).create()) {
@@ -131,7 +131,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
         // Try again
         doReturn(CompletableFuture.completedFuture(null))
-            .when(offloader).offload(any(), any(), any());
+            .when(offloader).offload(any(), any(), any(), any());
 
         admin.topics().triggerOffload(topicName, currentId);
 
@@ -145,7 +145,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertEquals(firstUnoffloadedMessage.getLedgerId(), info.ledgers.get(1).ledgerId);
         assertEquals(firstUnoffloadedMessage.getEntryId(), 0);
 
-        verify(offloader, times(2)).offload(any(), any(), any());
+        verify(offloader, times(2)).offload(any(), any(), any(), any());
     }
 
 

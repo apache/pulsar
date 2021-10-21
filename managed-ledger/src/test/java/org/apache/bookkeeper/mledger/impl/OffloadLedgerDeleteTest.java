@@ -33,6 +33,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.OffloadFilter;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -93,7 +94,8 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
                                                UUID uuid,
-                                               Map<String, String> extraMetadata) {
+                                               Map<String, String> extraMetadata,
+                                               OffloadFilter offloadFilter) {
             Assert.assertNotNull(extraMetadata.get("ManagedLedgerName"));
             String storagePath = getStoragePath(storageBasePath, extraMetadata.get("ManagedLedgerName"));
             String dataFilePath = getDataFilePath(storagePath, ledger.getId(), uuid);

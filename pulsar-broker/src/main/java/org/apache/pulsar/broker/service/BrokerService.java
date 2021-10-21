@@ -85,6 +85,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -1249,8 +1250,10 @@ public class BrokerService implements Closeable {
                                         .thenCompose(__ -> persistentTopic.checkReplication());
                                 if (persistentTopic.getBrokerService().getPulsar().getConfig()
                                         .isTransactionCoordinatorEnabled()){
-                                    managedLedgerConfig.getLedgerOffloader()
-                                            .setOffloadFilter(new OffloadFilterImp(persistentTopic));
+                                    if (ledger instanceof ManagedLedgerImpl) {
+                                        ((ManagedLedgerImpl) ledger)
+                                                .setOffloadFilter(new OffloadFilterImp(persistentTopic));
+                                    }
                                 }
 
                                 CompletableFuture.allOf(preCreateSubForCompaction, replicationFuture)

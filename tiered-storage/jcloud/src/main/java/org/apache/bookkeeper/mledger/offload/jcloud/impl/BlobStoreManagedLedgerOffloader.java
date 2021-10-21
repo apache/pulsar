@@ -104,7 +104,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private volatile ManagedLedger ml;
     private OffloadIndexBlockV2Builder streamingIndexBuilder;
 
-    private OffloadFilter offloadFilter;
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
@@ -162,15 +161,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle,
                                            UUID uuid,
-                                           Map<String, String> extraMetadata) {
+                                           Map<String, String> extraMetadata,
+                                           OffloadFilter offloadFilter) {
         final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        //If the status of TB is noSnapshot, this ledger will not contain transaction messages
-        if(!offloadFilter.isTransactionBufferNoSnapshot()
-                && readHandle.getLedgerMetadata().getLedgerId() >= offloadFilter.getMaxReadPosition().getLedgerId()){
-             promise.complete(null);
-             return promise;
-        }
+
         scheduler.chooseThread(readHandle.getId()).submit(() -> {
             if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
                 promise.completeExceptionally(
@@ -608,16 +603,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         Properties properties = new Properties();
         properties.putAll(config.getConfigProperties());
         return OffloadPoliciesImpl.create(properties);
-    }
-
-    @Override
-    public void setOffloadFilter(OffloadFilter offloadFilter) {
-        this.offloadFilter = offloadFilter;
-    }
-
-    @Override
-    public OffloadFilter getOffloadFilter() {
-        return this.offloadFilter;
     }
 
 

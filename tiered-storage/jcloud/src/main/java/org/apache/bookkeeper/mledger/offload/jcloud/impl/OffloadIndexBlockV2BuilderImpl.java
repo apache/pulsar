@@ -132,7 +132,6 @@ public class OffloadIndexBlockV2BuilderImpl implements OffloadIndexBlockBuilder,
     public OffloadIndexBlock build() {
         checkState(ledgerMetadata != null);
         checkState(!entries.isEmpty());
-        checkState(dataObjectLength > 0);
         checkState(dataHeaderLength > 0);
         return OffloadIndexBlockImpl.get(ledgerMetadata, dataObjectLength, dataHeaderLength, entries);
     }

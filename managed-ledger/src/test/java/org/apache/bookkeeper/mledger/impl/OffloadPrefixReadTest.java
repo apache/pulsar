@@ -214,15 +214,6 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
 
         @Override
-        public void setOffloadFilter(OffloadFilter offloadFilter) {
-        }
-
-        @Override
-        public OffloadFilter getOffloadFilter() {
-            return null;
-        }
-
-        @Override
         public String getOffloadDriverName() {
             return "mock";
         }
@@ -230,7 +221,8 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         @Override
         public CompletableFuture<Void> offload(ReadHandle ledger,
                                                UUID uuid,
-                                               Map<String, String> extraMetadata) {
+                                               Map<String, String> extraMetadata,
+                                               OffloadFilter offloadFilter) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
             try {
                 offloads.put(uuid, new MockOffloadReadHandle(ledger));

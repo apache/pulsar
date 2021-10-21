@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -154,15 +155,24 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 long nextExpectedId = groupedReader.firstEntry;
                 try {
                     while (entriesToRead > 0) {
-                        int length = groupedReader.dataStream.readInt();
-                        if (length < 0) { // hit padding or new block
-                            groupedReader.inputStream
-                                    .seek(groupedReader.index
-                                            .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
-                                            .getDataOffset());
-                            continue;
+
+                        long entryId;
+                        int length;
+                        try {
+                            length = groupedReader.dataStream.readInt();
+                            if (length < 0) { // hit padding or new block
+                                groupedReader.inputStream
+                                        .seek(groupedReader.index
+                                                .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                                .getDataOffset());
+                                continue;
+                            }
+                            entryId = groupedReader.dataStream.readLong();
+                        } catch (EOFException ioException) {
+                            //Some entries in this ledger may be filtered. If the last entry in this ledger was filtered,
+                            //we can`t read the next bytes.
+                            break;
                         }
-                        long entryId = groupedReader.dataStream.readLong();
 
                         if (entryId >= nextExpectedId && entryId <= lastEntry) {
                             //Some transaction messages in this ledger have been filtered

@@ -46,7 +46,6 @@ import java.util.UUID;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -67,7 +66,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
     private OffloadPoliciesImpl offloadPolicies;
-    private OffloadFilter offloadFilter;
 
     public static boolean driverSupported(String driver) {
         return DRIVER_NAMES.equals(driver);
@@ -141,7 +139,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     * ledgerMetadata stored in an index of -1
     * */
     @Override
-    public CompletableFuture<Void> offload(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata) {
+    public CompletableFuture<Void> offload(ReadHandle readHandle, UUID uuid, Map<String, String> extraMetadata,
+                                           OffloadFilter offloadFilter) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(readHandle.getId()).submit(new LedgerReader(readHandle, uuid, extraMetadata, promise, storageBasePath, configuration, assignmentScheduler, offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), offloadFilter));
         return promise;
@@ -182,11 +181,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             long ledgerId = readHandle.getId();
-            //If the state of TB is noSnapshot, this ledger will not contain transaction messages
-            if(!offloadFilter.isTransactionBufferNoSnapshot()
-                    && ledgerId >= offloadFilter.getMaxReadPosition().getLedgerId()){
-                return;
-            }
             String storagePath = getStoragePath(storageBasePath, extraMetadata.get(MANAGED_LEDGER_NAME));
             String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
             LongWritable key = new LongWritable();
@@ -358,16 +352,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public OffloadPoliciesImpl getOffloadPolicies() {
         return offloadPolicies;
-    }
-
-    @Override
-    public void setOffloadFilter(OffloadFilter offloadFilter) {
-        this.offloadFilter = offloadFilter;
-    }
-
-    @Override
-    public OffloadFilter getOffloadFilter() {
-        return this.offloadFilter;
     }
 
     @Override

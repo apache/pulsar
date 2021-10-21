@@ -94,7 +94,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        if (log.isDebugEnabled()) {
+         if (log.isDebugEnabled()) {
             log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
@@ -105,34 +105,22 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 promise.completeExceptionally(new BKException.BKIncorrectParameterException());
                 return;
             }
-            long entriesToRead = (lastEntry - firstEntry) + 1;
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
-            long nextExpectedId = firstEntry;
             LongWritable key = new LongWritable();
             BytesWritable value = new BytesWritable();
             try {
-                key.set(nextExpectedId - 1);
+                key.set(firstEntry - 1);
                 reader.seek(key);
-                while (entriesToRead > 0) {
-                    reader.next(key, value);
+                reader.next(key, value);
+                long entryId;
+                do {
                     int length = value.getLength();
-                    long entryId = key.get();
-                    if (entryId >= nextExpectedId && entryId <= lastEntry) {
-                        //Some transaction messages in this ledger have been filtered
-                        if(entryId > nextExpectedId){
-                            nextExpectedId = entryId;
-                        }
-                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
-                        entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
-                        buf.writeBytes(value.copyBytes());
-                        entriesToRead--;
-                        nextExpectedId++;
-                    } else if (entryId > lastEntry) {
-                        log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                nextExpectedId, entryId, lastEntry);
-                        throw new BKException.BKUnexpectedConditionException();
-                    }
-            }
+                    entryId = key.get();
+                    ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+                    buf.writeBytes(value.copyBytes());
+                    entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
+                } while (entryId < lastEntry && reader.next(key, value));
+
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
                 promise.completeExceptionally(t);
