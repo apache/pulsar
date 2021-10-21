@@ -160,7 +160,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void seek(Position newReadPosition) {
+        public void seek(Position newReadPosition, boolean force) {
         }
 
         @Override
