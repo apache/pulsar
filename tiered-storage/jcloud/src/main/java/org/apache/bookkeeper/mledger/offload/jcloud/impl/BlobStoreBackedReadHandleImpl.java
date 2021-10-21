@@ -218,12 +218,26 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize)
             throws IOException {
-        Blob blob = blobStore.getBlob(bucket, indexKey);
-        versionCheck.check(indexKey, blob);
-        OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
-        OffloadIndexBlock index;
-        try (InputStream payLoadStream = blob.getPayload().openStream()) {
-            index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
+        int retryCount = 3;
+        OffloadIndexBlock index = null;
+        IOException lastException = null;
+        while (retryCount-- > 0) {
+            Blob blob = blobStore.getBlob(bucket, indexKey);
+            versionCheck.check(indexKey, blob);
+            OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
+            try (InputStream payLoadStream = blob.getPayload().openStream()) {
+                index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
+            } catch (IOException e) {
+                // retry to avoid the network issue caused read failure
+                log.warn("Failed to get index block from the offoaded index file {}", indexKey, e);
+                lastException = e;
+                continue;
+            }
+            lastException = null;
+            break;
+        }
+        if (lastException != null) {
+            throw lastException;
         }
 
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
