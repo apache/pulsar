@@ -212,7 +212,7 @@ public class PerformanceConsumer {
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
-                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString();
+                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
                 List<String> defaultTopics = Lists.newArrayList();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
