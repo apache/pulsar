@@ -341,23 +341,24 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
                 .topic(topic)
+                .enableBatching(false)
                 .create();
 
         int dataLength = pulsarCluster.getSpec().maxMessageSize() - 1024 * 1024;
         // Make sure that the data length bigger than the default maxMessageSize
-        Assert.assertTrue(dataLength >
-                (Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING));
+        Assert.assertTrue(dataLength > Commands.DEFAULT_MAX_MESSAGE_SIZE);
         byte[] data = new byte[dataLength];
         for (int i = 0; i < dataLength; i++) {
             data[i] = 'a';
         }
 
         int messageCnt = 5;
+        log.info("start produce big entry data, data length: {}", dataLength);
         for (int i = 0 ; i < messageCnt; ++i) {
             producer.newMessage().value(data).send();
         }
 
-        int count = selectCount("public/default", tableName);;
+        int count = selectCount("public/default", tableName);
         Assert.assertEquals(count, messageCnt);
     }
 
