@@ -221,6 +221,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         int retryCount = 3;
         OffloadIndexBlock index = null;
         IOException lastException = null;
+        // The following retry is used to avoid to some network issue cause read index file failure.
+        // If it can not recovery in the retry, we will throw the exception and the dispatcher will schedule to
+        // next read.
+        // If we use a backoff to control the retry, it will introduce a concurrent operation.
+        // We don't want to make it complicated, because in the most of case it shouldn't in the retry loop.
         while (retryCount-- > 0) {
             Blob blob = blobStore.getBlob(bucket, indexKey);
             versionCheck.check(indexKey, blob);
@@ -229,7 +234,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
             } catch (IOException e) {
                 // retry to avoid the network issue caused read failure
-                log.warn("Failed to get index block from the offoaded index file {}", indexKey, e);
+                log.warn("Failed to get index block from the offoaded index file {}, still have {} times to retry",
+                    indexKey, retryCount, e);
                 lastException = e;
                 continue;
             }
