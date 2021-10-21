@@ -7,7 +7,6 @@ sidebar_label: "Dashboard"
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-
 :::note
 
 Pulsar dashboard is deprecated. We recommend you use [Pulsar Manager](administration-pulsar-manager) to manage and monitor the stats of your topics. 
@@ -54,6 +53,7 @@ $ docker run -p 80:80 \
   apachepulsar/pulsar-dashboard
 
 ```
+
  
 You need to specify only one service URL for a Pulsar cluster. Internally, the collector figures out all the existing clusters and the brokers from where it needs to pull the metrics. If you connect the dashboard to Pulsar running in standalone mode, the URL is `http://<broker-ip>:8080` by default. `<broker-ip>` is the IP address or hostname of the machine that runs Pulsar standalone. The IP address or hostname should be accessible from the running dashboard in the docker instance.
 

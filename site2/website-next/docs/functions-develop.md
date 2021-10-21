@@ -46,6 +46,7 @@ public class JavaNativeExclamationFunction implements Function<String, String> {
 }
 
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclamationFunction.java).
 
 </TabItem>
@@ -57,6 +58,7 @@ def process(input):
     return "{}!".format(input)
 
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/native_exclamation_function.py).
 
 :::note
@@ -110,6 +112,7 @@ public class ExclamationFunction implements Function<String, String> {
 }
 
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java).
 
 </TabItem>
@@ -127,6 +130,7 @@ class ExclamationFunction(Function):
     return input + '!'
 
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py).
 
 </TabItem>
@@ -153,6 +157,7 @@ func main() {
 }
 
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
 
 </TabItem>
@@ -182,6 +187,7 @@ SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions use
   }
 ]}>
 <TabItem value="Java">
+
 When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default: `String`, `Double`, `Integer`, `Float`, `Long`, `Short`, and `Byte`.
 
 To customize Java types, you need to implement the following interface.
@@ -194,6 +200,7 @@ public interface SerDe<T> {
 }
 
 ```
+
 SerDe works in the following ways in Java Functions.
 - If the input and output topics have schema, Pulsar Functions use schema for SerDe.
 - If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
@@ -203,6 +210,7 @@ SerDe works in the following ways in Java Functions.
 
 </TabItem>
 <TabItem value="Python">
+
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
 
 You can specify the SerDe when [creating](functions-deploy.md#cluster-mode) or [running](functions-deploy.md#local-run-mode) functions. 
@@ -239,6 +247,7 @@ Custom SerDe | When you require explicit control over SerDe, potentially for per
 
 </TabItem>
 <TabItem value="Go">
+
 Currently, the feature is not available in Go.
 
 </TabItem>
@@ -339,19 +348,20 @@ In order to use this class in Pulsar Functions, you have two options:
 2. You can create your own SerDe class. The following is an example.
 
   ```python
-
-from pulsar import SerDe
-
-class TweetSerDe(SerDe):
-
-    def serialize(self, input):
-        return bytes("{0}|{1}".format(input.username, input.tweet_content))
-
-    def deserialize(self, input_bytes):
-        tweet_components = str(input_bytes).split('|')
-        return Tweet(tweet_components[0], tweet_componentsp[1])
-
+  
+  from pulsar import SerDe
+  
+  class TweetSerDe(SerDe):
+  
+      def serialize(self, input):
+          return bytes("{0}|{1}".format(input.username, input.tweet_content))
+  
+      def deserialize(self, input_bytes):
+          tweet_components = str(input_bytes).split('|')
+          return Tweet(tweet_components[0], tweet_componentsp[1])
+  
   ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/custom_object_function.py).
 
 </TabItem>
@@ -397,6 +407,7 @@ Java, Python and Go SDKs provide access to a **context object** that can be used
   }
 ]}>
 <TabItem value="Java">
+
 The [Context](https://github.com/apache/pulsar/blob/master/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Context.java) interface provides a number of methods that you can use to access the function [context](#context). The various method signatures for the `Context` interface are listed as follows.
 
 ```java
@@ -471,6 +482,7 @@ public class ContextFunction implements Function<String, Void> {
 <TabItem value="Python">
 
 ```
+
 class ContextImpl(pulsar.Context):
   def get_message_id(self):
     ...
@@ -538,6 +550,7 @@ class ContextImpl(pulsar.Context):
 <TabItem value="Go">
 
 ```
+
 func (c *FunctionContext) GetInstanceID() int {
 	return c.instanceConf.instanceID
 }
@@ -595,6 +608,7 @@ func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
 The following example uses several methods available via the `Context` object.
 
 ```
+
 import (
     "context"
     "fmt"
@@ -646,6 +660,7 @@ $ bin/pulsar-admin functions create \
   }
 ]}>
 <TabItem value="Java"> 
+
 The Java SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
 
 ```bash
@@ -700,6 +715,7 @@ String wotd = context.getUserConfigValueOrDefault("word-of-the-day", "perspicaci
 
 </TabItem>
 <TabItem value="Python">
+
 In Python function, you can access the configuration value like this.
 
 ```python
@@ -746,6 +762,7 @@ class UserConfigFunction(Function):
             logger.info("The word of the day is {0}".format(wotd))
 
 ```
+
 </TabItem>
 <TabItem value="Go">
 
@@ -803,6 +820,7 @@ func contextFunc(ctx context.Context) {
   }
 ]}>
 <TabItem value="Java">
+
 Pulsar Functions that use the Java SDK have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level. The following example logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
 ```java
@@ -972,6 +990,7 @@ The properties set like:
         </Property>
 
 ```
+
 propagate to places where they are referenced, such as:
 
 ```xml
@@ -985,6 +1004,7 @@ propagate to places where they are referenced, such as:
         </Root>
 
 ```
+
 In the above example, debug level logging would be applied to ALL function logs. 
 This may be more verbose than you desire. To be more selective, you can apply different log levels to different classes or modules. For example:
 
@@ -1000,6 +1020,7 @@ This may be more verbose than you desire. To be more selective, you can apply di
         </Logger>
 
 ```
+
 You can be more specific as well, such as applying a more verbose log level to a class in the module, such as:
 
 ```xml
@@ -1021,9 +1042,11 @@ Additivity pertains to whether log messages will be duplicated if multiple Logge
 To disable additivity, specify
 
 ```xml 
+
 <additivity>false</additivity>
 
 ```
+
 as shown in examples above. Disabling additivity prevents duplication of log messages when one or more `<Logger>` entries contain classes or modules that overlap.
 
 The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
@@ -1042,6 +1065,7 @@ The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
 
 </TabItem>
 <TabItem value="Python">
+
 Pulsar Functions that use the Python SDK have access to a logging object that can be used to produce logs at the chosen log level. The following example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
 ```python
@@ -1076,9 +1100,11 @@ Additionally, you can specify the function log level through the broker XML file
 
 </TabItem>
 <TabItem value="Go">
+
 The following Go Function example shows different log levels based on the function input.
 
 ```
+
 import (
     "context"
 
@@ -1126,6 +1152,7 @@ Pulsar Functions using the Java SDK has access to the Pulsar admin client, which
 Below is an example of how to use the Pulsar admin client exposed from the Function `context`.
 
 ```
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -1159,6 +1186,7 @@ public class CursorManagementFunction implements Function<String, String> {
 If you want your function to get access to the Pulsar admin client, you need to enable this feature by setting `exposeAdminClientEnabled=true` in the `functions_worker.yml` file. You can test whether this feature is enabled or not using the command `pulsar-admin functions localrun` with the flag `--web-service-url`.
 
 ```
+
 $ bin/pulsar-admin functions localrun \
  --jar my-functions.jar \
  --classname my.package.CursorManagementFunction \
@@ -1212,6 +1240,7 @@ Here are examples of how to customize metrics for Java and Python functions.
   }
 ]}>
 <TabItem value="Java">
+
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. 
 
 ```java
@@ -1238,6 +1267,7 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 
 </TabItem>
 <TabItem value="Python">
+
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. The following is an example.
 
 ```python
@@ -1252,8 +1282,10 @@ class MetricRecorderFunction(Function):
             context.record_metric('elevens-count', 1)
 
 ```
+
 </TabItem>
 <TabItem value="Go">
+
 Currently, the feature is not available in Go.
 
 </TabItem>
@@ -1290,6 +1322,7 @@ At the same time, Pulsar Functions provides two interfaces, **SecretsProvider** 
   }
 ]}>
 <TabItem value="Java">
+
 You can get secret provider using the [`Context`](#context) object. The following is an example:
 
 ```java
@@ -1319,6 +1352,7 @@ public class GetSecretProviderFunction implements Function<String, Void> {
 
 </TabItem>
 <TabItem value="Python">
+
 You can get secret provider using the [`Context`](#context) object. The following is an example:
 
 ```python
@@ -1338,6 +1372,7 @@ class GetSecretProviderFunction(Function):
 
 </TabItem>
 <TabItem value="Go">
+
 Currently, the feature is not available in Go.
 
 </TabItem>
@@ -1374,6 +1409,7 @@ State storage is not available in Go.
   }
 ]}>
 <TabItem value="Java">
+
 Currently Pulsar Functions expose the following APIs for mutating and accessing State. These APIs are available in the [Context](functions-develop.md#context) object when you are using Java SDK functions.
 
 #### incrCounter
@@ -1520,6 +1556,7 @@ Counters and binary values share the same keyspace, so this deletes either type.
 
 </TabItem>
 <TabItem value="Python">
+
 Currently Pulsar Functions expose the following APIs for mutating and accessing State. These APIs are available in the [Context](#context) object when you are using Python SDK functions.
 
 #### incr_counter

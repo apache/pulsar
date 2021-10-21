@@ -17,9 +17,9 @@ If you have not installed Docker, download the [Community edition](https://www.d
 * For MacOS, Linux, and Windows:
 
   ```shell
-
+  
   $ docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
-
+  
   ```
 
 A few things to note about this command:
@@ -30,6 +30,7 @@ time the container is restarted. For details on the volumes you can use `docker 
 If you start Pulsar successfully, you will see `INFO`-level log messages like this:
 
 ```
+
 08:18:30.970 [main] INFO  org.apache.pulsar.broker.web.WebService - HTTP Service started at http://0.0.0.0:8080
 ...
 07:53:37.322 [main] INFO  org.apache.pulsar.broker.PulsarService - messaging service is ready, bootstrap service port = 8080, broker url= pulsar://localhost:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@98b63c1
@@ -42,6 +43,7 @@ If you start Pulsar successfully, you will see `INFO`-level log messages like th
 When you start a local standalone cluster, a `public/default`
 
 :::
+
 namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces.
 For more information, see [Topics](concepts-messaging.md#topics).
 
@@ -212,3 +214,4 @@ The output is something like this:
 }
 
 ```
+

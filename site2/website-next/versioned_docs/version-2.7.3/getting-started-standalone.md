@@ -42,9 +42,9 @@ To get started with Pulsar, download a binary tarball release in one of the foll
 * use [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:binary_release_url
-
+  
   ```
 
 After you download the tarball, untar it and use the `cd` command to navigate to the resulting directory:
@@ -99,9 +99,9 @@ To enable those `builtin` connectors, you can download the connectors tarball re
 * use [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
-
+  
   ```
 
 After you download the nar file, copy the file to the `connectors` directory in the pulsar directory. 
@@ -147,9 +147,9 @@ To get started with [tiered storage offloaders](concepts-tiered-storage), you ne
 * use [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:offloader_release_url
-
+  
   ```
 
 After you download the tarball, untar the offloaders package and copy the offloaders as `offloaders`
@@ -204,6 +204,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 * The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
 
 :::
+
 You can also run the service as a background process using the `pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 > 
 > * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview) document to secure your deployment.
@@ -227,6 +228,7 @@ $ bin/pulsar-client consume my-topic -s "first-subscription"
 If the message has been successfully consumed, you will see a confirmation like the following in the `pulsar-client` logs:
 
 ```
+
 09:56:55.566 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.MultiTopicsConsumerImpl - [TopicsConsumerFakeTopicNamee2df9] [first-subscription] Success subscribe new topic my-topic in topics consumer, partitions: 4, allTopicPartitionsNumber: 4
 
 ```
@@ -250,6 +252,7 @@ $ bin/pulsar-client produce my-topic --messages "hello-pulsar"
 If the message has been successfully published to the topic, you will see a confirmation like the following in the `pulsar-client` logs:
 
 ```
+
 13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
 
 ```
@@ -264,3 +267,4 @@ If the service runs as a background process using the `pulsar-daemon start stand
 For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
 
 :::
+

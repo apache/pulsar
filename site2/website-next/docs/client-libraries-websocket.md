@@ -98,7 +98,7 @@ The producer endpoint requires you to specify a tenant, namespace, and topic in 
 
 ```http
 
-ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic 
+ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic
 
 ```
 
@@ -151,6 +151,7 @@ Key | Type | Required? | Explanation
  }
 
 ```
+
 ##### Example failure response
 
 ```json
@@ -626,3 +627,4 @@ ws.on('message', function(message) {
 });
 
 ```
+

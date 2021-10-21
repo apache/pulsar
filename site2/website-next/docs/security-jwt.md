@@ -20,6 +20,7 @@ A user typically gets a token string from the administrator (or some automated s
 The compact representation of a signed JWT is a string that looks like as the following:
 
 ```
+
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 
 ```
@@ -48,6 +49,7 @@ authParams=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPt
 The token string can also be read from a file, for example:
 
 ```
+
 authParams=file:///path/to/token/file
 
 ```
@@ -143,6 +145,7 @@ client, err := NewClient(ClientOptions{
 })
 
 ```
+
 Similarly, you can also pass a `Supplier`:
 
 ```go
@@ -161,6 +164,7 @@ client, err := NewClient(ClientOptions{
 <TabItem value="C++">
 
 ```c++
+
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
@@ -174,6 +178,7 @@ pulsar::Client client("pulsar://broker.example.com:6650/", config);
 <TabItem value="C#">
 
 ```c#
+
 var client = PulsarClient.Builder()
                          .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
                          .Build();
@@ -335,3 +340,4 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 forwardAuthorizationCredentials=true
 
 ```
+

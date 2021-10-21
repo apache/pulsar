@@ -178,22 +178,29 @@ stringProducer.send("My message");
 ```
 
 > Make sure that you close your producers, consumers, and clients when you do not need them.
+
 > ```java
->
+> 
 > producer.close();
 > consumer.close();
 > client.close();
+>
+> 
 > ```
+
 >
 > Close operations can also be asynchronous:
+
 > ```java
->
+> 
 > producer.closeAsync()
 >    .thenRun(() -> System.out.println("Producer closed"))
 >    .exceptionally((ex) -> {
 >        System.err.println("Failed to close producer: " + ex);
 >        return null;
 >    });
+>
+> 
 > ```
 
 ### Configure producer
@@ -306,7 +313,7 @@ while (true) {
 }
 
 ```
-        
+
 If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
 
 ```java
@@ -421,6 +428,7 @@ Consumer consumer = client.newConsumer()
 .subscribe();
 
 ```
+
 The default batch receive policy is:
 
 ```java
@@ -601,7 +609,6 @@ Consumer consumer2 = client.newConsumer()
 //conumser1 is the active consumer, consumer2 is the standby consumer.
 //consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
 
-
 ```
 
 Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer. 
@@ -609,6 +616,7 @@ Multiple consumers can attach to the same subscription, yet only the first consu
 If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
 
 ```
+
 ("key-1", "message-1-1")
 ("key-1", "message-1-2")
 ("key-1", "message-1-3")
@@ -620,6 +628,7 @@ If the first active consumer is disconnected after receiving 5 messages, the sta
 consumer2 will receive:
 
 ```
+
 ("key-2", "message-2-3")
 ("key-3", "message-3-1")
 ("key-3", "message-3-2")
@@ -660,6 +669,7 @@ In shared subscription mode, multiple consumers can attach to the same subscript
 If a broker dispatches only one message at a time, consumer1 receives the following information.
 
 ```
+
 ("key-1", "message-1-1")
 ("key-1", "message-1-3")
 ("key-2", "message-2-2")
@@ -671,6 +681,7 @@ If a broker dispatches only one message at a time, consumer1 receives the follow
 consumer2 receives the following information.
 
 ```
+
 ("key-1", "message-1-2")
 ("key-2", "message-2-1")
 ("key-2", "message-2-3")
@@ -707,6 +718,7 @@ Just like in the `Shared` subscription, all consumers in the `Key_Shared` subscr
 consumer1 receives the following information.
 
 ```
+
 ("key-1", "message-1-1")
 ("key-1", "message-1-2")
 ("key-1", "message-1-3")
@@ -718,6 +730,7 @@ consumer1 receives the following information.
 consumer2 receives the following information.
 
 ```
+
 ("key-2", "message-2-1")
 ("key-2", "message-2-2")
 ("key-2", "message-2-3")
@@ -736,6 +749,7 @@ Producer producer = client.newProducer()
         .create();
 
 ```
+
 Or the producer can disable batching.
 
 ```java
@@ -870,61 +884,61 @@ The following schema formats are currently available for Java:
 * No schema or the byte array schema (which can be applied using `Schema.BYTES`):
 
   ```java
-
+  
   Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
-        .topic("some-raw-bytes-topic")
-        .create();
-
+      .topic("some-raw-bytes-topic")
+      .create();
+  
   ```
 
   Or, equivalently:
 
   ```java
-
+  
   Producer<byte[]> bytesProducer = client.newProducer()
-        .topic("some-raw-bytes-topic")
-        .create();
-
+      .topic("some-raw-bytes-topic")
+      .create();
+  
   ```
 
 * `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
 
   ```java
-
+  
   Producer<String> stringProducer = client.newProducer(Schema.STRING)
-        .topic("some-string-topic")
-        .create();
-
+      .topic("some-string-topic")
+      .create();
+  
   ```
 
 * Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
 
   ```java
-
+  
   Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
-        .topic("some-pojo-topic")
-        .create();
-
+      .topic("some-pojo-topic")
+      .create();
+  
   ```
 
 * Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
 
   ```java
-
+  
   Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
-        .topic("some-protobuf-topic")
-        .create();
-
+      .topic("some-protobuf-topic")
+      .create();
+  
   ```
 
 * Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
 
   ```java
-
+  
   Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
-        .topic("some-avro-topic")
-        .create();
-
+      .topic("some-avro-topic")
+      .create();
+  
   ```
 
 ### ProtobufNativeSchema example
@@ -1025,3 +1039,4 @@ PulsarClient client = PulsarClient.builder()
     .build();
 
 ```
+

@@ -97,3 +97,4 @@ boltConf.setTupleToMessageMapper(tupleToMessageMapper);
 PulsarBolt bolt = new PulsarBolt(boltConf);
 
 ```
+

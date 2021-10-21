@@ -270,6 +270,7 @@ You can specify `--fqfn` to get information about a Pulsar Function.
 $ ./bin/pulsar-admin functions get public/default/ExclamationFunctio6
 
 ```
+
 Optionally, you can specify `--name`, `--namespace` and `--tenant` to get information about a Pulsar Function.
 
 ```bash
@@ -469,6 +470,7 @@ $ ./bin/pulsar-admin functions list \
     --namespace default
 
 ```
+
 As shown below, the `list` command returns three functions running under the _public_ tenant and the _default_ namespace.
 
 ```text
@@ -536,3 +538,4 @@ Reason: Function in trigger function has unidentified topic
 ```
 
 :::
+

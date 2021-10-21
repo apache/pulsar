@@ -55,7 +55,7 @@ Currently we support driver of types:
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
 > using a S3 compatible data store, other than AWS.
 
-```conf
+```
 
 managedLedgerOffloadDriver=aws-s3
 
@@ -70,7 +70,7 @@ Everything that you store in Cloud Storage must be contained in a bucket.
 You can use buckets to organize your data and control access to your data,
 but unlike directories and folders, you cannot nest buckets.
 
-```conf
+```
 
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 
@@ -81,7 +81,7 @@ but a recommended configuration. If it is not configured, It will use the defaul
 
 With AWS S3, the default region is `US East (N. Virginia)`. Page [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
 
-```conf
+```
 
 s3ManagedLedgerOffloadRegion=eu-west-3
 
@@ -100,7 +100,7 @@ Once you have created a set of credentials in the AWS IAM console, they can be c
 If you are on AWS instance with an instance profile that provides credentials, Pulsar will use these credentials
 if no other mechanism is provided
 
-2. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
+2. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```
 
 ```bash
 
@@ -122,7 +122,7 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessK
 
 4. Set the access credentials in ```~/.aws/credentials```.
 
-```conf
+```
 
 [default]
 aws_access_key_id=ABC123456789
@@ -134,7 +134,7 @@ aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 
 If you want to assume an IAM role, this can be done via specifying the following:
 
-```conf
+```
 
 s3ManagedLedgerOffloadRole=<aws role arn>
 s3ManagedLedgerOffloadRoleSessionName=pulsar-s3-offload
@@ -149,7 +149,8 @@ This will use the `DefaultAWSCredentialsProviderChain` for assuming this role.
 
 Pulsar also provides some knobs to configure the size of requests sent to AWS S3.
 
-- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes```  configures the maximum size of
+- ```
+
   a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
 - ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for
   each individual read when reading back data from AWS S3. Default is 1MB.
@@ -162,7 +163,7 @@ Buckets are the basic containers that hold your data. Everything that you store 
 Cloud Storage must be contained in a bucket. You can use buckets to organize your data and
 control access to your data, but unlike directories and folders, you cannot nest buckets.
 
-```conf
+```
 
 gcsManagedLedgerOffloadBucket=pulsar-topic-offload
 
@@ -174,7 +175,7 @@ a recommended configuration. If it is not configured, It will use the default re
 Regarding GCS, buckets are default created in the `us multi-regional location`,
 page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
-```conf
+```
 
 gcsManagedLedgerOffloadRegion=europe-west3
 
@@ -199,7 +200,7 @@ To generate service account credentials or view the public credentials that you'
 
 > Notes: Make ensure that the service account you create has permission to operate GCS, you need to assign **Storage Admin** permission to your service account in [here](https://cloud.google.com/storage/docs/access-control/iam).
 
-```conf
+```
 
 gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
 
@@ -209,7 +210,8 @@ gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804
 
 Pulsar also provides some knobs to configure the size of requests sent to GCS.
 
-- ```gcsManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent
+- ```
+
   during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
 - ```gcsManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual
   read when reading back data from GCS. Default is 1MB.
@@ -223,16 +225,17 @@ In both cases, these should not be touched unless you know what you are doing.
 
 You can configure the connection address in the `broker.conf` file.
 
-```conf
+```
 
 fileSystemURI="hdfs://127.0.0.1:9000"
 
 ```
+
 #### Configure Hadoop profile path
 
 The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.
 
-```conf
+```
 
 fileSystemProfilePath="../conf/filesystem_offload_core_site.xml"
 
@@ -242,7 +245,7 @@ The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can us
 
 **Example**
 
-```conf
+```
 
     <property>
         <name>fs.defaultFS</name>
@@ -281,7 +284,7 @@ For more information about the configurations in `org.apache.hadoop.io.MapFile`,
 
 Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possiby can.
 
-```bash
+```
 
 $ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
@@ -296,7 +299,7 @@ Offloading can manually triggered through a REST endpoint on the Pulsar broker. 
 
 When triggering offload, you must specify the maximum size, in bytes, of backlog which will be retained locally on the bookkeeper. The offload mechanism will offload segments from the start of the topic backlog until this condition is met.
 
-```bash
+```
 
 $ bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
 Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
@@ -305,7 +308,7 @@ Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages be
 
 The command to triggers an offload will not wait until the offload operation has completed. To check the status of the offload, use offload-status.
 
-```bash
+```
 
 $ bin/pulsar-admin topics offload-status my-tenant/my-namespace/topic1
 Offload is currently running
@@ -314,7 +317,7 @@ Offload is currently running
 
 To wait for offload to complete, add the -w flag.
 
-```bash
+```
 
 $ bin/pulsar-admin topics offload-status -w my-tenant/my-namespace/topic1
 Offload was a success
@@ -323,7 +326,7 @@ Offload was a success
 
 If there is an error offloading, the error will be propagated to the offload-status command.
 
-```bash
+```
 
 $ bin/pulsar-admin topics offload-status persistent://public/default/topic1
 Error in offload
@@ -331,5 +334,5 @@ null
 
 Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
 
-````
+```
 

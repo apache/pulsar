@@ -51,72 +51,75 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
 #### InfluxDBv2
 * JSON
 
-    ```json
+  ```json
+  
+  {
+      "influxdbUrl": "http://localhost:9999",
+      "organization": "example-org",
+      "bucket": "example-bucket",
+      "token": "xxxx",
+      "precision": "ns",
+      "logLevel": "NONE",
+      "gzipEnable": false,
+      "batchTimeMs": 1000,
+      "batchSize": 100
+  }
+  
+  ```
 
-    {
-        "influxdbUrl": "http://localhost:9999",
-        "organization": "example-org",
-        "bucket": "example-bucket",
-        "token": "xxxx",
-        "precision": "ns",
-        "logLevel": "NONE",
-        "gzipEnable": false,
-        "batchTimeMs": 1000,
-        "batchSize": 100
-    }
-
-    ```
   
 * YAML
 
-    ```yaml
+  ```yaml
+  
+  {
+      influxdbUrl: "http://localhost:9999"
+      organization: "example-org"
+      bucket: "example-bucket"
+      token: "xxxx"
+      precision: "ns"
+      logLevel: "NONE"
+      gzipEnable: false
+      batchTimeMs: 1000
+      batchSize: 100
+  }
+  
+  ```
 
-    {
-        influxdbUrl: "http://localhost:9999"
-        organization: "example-org"
-        bucket: "example-bucket"
-        token: "xxxx"
-        precision: "ns"
-        logLevel: "NONE"
-        gzipEnable: false
-        batchTimeMs: 1000
-        batchSize: 100
-    }
-
-    ```
   
 #### InfluxDBv1
 
 * JSON 
 
-    ```json
-
-    {
-        "influxdbUrl": "http://localhost:8086",
-        "database": "test_db",
-        "consistencyLevel": "ONE",
-        "logLevel": "NONE",
-        "retentionPolicy": "autogen",
-        "gzipEnable": false,
-        "batchTimeMs": 1000,
-        "batchSize": 100
-    }
-
-    ```
+  ```json
+  
+  {
+      "influxdbUrl": "http://localhost:8086",
+      "database": "test_db",
+      "consistencyLevel": "ONE",
+      "logLevel": "NONE",
+      "retentionPolicy": "autogen",
+      "gzipEnable": false,
+      "batchTimeMs": 1000,
+      "batchSize": 100
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
+  ```yaml
+  
+  {
+      influxdbUrl: "http://localhost:8086"
+      database: "test_db"
+      consistencyLevel: "ONE"
+      logLevel: "NONE"
+      retentionPolicy: "autogen"
+      gzipEnable: false
+      batchTimeMs: 1000
+      batchSize: 100
+  }
+  
+  ```
 
-    {
-        influxdbUrl: "http://localhost:8086"
-        database: "test_db"
-        consistencyLevel: "ONE"
-        logLevel: "NONE"
-        retentionPolicy: "autogen"
-        gzipEnable: false
-        batchTimeMs: 1000
-        batchSize: 100
-    }
-
-    ```

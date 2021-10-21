@@ -33,21 +33,22 @@ The default size of a message is 5 MB. You can configure the max size of a messa
 
 - In the `broker.conf` file.
 
-    ```bash
-
-    # The max size of a message (in bytes).
-    maxMessageSize=5242880
-
-    ```
+  ```bash
+  
+  # The max size of a message (in bytes).
+  maxMessageSize=5242880
+  
+  ```
 
 - In the `bookkeeper.conf` file.
 
-    ```bash
+  ```bash
+  
+  # The max size of the netty frame (in bytes). Any messages received larger than this value are rejected. The default value is 5 MB.
+  nettyMaxFrameSizeBytes=5253120
+  
+  ```
 
-    # The max size of the netty frame (in bytes). Any messages received larger than this value are rejected. The default value is 5 MB.
-    nettyMaxFrameSizeBytes=5253120
-
-    ```
 > For more information on Pulsar messages, see Pulsar [binary protocol](developing-binary-protocol).
 
 ## Producers
@@ -165,6 +166,7 @@ If you want to acknowledge messages individually, you can use the following API.
 consumer.acknowledge(msg);
 
 ```
+
 If you want to acknowledge messages cumulatively, you can use the following API.
 
 ```java
@@ -235,9 +237,11 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
               .subscribe();
 
 ```
+
 The default dead letter topic uses this format: 
 
 ```
+
 <topicname>-<subscriptionname>-DLQ
 
 ```
@@ -407,6 +411,7 @@ Below are examples of enabling the key-based batching under the Key_Shared subsc
 <TabItem value="Java">
 
 ```
+
 Producer<byte[]> producer = client.newProducer()
         .topic("my-topic")
         .batcherBuilder(BatcherBuilder.KEY_BASED)
@@ -418,6 +423,7 @@ Producer<byte[]> producer = client.newProducer()
 <TabItem value="C++">
 
 ```
+
 ProducerConfiguration producerConfig;
 producerConfig.setBatchingType(ProducerConfiguration::BatchingType::KeyBasedBatching);
 Producer producer;
@@ -429,9 +435,11 @@ client.createProducer("my-topic", producerConfig, producer);
 <TabItem value="Python">
 
 ```
+
 producer = client.create_producer(topic='my-topic', batching_type=pulsar.BatchingType.KeyBased)
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -658,6 +666,7 @@ A broker saves a message without any check. When a consumer consumes a message, 
 Delayed message delivery is enabled by default. You can change it in the broker configuration file as below:
 
 ```
+
 # Whether to enable the delayed delivery for messages.
 # If disabled, messages are immediately delivered and there is no tracking overhead.
 delayedDeliveryEnabled=true
@@ -678,3 +687,4 @@ The following is an example of delayed message delivery for a producer in Java:
 producer.newMessage().deliverAfter(3L, TimeUnit.Minute).value("Hello Pulsar!").send();
 
 ```
+

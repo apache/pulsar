@@ -49,7 +49,7 @@ Another approach is to make the proxy role a superuser. This allows the proxy to
 
 You can specify the roles as proxy roles in [`conf/broker.conf`](reference-configuration.md#broker).
 
-```properties
+```
 
 proxyRoles=my-proxy-role
 
@@ -68,7 +68,7 @@ You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin) tool.
 
 The following is an example tenant creation command:
 
-```shell
+```
 
 $ bin/pulsar-admin tenants create my-tenant \
   --admin-roles my-admin-role \
@@ -82,7 +82,7 @@ A client that successfully identifies itself as having the role `my-admin-role` 
 
 The structure of topic names in Pulsar reflects the hierarchy between tenants, clusters, and namespaces:
 
-```shell
+```
 
 persistent://tenant/namespace/topic
 
@@ -94,7 +94,7 @@ You can use [Pulsar Admin Tools](admin-api-permissions) for managing permission 
 
 ### Pulsar admin authentication
 
-```java
+```
 
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("http://broker:8080")
@@ -105,7 +105,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 
 To use TLS:
 
-```java
+```
 
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("https://broker:8080")
@@ -114,3 +114,4 @@ PulsarAdmin admin = PulsarAdmin.builder()
                     .build();
 
 ```
+

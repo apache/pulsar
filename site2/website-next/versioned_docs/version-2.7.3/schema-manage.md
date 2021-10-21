@@ -35,25 +35,25 @@ For a producer, the `AutoUpdate` happens in the following cases:
 
   * If a **producer doesn’t carry a schema**:
 
-    * If `isSchemaValidationEnforced` or `schemaValidationEnforced` is **disabled** in the namespace to which the topic belongs, the producer is allowed to connect to the topic and produce data. 
-    
-    * If `isSchemaValidationEnforced` or `schemaValidationEnforced` is **enabled** in the namespace to which the topic belongs, the producer is rejected and disconnected.
+  * If `isSchemaValidationEnforced` or `schemaValidationEnforced` is **disabled** in the namespace to which the topic belongs, the producer is allowed to connect to the topic and produce data. 
+  
+  * If `isSchemaValidationEnforced` or `schemaValidationEnforced` is **enabled** in the namespace to which the topic belongs, the producer is rejected and disconnected.
 
   * If a **producer carries a schema**:
   
-    A broker performs the compatibility check based on the configured compatibility check strategy of the namespace to which the topic belongs.
-    
-    * If the schema is registered, a producer is connected to a broker. 
-    
-    * If the schema is not registered:
-    
-        * If `isAllowAutoUpdateSchema` sets to **false**, the producer is rejected to connect to a broker.
-    
-        * If `isAllowAutoUpdateSchema` sets to **true**:
-     
-            * If the schema passes the compatibility check, then the broker registers a new schema automatically for the topic and the producer is connected.
-        
-            * If the schema does not pass the compatibility check, then the broker does not register a schema and the producer is rejected to connect to a broker.
+  A broker performs the compatibility check based on the configured compatibility check strategy of the namespace to which the topic belongs.
+  
+  * If the schema is registered, a producer is connected to a broker. 
+  
+  * If the schema is not registered:
+  
+     * If `isAllowAutoUpdateSchema` sets to **false**, the producer is rejected to connect to a broker.
+  
+      * If `isAllowAutoUpdateSchema` sets to **true**:
+   
+          * If the schema passes the compatibility check, then the broker registers a new schema automatically for the topic and the producer is connected.
+      
+          * If the schema does not pass the compatibility check, then the broker does not register a schema and the producer is rejected to connect to a broker.
 
 ![AutoUpdate Producer](/assets/schema-producer.png)
 
@@ -65,18 +65,18 @@ For a consumer, the `AutoUpdate` happens in the following cases:
 
 * If a **consumer connects to a topic with a schema**.
 
-    * If a topic does not have all of them (a schema/data/a local consumer and a local producer):
-    
-        * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
-        
-        * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
-        
-    * If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
-    
-        * If the schema passes the compatibility check, then the consumer is connected to the broker.
-        
-        * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker.
-        
+  * If a topic does not have all of them (a schema/data/a local consumer and a local producer):
+  
+      * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
+      
+      * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
+      
+  * If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
+  
+      * If the schema passes the compatibility check, then the consumer is connected to the broker.
+      
+      * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker.
+      
 ![AutoUpdate Consumer](/assets/schema-consumer.png)
         
 
@@ -293,9 +293,10 @@ PostSchemaPayload payload = new PostSchemaPayload();
 payload.setType("INT8");
 payload.setSchema("");
 
-admin.createSchema("my-tenant/my-ns/my-topic", payload); 
+admin.createSchema("my-tenant/my-ns/my-topic", payload);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -395,7 +396,7 @@ Here is an example of `SchemaInfo`:
 
 PulsarAdmin admin = …;
 
-SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic"); 
+SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic");
 
 ```
 
@@ -430,7 +431,7 @@ Use the `get` subcommand.
 
 ```bash
 
-$ pulsar-admin schemas get <topic-name> --version=<version> 
+$ pulsar-admin schemas get <topic-name> --version=<version>
 
 ```
 
@@ -595,7 +596,7 @@ Here is an example of deleting a schema.
 
 PulsarAdmin admin = …;
 
-admin.deleteSchema("my-tenant/my-ns/my-topic"); 
+admin.deleteSchema("my-tenant/my-ns/my-topic");
 
 ```
 

@@ -22,6 +22,7 @@ To run Pulsar on Docker, you need to create a container for each Pulsar componen
 You can pull a Pulsar image from [Docker Hub](https://hub.docker.com/r/apachepulsar/pulsar-all/tags) with the following command.
 
 ```
+
 docker pull apachepulsar/pulsar-all:latest
 
 ```
@@ -30,6 +31,7 @@ docker pull apachepulsar/pulsar-all:latest
 Create containers for ZooKeeper, BookKeeper and broker. In this example, they are named as `zookeeper`, `bookkeeper` and `broker` respectively. You can name them as you want with the `--name` flag. By default, the container names are created randomly.
 
 ```
+
 docker run -it --name bookkeeper apachepulsar/pulsar-all:latest /bin/bash
 docker run -it --name zookeeper apachepulsar/pulsar-all:latest /bin/bash
 docker run -it --name broker apachepulsar/pulsar-all:latest /bin/bash
@@ -40,6 +42,7 @@ docker run -it --name broker apachepulsar/pulsar-all:latest /bin/bash
 To deploy a Pulsar cluster on Docker, you need to create a `network` and connect the containers of ZooKeeper, BookKeeper and broker to this network. The following command creates the network `pulsar`:
 
 ```
+
 docker network create pulsar
 
 ```
@@ -48,6 +51,7 @@ docker network create pulsar
 Connect the containers of ZooKeeper, BookKeeper and broker to the `pulsar` network with the following commands. 
 
 ```
+
 docker network connect pulsar zookeeper
 docker network connect pulsar bookkeeper
 docker network connect pulsar broker

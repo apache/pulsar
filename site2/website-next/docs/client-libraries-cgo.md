@@ -579,3 +579,4 @@ fmt.Println(s.Name) // output: pulsar
 defer consumer.Close()
 
 ```
+

@@ -42,6 +42,7 @@ To configure a default folder for builtin connectors, set the `connectorsDirecto
 Set the `./connectors` folder as the default storage location for builtin connectors.
 
 ```
+
 ########################
 # Connectors
 ########################
@@ -211,6 +212,7 @@ Create a source connector.
 Use the `create` subcommand.
 
 ```
+
 $ pulsar-admin sources create options
 
 ```
@@ -227,60 +229,60 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/source
 
 * Create a source connector with a **local file**.
 
-    ```java
+  ```java
+  
+  void createSource(SourceConfig sourceConfig,
+                    String fileName)
+             throws PulsarAdminException
+  
+  ```
 
-    void createSource(SourceConfig sourceConfig,
-                      String fileName)
-               throws PulsarAdminException
+  **Parameter**
 
-    ```
-
-    **Parameter**
-
-    |Name|Description
-    |---|---
-    `sourceConfig` | The source configuration object
+  |Name|Description
+  |---|---
+  `sourceConfig` | The source configuration object
 
    **Exception**
 
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    For more information, see [`createSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-).
+  For more information, see [`createSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#createSource-SourceConfig-java.lang.String-).
 
 * Create a source connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
-    ```java
-
-    void createSourceWithUrl(SourceConfig sourceConfig,
-                             String pkgUrl)
-                      throws PulsarAdminException
-
-    ```
-
-    Supported URLs are `http` and `file`.
-
-    **Example**
-
-    * HTTP: http://www.repo.com/fileName.jar
-
-    * File: file:///dir/fileName.jar
-
-    **Parameter**
-
-    Parameter| Description
-    |---|---
-    `sourceConfig` | The source configuration object
-    `pkgUrl` | URL from which pkg can be downloaded
-
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
+  ```java
   
-    For more information, see [`createSourceWithUrl`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#createSourceWithUrl-SourceConfig-java.lang.String-).
+  void createSourceWithUrl(SourceConfig sourceConfig,
+                           String pkgUrl)
+                    throws PulsarAdminException
+  
+  ```
+
+  Supported URLs are `http` and `file`.
+
+  **Example**
+
+  * HTTP: http://www.repo.com/fileName.jar
+
+  * File: file:///dir/fileName.jar
+
+  **Parameter**
+
+  Parameter| Description
+  |---|---
+  `sourceConfig` | The source configuration object
+  `pkgUrl` | URL from which pkg can be downloaded
+
+  **Exception**
+
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
+  
+  For more information, see [`createSourceWithUrl`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#createSourceWithUrl-SourceConfig-java.lang.String-).
 
 </TabItem>
 
@@ -312,6 +314,7 @@ Create a sink connector.
 Use the `create` subcommand.
 
 ```
+
 $ pulsar-admin sinks create options
 
 ```
@@ -328,60 +331,60 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/
 
 * Create a sink connector with a **local file**.
 
-    ```java
+  ```java
+  
+  void createSink(SinkConfig sinkConfig,
+                  String fileName)
+           throws PulsarAdminException
+  
+  ```
 
-    void createSink(SinkConfig sinkConfig,
-                    String fileName)
-             throws PulsarAdminException
+  **Parameter**
 
-    ```
+  |Name|Description
+  |---|---
+  `sinkConfig` | The sink configuration object
 
-    **Parameter**
+  **Exception**
 
-    |Name|Description
-    |---|---
-    `sinkConfig` | The sink configuration object
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`createSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-).
+  For more information, see [`createSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#createSink-SinkConfig-java.lang.String-).
 
 * Create a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
-    ```java
-
-    void createSinkWithUrl(SinkConfig sinkConfig,
-                        String pkgUrl)
-                    throws PulsarAdminException
-
-    ```
-
-    Supported URLs are `http` and `file`.
-
-    **Example**
-
-    * HTTP: http://www.repo.com/fileName.jar
-
-    * File: file:///dir/fileName.jar
-
-    **Parameter**
-
-    Parameter| Description
-    |---|---
-    `sinkConfig` | The sink configuration object
-    `pkgUrl` | URL from which pkg can be downloaded
-
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
+  ```java
   
-    For more information, see [`createSinkWithUrl`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#createSinkWithUrl-SinkConfig-java.lang.String-).
+  void createSinkWithUrl(SinkConfig sinkConfig,
+                      String pkgUrl)
+                  throws PulsarAdminException
+  
+  ```
+
+  Supported URLs are `http` and `file`.
+
+  **Example**
+
+  * HTTP: http://www.repo.com/fileName.jar
+
+  * File: file:///dir/fileName.jar
+
+  **Parameter**
+
+  Parameter| Description
+  |---|---
+  `sinkConfig` | The sink configuration object
+  `pkgUrl` | URL from which pkg can be downloaded
+
+  **Exception**
+
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
+  
+  For more information, see [`createSinkWithUrl`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#createSinkWithUrl-SinkConfig-java.lang.String-).
 
 </TabItem>
 
@@ -413,6 +416,7 @@ Start a source connector.
 Use the `start` subcommand.
 
 ```
+
 $ pulsar-admin sources start options
 
 ```
@@ -424,11 +428,11 @@ For more information, see [here](io-cli.md#start).
 
 * Start **all** source connectors.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/start|operation/startSource?version=@pulsar:version_number@}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/start|operation/startSource?version=@pulsar:version_number@}
 
 * Start a **specified** source connector.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSource?version=@pulsar:version_number@}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSource?version=@pulsar:version_number@}
 
 </TabItem>
 
@@ -456,6 +460,7 @@ Start a sink connector.
 Use the `start` subcommand.
 
 ```
+
 $ pulsar-admin sinks start options
 
 ```
@@ -467,11 +472,11 @@ For more information, see [here](io-cli.md#start-1).
 
 * Start **all** sink connectors.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/start|operation/startSink?version=@pulsar:version_number@}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sources/:tenant/:namespace/:sinkName/start|operation/startSink?version=@pulsar:version_number@}
 
 * Start a **specified** sink connector.
 
-    Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSink?version=@pulsar:version_number@}
+  Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v3/sinks/:tenant/:namespace/:sourceName/:instanceId/start|operation/startSink?version=@pulsar:version_number@}
 
 </TabItem>
 
@@ -499,6 +504,7 @@ Run a source connector locally.
 Use the `localrun` subcommand.
 
 ```
+
 $ pulsar-admin sources localrun options
 
 ```
@@ -527,6 +533,7 @@ Run a sink connector locally.
 Use the `localrun` subcommand.
 
 ```
+
 $ pulsar-admin sinks localrun options
 
 ```
@@ -577,6 +584,7 @@ Get the information of a source connector.
 Use the `get` subcommand.
 
 ```
+
 $ pulsar-admin sources get options
 
 ```
@@ -627,6 +635,7 @@ This is a sourceConfig.
 This is a sourceConfig example.
 
 ```
+
 {
  "tenant": "public",
  "namespace": "default",
@@ -699,6 +708,7 @@ Get the information of a sink connector.
 Use the `get` subcommand.
 
 ```
+
 $ pulsar-admin sinks get options
 
 ```
@@ -819,6 +829,7 @@ Get the list of all running source connectors.
 Use the `list` subcommand.
 
 ```
+
 $ pulsar-admin sources list options
 
 ```
@@ -888,6 +899,7 @@ Get the list of all running sink connectors.
 Use the `list` subcommand.
 
 ```
+
 $ pulsar-admin sinks list options
 
 ```
@@ -961,6 +973,7 @@ Get the current status of a source connector.
 Use the `status` subcommand.
 
 ```
+
 $ pulsar-admin sources status options
 
 ```
@@ -983,59 +996,59 @@ For more information, see [here](io-cli.md#status).
 
 * Get the current status of **all** source connectors.
 
-    ```java
+  ```java
+  
+  SourceStatus getSourceStatus(String tenant,
+                              String namespace,
+                              String source)
+                      throws PulsarAdminException
+  
+  ```
 
-    SourceStatus getSourceStatus(String tenant,
-                                String namespace,
-                                String source)
-                        throws PulsarAdminException
+  **Parameter**
 
-    ```
+  Parameter| Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `sink` | Source name
 
-    **Parameter**
+  **Exception**
 
-    Parameter| Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `sink` | Source name
+  Name | Description
+  |---|---
+  `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    Name | Description
-    |---|---
-    `PulsarAdminException` | Unexpected error
-
-    For more information, see [`getSourceStatus`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-).
+  For more information, see [`getSourceStatus`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#getSource-java.lang.String-java.lang.String-java.lang.String-).
 
 * Gets the current status of a **specified** source connector.
 
-    ```java
+  ```java
+  
+  SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(String tenant,
+                                                                             String namespace,
+                                                                             String source,
+                                                                             int id)
+                                                                      throws PulsarAdminException
+  
+  ```
 
-    SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(String tenant,
-                                                                               String namespace,
-                                                                               String source,
-                                                                               int id)
-                                                                        throws PulsarAdminException
+  **Parameter**
 
-    ```
+  Parameter| Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `sink` | Source name
+  `id` | Source instanceID
 
-    **Parameter**
+  **Exception**
 
-    Parameter| Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `sink` | Source name
-    `id` | Source instanceID
+  Exception name | Description
+  |---|---
+  `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    Exception name | Description
-    |---|---
-    `PulsarAdminException` | Unexpected error
-
-    For more information, see [`getSourceStatus`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-int-).
+  For more information, see [`getSourceStatus`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#getSourceStatus-java.lang.String-java.lang.String-java.lang.String-int-).
 
 </TabItem>
 
@@ -1067,6 +1080,7 @@ Get the current status of a Pulsar sink connector.
 Use the `status` subcommand.
 
 ```
+
 $ pulsar-admin sinks status options
 
 ```
@@ -1089,59 +1103,59 @@ For more information, see [here](io-cli.md#status-1).
 
 * Get the current status of **all** sink connectors.
 
-    ```java
+  ```java
+  
+  SinkStatus getSinkStatus(String tenant,
+                           String namespace,
+                           String sink)
+                    throws PulsarAdminException
+  
+  ```
 
-    SinkStatus getSinkStatus(String tenant,
-                             String namespace,
-                             String sink)
-                      throws PulsarAdminException
+  **Parameter**
 
-    ```
+  Parameter| Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `sink` | Source name
 
-    **Parameter**
+  **Exception**
 
-    Parameter| Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `sink` | Source name
+  Exception name | Description
+  |---|---
+  `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    Exception name | Description
-    |---|---
-    `PulsarAdminException` | Unexpected error
-
-    For more information, see [`getSinkStatus`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-).
+  For more information, see [`getSinkStatus`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-).
 
 * Gets the current status of a **specified** source connector.
 
-    ```java
+  ```java
+  
+  SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant,
+                                                                     String namespace,
+                                                                     String sink,
+                                                                     int id)
+                                                              throws PulsarAdminException
+  
+  ```
 
-    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(String tenant,
-                                                                       String namespace,
-                                                                       String sink,
-                                                                       int id)
-                                                                throws PulsarAdminException
+  **Parameter**
 
-    ```
+  Parameter| Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `sink` | Source name
+  `id` | Sink instanceID
 
-    **Parameter**
+  **Exception**
 
-    Parameter| Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `sink` | Source name
-    `id` | Sink instanceID
+  Exception name | Description
+  |---|---
+  `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    Exception name | Description
-    |---|---
-    `PulsarAdminException` | Unexpected error
-
-    For more information, see [`getSinkStatusWithInstanceID`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-).
+  For more information, see [`getSinkStatusWithInstanceID`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#getSinkStatus-java.lang.String-java.lang.String-java.lang.String-int-).
 
 </TabItem>
 
@@ -1179,6 +1193,7 @@ Update a running Pulsar source connector.
 Use the `update` subcommand.
 
 ```
+
 $ pulsar-admin sources update options
 
 ```
@@ -1195,62 +1210,62 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sources/
 
 * Update a running source connector with a **local file**.
 
-    ```java
+  ```java
+  
+  void updateSource(SourceConfig sourceConfig,
+                  String fileName)
+          throws PulsarAdminException
+  
+  ```
 
-    void updateSource(SourceConfig sourceConfig,
-                    String fileName)
-            throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  |`sourceConfig` | The source configuration object
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    |`sourceConfig` | The source configuration object
+  |Name|Description|
+  |---|---
+  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
+  | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
-    | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`updateSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-).
+  For more information, see [`updateSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#updateSource-SourceConfig-java.lang.String-).
 
 * Update a source connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
-    ```java
-
-    void updateSourceWithUrl(SourceConfig sourceConfig,
-                         String pkgUrl)
-                  throws PulsarAdminException
-
-    ```
-
-    Supported URLs are `http` and `file`.
-
-    **Example**
-
-    * HTTP: http://www.repo.com/fileName.jar
-
-    * File: file:///dir/fileName.jar
+  ```java
   
-    **Parameter**
+  void updateSourceWithUrl(SourceConfig sourceConfig,
+                       String pkgUrl)
+                throws PulsarAdminException
+  
+  ```
 
-    | Name | Description
-    |---|---
-    | `sourceConfig` | The source configuration object
-    | `pkgUrl` | URL from which pkg can be downloaded
+  Supported URLs are `http` and `file`.
 
-    **Exception**
+  **Example**
 
-    |Name|Description|
-    |---|---
-    |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
-    | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
-    | `PulsarAdminException` | Unexpected error
+  * HTTP: http://www.repo.com/fileName.jar
+
+  * File: file:///dir/fileName.jar
+  
+  **Parameter**
+
+  | Name | Description
+  |---|---
+  | `sourceConfig` | The source configuration object
+  | `pkgUrl` | URL from which pkg can be downloaded
+
+  **Exception**
+
+  |Name|Description|
+  |---|---
+  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
+  | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
+  | `PulsarAdminException` | Unexpected error
 
 For more information, see [`createSourceWithUrl`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#updateSourceWithUrl-SourceConfig-java.lang.String-).
 
@@ -1284,6 +1299,7 @@ Update a running Pulsar sink connector.
 Use the `update` subcommand.
 
 ```
+
 $ pulsar-admin sinks update options
 
 ```
@@ -1300,62 +1316,62 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v3/sinks/:t
 
 * Update a running sink connector with a **local file**.
 
-    ```java
+  ```java
+  
+  void updateSink(SinkConfig sinkConfig,
+                  String fileName)
+       throws PulsarAdminException
+  
+  ```
 
-    void updateSink(SinkConfig sinkConfig,
-                    String fileName)
-         throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  |`sinkConfig` | The sink configuration object
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    |`sinkConfig` | The sink configuration object
+  |Name|Description|
+  |---|---
+  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission
+  | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission
-    | `PulsarAdminException.NotFoundException` | Cluster doesn't exist
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`updateSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#updateSink-SinkConfig-java.lang.String-).
+  For more information, see [`updateSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#updateSink-SinkConfig-java.lang.String-).
 
 * Update a sink connector using a **remote file** with a URL from which fun-pkg can be downloaded. 
 
-    ```java
-
-    void updateSinkWithUrl(SinkConfig sinkConfig,
-                           String pkgUrl)
-                    throws PulsarAdminException
-
-    ```
-
-    Supported URLs are `http` and `file`.
-
-    **Example**
-
-    * HTTP: http://www.repo.com/fileName.jar
-
-    * File: file:///dir/fileName.jar
+  ```java
   
-    **Parameter**
+  void updateSinkWithUrl(SinkConfig sinkConfig,
+                         String pkgUrl)
+                  throws PulsarAdminException
+  
+  ```
 
-    | Name | Description
-    |---|---
-    | `sinkConfig` | The sink configuration object
-    | `pkgUrl` | URL from which pkg can be downloaded
+  Supported URLs are `http` and `file`.
 
-    **Exception**
+  **Example**
 
-    |Name|Description|
-    |---|---
-    |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
-    |`PulsarAdminException.NotFoundException` | Cluster doesn't exist
-    |`PulsarAdminException` | Unexpected error
+  * HTTP: http://www.repo.com/fileName.jar
+
+  * File: file:///dir/fileName.jar
+  
+  **Parameter**
+
+  | Name | Description
+  |---|---
+  | `sinkConfig` | The sink configuration object
+  | `pkgUrl` | URL from which pkg can be downloaded
+
+  **Exception**
+
+  |Name|Description|
+  |---|---
+  |`PulsarAdminException.NotAuthorizedException`| You don't have the admin permission 
+  |`PulsarAdminException.NotFoundException` | Cluster doesn't exist
+  |`PulsarAdminException` | Unexpected error
 
 For more information, see [`updateSinkWithUrl`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#updateSinkWithUrl-SinkConfig-java.lang.String-).
 
@@ -1395,6 +1411,7 @@ Stop a source connector.
 Use the `stop` subcommand.
 
 ```
+
 $ pulsar-admin sources stop options
 
 ```
@@ -1417,59 +1434,59 @@ For more information, see [here](io-cli.md#stop).
 
 * Stop **all** source connectors.
 
-    ```java
+  ```java
+  
+  void stopSource(String tenant,
+                  String namespace,
+                  String source)
+          throws PulsarAdminException
+  
+  ```
 
-    void stopSource(String tenant,
-                    String namespace,
-                    String source)
-            throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `source` | Source name
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `source` | Source name
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-).
+  For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-).
 
 * Stop a **specified** source connector. 
 
-    ```java
+  ```java
+  
+  void stopSource(String tenant,
+                  String namespace,
+                  String source,
+                  int instanceId)
+           throws PulsarAdminException
+  
+  ```
 
-    void stopSource(String tenant,
-                    String namespace,
-                    String source,
-                    int instanceId)
-             throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `source` | Source name
+   `instanceId` | Source instanceID
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `source` | Source name
-     `instanceId` | Source instanceID
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-).
+  For more information, see [`stopSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#stopSource-java.lang.String-java.lang.String-java.lang.String-int-).
 
 </TabItem>
 
@@ -1501,6 +1518,7 @@ Stop a sink connector.
 Use the `stop` subcommand.
 
 ```
+
 $ pulsar-admin sinks stop options
 
 ```
@@ -1523,59 +1541,59 @@ For more information, see [here](io-cli.md#stop-1).
 
 * Stop **all** sink connectors.
 
-    ```java
+  ```java
+  
+  void stopSink(String tenant,
+              String namespace,
+              String sink)
+      throws PulsarAdminException
+  
+  ```
 
-    void stopSink(String tenant,
-                String namespace,
-                String sink)
-        throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `source` | Source name
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `source` | Source name
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-).
+  For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-).
 
 * Stop a **specified** sink connector. 
 
-    ```java
+  ```java
+  
+  void stopSink(String tenant,
+                String namespace,
+                String sink,
+                int instanceId)
+         throws PulsarAdminException
+  
+  ```
 
-    void stopSink(String tenant,
-                  String namespace,
-                  String sink,
-                  int instanceId)
-           throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `source` | Source name
+  `instanceId` | Source instanceID
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `source` | Source name
-    `instanceId` | Source instanceID
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-).
+  For more information, see [`stopSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#stopSink-java.lang.String-java.lang.String-java.lang.String-int-).
 
 </TabItem>
 
@@ -1613,6 +1631,7 @@ Restart a source connector.
 Use the `restart` subcommand.
 
 ```
+
 $ pulsar-admin sources restart options
 
 ```
@@ -1635,59 +1654,59 @@ For more information, see [here](io-cli.md#restart).
 
 * Restart **all** source connectors.
 
-    ```java
+  ```java
+  
+  void restartSource(String tenant,
+                     String namespace,
+                     String source)
+              throws PulsarAdminException
+  
+  ```
 
-    void restartSource(String tenant,
-                       String namespace,
-                       String source)
-                throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `source` | Source name
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `source` | Source name
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-).
+  For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-).
 
 * Restart a **specified** source connector. 
 
-    ```java
+  ```java
+  
+  void restartSource(String tenant,
+                     String namespace,
+                     String source,
+                     int instanceId)
+              throws PulsarAdminException
+  
+  ```
 
-    void restartSource(String tenant,
-                       String namespace,
-                       String source,
-                       int instanceId)
-                throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `source` | Source name
+   `instanceId` | Source instanceID
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `source` | Source name
-     `instanceId` | Source instanceID
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-).
+  For more information, see [`restartSource`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Source.html#restartSource-java.lang.String-java.lang.String-java.lang.String-int-).
 
 </TabItem>
 
@@ -1719,6 +1738,7 @@ Restart a sink connector.
 Use the `restart` subcommand.
 
 ```
+
 $ pulsar-admin sinks restart options
 
 ```
@@ -1741,59 +1761,59 @@ For more information, see [here](io-cli.md#restart-1).
 
 * Restart all Pulsar sink connectors.
 
-    ```java
+  ```java
+  
+  void restartSink(String tenant,
+                   String namespace,
+                   String sink)
+            throws PulsarAdminException
+  
+  ```
 
-    void restartSink(String tenant,
-                     String namespace,
-                     String sink)
-              throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `sink` | Sink name
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `sink` | Sink name
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-).
+  For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-).
 
 * Restart a **specified** sink connector. 
 
-    ```java
+  ```java
+  
+  void restartSink(String tenant,
+                   String namespace,
+                   String sink,
+                   int instanceId)
+            throws PulsarAdminException
+  
+  ```
 
-    void restartSink(String tenant,
-                     String namespace,
-                     String sink,
-                     int instanceId)
-              throws PulsarAdminException
+  **Parameter**
 
-    ```
+  | Name | Description
+  |---|---
+  `tenant` | Tenant name
+  `namespace` | Namespace name
+  `source` | Source name
+   `instanceId` | Sink instanceID
 
-    **Parameter**
+  **Exception**
 
-    | Name | Description
-    |---|---
-    `tenant` | Tenant name
-    `namespace` | Namespace name
-    `source` | Source name
-     `instanceId` | Sink instanceID
+  |Name|Description|
+  |---|---
+  | `PulsarAdminException` | Unexpected error
 
-    **Exception**
-
-    |Name|Description|
-    |---|---
-    | `PulsarAdminException` | Unexpected error
-
-    For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-).
+  For more information, see [`restartSink`](https://pulsar.apache.org/api/admin/org/apache/pulsar/client/admin/Sink.html#restartSink-java.lang.String-java.lang.String-java.lang.String-int-).
 
 </TabItem>
 
@@ -1831,6 +1851,7 @@ Delete a source connector.
 Use the `delete` subcommand.
 
 ```
+
 $ pulsar-admin sources delete options
 
 ```
@@ -1907,6 +1928,7 @@ Delete a sink connector.
 Use the `delete` subcommand.
 
 ```
+
 $ pulsar-admin sinks delete options
 
 ```

@@ -37,25 +37,26 @@ Before using the HDFS3 sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-
-    {
-        "hdfsConfigResources": "core-site.xml",
-        "directory": "/foo/bar",
-        "filenamePrefix": "prefix",
-        "compression": "SNAPPY"
-    }
-
-    ```
+  ```json
+  
+  {
+      "hdfsConfigResources": "core-site.xml",
+      "directory": "/foo/bar",
+      "filenamePrefix": "prefix",
+      "compression": "SNAPPY"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
+  ```yaml
+  
+  configs:
+      hdfsConfigResources: "core-site.xml"
+      directory: "/foo/bar"
+      filenamePrefix: "prefix"
+      compression: "SNAPPY"
+  
+  ```
 
-    configs:
-        hdfsConfigResources: "core-site.xml"
-        directory: "/foo/bar"
-        filenamePrefix: "prefix"
-        compression: "SNAPPY"
-
-    ```

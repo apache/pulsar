@@ -36,9 +36,9 @@ For more information, see [Schema compatibility check strategy](#schema-compatib
 
 1. When a producer/consumer/reader connects to a broker, the broker deploys the schema compatibility checker configured by `schemaRegistryCompatibilityCheckers` to enforce schema compatibility check. 
 
-    The schema compatibility checker is one instance per schema type. 
-    
-    Currently, Avro and JSON have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables schema evolution.
+   The schema compatibility checker is one instance per schema type. 
+   
+   Currently, Avro and JSON have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables schema evolution.
 
 2. The producer/consumer/reader sends its client `SchemaInfo` to the broker. 
    
@@ -76,25 +76,25 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
   
 * Example  1
   
-    In some situations, an application needs to store events of several different types in the same Pulsar topic. 
+  In some situations, an application needs to store events of several different types in the same Pulsar topic. 
 
-    In particular, when developing a data model in an `Event Sourcing` style, you might have several kinds of events that affect the state of an entity. 
+  In particular, when developing a data model in an `Event Sourcing` style, you might have several kinds of events that affect the state of an entity. 
 
-    For example, for a user entity, there are `userCreated`, `userAddressChanged` and `userEnquiryReceived` events. The application requires that those events are always read in the same order. 
+  For example, for a user entity, there are `userCreated`, `userAddressChanged` and `userEnquiryReceived` events. The application requires that those events are always read in the same order. 
 
-    Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events co-exist in the same topic.
+  Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events co-exist in the same topic.
 
 * Example 2
 
-    Sometimes we also make incompatible changes. 
+  Sometimes we also make incompatible changes. 
 
-    For example, you are modifying a field type from `string` to `int`.
+  For example, you are modifying a field type from `string` to `int`.
 
-    In this case, you need to:
+  In this case, you need to:
 
-    * Upgrade all producers and consumers to the new schema versions at the same time.
+  * Upgrade all producers and consumers to the new schema versions at the same time.
 
-    * Optionally, create a new topic and start migrating applications to use the new topic and the new schema, avoiding the need to handle two incompatible versions in the same topic.
+  * Optionally, create a new topic and start migrating applications to use the new topic and the new schema, avoiding the need to handle two incompatible versions in the same topic.
 
 ### BACKWARD and BACKWARD_TRANSITIVE 
 
@@ -109,15 +109,15 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
   
 * Example 1
   
-    Remove a field.
-    
-    A consumer constructed to process events without one field can process events written with the old schema containing the field, and the consumer will ignore that field.
+  Remove a field.
+  
+  A consumer constructed to process events without one field can process events written with the old schema containing the field, and the consumer will ignore that field.
 
 * Example 2
   
-    You want to load all Pulsar data into a Hive data warehouse and run SQL queries against the data. 
+  You want to load all Pulsar data into a Hive data warehouse and run SQL queries against the data. 
 
-    Same SQL queries must continue to work even the data is changed. To support it, you can evolve the schemas using the `BACKWARD` strategy.
+  Same SQL queries must continue to work even the data is changed. To support it, you can evolve the schemas using the `BACKWARD` strategy.
 
 ### FORWARD and FORWARD_TRANSITIVE 
 
@@ -167,10 +167,10 @@ When a producer tries to connect to a topic (suppose ignore the schema auto crea
 
 * Check if the schema carried by the producer exists in the schema registry or not.
 
-    * If the schema is already registered, then the producer is connected to a broker and produce messages with that schema.
-    
-    * If the schema is not registered, then Pulsar verifies if the schema is allowed to be registered based on the configured compatibility check strategy.
-    
+  * If the schema is already registered, then the producer is connected to a broker and produce messages with that schema.
+  
+  * If the schema is not registered, then Pulsar verifies if the schema is allowed to be registered based on the configured compatibility check strategy.
+  
 ### Consumer
 When a consumer tries to connect to a topic, a broker checks if a carried schema is compatible with a registered schema based on the configured schema compatibility check strategy.
 

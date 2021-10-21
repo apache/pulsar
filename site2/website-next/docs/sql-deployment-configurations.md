@@ -35,6 +35,7 @@ pulsar.target-num-splits=4
 You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers, add multiple URLs to `pulsar.web-service-url`. To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. The following is an example.
 
 ```
+
 pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
 
@@ -147,6 +148,7 @@ discovery.uri=<coordinator-url>
 3. Start the coordinator node.
 
 ```
+
 $ ./bin/pulsar sql-worker run
 
 ```
@@ -154,6 +156,7 @@ $ ./bin/pulsar sql-worker run
 4. Start worker nodes.
 
 ```
+
 $ ./bin/pulsar sql-worker run
 
 ```
@@ -175,7 +178,7 @@ presto> SELECT * FROM system.runtime.nodes;
 ---------+-------------------------+--------------+-------------+--------
  1       | http://192.168.2.1:8081 | testversion  | true        | active 
  3       | http://192.168.2.2:8081 | testversion  | false       | active 
- 2       | http://192.168.2.3:8081 | testversion  | false       | active 
+ 2       | http://192.168.2.3:8081 | testversion  | false       | active
 
 ```
 
@@ -186,3 +189,4 @@ For more information about deployment in Presto, refer to [Presto deployment](ht
 The broker does not advance LAC, so when Pulsar SQL bypass broker to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting "bookkeeperExplicitLacIntervalInMills" in the broker.conf.
 
 :::
+

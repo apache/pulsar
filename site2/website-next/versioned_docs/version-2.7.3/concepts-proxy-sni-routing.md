@@ -37,6 +37,7 @@ To configure the `records.config` files, complete the following steps.
 The following is an example.
 
 ```
+
 # PROXY TLS PORT
 CONFIG proxy.config.http.server_ports STRING 4443:ssl 4080
 # PROXY CERTS FILE PATH
@@ -55,6 +56,7 @@ The [ssl_server_name](https://docs.trafficserver.apache.org/en/8.0.x/admin-guide
 The following example shows mapping of the inbound SNI hostname coming from the client, and the actual broker service URL where request should be redirected. For example, if the client sends the SNI header `pulsar-broker1`, the proxy creates a TLS tunnel by redirecting request to the `pulsar-broker1:6651` service URL.
 
 ```
+
 server_config = {
   {
      fqdn = 'pulsar-broker-vip',
@@ -81,6 +83,7 @@ After you configure the `ssl_server_name.config` and `records.config` files, the
 ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy and brokers first, configure the SNI routing protocol, and then connect Pulsar clients to brokers through ATS proxy. Pulsar clients support SNI routing by connecting to the proxy, and sending the target broker URL to the SNI header. This process is processed internally. You only need to configure the following proxy configuration initially when you create a Pulsar client to use the SNI routing protocol.
 
 ```
+
 String brokerServiceUrl = “pulsar+ssl://pulsar-broker-vip:6651/”;
 String proxyUrl = “pulsar+ssl://ats-proxy:443”;
 ClientBuilder clientBuilder = PulsarClient.builder()
@@ -110,6 +113,7 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 (a) Configure the cluster metadata for `us-east` with `us-east` broker service URL and `us-east` ATS proxy URL with SNI proxy-protocol.
 
 ```
+
 ./pulsar-admin clusters update \
 --broker-url-secure pulsar+ssl://east-broker-vip:6651 \
 --url http://east-broker-vip:8080 \
@@ -121,6 +125,7 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 (b) Configure the cluster metadata for `us-west` with `us-west` broker service URL and `us-west` ATS proxy URL with SNI proxy-protocol.
 
 ```
+
 ./pulsar-admin clusters update \
 --broker-url-secure pulsar+ssl://west-broker-vip:6651 \
 --url http://west-broker-vip:8080 \
@@ -128,3 +133,4 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 --proxy-url pulsar+ssl://west-ats-proxy:443
 
 ```
+

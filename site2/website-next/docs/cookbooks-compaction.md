@@ -142,3 +142,4 @@ Message<byte[]> msg = MessageBuilder.create()
 compactedTopicProducer.send(msg);
 
 ```
+

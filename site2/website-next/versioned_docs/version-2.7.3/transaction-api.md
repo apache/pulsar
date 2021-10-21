@@ -17,6 +17,7 @@ Currently, Pulsar transaction is a developer preview feature. It is disabled by 
 1. To enable transactions in Pulsar, you need to configure the parameter in the `broker.conf` file.
 
 ```
+
 transactionCoordinatorEnabled=true
 
 ```
@@ -24,6 +25,7 @@ transactionCoordinatorEnabled=true
 2. Initialize transaction coordinator metadata, so the transaction coordinators can leverage advantages of the partitioned topic, such as load balance.
 
 ```
+
 bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
 
 ```
@@ -35,6 +37,7 @@ After initializing transaction coordinator metadata, you can use the transaction
 You can enable transaction for transaction client and initialize transaction coordinator client.
 
 ```
+
 PulsarClient pulsarClient = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .enableTransaction(true)
@@ -46,6 +49,7 @@ PulsarClient pulsarClient = PulsarClient.builder()
 You can start transaction in the following way.
 
 ```
+
 Transaction txn = pulsarClient
         .newTransaction()
         .withTransactionTimeout(5, TimeUnit.MINUTES)
@@ -59,6 +63,7 @@ Transaction txn = pulsarClient
 A transaction parameter is required when producing new transaction messages. The semantic of the transaction messages in Pulsar is `read-committed`, so the consumer cannot receive the ongoing transaction messages before the transaction is committed.
 
 ```
+
 producer.newMessage(txn).value("Hello Pulsar Transaction".getBytes()).sendAsync();
 
 ```
@@ -68,6 +73,7 @@ producer.newMessage(txn).value("Hello Pulsar Transaction".getBytes()).sendAsync(
 The transaction acknowledgement requires a transaction parameter. The transaction acknowledgement marks the messages state to pending-ack state. When the transaction is committed, the pending-ack state becomes ack state. If the transaction is aborted, the pending-ack state becomes unack state.
 
 ```
+
 Message<byte[]> message = consumer.receive();
 consumer.acknowledgeAsync(message.getMessageId(), txn);
 
@@ -78,6 +84,7 @@ consumer.acknowledgeAsync(message.getMessageId(), txn);
 When the transaction is committed, consumers receive the transaction messages and the pending-ack state becomes ack state.
 
 ```
+
 txn.commit().get();
 
 ```
@@ -87,6 +94,7 @@ txn.commit().get();
 When the transaction is aborted, the transaction acknowledgement is canceled and the pending-ack messages are redelivered.
 
 ```
+
 txn.abort().get();
 
 ```
@@ -95,6 +103,7 @@ txn.abort().get();
 The following example shows how messages are processed in transaction.
 
 ```
+
 PulsarClient pulsarClient = PulsarClient.builder()
         .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
         .statsInterval(0, TimeUnit.SECONDS)
@@ -147,6 +156,7 @@ To enable batch messages in transactions, you need to enable the batch index ack
 To enable batch index acknowledgement, you need to set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
 ```
+
 acknowledgmentAtBatchIndexLevelEnabled=true
 
 ```
@@ -154,6 +164,7 @@ acknowledgmentAtBatchIndexLevelEnabled=true
 And then you need to call the `enableBatchIndexAcknowledgment(true)` method in the consumer builder.
 
 ```
+
 Consumer<byte[]> sinkConsumer = pulsarClient
         .newConsumer()
         .topic(transferTopic)
@@ -164,3 +175,4 @@ Consumer<byte[]> sinkConsumer = pulsarClient
         .subscribe();
 
 ```
+

@@ -38,6 +38,7 @@ You can set a namespace isolation policy for a cluster using one of the followin
 <TabItem value="Admin CLI">
 
 ```
+
 pulsar-admin ns-isolation-policy set options
 
 ```
@@ -96,6 +97,7 @@ You can set a bookie affinity group using one of the following methods.
 <TabItem value="Admin CLI">
 
 ```
+
 pulsar-admin namespaces set-bookie-affinity-group options
 
 ```

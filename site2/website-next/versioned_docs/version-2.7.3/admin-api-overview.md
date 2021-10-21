@@ -19,9 +19,9 @@ You can currently interact with the admin interface via:
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](getting-started-standalone):
 
   ```shell
-
+  
   $ bin/pulsar-admin
-
+  
   ```
 
   For the complete commands and descriptions of `pulsar-admin`, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.7.0-SNAPSHOT/).
@@ -116,6 +116,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .build();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -144,3 +145,4 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
 - For how to configure Kubernetes runtime, see [here](https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime).
 
 :::
+

@@ -362,7 +362,7 @@ message CommandFlow {
 Parameters:
 * `consumer_id` → Id of an already established consumer
 * `messagePermits` → Number of additional permits to grant to the broker for
-    pushing more messages
+  pushing more messages
 
 ##### Command Message
 

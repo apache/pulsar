@@ -14,11 +14,11 @@ You can interact with the admin interface via:
 
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
-    ```shell
-
-    bin/pulsar-admin
-
-    ```
+  ```shell
+  
+  bin/pulsar-admin
+  
+  ```
 
   > **Important**
   > 
@@ -121,6 +121,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .build();
 
 ```
+
 </TabItem>
 
 </Tabs>

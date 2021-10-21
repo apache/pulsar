@@ -210,6 +210,7 @@ certs:
     type: selfsigning
 
 ```
+
 You can also customize the generated TLS certificates by configuring the fields as the following.
 
 ```yaml
@@ -340,6 +341,7 @@ To use local persistent volumes as the persistent storage, you need to install a
 One of the easiest way to get started is to use the local storage provisioner provided along with the Pulsar Helm chart.
 
 ```
+
 helm repo add streamnative https://charts.streamnative.io
 helm repo update
 helm install pulsar-storage-provisioner streamnative/local-storage-provisioner
@@ -378,9 +380,9 @@ The `prepare_helm_release` creates the following resources:
 
 - A Kubernetes namespace for installing the Pulsar release
 - JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
-    - `proxy-admin` role is used for proxies to communicate to brokers.
-    - `broker-admin` role is used for inter-broker communications.
-    - `admin` role is used by the admin tools.
+  - `proxy-admin` role is used for proxies to communicate to brokers.
+  - `broker-admin` role is used for inter-broker communications.
+  - `admin` role is used by the admin tools.
 
 ## Deploy Pulsar cluster using Helm
 
@@ -402,6 +404,7 @@ helm install pulsar apache/pulsar \
     --set [your configuration options]
 
 ```
+
 :::note
 
 For the first deployment, add `--set initialize=true` option to initialize bookie and Pulsar cluster metadata.
@@ -431,3 +434,4 @@ To find the IP addresses of those components, run the following command:
 kubectl get service -n <k8s-namespace>
 
 ```
+

@@ -97,14 +97,14 @@ All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}
 The following metrics are available for broker:
 
 * [Namespace metrics](#namespace-metrics)
-    * [Replication metrics](#replication-metrics)
+  * [Replication metrics](#replication-metrics)
 * [Topic metrics](#topic-metrics)
-    * [Replication metrics](#replication-metrics-1)
+  * [Replication metrics](#replication-metrics-1)
 * [ManagedLedgerCache metrics](#managedledgercache-metrics)
 * [ManagedLedger metrics](#managedledger-metrics)
 * [LoadBalancing metrics](#loadbalancing-metrics)
-    * [BundleUnloading metrics](#bundleunloading-metrics)
-    * [BundleSplit metrics](#bundlesplit-metrics)
+  * [BundleUnloading metrics](#bundleunloading-metrics)
+  * [BundleSplit metrics](#bundlesplit-metrics)
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
 * [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)

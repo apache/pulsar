@@ -721,3 +721,4 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 })
 
 ```
+

@@ -127,6 +127,7 @@ These libraries rely on some other libraries. If you want to get detailed versio
  g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib
 
 ```
+
 The `libpulsarwithdeps.a` does not include library openssl related libraries `libssl` and `libcrypto`, because these two libraries are related to security. It is more reasonable and easier to use the versions provided by the local system to handle security issues and upgrade libraries.
 
 ### Install RPM
@@ -313,6 +314,7 @@ cmake --build ./build --config Release
 4. Client libraries are available in the following places.
 
 ```
+
 ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.lib
 ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll
 
@@ -359,6 +361,7 @@ The benefit of this approach is that it is the simplest code. Simply keeps calli
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
 ```c++
+
 #include <pulsar/Client.h>
 
 using namespace pulsar;
@@ -402,6 +405,7 @@ You can avoid  running a loop with blocking calls with an event based style by u
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
 ```c++
+
 #include <pulsar/Client.h>
 #include <atomic>
 #include <thread>
@@ -457,6 +461,7 @@ To use Pulsar as a producer, you need to create a producer on the C++ client. Th
 This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.
 
 ```c++
+
 #include <pulsar/Client.h>
 #include <thread>
 
@@ -504,6 +509,7 @@ The producer configuration `blockIfQueueFull` is useful here to avoid `ResultPro
 Without this configuration, the result code `ResultProducerQueueIsFull` is passed to the callback. You must decide how to deal with that (retry, discard etc).
 
 ```c++
+
 #include <pulsar/Client.h>
 #include <thread>
 
@@ -570,6 +576,7 @@ With our example above, that reduces the number of internal producers spread out
 Note that there can be extra latency for the first message sent. If you set a low send timeout, this timeout could be reached if the initial connection handshake is slow to complete.
 
 ```c++
+
 ProducerConfiguration producerConf;
 producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
 producerConf.setLazyStartPartitionedProducers(true);
@@ -603,31 +610,31 @@ schema, see [Pulsar schema](schema-get-started).
 
 - The following example shows how to create a producer with an Avro schema.
 
-    ```cpp
-
-    static const std::string exampleSchema =
-        "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-        "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-    Producer producer;
-    ProducerConfiguration producerConf;
-    producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-    client.createProducer("topic-avro", producerConf, producer);
-
-    ```
+  ```cpp
+  
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  Producer producer;
+  ProducerConfiguration producerConf;
+  producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.createProducer("topic-avro", producerConf, producer);
+  
+  ```
 
 - The following example shows how to create a consumer with an Avro schema.
 
-    ```cpp
-
-    static const std::string exampleSchema =
-        "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-        "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
-    ConsumerConfiguration consumerConf;
-    Consumer consumer;
-    consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
-    client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
-
-    ```
+  ```cpp
+  
+  static const std::string exampleSchema =
+      "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+      "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+  ConsumerConfiguration consumerConf;
+  Consumer consumer;
+  consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+  client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+  
+  ```
 
 ### ProtobufNative schema
 
@@ -635,36 +642,41 @@ The following example shows how to create a producer and a consumer with a Proto
 ​
 1. Generate the `User` class using Protobuf3. 
 
-    :::note
+   :::note
 
-    You need to use Protobuf3 or later versions.
+   You need to use Protobuf3 or later versions.
 
-    :::
+   :::
+
 ​
 
    ```protobuf
-
+   
    syntax = "proto3";
    
    message User {
        string name = 1;
        int32 age = 2;
    }
-
+   
    ```
+
 ​
 2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
 ​
 
    ```c++
+   
    #include <pulsar/ProtobufNativeSchema.h>
-
+   
    ```
+
 ​
 3. Create a producer to send a `User` instance.
 ​
 
    ```c++
+   
    ProducerConfiguration producerConf;
    producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
    Producer producer;
@@ -675,13 +687,15 @@ The following example shows how to create a producer and a consumer with a Proto
    std::string content;
    user.SerializeToString(&content);
    producer.send(MessageBuilder().setContent(content).build());
-
+   
    ```
+
 ​
 4. Create a consumer to receive a `User` instance.
 ​
 
    ```c++
+   
    ConsumerConfiguration consumerConf;
    consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
    consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
@@ -691,5 +705,6 @@ The following example shows how to create a producer and a consumer with a Proto
    consumer.receive(msg);
    User user2;
    user2.ParseFromArray(msg.getData(), msg.getLength());
-
+   
    ```
+

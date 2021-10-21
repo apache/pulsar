@@ -50,9 +50,9 @@ To get started running Pulsar, download a binary tarball release in one of the f
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-@pulsar:version@/apache-pulsar-@pulsar:version@-bin.tar.gz' -O apache-pulsar-@pulsar:version@-bin.tar.gz
-
+  
   ```
 
 Once you download the tarball, untar it and `cd` into the resulting directory:
@@ -170,6 +170,7 @@ Again, given the very low expected load on the configuration store servers, you 
 For example, assume a Pulsar instance with the following clusters `us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`. Also assume, each cluster has its own local ZK servers named such as the following: 
 
 ```
+
 zk[1-3].${CLUSTER}.example.com
 
 ```
@@ -451,3 +452,4 @@ To report the topic stats:
 $ bin/pulsar-admin topics stats persistent://test-tenant/ns1/my-topic
 
 ```
+
