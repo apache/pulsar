@@ -105,6 +105,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.submit(() -> {
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
+            boolean seeked = false;
             try {
                 if (firstEntry > lastEntry
                     || firstEntry < 0
@@ -115,14 +116,13 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 long entriesToRead = (lastEntry - firstEntry) + 1;
                 long nextExpectedId = firstEntry;
 
-                // seek the position to the first entry position, otherwise we will get the unexpected entry ID when doing
-                // the first read, that would cause read an unexpected entry id which is out of range between firstEntry
-                // and lastEntry
-                // for example, when we get 1-10 entries at first, then the next request is get 2-9, the following code
-                // will read the entry id from the stream and that is not the correct entry id, so it will seek to the
-                // correct position then read the stream as normal. But the entry id may exceed the last entry id, that
-                // will cause we are hardly to know the edge of the request range.
-                inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
+                // checking the data stream has enough data to read to avoid throw EOF exception when reading data.
+                // 12 bytes represent the stream have the length and entryID to read.
+                if (dataStream.available() < 12) {
+                    log.warn("There hasn't enough data to read, current available data has {} bytes,"
+                        + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
+                    inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
+                }
 
                 while (entriesToRead > 0) {
                     if (state == State.Closed) {
@@ -149,14 +149,20 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
                             + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
                         inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                        continue;
                     } else if (entryId < nextExpectedId
                         && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
                         log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
                         + ", seeking to the right position", entries, nextExpectedId);
                         inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                        continue;
                     } else if (entryId > lastEntry) {
+                        // in the normal case, the entry id should increment in order. But if there has random access in
+                        // the read method, we should allow to seek to the right position and the entry id should
+                        // never over to the last entry again.
+                        if (!seeked) {
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            seeked = true;
+                            continue;
+                        }
                         log.info("Expected to read {}, but read {}, which is greater than last entry {}",
                             nextExpectedId, entryId, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
