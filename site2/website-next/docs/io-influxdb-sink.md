@@ -65,7 +65,7 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
   
 * YAML
     ```yaml
-    {
+    configs:
         influxdbUrl: "http://localhost:9999"
         organization: "example-org"
         bucket: "example-bucket"
@@ -75,7 +75,6 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         gzipEnable: false
         batchTimeMs: 1000
         batchSize: 100
-    }
     ```
   
 #### InfluxDBv1
@@ -98,7 +97,7 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
 * YAML
 
     ```yaml
-    {
+    configs:
         influxdbUrl: "http://localhost:8086"
         database: "test_db"
         consistencyLevel: "ONE"
@@ -107,5 +106,4 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         gzipEnable: false
         batchTimeMs: 1000
         batchSize: 100
-    }
     ```
