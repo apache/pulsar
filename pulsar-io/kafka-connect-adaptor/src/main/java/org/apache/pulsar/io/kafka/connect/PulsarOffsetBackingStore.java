@@ -180,14 +180,8 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             }
             reader = null;
         }
-        if (null != client) {
-            try {
-                client.close();
-            } catch (IOException e) {
-                log.warn("Failed to close client", e);
-            }
-            client = null;
-        }
+
+        // do not close the client, it is provided by the sink context
     }
 
     @Override
