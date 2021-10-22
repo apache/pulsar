@@ -417,6 +417,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
                 decreaseIncomingMessageSize(message);
+                checkState(message instanceof TopicMessageImpl);
                 unAckedMessageTracker.add(message.getMessageId());
                 resumeReceivingFromPausedConsumersIfNeeded();
                 result.complete(message);
