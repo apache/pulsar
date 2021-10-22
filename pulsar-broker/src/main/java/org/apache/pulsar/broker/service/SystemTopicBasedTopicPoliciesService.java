@@ -118,7 +118,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                     }
                                 }
                             });
-                    })
+                        })
                 );
             }
         });
@@ -141,6 +141,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private void notifyListener(Message<PulsarEvent> msg) {
+        // delete policies
+        if (msg.getValue() == null) {
+            TopicName topicName =  TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
+            if (listeners.get(topicName) != null) {
+                for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                    listener.onUpdate(null);
+                }
+            }
+            return;
+        }
+
         if (!EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
             return;
         }
@@ -250,12 +261,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         removeOwnedNamespaceBundleAsync(bundle);
                     }
 
-            @Override
-            public boolean test(NamespaceBundle namespaceBundle) {
-                return true;
-            }
-
-        });
+                    @Override
+                    public boolean test(NamespaceBundle namespaceBundle) {
+                        return true;
+                    }
+                });
     }
 
     private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
@@ -391,7 +401,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     if (e != null) {
                         future.completeExceptionally(e);
                     }
-                    if (EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
+                    if (msg.getValue() != null
+                            && EventType.TOPIC_POLICY.equals(msg.getValue().getEventType())) {
                         TopicPoliciesEvent topicPoliciesEvent = msg.getValue().getTopicPoliciesEvent();
                         if (topicName.equals(TopicName.get(
                                 topicPoliciesEvent.getDomain(),
