@@ -88,8 +88,8 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">1.0.0</td><td style="text-align:left">2.3.0 及以上</td></tr>
-<tr><td style="text-align:left">1.1.0</td><td style="text-align:left">2.4.0及以上</td></tr>
-<tr><td style="text-align:left">1.2.0</td><td style="text-align:left">2.5.0及以上</td></tr>
+<tr><td style="text-align:left">1.1.0</td><td style="text-align:left">2.4.0 及以上</td></tr>
+<tr><td style="text-align:left">1.2.0</td><td style="text-align:left">2.5.0 及以上</td></tr>
 </tbody>
 </table>
 <p>If an incompatible version of the C++ client is installed, you may fail to build or run this library.</p>
@@ -171,7 +171,7 @@ In this example, using await operator instead of executor function.</p>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>send(Object)</code></td><td style="text-align:left">Publishes a <a href="#messages">message</a> to the producer's topic. 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">Sends message from send queue to Pulsar broker. 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">将消息从发送队列发送到Pulsar broker。 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 <tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">Closes the producer and releases all resources allocated to it. 如果调用 <code>close()</code>，则不再接收发布者的消息。 此方法将返回 Promise 对象，并在 Pulsar 持久化所有待发布请求时运行 executor 函数。 If an error is thrown, no pending writes will be retried.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>
@@ -258,8 +258,8 @@ In this example, using await operator instead of executor function.</p>
 <tr><td style="text-align:left"><code>acknowledgeId(Object)</code></td><td style="text-align:left">通过消息 ID 向 Pulsar <a href="/docs/zh-CN/2.7.1/reference-terminology#broker">broker</a> <a href="/docs/zh-CN/2.7.1/reference-terminology#acknowledgment-ack">确认收到</a>一条消息。</td><td style="text-align:left"><code>void</code></td></tr>
 <tr><td style="text-align:left"><code>acknowledgeCumulative(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.7.1/reference-terminology#acknowledgment-ack">确认收到</a>流中到指定消息为止的<em>所有</em>消息，包括指定消息。 <code>acknowledgeCumulative</code> 方法返回 void，并向 broker 异步发送确认。 消息将<em>不会</em>重新发送给 consumer。 <a href="/docs/zh-CN/2.7.1/concepts-messaging#shared">共享</a>订阅类型不支持累积确认。</td><td style="text-align:left"><code>void</code></td></tr>
 <tr><td style="text-align:left"><code>acknowledgeCumulativeId(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.7.1/reference-terminology#acknowledgment-ack">确认收到</a>流中到指定消息为止<em>所有</em>消息的 ID，包括指定消息的 ID。</td><td style="text-align:left"><code>void</code></td></tr>
-<tr><td style="text-align:left"><code>negativeAcknowledge(Message)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.7.1/reference-terminology#negative-acknowledgment-nack">Negatively acknowledges</a>  a message to the Pulsar broker by message object.</td><td style="text-align:left"><code>void</code></td></tr>
-<tr><td style="text-align:left"><code>negativeAcknowledgeId(MessageId)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.7.1/reference-terminology#negative-acknowledgment-nack">Negatively acknowledges</a> a message to the Pulsar broker by message ID object.</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>negativeAcknowledge(Message)</code></td><td style="text-align:left">通过消息对象向 Pulsar broker <a href="/docs/zh-CN/2.7.1/reference-terminology#negative-acknowledgment-nack">确认</a>一条消息有异常。</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>negativeAcknowledgeId(MessageId)</code></td><td style="text-align:left">通过消息ID对象向 Pulsar broker <a href="/docs/zh-CN/2.7.1/reference-terminology#negative-acknowledgment-nack">确认</a> 一条消息有异常。</td><td style="text-align:left"><code>void</code></td></tr>
 <tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">关闭 consumer，使 consumer 不再从 broker 接收消息。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>

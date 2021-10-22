@@ -168,7 +168,7 @@ In this example, using await operator instead of executor function.</p>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>send(Object)</code></td><td style="text-align:left">Publishes a <a href="#messages">message</a> to the producer's topic. 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">Sends message from send queue to Pulsar broker. 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">将消息从发送队列发送到Pulsar broker。 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 <tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">Closes the producer and releases all resources allocated to it. 如果调用 <code>close()</code>，则不再接收发布者的消息。 此方法将返回 Promise 对象，并在 Pulsar 持久化所有待发布请求时运行 executor 函数。 If an error is thrown, no pending writes will be retried.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>
