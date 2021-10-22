@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger;
 
 import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 public class OffloadFilterDisabled implements OffloadFilter {
 
