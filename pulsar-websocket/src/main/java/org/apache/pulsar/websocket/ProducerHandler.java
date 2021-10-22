@@ -131,6 +131,10 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     @Override
     public void onWebSocketText(String message) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received new message from producer {} ", producer.getTopic(),
+                    getRemote().getInetSocketAddress().toString());
+        }
         ProducerMessage sendRequest;
         byte[] rawPayload = null;
         String requestContext = null;
@@ -188,6 +192,10 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         final long now = System.nanoTime();
 
         builder.sendAsync().thenAccept(msgId -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Success fully write the message to broker with returned message ID {} from producer {}",
+                        producer.getTopic(), msgId, getRemote().getInetSocketAddress().toString());
+            }
             updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
             if (isConnected()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
