@@ -29,17 +29,12 @@ public class OffloadFilterDisabled implements OffloadFilter {
     }
 
     @Override
-    public PositionImpl getMaxReadPosition() {
-        return PositionImpl.latest;
+    public boolean checkLedgerIdCanOffload(long ledgerId) {
+        return true;
     }
 
     @Override
-    public boolean isTransactionBufferInitializing() {
-        return false;
-    }
-
-    @Override
-    public boolean isTransactionBufferNoSnapshot() {
+    public boolean checkFilterIsReady() {
         return true;
     }
 }

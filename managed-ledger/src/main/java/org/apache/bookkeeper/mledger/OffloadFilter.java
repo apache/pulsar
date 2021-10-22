@@ -33,17 +33,11 @@ public interface OffloadFilter {
      * The largest stable position that can be exposed to the consumer
      * @return
      */
-    PositionImpl getMaxReadPosition();
+    boolean checkLedgerIdCanOffload(long LedgerId);
 
     /**
-     * Check whether the status of TransactionBuffer is Initializing.
+     * Check whether offloadFilter is ready.
      * @return
      */
-    boolean isTransactionBufferInitializing();
-
-    /**
-     * Check whether the status of TransactionBuffer is NoSnapshot.
-     * @return
-     */
-    boolean isTransactionBufferNoSnapshot();
+    boolean checkFilterIsReady();
 }

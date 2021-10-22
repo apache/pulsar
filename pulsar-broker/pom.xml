@@ -389,19 +389,19 @@
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>tiered-storage-file-system</artifactId>
-      <version>2.9.0-SNAPSHOT</version>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>tiered-storage-jcloud</artifactId>
-      <version>2.9.0-SNAPSHOT</version>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-blobstore</artifactId>
-      <version>2.3.0</version>
+      <version>${jclouds.version}</version>
       <scope>test</scope>
     </dependency>
 

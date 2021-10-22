@@ -210,6 +210,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
 
+    @Override
     public void setOffloadFilter(OffloadFilter offloadFilter) {
         this.offloadFilter = offloadFilter;
     }

@@ -2257,10 +2257,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
                 && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
             //This means that the topic has not been created yet or the TB has not been started completely.
-            if(config.isTransactionEnable()){
-                if(offloadFilter == null || offloadFilter.isTransactionBufferInitializing()){
-                    return;
-                }
+            if(offloadFilter == null || !offloadFilter.checkFilterIsReady()){
+                return;
             }
             executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
         }
@@ -2302,10 +2300,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (alreadyOffloaded) {
                         alreadyOffloadedSize += size;
                     } else if (sizeSummed > threshold) {
-                        //If the state of TB is noSnapshot, this ledger will not contain transaction messages
-                        if(config.isTransactionEnable()
-                                && !offloadFilter.isTransactionBufferNoSnapshot()
-                                && e.getValue().getLedgerId() > offloadFilter.getMaxReadPosition().getLedgerId()){
+                        if(offloadFilter != null && !offloadFilter.checkLedgerIdCanOffload(e.getValue().getLedgerId())){
                             continue;
                         }
                         toOffloadSize += size;
@@ -2843,9 +2838,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // don't offload if ledger has already been offloaded, or is empty
                     if (!ls.getOffloadContext().getComplete() && ls.getSize() > 0) {
                         //If the state of TB is noSnapshot, this ledger will not contain transaction messages
-                        if(config.isTransactionEnable()
-                                && !offloadFilter.isTransactionBufferNoSnapshot()
-                                && ls.getLedgerId() > offloadFilter.getMaxReadPosition().getLedgerId()){
+                        if(offloadFilter != null && !offloadFilter.checkLedgerIdCanOffload(ls.getLedgerId())){
                             continue;
                         }
                         ledgersToOffload.add(ls);

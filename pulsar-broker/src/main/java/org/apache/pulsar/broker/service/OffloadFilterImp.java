@@ -39,10 +39,7 @@ public class OffloadFilterImp implements OffloadFilter {
 
         if (messageMetadata.hasTxnidLeastBits() && messageMetadata.hasTxnidMostBits()){
             if (persistentTopic.isTxnAborted(new TxnID(messageMetadata.getTxnidMostBits(),
-                    messageMetadata.getTxnidLeastBits()))){
-                return false;
-            }
-            if (Markers.isTxnMarker(messageMetadata)){
+                    messageMetadata.getTxnidLeastBits())) || Markers.isTxnMarker(messageMetadata) ){
                 return false;
             }
         }
@@ -50,17 +47,16 @@ public class OffloadFilterImp implements OffloadFilter {
     }
 
     @Override
-    public PositionImpl getMaxReadPosition() {
-        return persistentTopic.getMaxReadPosition();
+    public boolean checkLedgerIdCanOffload(long ledgerId) {
+        return ledgerId < persistentTopic.getMaxReadPosition().getLedgerId();
     }
 
     @Override
-    public boolean isTransactionBufferInitializing() {
-        return "Initializing".equals(persistentTopic.getTransactionBufferStats().state);
-    }
-
-    @Override
-    public boolean isTransactionBufferNoSnapshot() {
-        return "NoSnapshot".equals(persistentTopic.getTransactionBufferStats().state);
+    public boolean checkFilterIsReady() {
+        if (persistentTopic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && !"Initializing".equals(persistentTopic.getTransactionBufferStats().state)) {
+            return true;
+        }
+        return false;
     }
 }
