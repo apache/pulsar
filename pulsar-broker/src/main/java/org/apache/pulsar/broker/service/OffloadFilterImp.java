@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.OffloadFilter;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -38,25 +37,20 @@ public class OffloadFilterImp implements OffloadFilter {
         MessageMetadata messageMetadata = Commands.parseMessageMetadata(ledgerEntry.getEntryBuffer());
 
         if (messageMetadata.hasTxnidLeastBits() && messageMetadata.hasTxnidMostBits()){
-            if (persistentTopic.isTxnAborted(new TxnID(messageMetadata.getTxnidMostBits(),
-                    messageMetadata.getTxnidLeastBits())) || Markers.isTxnMarker(messageMetadata) ){
-                return false;
-            }
+            return !persistentTopic.isTxnAborted(new TxnID(messageMetadata.getTxnidMostBits(),
+                    messageMetadata.getTxnidLeastBits())) && !Markers.isTxnMarker(messageMetadata);
         }
         return true;
     }
 
     @Override
     public boolean checkIfLedgerIdCanOffload(long ledgerId) {
-        return ledgerId < persistentTopic.getMaxReadPosition().getLedgerId();
+        return ledgerId <= persistentTopic.getMaxReadPosition().getLedgerId();
     }
 
     @Override
     public boolean checkFilterIsReady() {
-        if (persistentTopic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !"Initializing".equals(persistentTopic.getTransactionBufferStats().state)) {
-            return true;
-        }
-        return false;
+        return persistentTopic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
+                && !"Initializing".equals(persistentTopic.getTransactionBufferStats().state);
     }
 }
