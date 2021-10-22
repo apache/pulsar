@@ -29,7 +29,7 @@ public class OffloadFilterDisabled implements OffloadFilter {
     }
 
     @Override
-    public boolean checkLedgerIdCanOffload(long ledgerId) {
+    public boolean checkIfLedgerIdCanOffload(long ledgerId) {
         return true;
     }
 

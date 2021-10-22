@@ -2300,7 +2300,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (alreadyOffloaded) {
                         alreadyOffloadedSize += size;
                     } else if (sizeSummed > threshold) {
-                        if(offloadFilter != null && !offloadFilter.checkLedgerIdCanOffload(e.getValue().getLedgerId())){
+                        if(offloadFilter != null && !offloadFilter.checkIfLedgerIdCanOffload(e.getValue().getLedgerId())){
                             continue;
                         }
                         toOffloadSize += size;
@@ -2838,7 +2838,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // don't offload if ledger has already been offloaded, or is empty
                     if (!ls.getOffloadContext().getComplete() && ls.getSize() > 0) {
                         //If the state of TB is noSnapshot, this ledger will not contain transaction messages
-                        if(offloadFilter != null && !offloadFilter.checkLedgerIdCanOffload(ls.getLedgerId())){
+                        if(offloadFilter != null && !offloadFilter.checkIfLedgerIdCanOffload(ls.getLedgerId())){
                             continue;
                         }
                         ledgersToOffload.add(ls);

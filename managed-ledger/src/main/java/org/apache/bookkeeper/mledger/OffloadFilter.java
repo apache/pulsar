@@ -33,7 +33,7 @@ public interface OffloadFilter {
      * The largest stable position that can be exposed to the consumer
      * @return
      */
-    boolean checkLedgerIdCanOffload(long LedgerId);
+    boolean checkIfLedgerIdCanOffload(long LedgerId);
 
     /**
      * Check whether offloadFilter is ready.

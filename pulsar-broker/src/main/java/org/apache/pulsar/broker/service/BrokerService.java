@@ -1360,7 +1360,6 @@ public class BrokerService implements Closeable {
 
 
                     ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-                    managedLedgerConfig.setTransactionEnable(serviceConfig.isTransactionCoordinatorEnabled());
                     managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
                     managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
                     managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
