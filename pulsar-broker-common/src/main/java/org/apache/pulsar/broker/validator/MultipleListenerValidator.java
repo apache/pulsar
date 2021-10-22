@@ -39,10 +39,11 @@ public final class MultipleListenerValidator {
 
     /**
      * Validate the configuration of `advertisedListeners`, `internalListenerName`.
-     * 2. the listener name in `advertisedListeners` must not duplicate.
-     * 3. user can not assign same 'host:port' to different listener.
-     * 4. if `internalListenerName` is absent, the first `listener` in the `advertisedListeners` will be the `internalListenerName`.
-     * 5. if pulsar do not specify `brokerServicePortTls`, should only contain one entry of `pulsar://` per listener name.
+     * 1. `advertisedListeners` consists of a comma-separated list of endpoints.
+     * 2. Each endpoint consists of a listener name and an associated address (`listener:scheme://host:port`).
+     * 3. A listener name may be repeated to define both a non-TLS and a TLS endpoint.
+     * 4. Duplicate definitions are disallowed.
+     * 5. If `internalListenerName` is absent, set it to the first listener defined in `advertisedListeners`.
      * @param config the pulsar broker configure.
      * @return
      */
@@ -96,7 +97,6 @@ public final class MultipleListenerValidator {
                         }
                     }
                     String hostPort = String.format("%s:%d", uri.getHost(), uri.getPort());
-                    reverseMappings.computeIfAbsent(hostPort, k -> Sets.newTreeSet());
                     Set<String> sets = reverseMappings.computeIfAbsent(hostPort, k -> Sets.newTreeSet());
                     sets.add(entry.getKey());
                     if (sets.size() > 1) {

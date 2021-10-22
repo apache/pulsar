@@ -1,7 +1,7 @@
 ---
 id: client-libraries-go
 title: Pulsar Go client
-sidebar_label: Go
+sidebar_label: "Go"
 original_id: client-libraries-go
 ---
 
@@ -721,3 +721,4 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 })
 
 ```
+

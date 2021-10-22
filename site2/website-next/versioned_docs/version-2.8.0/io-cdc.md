@@ -1,7 +1,7 @@
 ---
 id: io-cdc
 title: CDC connector
-sidebar_label: CDC connector
+sidebar_label: "CDC connector"
 original_id: io-cdc
 ---
 

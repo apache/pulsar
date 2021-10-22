@@ -1,7 +1,7 @@
 ---
 id: tiered-storage-aliyun
 title: Use Aliyun OSS offloader with Pulsar
-sidebar_label: Aliyun OSS offloader
+sidebar_label: "Aliyun OSS offloader"
 original_id: tiered-storage-aliyun
 ---
 
@@ -27,28 +27,27 @@ This example uses Pulsar 2.8.0.
 
 2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory, see [here](https://pulsar.apache.org/docs/en/standalone/#install-tiered-storage-offloaders-optional).
 
-    **Output**
-    
-    As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
-    
+   **Output**
+   
+   As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
 
-    ```
-    tiered-storage-file-system-2.8.0.nar
-    tiered-storage-jcloud-2.8.0.nar
+   ```
+   
+   tiered-storage-file-system-2.8.0.nar
+   tiered-storage-jcloud-2.8.0.nar
+   
+   ```
 
-    ```
+   :::note
 
-:::note
+   * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
-* If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-* If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-:::
+   :::
 
 ## Configuration
 
 :::note
-
 
 Before offloading data from BookKeeper to Aliyun OSS, you need to configure some properties of the Aliyun OSS offload driver.
 
@@ -62,21 +61,21 @@ You can configure the Aliyun OSS offloader driver in the configuration file `bro
 
 - **Required** configurations are as below.
   
-    | Required configuration | Description | Example value |
-    | --- | --- |--- |
-    | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss |
-    | `offloadersDirectory` | Offloader directory | offloaders |
-    | `managedLedgerOffloadBucket` | Bucket | pulsar-topic-offload |
-    | `managedLedgerOffloadServiceEndpoint` | Endpoint | http://oss-cn-hongkong.aliyuncs.com |
+  | Required configuration | Description | Example value |
+  | --- | --- |--- |
+  | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss |
+  | `offloadersDirectory` | Offloader directory | offloaders |
+  | `managedLedgerOffloadBucket` | Bucket | pulsar-topic-offload |
+  | `managedLedgerOffloadServiceEndpoint` | Endpoint | http://oss-cn-hongkong.aliyuncs.com |
 
 - **Optional** configurations are as below.
 
-    | Optional | Description | Example value |
-    | --- | --- | --- |
-    | `managedLedgerOffloadReadBufferSizeInBytes` | Size of block read | 1 MB |
-    | `managedLedgerOffloadMaxBlockSizeInBytes` | Size of block write | 64 MB |
-    | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
-    | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
+  | Optional | Description | Example value |
+  | --- | --- | --- |
+  | `managedLedgerOffloadReadBufferSizeInBytes` | Size of block read | 1 MB |
+  | `managedLedgerOffloadMaxBlockSizeInBytes` | Size of block write | 64 MB |
+  | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
+  | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
 
 #### Bucket (required)
 
@@ -98,16 +97,17 @@ The endpoint is the region where a bucket is located.
 
 :::tip
 
-
 For more information about Aliyun OSS regions and endpoints,  see [International website](https://www.alibabacloud.com/help/doc-detail/31837.htm) or [Chinese website](https://help.aliyun.com/document_detail/31837.html).
 
 :::
+
  
 ##### Example
 
 This example sets the endpoint as _oss-us-west-1-internal_.
 
 ```
+
 managedLedgerOffloadServiceEndpoint=http://oss-us-west-1-internal.aliyuncs.com
 
 ```
@@ -164,7 +164,6 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
-
 For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-threshold-em-). 
 
 :::
@@ -177,84 +176,86 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
 - Use CLI tools (such as pulsar-admin). 
 
-    To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Aliyun OSS until the threshold is no longer exceeded. Older segments are moved first.
+  To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Aliyun OSS until the threshold is no longer exceeded. Older segments are moved first.
 
 #### Example
 
 - This example triggers the Aliyun OSS offloader to run manually using pulsar-admin.
 
-    ```bash
+  ```bash
+  
+  bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
+  
+  ```
 
-    bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
+  **Output**
 
-    ``` 
+  ```bash
+  
+  Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
+  
+  ```
 
-    **Output**
+  :::tip
 
-    ```bash
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
 
-    Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-
-    ```
-
-:::tip
-
-For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
-
-:::
+  :::
 
 - This example checks the Aliyun OSS offloader status using pulsar-admin.
 
-    ```bash
+  ```bash
+  
+  bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+  
+  ```
 
-    bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+  **Output**
 
-    ```
+  ```bash
+  
+  Offload is currently running
+  
+  ```
 
-    **Output**
+  To wait for the Aliyun OSS offloader to complete the job, add the `-w` flag.
 
-    ```bash
+  ```bash
+  
+  bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
+  
+  ```
 
-    Offload is currently running
+  **Output**
 
-    ```
+  ```
+  
+  Offload was a success
+  
+  ```
 
-    To wait for the Aliyun OSS offloader to complete the job, add the `-w` flag.
+  If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
-    ```bash
+  ```bash
+  
+  bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
+  
+  ```
 
-    bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
+  **Output**
 
-    ```
+  ```
+  
+  Error in offload
+  null
 
-    **Output**
-    
+  Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+  
+  ```
 
-    ```
-    Offload was a success
+  :::tip
 
-    ```
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
 
-    If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
+  :::
 
-    ```bash
-
-    bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
-    ```
-
-    **Output**
-
-    ```
-    Error in offload
-    null
-
-    Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-
-    ````
-
-:::tip
-
-For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
-
-:::

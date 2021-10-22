@@ -1,7 +1,7 @@
 ---
 id: client-libraries-cgo
 title: Pulsar CGo client
-sidebar_label: CGo(deprecated)
+sidebar_label: "CGo(deprecated)"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -579,3 +579,4 @@ fmt.Println(s.Name) // output: pulsar
 defer consumer.Close()
 
 ```
+

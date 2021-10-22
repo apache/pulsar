@@ -1,7 +1,7 @@
 ---
 id: io-hbase-sink
 title: HBase sink connector
-sidebar_label: HBase sink connector
+sidebar_label: "HBase sink connector"
 original_id: io-hbase-sink
 ---
 
@@ -37,35 +37,35 @@ Before using the HBase sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-
-    {
-        "hbaseConfigResources": "hbase-site.xml",
-        "zookeeperQuorum": "localhost",
-        "zookeeperClientPort": "2181",
-        "zookeeperZnodeParent": "/hbase",
-        "tableName": "pulsar_hbase",
-        "rowKeyName": "rowKey",
-        "familyName": "info",
-        "qualifierNames": [ 'name', 'address', 'age']
-    }
-
-    ```
+  ```json
+  
+  {
+      "hbaseConfigResources": "hbase-site.xml",
+      "zookeeperQuorum": "localhost",
+      "zookeeperClientPort": "2181",
+      "zookeeperZnodeParent": "/hbase",
+      "tableName": "pulsar_hbase",
+      "rowKeyName": "rowKey",
+      "familyName": "info",
+      "qualifierNames": [ 'name', 'address', 'age']
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
+  ```yaml
+  
+  configs:
+      hbaseConfigResources: "hbase-site.xml"
+      zookeeperQuorum: "localhost"
+      zookeeperClientPort: "2181"
+      zookeeperZnodeParent: "/hbase"
+      tableName: "pulsar_hbase"
+      rowKeyName: "rowKey"
+      familyName: "info"
+      qualifierNames: [ 'name', 'address', 'age']
+  
+  ```
 
-    configs:
-        hbaseConfigResources: "hbase-site.xml"
-        zookeeperQuorum: "localhost"
-        zookeeperClientPort: "2181"
-        zookeeperZnodeParent: "/hbase"
-        tableName: "pulsar_hbase"
-        rowKeyName: "rowKey"
-        familyName: "info"
-        qualifierNames: [ 'name', 'address', 'age']
-
-    ```
-
-    
+  

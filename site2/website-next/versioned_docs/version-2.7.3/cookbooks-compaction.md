@@ -1,7 +1,7 @@
 ---
 id: cookbooks-compaction
 title: Topic compaction
-sidebar_label: Topic compaction
+sidebar_label: "Topic compaction"
 original_id: cookbooks-compaction
 ---
 
@@ -143,3 +143,4 @@ Message<byte[]> msg = MessageBuilder.create()
 compactedTopicProducer.send(msg);
 
 ```
+

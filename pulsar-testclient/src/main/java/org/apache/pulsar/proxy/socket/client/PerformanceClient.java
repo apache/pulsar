@@ -212,8 +212,6 @@ public class PerformanceClient {
             arguments.proxyURL += "/";
         }
 
-        arguments.testTime = TimeUnit.SECONDS.toMillis(arguments.testTime);
-
         return arguments;
 
     }
@@ -295,10 +293,17 @@ public class PerformanceClient {
         executor.submit(() -> {
             try {
                 RateLimiter rateLimiter = RateLimiter.create(arguments.msgRate);
+                long startTime = System.nanoTime();
+                long testEndTime = startTime + (long) (arguments.testTime * 1e9);
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
                     for (String topic : producersMap.keySet()) {
+                        if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
+                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) --------------", arguments.testTime);
+                            PerfClientUtils.exit(0);
+                        }
+
                         if (arguments.numMessages > 0) {
                             if (totalSent >= arguments.numMessages) {
                                 log.trace("------------- DONE (reached the maximum number: [{}] of production) --------------", arguments.numMessages);

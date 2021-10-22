@@ -1,7 +1,7 @@
 ---
 id: cookbooks-non-persistent
 title: Non-persistent messaging
-sidebar_label: Non-persistent messaging
+sidebar_label: "Non-persistent messaging"
 original_id: cookbooks-non-persistent
 ---
 

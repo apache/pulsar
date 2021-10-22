@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import com.google.common.collect.Sets;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -293,6 +297,75 @@ public class TransactionTest extends TransactionTestBase {
             Message<TransactionBufferSnapshot> message1 = reader.readNext();
             TransactionBufferSnapshot snapshot1 = message1.getValue();
             Assert.assertEquals(snapshot1.getMaxReadPositionEntryId(), 1);
+        });
+    }
+
+
+    @Test
+    public void testAppendBufferWithNotManageLedgerExceptionCanCastToMLE()
+            throws Exception {
+        String topic = "persistent://pulsar/system/testReCreateTopic";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                        .getTopic(topic, false)
+                        .get().get();
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        Topic.PublishContext publishContext = new Topic.PublishContext() {
+
+            @Override
+            public String getProducerName() {
+                return "test";
+            }
+
+            public long getSequenceId() {
+                return  30;
+            }
+            /**
+             * Return the producer name for the original producer.
+             *
+             * For messages published locally, this will return the same local producer name, though in case of
+             * replicated messages, the original producer name will differ
+             */
+            public String getOriginalProducerName() {
+                return "test";
+            }
+
+            public long getOriginalSequenceId() {
+                return  30;
+            }
+
+            public long getHighestSequenceId() {
+                return  30;
+            }
+
+            public long getOriginalHighestSequenceId() {
+                return  30;
+            }
+
+            public long getNumberOfMessages() {
+                return  30;
+            }
+
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                Assert.assertTrue(e.getCause() instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException);
+                countDownLatch.countDown();
+            }
+        };
+
+        //Close topic manageLedger.
+        persistentTopic.getManagedLedger().close();
+
+        //Publish to a closed managerLedger to test ManagerLedgerException.
+        persistentTopic.publishTxnMessage(new TxnID(123L, 321L),
+                Unpooled.copiedBuffer("message", UTF_8), publishContext);
+
+        //If it times out, it means that the assertTrue in publishContext.completed is failed.
+        Awaitility.await().until(() -> {
+            countDownLatch.await();
+            return true;
         });
     }
 }

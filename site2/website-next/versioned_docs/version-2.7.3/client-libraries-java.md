@@ -1,7 +1,7 @@
 ---
 id: client-libraries-java
 title: Pulsar Java client
-sidebar_label: Java
+sidebar_label: "Java"
 original_id: client-libraries-java
 ---
 
@@ -176,22 +176,29 @@ stringProducer.send("My message");
 ```
 
 > Make sure that you close your producers, consumers, and clients when you do not need them.
-> ```java
 
+> ```java
+> 
 > producer.close();
 > consumer.close();
 > client.close();
+>
+> 
 > ```
+
 >
 > Close operations can also be asynchronous:
-> ```java
 
+> ```java
+> 
 > producer.closeAsync()
 >    .thenRun(() -> System.out.println("Producer closed"))
 >    .exceptionally((ex) -> {
 >        System.err.println("Failed to close producer: " + ex);
 >        return null;
 >    });
+>
+> 
 > ```
 
 ### Configure producer
@@ -403,9 +410,7 @@ consumer.acknowledge(messages)
 
 :::note
 
-
 Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
-
 The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
 
 ```java
@@ -421,6 +426,7 @@ Consumer consumer = client.newConsumer()
 .subscribe();
 
 ```
+
 The default batch receive policy is:
 
 ```java
@@ -481,7 +487,6 @@ pulsarClient.newConsumer()
 ```
 
 :::note
-
 
 By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
 
@@ -579,7 +584,6 @@ Only the first consumer is allowed to the subscription, other consumers receive 
 
 :::note
 
-
 If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error. 
 
 :::
@@ -603,8 +607,6 @@ Consumer consumer2 = client.newConsumer()
 //conumser1 is the active consumer, consumer2 is the standby consumer.
 //consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
 
-  
-
 ```
 
 Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer. 
@@ -612,6 +614,7 @@ Multiple consumers can attach to the same subscription, yet only the first consu
 If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
 
 ```
+
 ("key-1", "message-1-1")
 ("key-1", "message-1-2")
 ("key-1", "message-1-3")
@@ -623,6 +626,7 @@ If the first active consumer is disconnected after receiving 5 messages, the sta
 consumer2 will receive:
 
 ```
+
 ("key-2", "message-2-3")
 ("key-3", "message-3-1")
 ("key-3", "message-3-2")
@@ -632,7 +636,6 @@ consumer2 will receive:
 ```
 
 :::note
-
 
 If a topic is a partitioned topic, each partition has only one active consumer, messages of one partition are distributed to only one consumer, and messages of multiple partitions are distributed to multiple consumers. 
 
@@ -664,6 +667,7 @@ In shared subscription mode, multiple consumers can attach to the same subscript
 If a broker dispatches only one message at a time, consumer1 receives the following information.
 
 ```
+
 ("key-1", "message-1-1")
 ("key-1", "message-1-3")
 ("key-2", "message-2-2")
@@ -675,6 +679,7 @@ If a broker dispatches only one message at a time, consumer1 receives the follow
 consumer2 receives the following information.
 
 ```
+
 ("key-1", "message-1-2")
 ("key-2", "message-2-1")
 ("key-2", "message-2-3")
@@ -711,6 +716,7 @@ Consumer consumer2 = client.newConsumer()
 consumer1 receives the following information.
 
 ```
+
 ("key-1", "message-1-1")
 ("key-1", "message-1-2")
 ("key-1", "message-1-3")
@@ -722,6 +728,7 @@ consumer1 receives the following information.
 consumer2 receives the following information.
 
 ```
+
 ("key-2", "message-2-1")
 ("key-2", "message-2-2")
 ("key-2", "message-2-3")
@@ -740,6 +747,7 @@ Producer producer = client.newProducer()
         .create();
 
 ```
+
 Or the producer can disable batching.
 
 ```java
@@ -750,8 +758,8 @@ Producer producer = client.newProducer()
         .create();
 
 ```
-:::note
 
+:::note
 
 If the message key is not specified, messages without key are dispatched to one consumer in order by default.
 
@@ -872,62 +880,61 @@ The following schema formats are currently available for Java:
 * No schema or the byte array schema (which can be applied using `Schema.BYTES`):
 
   ```java
-
+  
   Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
-        .topic("some-raw-bytes-topic")
-        .create();
-
+      .topic("some-raw-bytes-topic")
+      .create();
+  
   ```
 
   Or, equivalently:
 
   ```java
-
+  
   Producer<byte[]> bytesProducer = client.newProducer()
-        .topic("some-raw-bytes-topic")
-        .create();
-
+      .topic("some-raw-bytes-topic")
+      .create();
+  
   ```
 
 * `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
 
   ```java
-
+  
   Producer<String> stringProducer = client.newProducer(Schema.STRING)
-        .topic("some-string-topic")
-        .create();
-
+      .topic("some-string-topic")
+      .create();
+  
   ```
 
 * Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
 
   ```java
-
+  
   Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
-        .topic("some-pojo-topic")
-        .create();
-
+      .topic("some-pojo-topic")
+      .create();
+  
   ```
 
 * Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
 
   ```java
-
+  
   Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
-        .topic("some-protobuf-topic")
-        .create();
-
+      .topic("some-protobuf-topic")
+      .create();
+  
   ```
 
 * Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
-  
 
   ```java
-
+  
   Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
-        .topic("some-avro-topic")
-        .create();
-
+      .topic("some-avro-topic")
+      .create();
+  
   ```
 
 ## Authentication
@@ -1024,3 +1031,4 @@ PulsarClient client = PulsarClient.builder()
     .build();
 
 ```
+

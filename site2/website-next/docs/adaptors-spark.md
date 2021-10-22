@@ -1,7 +1,7 @@
 ---
 id: adaptors-spark
 title: Pulsar adaptor for Apache Spark
-sidebar_label: Apache Spark
+sidebar_label: "Apache Spark"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -91,3 +91,4 @@ SparkStreamingPulsarReceiver pulsarReceiver = new SparkStreamingPulsarReceiver(
         new AuthenticationToken("token:<secret-JWT-token>"));
 
 ```
+

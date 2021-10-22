@@ -1,7 +1,7 @@
 ---
 id: client-libraries
 title: Pulsar client libraries
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: client-libraries
 ---
 

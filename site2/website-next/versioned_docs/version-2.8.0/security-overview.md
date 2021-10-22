@@ -1,7 +1,7 @@
 ---
 id: security-overview
 title: Pulsar security overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: security-overview
 ---
 

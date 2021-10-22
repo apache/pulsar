@@ -1,7 +1,7 @@
 ---
 id: adaptors-storm
 title: Pulsar adaptor for Apache Storm
-sidebar_label: Apache Storm
+sidebar_label: "Apache Storm"
 original_id: adaptors-storm
 ---
 
@@ -97,3 +97,4 @@ boltConf.setTupleToMessageMapper(tupleToMessageMapper);
 PulsarBolt bolt = new PulsarBolt(boltConf);
 
 ```
+

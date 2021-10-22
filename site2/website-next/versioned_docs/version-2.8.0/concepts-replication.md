@@ -1,7 +1,7 @@
 ---
 id: concepts-replication
 title: Geo Replication
-sidebar_label: Geo Replication
+sidebar_label: "Geo Replication"
 original_id: concepts-replication
 ---
 

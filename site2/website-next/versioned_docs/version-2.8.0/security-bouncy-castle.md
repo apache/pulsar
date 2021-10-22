@@ -1,7 +1,7 @@
 ---
 id: security-bouncy-castle
 title: Bouncy Castle Providers
-sidebar_label: Bouncy Castle Providers
+sidebar_label: "Bouncy Castle Providers"
 original_id: security-bouncy-castle
 ---
 
@@ -35,11 +35,13 @@ Usually, You will meet error like `java.lang.SecurityException: Invalid signatur
 You could exclude these signatures in mvn pom file to avoid above error, by
 
 ```access transformers
+
 <exclude>META-INF/*.SF</exclude>
 <exclude>META-INF/*.DSA</exclude>
 <exclude>META-INF/*.RSA</exclude>
 
 ```
+
 But it can also lead to new, cryptic errors, e.g. `java.security.NoSuchAlgorithmException: PBEWithSHA256And256BitAES-CBC-BC SecretKeyFactory not available`
 By explicitly specifying where to find the algorithm like this: `SecretKeyFactory.getInstance("PBEWithSHA256And256BitAES-CBC-BC","BC")`
 It will get the real error: `java.security.NoSuchProviderException: JCE cannot authenticate the provider BC`
@@ -153,6 +155,7 @@ If you want to switch from BC-non-FIPS to BC-FIPS version, Here is an example fo
   </dependency>
 
 ```
+
  
 For more example, you can reference module `bcfips-include-test`.
 

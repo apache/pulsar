@@ -1,7 +1,7 @@
 ---
 id: io-solr-sink
 title: Solr sink connector
-sidebar_label: Solr sink connector
+sidebar_label: "Solr sink connector"
 original_id: io-solr-sink
 ---
 
@@ -39,31 +39,31 @@ Before using the Solr sink connector, you need to create a configuration file th
 
 * JSON
 
-    ```json
-
-    {
-        "solrUrl": "localhost:2181,localhost:2182/chroot",
-        "solrMode": "SolrCloud",
-        "solrCollection": "techproducts",
-        "solrCommitWithinMs": 100,
-        "username": "fakeuser",
-        "password": "fake@123"
-    }
-
-    ```
+  ```json
+  
+  {
+      "solrUrl": "localhost:2181,localhost:2182/chroot",
+      "solrMode": "SolrCloud",
+      "solrCollection": "techproducts",
+      "solrCommitWithinMs": 100,
+      "username": "fakeuser",
+      "password": "fake@123"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-
-    {
-        solrUrl: "localhost:2181,localhost:2182/chroot"
-        solrMode: "SolrCloud"
-        solrCollection: "techproducts"
-        solrCommitWithinMs: 100
-        username: "fakeuser"
-        password: "fake@123"
-    }
-
-    ```
+  ```yaml
+  
+  {
+      solrUrl: "localhost:2181,localhost:2182/chroot"
+      solrMode: "SolrCloud"
+      solrCollection: "techproducts"
+      solrCommitWithinMs: 100
+      username: "fakeuser"
+      password: "fake@123"
+  }
+  
+  ```
 
