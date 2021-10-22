@@ -1,7 +1,7 @@
 ---
 id: concepts-topic-compaction
 title: Topic Compaction
-sidebar_label: Topic Compaction
+sidebar_label: "Topic Compaction"
 original_id: concepts-topic-compaction
 ---
 

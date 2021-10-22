@@ -1,7 +1,7 @@
 ---
 id: admin-api-tenants
 title: Managing Tenants
-sidebar_label: Tenants
+sidebar_label: "Tenants"
 original_id: admin-api-tenants
 ---
 
@@ -61,6 +61,7 @@ my-tenant-2
 admin.tenants().getTenants();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -106,6 +107,7 @@ $ pulsar-admin tenants create my-tenant \
   -r role1
 
 ```
+
 </TabItem>
 <TabItem value="REST API">
 
@@ -163,6 +165,7 @@ $ pulsar-admin tenants get my-tenant
 }
 
 ```
+
 </TabItem>
 <TabItem value="REST API">
 
@@ -224,6 +227,7 @@ $ pulsar-admin tenants delete my-tenant
 admin.Tenants().deleteTenant(tenantName);
 
 ```
+
 </TabItem>
 
 </Tabs>

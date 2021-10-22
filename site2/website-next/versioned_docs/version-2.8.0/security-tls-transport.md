@@ -1,7 +1,7 @@
 ---
 id: security-tls-transport
 title: Transport Encryption using TLS
-sidebar_label: Transport Encryption using TLS
+sidebar_label: "Transport Encryption using TLS"
 original_id: security-tls-transport
 ---
 
@@ -172,7 +172,7 @@ For JDK 11, you can obtain a list of supported values from the documentation:
 
 Proxies need to configure TLS in two directions, for clients connecting to the proxy, and for the proxy connecting to brokers.
 
-```properties
+```
 
 # For clients connecting to the proxy
 tlsEnabledInProxy=true
@@ -188,7 +188,7 @@ brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
 
 ## Client configuration
 
-When you enable the TLS transport encryption, you need to configure the client to use ```https://``` and port 8443 for the web service URL, and ```pulsar+ssl://``` and port 6651 for the broker service URL.
+When you enable the TLS transport encryption, you need to configure the client to use ```
 
 As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path the **trust cert** (recommended), or tell the client to allow untrusted server certs.
 
@@ -251,6 +251,7 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 #### C++ client
 
 ```c++
+
 #include <pulsar/Client.h>
 
 ClientConfiguration config = ClientConfiguration();
@@ -280,6 +281,7 @@ const Pulsar = require('pulsar-client');
 #### C# client
 
 ```c#
+
 var certificate = new X509Certificate2("ca.cert.pem");
 var client = PulsarClient.Builder()
                          .TrustedCertificateAuthority(certificate) //If the CA is not trusted on the host, you can add it explicitly.
@@ -288,3 +290,4 @@ var client = PulsarClient.Builder()
                          .Build();
 
 ```
+

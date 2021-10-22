@@ -1,7 +1,7 @@
 ---
 id: sql-overview
 title: Pulsar SQL Overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: sql-overview
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: administration-zk-bk
 title: ZooKeeper and BookKeeper administration
-sidebar_label: ZooKeeper and BookKeeper
+sidebar_label: "ZooKeeper and BookKeeper"
 original_id: administration-zk-bk
 ---
 
@@ -100,6 +100,7 @@ Again, given the very low expected load on the configuration store servers, you 
 For example, you can assume a Pulsar instance with the following clusters `us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`. Also you can assume, each cluster has its own local ZK servers named such as
 
 ```
+
 zk[1-3].${CLUSTER}.example.com
 
 ```
@@ -269,9 +270,9 @@ And then you can decommission bookies safely. To decommission bookies, complete 
 3. Run the decommission command.
    - If you have logged in to the node to be decommissioned, you do not need to provide `-bookieid`.
    - If you are running the decommission command for the target bookie node from another bookie node, you should mention the target bookie ID in the arguments for `-bookieid`
-    `$ bin/bookkeeper shell decommissionbookie`
-    or
-    `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
+   `$ bin/bookkeeper shell decommissionbookie`
+   or
+   `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
 
 4. Validate that no ledgers are on the decommissioned bookie.   
 `$ bin/bookkeeper shell listledgers -bookieid <target bookieid>`

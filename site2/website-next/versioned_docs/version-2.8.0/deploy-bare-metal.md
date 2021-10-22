@@ -1,7 +1,7 @@
 ---
 id: deploy-bare-metal
 title: Deploy a cluster on bare metal
-sidebar_label: Bare metal
+sidebar_label: "Bare metal"
 original_id: deploy-bare-metal
 ---
 
@@ -48,7 +48,6 @@ To run Pulsar on bare metal, the following configuration is recommended:
 * A single [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) name covering all of the Pulsar broker hosts
 
 :::note
-
 
 Broker is only supported on 64-bit JVM.
 
@@ -136,9 +135,9 @@ To get started using builtin connectors, you need to download the connectors tar
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
-
+  
   ```
 
 Once you download the .nar file, copy the file to directory `connectors` in the pulsar directory. 
@@ -172,9 +171,9 @@ To get started using tiered storage offloaders, you need to download the offload
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-
+  
   $ wget pulsar:offloader_release_url
-
+  
   ```
 
 Once you download the tarball, in the pulsar directory, untar the offloaders package and copy the offloaders as `offloaders` in the pulsar directory:
@@ -274,24 +273,32 @@ Flag | Description
 
 > If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
 >
+
 > ```properties
->
+> 
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+>
+> 
 > ```
+
 >
 > If you want to use an existing BookKeeper cluster, you can add the `--existing-bk-metadata-service-uri` flag as follows:
 >
+
 > ```properties
->
+> 
 > --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
+>
+> 
 > ```
+
 > You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
 
 ## Deploy a BookKeeper cluster
@@ -383,8 +390,9 @@ webServicePortTls=8443
 
 > If you deploy Pulsar in a one-node cluster, you should update the replication settings in `conf/broker.conf` to `1`.
 >
+
 > ```properties
->
+> 
 > # Number of bookies to use when creating a ledger
 > managedLedgerDefaultEnsembleSize=1
 >
@@ -393,6 +401,8 @@ webServicePortTls=8443
 > 
 > # Number of guaranteed copies (acks to wait before write is complete)
 > managedLedgerDefaultAckQuorum=1
+>
+> 
 > ```
 
 ### Enable Pulsar Functions (optional)
@@ -401,19 +411,19 @@ If you want to enable [Pulsar Functions](functions-overview), you can follow the
 
 1. Edit `conf/broker.conf` to enable functions worker, by setting `functionsWorkerEnabled` to `true`.
 
-    ```conf
-
-    functionsWorkerEnabled=true
-
-    ```
+   ```conf
+   
+   functionsWorkerEnabled=true
+   
+   ```
 
 2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata). 
 
-    ```conf
-
-    pulsarFunctionsCluster: pulsar-cluster-1
-
-    ```
+   ```conf
+   
+   pulsarFunctionsCluster: pulsar-cluster-1
+   
+   ```
 
 If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker).
 
@@ -454,10 +464,13 @@ brokerServiceurl=pulsar://us-west.example.com:6650
 
 > If you do not have a DNS server, you can specify multi-host in service URL as follows:
 >
+
 > ```properties
->
+> 
 > webServiceUrl=http://host1:8080,host2:8080,host3:8080
 > brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
+>
+> 
 > ```
 
 Once that is complete, you can publish a message to the Pulsar topic:
@@ -528,3 +541,4 @@ You should see the following output:
 hello world!
 
 ```
+

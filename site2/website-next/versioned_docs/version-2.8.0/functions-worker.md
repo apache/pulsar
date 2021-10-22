@@ -60,40 +60,41 @@ If you want to use Stateful-Functions related functions (for example,  `putState
 
    Currently, the service uses the NAR package, so you need to set the configuration in `bookkeeper.conf`.
 
-    ```text
-
-    extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-
-    ```
+   ```text
+   
+   extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+   
+   ```
 
    After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
 
    Input:
 
-    ```shell
+   ```shell
+   
+   telnet localhost 4181
+   
+   ```
 
-    telnet localhost 4181
-
-    ```
    Output:
 
-    ```text
-
-    Trying 127.0.0.1...
-    Connected to localhost.
-    Escape character is '^]'.
-
-    ```
+   ```text
+   
+   Trying 127.0.0.1...
+   Connected to localhost.
+   Escape character is '^]'.
+   
+   ```
 
 2. Turn on this function in `functions_worker.yml`.
 
-    ```text
+   ```text
+   
+   stateStorageServiceUrl: bk://<bk-service-url>:4181
+   
+   ```
 
-    stateStorageServiceUrl: bk://<bk-service-url>:4181
-
-    ```
-    
-    `bk-service-url` is the service URL pointing to the BookKeeper table service.
+   `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
 ### Start Functions-worker with broker
 
@@ -109,7 +110,9 @@ curl <broker-ip>:8080/admin/v2/worker/cluster
 
 After entering the command above, a list of active function workers in the cluster is returned. The output is similar to the following.
 
-```json [{"workerId":"<worker-id>","workerHostname":"<worker-hostname>","port":8080}]
+```json
+
+[{"workerId":"<worker-id>","workerHostname":"<worker-hostname>","port":8080}]
 
 ```
 
@@ -164,6 +167,7 @@ If you want to enable security on functions workers, you *should*:
 To enable TLS transport encryption, configure the following settings.
 
 ```
+
 useTLS: true
 pulsarServiceUrl: pulsar+ssl://localhost:6651/
 pulsarWebServiceUrl: https://localhost:8443
@@ -191,6 +195,7 @@ Substitute the *providers list* with the providers you want to enable.
 :::
 
 ```
+
 authenticationEnabled: true
 authenticationProviders: [ provider1, provider2 ]
 
@@ -200,6 +205,7 @@ For *TLS Authentication* provider, follow the example below to add the necessary
 See [TLS Authentication](security-tls-authentication) for more details.
 
 ```
+
 brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
 
@@ -212,6 +218,7 @@ For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaas
 under `properties` if needed. 
 
 ```
+
 properties:
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasBrokerSectionName: Broker
@@ -223,10 +230,11 @@ See [Token Authentication](security-jwt) for more details.
 Note: key files must be DER-encoded
 
 ```
+
 properties:
   tokenSecretKey:       file://my/secret.key 
   # If using public/private
-  # tokenPublicKey:     file:///path/to/public.key 
+  # tokenPublicKey:     file:///path/to/public.key
 
 ```
 
@@ -345,6 +353,7 @@ Use the `Run-separately` mode in the following cases:
 **Error message: Namespace missing local cluster name in clusters list**
 
 ```
+
 Failed to get partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException$BrokerMetadataException: Namespace missing local cluster name in clusters list: local_cluster=xyz ns=public/functions clusters=[standalone]
 
 ```

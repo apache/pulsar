@@ -68,7 +68,6 @@ The Kubernetes runtime supports secrets, so you can create a Kubernetes secret a
 
 :::tip
 
-
 For the rules of translating Pulsar object names into Kubernetes resource labels, see [here](admin-api-overview.md#how-to-define-pulsar-resource-names-when-running-pulsar-in-kubernetes).
 
 :::
@@ -401,3 +400,4 @@ pulsarWebServiceUrl: http://broker.pulsar:8080/ # or https://pulsar-prod-broker.
 useTls: true # when using TLS, critical!
 
 ```
+

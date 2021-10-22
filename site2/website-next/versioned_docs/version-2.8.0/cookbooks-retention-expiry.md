@@ -1,7 +1,7 @@
 ---
 id: cookbooks-retention-expiry
 title: Message retention and expiry
-sidebar_label: Message retention and expiry
+sidebar_label: "Message retention and expiry"
 original_id: cookbooks-retention-expiry
 ---
 
@@ -79,6 +79,7 @@ You can set a retention policy for a namespace by specifying the namespace, a si
   }
 ]}>
 <TabItem value="pulsar-admin">
+
 You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
 
 In the following example, the size limit is set to 10 GB and the time limit is set to 3 hours for each topic within the `my-tenant/my-ns` namespace. 
@@ -408,6 +409,7 @@ $ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
 admin.namespaces().removeNamespaceMessageTTL(namespace)
 
 ```
+
 ## Delete messages from namespaces
 
 If you do not have any retention period and that you never have much of a backlog, the upper limit for retaining messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).

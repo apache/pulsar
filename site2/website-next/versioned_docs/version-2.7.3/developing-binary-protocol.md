@@ -1,7 +1,7 @@
 ---
 id: develop-binary-protocol
 title: Pulsar binary protocol specification
-sidebar_label: Binary protocol
+sidebar_label: "Binary protocol"
 original_id: develop-binary-protocol
 ---
 
@@ -350,7 +350,7 @@ message CommandFlow {
 Parameters:
 * `consumer_id` → Id of an already established consumer
 * `messagePermits` → Number of additional permits to grant to the broker for
-    pushing more messages
+  pushing more messages
 
 ##### Command Message
 

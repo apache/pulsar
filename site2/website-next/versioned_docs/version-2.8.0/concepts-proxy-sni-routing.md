@@ -1,7 +1,7 @@
 ---
 id: concepts-proxy-sni-routing
 title: Proxy support with SNI routing
-sidebar_label: Proxy support with SNI routing
+sidebar_label: "Proxy support with SNI routing"
 original_id: concepts-proxy-sni-routing
 ---
 
@@ -36,6 +36,7 @@ To configure the `records.config` files, complete the following steps.
 The following is an example.
 
 ```
+
 # PROXY TLS PORT
 CONFIG proxy.config.http.server_ports STRING 4443:ssl 4080
 # PROXY CERTS FILE PATH
@@ -54,6 +55,7 @@ The [ssl_server_name](https://docs.trafficserver.apache.org/en/8.0.x/admin-guide
 The following example shows mapping of the inbound SNI hostname coming from the client, and the actual broker service URL where request should be redirected. For example, if the client sends the SNI header `pulsar-broker1`, the proxy creates a TLS tunnel by redirecting request to the `pulsar-broker1:6651` service URL.
 
 ```
+
 server_config = {
   {
      fqdn = 'pulsar-broker-vip',
@@ -123,6 +125,7 @@ PulsarClient pulsarClient = clientBuilder.build();
 <TabItem value="C++">
 
 ```c++
+
 ClientConfiguration config = ClientConfiguration();
 config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
@@ -163,6 +166,7 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 (a) Configure the cluster metadata for `us-east` with `us-east` broker service URL and `us-east` ATS proxy URL with SNI proxy-protocol.
 
 ```
+
 ./pulsar-admin clusters update \
 --broker-url-secure pulsar+ssl://east-broker-vip:6651 \
 --url http://east-broker-vip:8080 \
@@ -174,6 +178,7 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 (b) Configure the cluster metadata for `us-west` with `us-west` broker service URL and `us-west` ATS proxy URL with SNI proxy-protocol.
 
 ```
+
 ./pulsar-admin clusters update \
 --broker-url-secure pulsar+ssl://west-broker-vip:6651 \
 --url http://west-broker-vip:8080 \
@@ -181,3 +186,4 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 --proxy-url pulsar+ssl://west-ats-proxy:443
 
 ```
+

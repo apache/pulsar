@@ -1,7 +1,7 @@
 ---
 id: admin-api-non-persistent-topics
 title: Managing non-persistent topics
-sidebar_label: Non-Persistent topics
+sidebar_label: "Non-Persistent topics"
 original_id: admin-api-non-persistent-topics
 ---
 
