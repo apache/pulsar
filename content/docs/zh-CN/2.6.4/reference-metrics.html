@@ -93,7 +93,7 @@
 <ul>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#counter">Counter</a>: a cumulative metric that represents a single monotonically increasing counter whose value can only increase or be reset to zero on restart.</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#gauge">Gauge</a>: a <em>gauge</em> is a metric that represents a single numerical value that can arbitrarily go up and down.</li>
-<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: 直方图样本观测 (通常是请求持续时间和响应大小) ，并将它们计入可配置的 bucket 中。</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: 直方图样本观测 (通常是请求持续时间和响应大小) ，并将它们计入可配置的 bucket 中。 The <code>_bucket</code> suffix is the number of observations within a histogram bucket, configured with parameter <code>{le=&quot;&lt;upper inclusive bound&gt;&quot;}</code>. The <code>_count</code> suffix is the number of observations, shown as a time series and behaves like a counter. The <code>_sum</code> suffix is the sum of observed values, also shown as a time series and behaves like a counter. These suffixes are together denoted by <code>_*</code> in this doc.</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>: 与直方图类似的总结样本观察 (通常是请求持续时间和响应大小)。 但它同时也提供了总观测次数以及所有观测值的总和，它会在滑动的时间窗口上计算可配置的分位数。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
@@ -189,6 +189,7 @@
 <li><a href="#subscription-metrics">Subscription metrics</a></li>
 <li><a href="#consumer-metrics">Consumer metrics</a></li>
 <li><a href="#managed-ledger-bookie-client-metrics">ManagedLedger bookie 客户端度量值</a></li>
+<li><a href="#jetty-metrics">Jetty metrics</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="命名空间度量值"></a><a href="#命名空间度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命名空间度量值</h3>
 <blockquote>
@@ -467,6 +468,39 @@
 <tr><td>pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued</td><td>总结</td><td>按毫秒计算的 worker 任务排队延迟。</td></tr>
 </tbody>
 </table>
+<h3><a class="anchor" aria-hidden="true" id="jetty-metrics"></a><a href="#jetty-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Jetty metrics</h3>
+<blockquote>
+<p>For a functions-worker running separately from brokers, its Jetty metrics are only exposed when <code>includeStandardPrometheusMetrics</code> is set to <code>true</code>.</p>
+</blockquote>
+<p>All the jetty metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
+</ul>
+<table>
+<thead>
+<tr><th>配置项</th><th>类型</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>jetty_requests_total</td><td>计数器</td><td>Number of requests.</td></tr>
+<tr><td>jetty_requests_active</td><td>计量表</td><td>Number of requests currently active.</td></tr>
+<tr><td>jetty_requests_active_max</td><td>计量表</td><td>Maximum number of requests that have been active at once.</td></tr>
+<tr><td>jetty_request_time_max_seconds</td><td>计量表</td><td>Maximum time spent handling requests.</td></tr>
+<tr><td>jetty_request_time_seconds_total</td><td>计数器</td><td>Total time spent in all request handling.</td></tr>
+<tr><td>jetty_dispatched_total</td><td>计数器</td><td>Number of dispatches.</td></tr>
+<tr><td>jetty_dispatched_active</td><td>计量表</td><td>Number of dispatches currently active.</td></tr>
+<tr><td>jetty_dispatched_active_max</td><td>计量表</td><td>Maximum number of active dispatches being handled.</td></tr>
+<tr><td>jetty_dispatched_time_max</td><td>计量表</td><td>Maximum time spent in dispatch handling.</td></tr>
+<tr><td>jetty_dispatched_time_seconds_total</td><td>计数器</td><td>Total time spent in dispatch handling.</td></tr>
+<tr><td>jetty_async_requests_total</td><td>计数器</td><td>Total number of async requests.</td></tr>
+<tr><td>jetty_async_requests_waiting</td><td>计量表</td><td>Currently waiting async requests.</td></tr>
+<tr><td>jetty_async_requests_waiting_max</td><td>计量表</td><td>Maximum number of waiting async requests.</td></tr>
+<tr><td>jetty_async_dispatches_total</td><td>计数器</td><td>Number of requested that have been asynchronously dispatched.</td></tr>
+<tr><td>jetty_expires_total</td><td>计数器</td><td>Number of async requests requests that have expired.</td></tr>
+<tr><td>jetty_responses_total</td><td>计数器</td><td>Number of responses, labeled by status code. The <code>code</code> label can be &quot;1xx&quot;, &quot;2xx&quot;, &quot;3xx&quot;, &quot;4xx&quot;, or &quot;5xx&quot;.</td></tr>
+<tr><td>jetty_stats_seconds</td><td>计量表</td><td>Time in seconds stats have been collected for.</td></tr>
+<tr><td>jetty_responses_bytes_total</td><td>计数器</td><td>Total number of bytes across all responses.</td></tr>
+</tbody>
+</table>
 <h1><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h1>
 <p>所有 Pulsar Functions 度量值都带有以下标签：</p>
 <ul>
@@ -546,7 +580,7 @@
 <li><a href="http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana">pulsar-grafana</a>: A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.</li>
 <li><a href="https://github.com/streamnative/apache-pulsar-grafana-dashboard">apache-pulsar-grafana-dashboard</a>: A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.4/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#概述">概述</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值">服务器度量值</a></li><li><a href="#请求度量值">请求度量值</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值-1">服务器度量值</a></li><li><a href="#日志度量值">日志度量值</a></li><li><a href="#存储度量值">存储度量值</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#命名空间度量值">命名空间度量值</a></li><li><a href="#主题度量值">主题度量值</a></li><li><a href="#managedledgercache-度量值">ManagedLedgerCache 度量值</a></li><li><a href="#managedledger-度量值">ManagedLedger 度量值</a></li><li><a href="#loadbalancing-度量值">LoadBalancing 度量值</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#托管的-ledger-bookie-客户端度量值">托管的 ledger bookie 客户端度量值</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.4/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#概述">概述</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值">服务器度量值</a></li><li><a href="#请求度量值">请求度量值</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值-1">服务器度量值</a></li><li><a href="#日志度量值">日志度量值</a></li><li><a href="#存储度量值">存储度量值</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#命名空间度量值">命名空间度量值</a></li><li><a href="#主题度量值">主题度量值</a></li><li><a href="#managedledgercache-度量值">ManagedLedgerCache 度量值</a></li><li><a href="#managedledger-度量值">ManagedLedger 度量值</a></li><li><a href="#loadbalancing-度量值">LoadBalancing 度量值</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#托管的-ledger-bookie-客户端度量值">托管的 ledger bookie 客户端度量值</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

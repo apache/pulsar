@@ -90,7 +90,7 @@
 <ul>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#counter">Counter</a>: a cumulative metric that represents a single monotonically increasing counter whose value can only increase or be reset to zero on restart.</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#gauge">Gauge</a>: a <em>gauge</em> is a metric that represents a single numerical value that can arbitrarily go up and down.</li>
-<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets.</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets. The <code>_bucket</code> suffix is the number of observations within a histogram bucket, configured with parameter <code>{le=&quot;&lt;upper inclusive bound&gt;&quot;}</code>. The <code>_count</code> suffix is the number of observations, shown as a time series and behaves like a counter. The <code>_sum</code> suffix is the sum of observed values, also shown as a time series and behaves like a counter. These suffixes are together denoted by <code>_*</code> in this doc.</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>: similar to a histogram, a summary samples observations (usually things like request durations and response sizes). While it also provides a total count of observations and a sum of all observed values, it calculates configurable quantiles over a sliding time window.</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
@@ -178,6 +178,7 @@
 </ul></li>
 <li><a href="#subscription-metrics">Subscription metrics</a></li>
 <li><a href="#consumer-metrics">Consumer metrics</a></li>
+<li><a href="#jetty-metrics">Jetty metrics</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="namespace-metrics"></a><a href="#namespace-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespace metrics</h3>
 <blockquote>
@@ -327,6 +328,39 @@
 <tr><td>pulsar_consumer_available_permits</td><td>Gauge</td><td>The available permits for for a consumer.</td></tr>
 </tbody>
 </table>
+<h3><a class="anchor" aria-hidden="true" id="jetty-metrics"></a><a href="#jetty-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Jetty metrics</h3>
+<blockquote>
+<p>For a functions-worker running separately from brokers, its Jetty metrics are only exposed when <code>includeStandardPrometheusMetrics</code> is set to <code>true</code>.</p>
+</blockquote>
+<p>All the jetty metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>jetty_requests_total</td><td>Counter</td><td>Number of requests.</td></tr>
+<tr><td>jetty_requests_active</td><td>Gauge</td><td>Number of requests currently active.</td></tr>
+<tr><td>jetty_requests_active_max</td><td>Gauge</td><td>Maximum number of requests that have been active at once.</td></tr>
+<tr><td>jetty_request_time_max_seconds</td><td>Gauge</td><td>Maximum time spent handling requests.</td></tr>
+<tr><td>jetty_request_time_seconds_total</td><td>Counter</td><td>Total time spent in all request handling.</td></tr>
+<tr><td>jetty_dispatched_total</td><td>Counter</td><td>Number of dispatches.</td></tr>
+<tr><td>jetty_dispatched_active</td><td>Gauge</td><td>Number of dispatches currently active.</td></tr>
+<tr><td>jetty_dispatched_active_max</td><td>Gauge</td><td>Maximum number of active dispatches being handled.</td></tr>
+<tr><td>jetty_dispatched_time_max</td><td>Gauge</td><td>Maximum time spent in dispatch handling.</td></tr>
+<tr><td>jetty_dispatched_time_seconds_total</td><td>Counter</td><td>Total time spent in dispatch handling.</td></tr>
+<tr><td>jetty_async_requests_total</td><td>Counter</td><td>Total number of async requests.</td></tr>
+<tr><td>jetty_async_requests_waiting</td><td>Gauge</td><td>Currently waiting async requests.</td></tr>
+<tr><td>jetty_async_requests_waiting_max</td><td>Gauge</td><td>Maximum number of waiting async requests.</td></tr>
+<tr><td>jetty_async_dispatches_total</td><td>Counter</td><td>Number of requested that have been asynchronously dispatched.</td></tr>
+<tr><td>jetty_expires_total</td><td>Counter</td><td>Number of async requests requests that have expired.</td></tr>
+<tr><td>jetty_responses_total</td><td>Counter</td><td>Number of responses, labeled by status code. The <code>code</code> label can be &quot;1xx&quot;, &quot;2xx&quot;, &quot;3xx&quot;, &quot;4xx&quot;, or &quot;5xx&quot;.</td></tr>
+<tr><td>jetty_stats_seconds</td><td>Gauge</td><td>Time in seconds stats have been collected for.</td></tr>
+<tr><td>jetty_responses_bytes_total</td><td>Counter</td><td>Total number of bytes across all responses.</td></tr>
+</tbody>
+</table>
 <h2><a class="anchor" aria-hidden="true" id="monitor"></a><a href="#monitor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor</h2>
 <p>You can <a href="https://prometheus.io/">set up a Prometheus instance</a> to collect all the metrics exposed at Pulsar components and set up <a href="https://grafana.com/">Grafana</a> dashboards to display the metrics and monitor your Pulsar cluster.</p>
 <p>The following are some Grafana dashboards examples:</p>
@@ -334,7 +368,7 @@
 <li><a href="http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana">pulsar-grafana</a>: A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.</li>
 <li><a href="https://github.com/streamnative/apache-pulsar-grafana-dashboard">apache-pulsar-grafana-dashboard</a>: A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.4.2/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#overview">Overview</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.4.2/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#overview">Overview</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

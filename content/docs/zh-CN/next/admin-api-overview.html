@@ -82,19 +82,19 @@
 <pre><code class="hljs css language-shell">bin/pulsar-admin
 </code></pre>
 <blockquote>
-<p><strong>Important</strong></p>
+<p><strong>重要</strong></p>
 <p>关于<code>pulsar-admin</code>最新最完整的信息，包括命令、参数、描述等等，可参阅<a href="https://pulsar.apache.org/tools/pulsar-admin/">pulsar-admin doc</a>。</p>
 </blockquote></li>
 <li><p>通过HTTP请求调用由 Pulsar Broker 提供的管理API <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
  对于某些RESTful风格接口，他们可能因<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307"><code>307 Temporary Redirect</code></a>被重定向到可以提供服务的所有者的Broker上，因此HTTP调用发起方需要能够处理<code>307 Temporary Redirect</code>返回。 如果你使用 <code>curl</code> 命令行，则应该指定 <code>-L</code> 来允许处理重定向。</p>
 <blockquote>
-<p><strong>Important</strong></p>
-<p>For the latest and complete information about <code>REST API</code>, including parameters, responses, samples, and more, see <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
- API doc.</p>
+<p><strong>重要</strong></p>
+<p>关于 <code>REST API</code> 最新最完整的信息，包括参数、响应、示例等等，可参阅 <a href="https://pulsar.incubator.apache.org/admin-rest-api#/">REST</a>
+ API 文档。</p>
 </blockquote></li>
 <li><p>Java客户端接口。</p>
 <blockquote>
-<p><strong>Important</strong></p>
+<p><strong>重要</strong></p>
 <p>关于<code>Java admin API</code>最新最完整的信息，包括类、方法、描述等等，可参阅<a href="https://pulsar.apache.org/api/admin/2.8.0-SNAPSHOT/">Java admin API doc</a>。</p>
 </blockquote></li>
 </ul>
@@ -144,7 +144,7 @@ REST接口和<a href="/api/admin/2.8.0-SNAPSHOT">Java管理API</a>）都需要�
 <blockquote>
 <p><strong>提示</strong></p>
 <ul>
-<li><p>If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see <a href="https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime">customize Kubernetes runtime</a>.</p></li>
+<li><p>如果您在将 Pulsar 对象名称转换为 Kubernetes 资源标签时遇到错误（例如，如果您的 Pulsar 对象名称太长可能会发生命名冲突）或想要自定义转换规则，请参阅<a href="https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime"> customize Kubernetes 运行时</a>。</p></li>
 <li><p>关于如何配置 Kubernetes 运行时，参见 <a href="https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime">这里</a>。</p></li>
 </ul>
 </blockquote>

@@ -174,12 +174,12 @@
 <p>In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.</p>
 <p>Be aware that negative acknowledgment on ordered subscription types, such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.</p>
 <blockquote>
-<p><strong>Note</strong> If batching is enabled, other messages and the negatively acknowledged messages in the same batch are redelivered to the consumer.</p>
+<p><strong>Note</strong> 如果启用批处理，则同一批次中的其他消息和已确认的取消消息将重新传递给消费者。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="确认超时"></a><a href="#确认超时" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>确认超时</h3>
 <p>如果消息没有被成功消费，你想去让 broker 自动重新交付这个消息， 你可以采用未确认消息自动重新交付机制。 客户端会跟踪 <code>超时</code> 时间范围内所有未确认的消息。 并且在指定超时时间后会发送一个 <code>重发未确认的消息</code> 请求到 broker。</p>
 <blockquote>
-<p><strong>Note</strong> If batching is enabled, other messages and the unacknowledged messages in the same batch are redelivered to the consumer.</p>
+<p><strong>Note</strong> 如果启用批处理，则同一批次中的其他消息和未确认消息将重新传递给消费者。</p>
 </blockquote>
 <blockquote>
 <p><strong>Note</strong>    <br>
