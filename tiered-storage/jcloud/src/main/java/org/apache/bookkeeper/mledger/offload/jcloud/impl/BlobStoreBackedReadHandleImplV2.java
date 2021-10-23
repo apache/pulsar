@@ -155,6 +155,10 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 long entriesToRead = (groupedReader.lastEntry - groupedReader.firstEntry) + 1;
                 long nextExpectedId = groupedReader.firstEntry;
                 try {
+                    groupedReader.inputStream
+                            .seek(groupedReader.index
+                                    .getIndexEntryForEntry(groupedReader.ledgerId, nextExpectedId)
+                                    .getDataOffset());
                     while (entriesToRead > 0) {
 
                         long entryId;

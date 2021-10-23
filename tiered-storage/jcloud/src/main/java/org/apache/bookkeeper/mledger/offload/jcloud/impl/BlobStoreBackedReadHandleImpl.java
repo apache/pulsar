@@ -125,7 +125,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
                     inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
                 }
-
+                inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
                 while (entriesToRead > 0) {
                     if (state == State.Closed) {
                         log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
