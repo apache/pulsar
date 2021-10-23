@@ -83,7 +83,7 @@ public class PulsarVersion {
     }
 
     public static String getGitBranch() {
-        return "${git.branch}";
+        return StringUtils.isBlank("${git.branch}") ? "Unknown" : "${git.branch}";
     }
 
     public static String getBuildUser() {
