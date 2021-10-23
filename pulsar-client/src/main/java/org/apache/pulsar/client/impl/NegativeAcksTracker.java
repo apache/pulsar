@@ -97,7 +97,7 @@ class NegativeAcksTracker implements Closeable {
     }
 
     @Override
-    public synchronized void close() throws IOException {
+    public synchronized void close() {
         if (timeout != null && !timeout.isCancelled()) {
             timeout.cancel();
             timeout = null;
