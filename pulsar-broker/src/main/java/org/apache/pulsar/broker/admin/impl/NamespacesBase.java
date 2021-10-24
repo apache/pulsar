@@ -102,7 +102,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -194,8 +193,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    AdvertisedListener advertisedListener = ServiceConfigurationUtils.getInternalListener(config());
-                    if (!advertisedListener.isTlsEnabled() || !isRequestHttps()) {
+                    if (!config().isWebServiceTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
                     } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
@@ -378,8 +376,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    AdvertisedListener advertisedListener = ServiceConfigurationUtils.getInternalListener(config());
-                    if (!advertisedListener.isTlsEnabled() || !isRequestHttps()) {
+                    if (!config().isWebServiceTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
                     } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
@@ -565,8 +562,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    AdvertisedListener advertisedListener = ServiceConfigurationUtils.getInternalListener(config());
-                    if (!advertisedListener.isTlsEnabled() || !isRequestHttps()) {
+                    if (!config().isWebServiceTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
                     } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
@@ -641,8 +637,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    AdvertisedListener advertisedListener = ServiceConfigurationUtils.getInternalListener(config());
-                    if (!advertisedListener.isTlsEnabled() || !isRequestHttps()) {
+                    if (!config().isWebServiceTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
                     } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
