@@ -225,7 +225,7 @@ To package a function with **one python file** in Python, complete the following
 
    ```bash
    
-   pip install python-client==2.6.0
+   pip install pulsar-client==2.6.0
    
    ```
 
