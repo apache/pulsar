@@ -126,8 +126,8 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared)
                     .subscribe();
         } catch (PulsarClientException p) {
-            final String errMesg = String.format("Got exception while building consumer: ex={}", p.getMessage());
-            Assert.assertTrue(false, errMesg);
+            final String errMsg = String.format("Got exception while building consumer: ex=%s", p.getMessage());
+            Assert.fail(errMsg);
         }
 
         final TopicName myTopic = TopicName.get(topicString);
@@ -142,17 +142,16 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         int recvdNumBytes = 0;
         int recvdNumMsgs = 0;
         for (int ix = 0; ix < NumMessagesToSend; ix++) {
-            MessageId prodMesgId = null;
             byte[] mesg;
             try {
-                mesg = String.format("Hi, ix={}", ix).getBytes();
+                mesg = String.format("Hi, ix=%s", ix).getBytes();
                 producer.send(mesg);
                 sentNumBytes += mesg.length;
                 sentNumMsgs++;
                 this.verfyStats(topicString, rgConfig.getName(), sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, true, false);
             } catch (PulsarClientException p) {
-                final String errMesg = String.format("Got exception while sending {}-th time: ex={}", ix, p.getMessage());
-                Assert.assertTrue(false, errMesg);
+                final String errMsg = String.format("Got exception while sending %s-th time: ex=%s", ix, p.getMessage());
+                Assert.fail(errMsg);
             }
         }
         producer.close();
@@ -165,9 +164,9 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 message = consumer.receive();
                 recvdNumBytes += message.getValue().length;
             } catch (PulsarClientException p) {
-                final String errMesg = String.format("Got exception in while receiving {}-th mesg at consumer: ex={}",
+                final String errMesg = String.format("Got exception in while receiving %s-th mesg at consumer: ex=%s",
                         recvdNumMsgs, p.getMessage());
-                Assert.assertTrue(false, errMesg);
+                Assert.fail(errMesg);
             }
             // log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
             recvdNumMsgs++;
