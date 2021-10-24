@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ComparisonChain;
@@ -128,8 +127,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                         // need to force seek the read position to ensure the compactor can read
                                         // the complete last snapshot because of the compactor will read the data
                                         // before the compaction cursor mark delete position
-                                        cursor.seek(lastEntry.getPosition().getNext(),
-                                                cursor.getName().equals(COMPACTION_SUBSCRIPTION));
+                                        cursor.seek(lastEntry.getPosition().getNext(), true);
                                         callback.readEntriesComplete(entries, consumer);
                                     });
                             }
