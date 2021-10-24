@@ -44,8 +44,4 @@ public class AdvertisedListener {
     @Setter
     // the broker service uri with ssl
     private URI brokerServiceUrlTls;
-
-    public boolean isTlsEnabled() {
-        return brokerServiceUrlTls != null;
-    }
 }
