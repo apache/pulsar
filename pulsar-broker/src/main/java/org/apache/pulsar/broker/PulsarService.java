@@ -1419,7 +1419,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      */
     protected String brokerUrl(ServiceConfiguration config) {
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
-        return internalListener.getBrokerServiceUrl() != null
+        return internalListener != null && internalListener.getBrokerServiceUrl() != null
                 ? internalListener.getBrokerServiceUrl().toString() : null;
     }
 
@@ -1432,7 +1432,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      */
     public String brokerUrlTls(ServiceConfiguration config) {
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
-        return internalListener.getBrokerServiceUrlTls() != null
+        return internalListener != null && internalListener.getBrokerServiceUrlTls() != null
                 ? internalListener.getBrokerServiceUrlTls().toString() : null;
     }
 
