@@ -159,12 +159,19 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
 
     @Override
     public void stop() {
+        log.info("Stopping PulsarOffsetBackingStore");
         if (null != producer) {
+            try {
+                producer.flush();
+            } catch (PulsarClientException pce) {
+                log.warn("Failed to flush the producer", pce);
+            }
             try {
                 producer.close();
             } catch (PulsarClientException e) {
                 log.warn("Failed to close producer", e);
             }
+            producer = null;
         }
         if (null != reader) {
             try {
@@ -172,14 +179,10 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
             } catch (IOException e) {
                 log.warn("Failed to close reader", e);
             }
+            reader = null;
         }
-        if (null != client) {
-            try {
-                client.close();
-            } catch (IOException e) {
-                log.warn("Failed to close client", e);
-            }
-        }
+
+        // do not close the client, it is provided by the sink context
     }
 
     @Override
