@@ -422,11 +422,11 @@ public class SecurityUtility {
     }
 
     public static PrivateKey loadPrivateKeyFromPemFile(String keyFilePath) throws KeyManagementException {
-        PrivateKey privateKey = null;
-
         if (keyFilePath == null || keyFilePath.isEmpty()) {
-            return privateKey;
+            return null;
         }
+
+        PrivateKey privateKey;
 
         try (FileInputStream input = new FileInputStream(keyFilePath)) {
             privateKey = loadPrivateKeyFromPemStream(input);
@@ -438,11 +438,11 @@ public class SecurityUtility {
     }
 
     public static PrivateKey loadPrivateKeyFromPemStream(InputStream inStream) throws KeyManagementException {
-        PrivateKey privateKey = null;
-
         if (inStream == null) {
-            return privateKey;
+            return null;
         }
+
+        PrivateKey privateKey;
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {
