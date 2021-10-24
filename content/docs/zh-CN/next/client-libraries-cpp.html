@@ -78,7 +78,7 @@
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar C++ client</h1></header><article><div><span><p>您可以使用 Pulsar C++ 客户端在 C++ 中创建 Pulsar 生产者和消费者。</p>
 <p>C++ 客户端中生产者、消费者和 Reader 的所有方法都是线程安全的。</p>
 <h2><a class="anchor" aria-hidden="true" id="支持的平台"></a><a href="#支持的平台" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>支持的平台</h2>
-<p>Pulsar C++ client is supported on <strong>Linux</strong> ,<strong>MacOS</strong> and <strong>Windows</strong> platforms.</p>
+<p>Pulsar C++ 客户端支持 <strong>Linux</strong>、<strong>MacOS</strong> 、<strong>Windows</strong> 等平台。</p>
 <p>关于 <a href="http://www.doxygen.nl/">Doxygen</a> 生成的适用于 C++ 客户端的 API 文档，参阅<a href="/api/cpp/2.8.0-SNAPSHOT">这里</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="系统要求"></a><a href="#系统要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>系统要求</h2>
 <p>您需要先安装下列组件才能使用 C++ 客户端：</p>
@@ -180,8 +180,8 @@ $</span><span class="bash"> <span class="hljs-built_in">cd</span> /usr/src/gmock
 </code></pre>
 <p>安装RPM成功后，Pulsar 库位于 <code>/usr/lib</code> 目录中。</p>
 <blockquote>
-<p><strong>Note</strong>  <br>
-If you get the error that <code>libpulsar.so: cannot open shared object file: No such file or directory</code> when starting Pulsar client, you may need to run <code>ldconfig</code> first.</p>
+<p><strong>注意</strong>  <br>
+当启动 Pulsar 客户端的时候遇到 <code>libpulsar.so: cannot open shared object file: No such file or directory</code> ，你可能需要先运行<code>ldconfig</code>。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="安装-debian"></a><a href="#安装-debian" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装 Debian</h3>
 <ol>
@@ -204,7 +204,7 @@ If you get the error that <code>libpulsar.so: cannot open shared object file: No
 <p>安装DEB成功后，Pulsar 库位于 <code>/usr/lib</code> 目录中。</p>
 <h3><a class="anchor" aria-hidden="true" id="编译-1"></a><a href="#编译-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>编译</h3>
 <blockquote>
-<p>If you want to build RPM and Debian packages from the latest master, follow the instructions below. You should run all the instructions at the root directory of your cloned Pulsar repository.</p>
+<p>如果需要从最新的master分支上编译RPM和Debian包，可以参考下面的说明。你可以克隆 Pulsar 仓库然后在代码仓库根目录中执行命令。</p>
 </blockquote>
 <p>你可以通过下面的方式来编译包含<code>libpulsar.so</code> / <code>libpulsar.a</code> / <code>libpulsarnossl.so</code> / <code>libpulsarwithdeps.a</code>静态库以及所有必要依赖的二进制包。</p>
 <p>要构建C++库包，您需要先构建Java 包。</p>
@@ -219,7 +219,7 @@ If you get the error that <code>libpulsar.so: cannot open shared object file: No
 <tr><th>包名</th><th>内容</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
+<tr><td>pulsar-client</td><td>共享库 <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
 <tr><td>pulsar-client-devel</td><td>静态库 <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code>和 C++ 和 Cheaders</td></tr>
 <tr><td>pulsar-client-debuginfo</td><td>Debug symbols for <code>libpulsar.so</code></td></tr>
 </tbody>
@@ -234,7 +234,7 @@ If you get the error that <code>libpulsar.so: cannot open shared object file: No
 <tr><th>包名</th><th>内容</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar-client</td><td>Shared library <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
+<tr><td>pulsar-client</td><td>共享库 <code>libpulsar.so</code> and <code>libpulsarnossl.so</code></td></tr>
 <tr><td>pulsar-client-dev</td><td>静态库 <code>libpulsar.a</code>, <code>libpulsarwithdeps.a</code> 和 C++ 和 Cheaders</td></tr>
 </tbody>
 </table>
@@ -274,7 +274,7 @@ If you get the error that <code>libpulsar.so: cannot open shared object file: No
 <p>Pulsar 版本在 <a href="https://brew.sh/">Homebrew</a> 核心仓库中可用。 您可以使用以下命令安装 C++ 客户端库。 软件包已安装在库和信头中。</p>
 <pre><code class="hljs css language-shell">brew install libpulsar
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="windows-64-bit"></a><a href="#windows-64-bit" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Windows (64-bit)</h2>
+<h2><a class="anchor" aria-hidden="true" id="windows-x64"></a><a href="#windows-x64" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Windows (x64)</h2>
 <h3><a class="anchor" aria-hidden="true" id="编译-3"></a><a href="#编译-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>编译</h3>
 <ol>
 <li>克隆Pulsar项目仓库</li>
@@ -288,7 +288,7 @@ If you get the error that <code>libpulsar.so: cannot open shared object file: No
 vcpkg install --feature-flags=manifests --triplet x64-windows
 </code></pre>
 <ol>
-<li>Build C++ libraries.</li>
+<li>构建 C++ 库。</li>
 </ol>
 <pre><code class="hljs css language-shell">cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
 cmake --build ./build --config Release
@@ -296,12 +296,12 @@ cmake --build ./build --config Release
 <blockquote>
 <p><strong>NOTE</strong></p>
 <ol>
-<li>For Windows 32-bit, you need to use <code>-A Win32</code> and <code>-DVCPKG_TRIPLET=x86-windows</code>.</li>
-<li>For MSVC Debug mode, you need to replace <code>Release</code> with <code>Debug</code> for both <code>CMAKE_BUILD_TYPE</code> variable and <code>--config</code> option.</li>
+<li>对于Windows 32位, 您需要使用 <code>-A Win32</code> 和 <code>-DVCPKG_TRIPLET=x86-window</code></li>
+<li>对于MSVC 调试模式，您需要将 <code>CMAKE_BUILD_TYPE</code> 变量和 <code>--config</code> 选项中的<code>Release</code> 替换为 <code>Debug</code> 。</li>
 </ol>
 </blockquote>
 <ol>
-<li><p>Client libraries are available in the following places.</p>
+<li><p>以下位置提供了客户端库。</p>
 <p>${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.lib
 ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll</p></li>
 </ol>
@@ -317,10 +317,10 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll</p></li>
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="create-a-consumer"></a><a href="#create-a-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create a consumer</h2>
-<p>To use Pulsar as a consumer, you need to create a consumer on the C++ client. There are two main ways of using the consumer: - <a href="#blocking-example">Blocking style</a>: synchronously calling <code>receive(msg)</code>. - <a href="#consumer-with-a-message-listener">Non-blocking</a> (event based) style: using a message listener.</p>
-<h3><a class="anchor" aria-hidden="true" id="blocking-example"></a><a href="#blocking-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Blocking example</h3>
-<p>The benefit of this approach is that it is the simplest code. Simply keeps calling <code>receive(msg)</code> which blocks until a message is received.</p>
-<p>This example starts a subscription at the earliest offset and consumes 100 messages.</p>
+<p>To use Pulsar as a consumer, you need to create a consumer on the C++ client. 有两种使用消费者的主要方式： -<a href=“#blocking-example”>阻塞模式</a>：同步调用<code>receive(msg)</code>。 - <a href="#consumer-with-a-message-listener">无阻塞模式</a> (基于事件) 风格：使用消息监听器。</p>
+<h3><a class="anchor" aria-hidden="true" id="阻塞示例"></a><a href="#阻塞示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>阻塞示例</h3>
+<p>这种方法的好处就是代码简单。 只需不断调用 <code>receive(msg)</code> 阻塞直到收到消息。</p>
+<p>此示例在最早的偏移量开始订阅并消费100条消息。</p>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
 
 <span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> pulsar;
@@ -355,9 +355,9 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll</p></li>
     <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="consumer-with-a-message-listener"></a><a href="#consumer-with-a-message-listener" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer with a message listener</h3>
+<h3><a class="anchor" aria-hidden="true" id="消息监听器"></a><a href="#消息监听器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消息监听器</h3>
 <p>You can avoid running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.</p>
-<p>This example starts a subscription at the earliest offset and consumes 100 messages.</p>
+<p>此示例在最早的偏移量开始订阅并消费100条消息。</p>
 <pre><code class="hljs css language-c++"><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;pulsar/Client.h&gt;</span></span>
 <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;atomic&gt;</span></span>
 <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;thread&gt;</span></span>
@@ -557,7 +557,7 @@ client.subscribe(<span class="hljs-string">"topic-avro"</span>, <span class="hlj
 4. Create a consumer to receive a `User` instance.
 ​c++ ConsumerConfiguration consumerConf; consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor())); consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest); Consumer consumer; client.subscribe(&quot;topic-protobuf&quot;, &quot;my-sub&quot;, consumerConf, consumer); Message msg; consumer.receive(msg); User user2; user2.ParseFromArray(msg.getData(), msg.getLength()); ```</code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-python"><span class="arrow-prev">← </span><span>Python</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-node"><span>Node.js
-</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#支持的平台">支持的平台</a></li><li><a href="#系统要求">系统要求</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#编译">编译</a></li><li><a href="#安装依赖项">安装依赖项</a></li><li><a href="#安装-rpm">安装 RPM</a></li><li><a href="#安装-debian">安装 Debian</a></li><li><a href="#编译-1">编译</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#编译-2">编译</a></li><li><a href="#安装-libpulsar">安装 <code>libpulsar</code></a></li></ul></li><li><a href="#windows-64-bit">Windows (64-bit)</a><ul class="toc-headings"><li><a href="#编译-3">编译</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#create-a-consumer">Create a consumer</a><ul class="toc-headings"><li><a href="#blocking-example">Blocking example</a></li><li><a href="#consumer-with-a-message-listener">Consumer with a message listener</a></li></ul></li><li><a href="#create-a-producer">Create a producer</a><ul class="toc-headings"><li><a href="#simple-blocking-example">Simple blocking example</a></li><li><a href="#non-blocking-example">Non-blocking example</a></li><li><a href="#partitioned-topics-and-lazy-producers">Partitioned topics and lazy producers</a></li></ul></li><li><a href="#enable-authentication-in-connection-urls">Enable authentication in connection URLs</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#avro-schema">Avro schema</a></li><li><a href="#protobufnative-schema">ProtobufNative schema</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#支持的平台">支持的平台</a></li><li><a href="#系统要求">系统要求</a></li><li><a href="#linux">Linux</a><ul class="toc-headings"><li><a href="#编译">编译</a></li><li><a href="#安装依赖项">安装依赖项</a></li><li><a href="#安装-rpm">安装 RPM</a></li><li><a href="#安装-debian">安装 Debian</a></li><li><a href="#编译-1">编译</a></li></ul></li><li><a href="#macos">MacOS</a><ul class="toc-headings"><li><a href="#编译-2">编译</a></li><li><a href="#安装-libpulsar">安装 <code>libpulsar</code></a></li></ul></li><li><a href="#windows-x64">Windows (x64)</a><ul class="toc-headings"><li><a href="#编译-3">编译</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#create-a-consumer">Create a consumer</a><ul class="toc-headings"><li><a href="#阻塞示例">阻塞示例</a></li><li><a href="#消息监听器">消息监听器</a></li></ul></li><li><a href="#create-a-producer">Create a producer</a><ul class="toc-headings"><li><a href="#simple-blocking-example">Simple blocking example</a></li><li><a href="#non-blocking-example">Non-blocking example</a></li><li><a href="#partitioned-topics-and-lazy-producers">Partitioned topics and lazy producers</a></li></ul></li><li><a href="#enable-authentication-in-connection-urls">Enable authentication in connection URLs</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#avro-schema">Avro schema</a></li><li><a href="#protobufnative-schema">ProtobufNative schema</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

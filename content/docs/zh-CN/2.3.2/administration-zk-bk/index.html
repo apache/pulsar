@@ -209,13 +209,13 @@
 <h3><a class="anchor" aria-hidden="true" id="configuring-bookkeeper"></a><a href="#configuring-bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring BookKeeper</h3>
 <p>Configurable parameters for BookKeeper bookies can be found in the <a href="/docs/zh-CN/2.3.2/reference-configuration#bookkeeper"><code>conf/bookkeeper.conf</code></a> file.</p>
 <p>Minimum configuration changes required in <code>conf/bookkeeper.conf</code> are:</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># Change to point to journal disk mount point</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># journal磁盘路径(相对&amp;绝对)</span>
 <span class="hljs-attr">journalDirectory</span>=<span class="hljs-string">data/bookkeeper/journal</span>
 <span class="hljs-comment">
-# Point to ledger storage disk mount point</span>
+# ledger磁盘路径(相对&amp;绝对)</span>
 <span class="hljs-attr">ledgerDirectories</span>=<span class="hljs-string">data/bookkeeper/ledgers</span>
 <span class="hljs-comment">
-# Point to local ZK quorum</span>
+# ZK 地址</span>
 <span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181</span>
 </code></pre>
 <p>To change the zookeeper root path used by Bookkeeper, use zkLedgersRootPath=/MY-PREFIX/ledgers instead of zkServers=localhost:2181/MY-PREFIX</p>
