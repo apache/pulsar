@@ -493,5 +493,20 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertEquals(stats.compactedLedger.entries, keys + 1);
         });
+
+        // Make sure the reader can get all data from the compacted ledger and original ledger.
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
+        int received = 0;
+        while (reader.hasMessageAvailable()) {
+            reader.readNext();
+            received++;
+        }
+        Assert.assertEquals(received, keys + 1);
+        reader.close();
+        producer.close();
     }
 }
