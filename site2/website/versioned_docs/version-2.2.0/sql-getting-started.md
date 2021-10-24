@@ -115,18 +115,45 @@ If you want to try to ingest some of your own data to play around with, you can 
 For example:
 
 ```java
-public class Test {
-    
-     public static class Foo {
+public class TestProducer {
+
+    public static class Foo {
         private int field1 = 1;
         private String field2;
         private long field3;
-     }
-    
-     public static void main(String[] args) throws Exception {
+
+        public Foo() {
+        }
+
+        public int getField1() {
+            return field1;
+        }
+
+        public void setField1(int field1) {
+            this.field1 = field1;
+        }
+
+        public String getField2() {
+            return field2;
+        }
+
+        public void setField2(String field2) {
+            this.field2 = field2;
+        }
+
+        public long getField3() {
+            return field3;
+        }
+
+        public void setField3(long field3) {
+            this.field3 = field3;
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         Producer<Foo> producer = pulsarClient.newProducer(AvroSchema.of(Foo.class)).topic("test_topic").create();
-        
+
         for (int i = 0; i < 1000; i++) {
             Foo foo = new Foo();
             foo.setField1(i);
@@ -136,7 +163,7 @@ public class Test {
         }
         producer.close();
         pulsarClient.close();
-     }
+    }
 }
 ```
 

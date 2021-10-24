@@ -44,17 +44,20 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
     @Override
     public void replayComplete() {
-        log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
-                pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
-
-        if (pendingAckHandle.changeToReadyState()) {
-            pendingAckHandle.completeHandleFuture();
+        synchronized (pendingAckHandle) {
             log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                     pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
-        } else {
-            log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail!",
-                    pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+
+            if (pendingAckHandle.changeToReadyState()) {
+                pendingAckHandle.completeHandleFuture();
+                log.info("Topic name : [{}], SubName : [{}] pending ack handle cache request success!",
+                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+            } else {
+                log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail!",
+                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+            }
         }
+        pendingAckHandle.handleCacheRequest();
     }
 
     @Override

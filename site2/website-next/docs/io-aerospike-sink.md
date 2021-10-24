@@ -1,7 +1,7 @@
 ---
 id: io-aerospike-sink
 title: Aerospike sink connector
-sidebar_label: Aerospike sink connector
+sidebar_label: "Aerospike sink connector"
 ---
 
 import Tabs from '@theme/Tabs';

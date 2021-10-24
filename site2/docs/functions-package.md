@@ -200,7 +200,7 @@ To package a function with **one python file** in Python, complete the following
     The implementation of a Python function depends on the Python client, so before deploying a Python function, you need to install the corresponding version of the Python client. 
 
     ```bash
-    pip install python-client==2.6.0
+    pip install pulsar-client==2.6.0
     ```
 
 3. Run the Python Function.

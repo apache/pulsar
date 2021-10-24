@@ -1,7 +1,7 @@
 ---
 id: io-file
 title: File Connector
-sidebar_label: File Connector
+sidebar_label: "File Connector"
 ---
 
 import Tabs from '@theme/Tabs';

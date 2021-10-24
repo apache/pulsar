@@ -260,6 +260,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private long rebalanceCheckFreqSec;
     @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Interval to probe for changes in list of workers, in seconds"
+    )
+    private int workerListProbeIntervalSec = 60;
+    @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The max number of retries for initial broker reconnects when function metadata manager"
             + " tries to create producer on metadata topics"

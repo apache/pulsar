@@ -29,6 +29,12 @@ public interface TopicTransactionBufferRecoverCallBack {
     void recoverComplete();
 
     /**
+     * No message with transaction has ever been sent.
+     * Skip recovery procedure
+     */
+    void noNeedToRecover();
+
+    /**
      * Handle transactionBufferSnapshot.
      *
      * @param snapshot the transaction buffer snapshot

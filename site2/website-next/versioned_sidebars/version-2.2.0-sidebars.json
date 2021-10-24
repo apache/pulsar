@@ -1,0 +1,26 @@
+{
+  "version-2.2.0/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-binary-protocol"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-schema"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-load-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.2.0/develop-cpp"
+        }
+      ]
+    }
+  ]
+}

@@ -7,14 +7,17 @@ sidebar_label: "Setup: Pulsar Functions Worker"
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime.md).  
+Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime).  
 
 Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either based on your requirements. 
 - [run with brokers](#run-functions-worker-with-brokers)
 - [run it separately](#run-functions-worker-separately) in a different broker
 
-> Note  
-> The `--- Service Urls---` lines in the following diagrams represent Pulsar service URLs that Pulsar client and admin use to connect to a Pulsar cluster.
+:::note
+
+The `--- Service Urls---` lines in the following diagrams represent Pulsar service URLs that Pulsar client and admin use to connect to a Pulsar cluster.
+
+:::
 
 ## Run Functions-worker with brokers
 
@@ -24,9 +27,10 @@ The following diagram illustrates the deployment of functions-workers running al
 
 To enable functions-worker running as part of a broker, you need to set `functionsWorkerEnabled` to `true` in the `broker.conf` file.
 
-
 ```conf
+
 functionsWorkerEnabled=true
+
 ```
 
 If the `functionsWorkerEnabled` is set to `true`, the functions-worker is started as part of a broker. You need to configure the `conf/functions_worker.yml` file to customize your functions_worker.
@@ -55,35 +59,41 @@ If you want to use Stateful-Functions related functions (for example,  `putState
 
    Currently, the service uses the NAR package, so you need to set the configuration in `bookkeeper.conf`.
 
-
-```text
-    extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-```
+   ```text
+   
+   extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
+   
+   ```
 
    After starting bookie, use the following methods to check whether the streamStorage service is started correctly.
 
    Input:
-   
 
-```shell
-    telnet localhost 4181
-```
+   ```shell
+   
+   telnet localhost 4181
+   
+   ```
+
    Output:
 
-```text
-    Trying 127.0.0.1...
-    Connected to localhost.
-    Escape character is '^]'.
-```
+   ```text
+   
+   Trying 127.0.0.1...
+   Connected to localhost.
+   Escape character is '^]'.
+   
+   ```
 
 2. Turn on this function in `functions_worker.yml`.
 
+   ```text
+   
+   stateStorageServiceUrl: bk://<bk-service-url>:4181
+   
+   ```
 
-```text
-    stateStorageServiceUrl: bk://<bk-service-url>:4181
-```
-    
-    `bk-service-url` is the service URL pointing to the BookKeeper table service.
+   `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
 ### Start Functions-worker with broker
 
@@ -91,16 +101,18 @@ Once you have configured the `functions_worker.yml` file, you can start or resta
 
 And then you can use the following command to verify if `functions-worker` is running well.
 
-
 ```bash
+
 curl <broker-ip>:8080/admin/v2/worker/cluster
+
 ```
 
 After entering the command above, a list of active function workers in the cluster is returned. The output is similar to the following.
 
-
 ```json
+
 [{"workerId":"<worker-id>","workerHostname":"<worker-hostname>","port":8080}]
+
 ```
 
 ## Run Functions-worker separately
@@ -109,8 +121,11 @@ This section illustrates how to run `functions-worker` as a separate process in 
 
 ![assets/functions-worker-separated.png](/assets/functions-worker-separated.png)
 
-> Note    
-> In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake. Also, while accessing the `functions-worker` to manage any of the functions, the `pulsar-admin` CLI tool or any of the clients should use the `workerHostname` and `workerPort` that you set in [Worker parameters](#worker-parameters) to generate an `--admin-url`.
+:::note
+
+In this mode, make sure `functionsWorkerEnabled` is set to `false`, so you won't start `functions-worker` with brokers by mistake. Also, while accessing the `functions-worker` to manage any of the functions, the `pulsar-admin` CLI tool or any of the clients should use the `workerHostname` and `workerPort` that you set in [Worker parameters](#worker-parameters) to generate an `--admin-url`.
+
+:::
 
 ### Configure Functions-worker to run separately
 
@@ -150,8 +165,8 @@ If you want to enable security on functions workers, you *should*:
 
 To enable TLS transport encryption, configure the following settings.
 
-
 ```
+
 useTLS: true
 pulsarServiceUrl: pulsar+ssl://localhost:6651/
 pulsarWebServiceUrl: https://localhost:8443
@@ -163,87 +178,98 @@ tlsTrustCertsFilePath:  /path/to/ca.cert.pem
 
 // The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
 brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
+
 ```
 
-For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport.md).
+For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport).
 
 ##### Enable Authentication Provider
 
 To enable authentication on Functions Worker, you need to configure the following settings.
 
-> Note  
-> Substitute the *providers list* with the providers you want to enable.
+:::note
 
+Substitute the *providers list* with the providers you want to enable.
+
+:::
 
 ```
+
 authenticationEnabled: true
 authenticationProviders: [ provider1, provider2 ]
+
 ```
 
 For *TLS Authentication* provider, follow the example below to add the necessary settings.
-See [TLS Authentication](security-tls-authentication.md) for more details.
-
+See [TLS Authentication](security-tls-authentication) for more details.
 
 ```
+
 brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
 
 authenticationEnabled: true
 authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
+
 ```
 
 For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasBrokerSectionName`
 under `properties` if needed. 
 
-
 ```
+
 properties:
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasBrokerSectionName: Broker
+
 ```
 
 For *Token Authentication* provider, add necessary settings for `properties` if needed.
-See [Token Authentication](security-jwt.md) for more details.
+See [Token Authentication](security-jwt) for more details.
 Note: key files must be DER-encoded
 
 ```
+
 properties:
   tokenSecretKey:       file://my/secret.key 
   # If using public/private
-  # tokenPublicKey:     file:///path/to/public.key 
+  # tokenPublicKey:     file:///path/to/public.key
+
 ```
 
 ##### Enable Authorization Provider
 
 To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
 
-
 ```yaml
+
 authorizationEnabled: true
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 configurationStoreServers: <configuration-store-servers>
+
 ```
 
 You should also configure a list of superuser roles. The superuser roles are able to access any admin API. The following is a configuration example.
 
-
 ```yaml
+
 superUserRoles:
   - role1
   - role2
   - role3
+
 ```
 
 ##### Enable End-to-End Encryption
 
 You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
 
-To enable End-to-End encryption on Functions Worker, you can set it by specifying `--producer-config` in the command line terminal, for more information, please refer to [here](security-encryption.md).
+To enable End-to-End encryption on Functions Worker, you can set it by specifying `--producer-config` in the command line terminal, for more information, please refer to [here](security-encryption).
 
 We include the relevant configuration information of `CryptoConfig` into `ProducerConfig`. The specific configurable field information about `CryptoConfig` is as follows:
 
-
 ```text
+
 public class CryptoConfig {
     private String cryptoKeyReaderClassName;
     private Map<String, Object> cryptoKeyReaderConfig;
@@ -253,6 +279,7 @@ public class CryptoConfig {
 
     private ConsumerCryptoFailureAction consumerCryptoFailureAction;
 }
+
 ```
 
 - `producerCryptoFailureAction`: define the action if producer fail to encrypt data one of `FAIL`, `SEND`.
@@ -270,16 +297,18 @@ If authentication is enabled on the BookKeeper cluster, you need configure the B
 
 Once you have finished configuring the `functions_worker.yml` configuration file, you can start a `functions-worker` in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
-
 ```bash
+
 bin/pulsar-daemon start functions-worker
+
 ```
 
 You can also start `functions-worker` in the foreground by using `pulsar` CLI tool:
 
-
 ```bash
+
 bin/pulsar functions-worker
+
 ```
 
 ### Configure Proxies for Functions-workers
@@ -297,10 +326,11 @@ start proxies.
 
 To enable routing functions related admin requests to `functions-worker` in a proxy, you can edit the `proxy.conf` file to modify the following settings:
 
-
 ```conf
+
 functionWorkerWebServiceURL=<pulsar-functions-worker-web-service-url>
 functionWorkerWebServiceURLTLS=<pulsar-functions-worker-web-service-url>
+
 ```
 
 ## Compare the Run-with-Broker and Run-separately modes
@@ -321,9 +351,10 @@ Use the `Run-separately` mode in the following cases:
 
 **Error message: Namespace missing local cluster name in clusters list**
 
-
 ```
+
 Failed to get partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException$BrokerMetadataException: Namespace missing local cluster name in clusters list: local_cluster=xyz ns=public/functions clusters=[standalone]
+
 ```
 
 The error message prompts when either of the cases occurs:
@@ -338,16 +369,18 @@ If any of these cases happens, follow the instructions below to fix the problem:
 
 2. Get the current clusters list of `public/functions` namespace.
 
-
 ```bash
+
 bin/pulsar-admin namespaces get-clusters public/functions
+
 ```
 
 3. Check if the cluster is in the clusters list. If the cluster is not in the list, add it to the list and update the clusters list.
 
-
 ```bash
+
 bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-cluster> public/functions
+
 ```
 
 4. After setting the cluster successfully, enable functions worker by setting `functionsWorkerEnabled=true`. 

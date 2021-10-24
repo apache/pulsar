@@ -46,8 +46,10 @@ public class RoundRobinScheduler implements IScheduler {
             workerIdToAssignment.put(workerId, new LinkedList<>());
         }
 
-        for (Assignment existingAssignment : currentAssignments) {
-            workerIdToAssignment.get(existingAssignment.getWorkerId()).add(existingAssignment.getInstance());
+        if (currentAssignments != null) {
+            for (Assignment existingAssignment : currentAssignments) {
+                workerIdToAssignment.get(existingAssignment.getWorkerId()).add(existingAssignment.getInstance());
+            }
         }
 
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {

@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-impl")
@@ -71,6 +72,31 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         producer.getClientCnx().handleSuccess(commandSuccess);
         Thread.sleep(3000);
         Assert.assertEquals(completableFuture.isDone(), true);
+    }
+
+    @Test(timeOut = 10_000)
+    public void testProducerCloseFailsPendingBatchWhenPreviousStateNotReadyCallback() throws Exception {
+        initClient();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerClose")
+                .maxPendingMessages(10)
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
+                .enableBatching(true)
+                .create();
+        CompletableFuture<MessageId> completableFuture = producer.newMessage()
+            .value("test-msg".getBytes(StandardCharsets.UTF_8))
+            .sendAsync();
+        // By setting the state to Failed, the close method will exit early because the previous state was not Ready.
+        producer.setState(HandlerState.State.Failed);
+        producer.closeAsync();
+        Assert.assertTrue(completableFuture.isCompletedExceptionally());
+        try {
+            completableFuture.get();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.AlreadyClosedException);
+        }
     }
 
     private void initClient() throws PulsarClientException {
