@@ -1,7 +1,7 @@
 ---
 id: concepts-overview
 title: Pulsar Overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: concepts-overview
 ---
 

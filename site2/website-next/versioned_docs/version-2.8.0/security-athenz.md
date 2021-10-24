@@ -1,7 +1,7 @@
 ---
 id: security-athenz
 title: Authentication using Athenz
-sidebar_label: Authentication using Athenz
+sidebar_label: "Authentication using Athenz"
 original_id: security-athenz
 ---
 
@@ -99,3 +99,4 @@ tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/cacert.pem
 
 ```
+

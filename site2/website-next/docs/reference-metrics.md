@@ -1,7 +1,7 @@
 ---
 id: reference-metrics
 title: Pulsar Metrics
-sidebar_label: Pulsar Metrics
+sidebar_label: "Pulsar Metrics"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -106,14 +106,14 @@ The following metrics are available for broker:
   - [Storage metrics](#storage-metrics)
 - [Broker](#broker)
   - [Namespace metrics](#namespace-metrics)
-    - [Replication metrics](#replication-metrics)
+  - [Replication metrics](#replication-metrics)
   - [Topic metrics](#topic-metrics)
-    - [Replication metrics](#replication-metrics-1)
+  - [Replication metrics](#replication-metrics-1)
   - [ManagedLedgerCache metrics](#managedledgercache-metrics)
   - [ManagedLedger metrics](#managedledger-metrics)
   - [LoadBalancing metrics](#loadbalancing-metrics)
-    - [BundleUnloading metrics](#bundleunloading-metrics)
-    - [BundleSplit metrics](#bundlesplit-metrics)
+  - [BundleUnloading metrics](#bundleunloading-metrics)
+  - [BundleSplit metrics](#bundlesplit-metrics)
   - [Subscription metrics](#subscription-metrics)
   - [Consumer metrics](#consumer-metrics)
   - [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
@@ -291,7 +291,7 @@ All the cursor acknowledgment state metrics are labelled with the following labe
 
 Name	|Type	|Description
 |---|---|---
-brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to a ledger.|
+brk_ml_cursor_persistLedgerSucceed(namespace=", ledger_name="", cursor_name:")|Gauge|The number of acknowledgment states that is persistent to a ledger.|
 brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to the ledger.|
 brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of acknowledgment states that is persistent to ZooKeeper.
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")|Gauge|The number of ledger errors occurred when acknowledgment states fail to be persistent to ZooKeeper.

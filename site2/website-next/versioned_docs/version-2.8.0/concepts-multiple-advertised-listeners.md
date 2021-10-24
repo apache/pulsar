@@ -1,7 +1,7 @@
 ---
 id: concepts-multiple-advertised-listeners
 title: Multiple advertised listeners
-sidebar_label: Multiple advertised listeners
+sidebar_label: "Multiple advertised listeners"
 original_id: concepts-multiple-advertised-listeners
 ---
 
@@ -45,3 +45,4 @@ PulsarClient client = PulsarClient.builder()
     .build();
 
 ```
+

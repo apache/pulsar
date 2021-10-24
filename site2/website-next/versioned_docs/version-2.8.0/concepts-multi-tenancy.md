@@ -1,7 +1,7 @@
 ---
 id: concepts-multi-tenancy
 title: Multi Tenancy
-sidebar_label: Multi Tenancy
+sidebar_label: "Multi Tenancy"
 original_id: concepts-multi-tenancy
 ---
 
