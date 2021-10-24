@@ -216,7 +216,7 @@ To package a function with **one python file** in Python, complete the following
 
     ```bash
     ./bin/pulsar-admin functions localrun \
-    --classname org.example.test.ExclamationFunction \
+    --classname <Python Function file name>.<Python Function class name> \
     --py <path of Python Function file> \
     --inputs persistent://public/default/my-topic-1 \
     --output persistent://public/default/test-1 \
