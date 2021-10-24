@@ -325,12 +325,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
-        doc = "Enable TLS"
-    )
-    @Deprecated
-    private boolean tlsEnabled = false;
-    @FieldContext(
-        category = CATEGORY_WORKER_SECURITY,
         doc = "Path for the TLS certificate file"
     )
     private String tlsCertificateFilePath;
@@ -402,7 +396,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {
-    	return tlsEnabled && workerPortTls != null;
+        return workerPortTls != null;
     }
 
     @FieldContext(

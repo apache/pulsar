@@ -1067,12 +1067,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Enable TLS"
-    )
-    @Deprecated
-    private boolean tlsEnabled = false;
-    @FieldContext(
-        category = CATEGORY_TLS,
         doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
     )
     private long tlsCertRefreshCheckDurationSec = 300;
@@ -2427,4 +2421,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         }
     }
 
+    public boolean isWebServiceTlsEnabled() {
+        return webServicePortTls.isPresent();
+    }
 }

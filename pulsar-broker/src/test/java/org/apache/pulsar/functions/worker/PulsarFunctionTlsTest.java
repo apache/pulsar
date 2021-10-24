@@ -116,7 +116,6 @@ public class PulsarFunctionTlsTest {
             config.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
             config.setFunctionsWorkerEnabled(true);
-            config.setTlsEnabled(true);
 
             WorkerConfig workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, null);
             tempDirectories[i] = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
@@ -135,7 +134,6 @@ public class PulsarFunctionTlsTest {
             workerConfig.setFunctionMetadataTopicName("metadata");
             workerConfig.setInstanceLivenessCheckFreqMs(100);
             workerConfig.setBrokerClientAuthenticationEnabled(true);
-            workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
             WorkerService fnWorkerService = WorkerServiceLoader.load(workerConfig);
 

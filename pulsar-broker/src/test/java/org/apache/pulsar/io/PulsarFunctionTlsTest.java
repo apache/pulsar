@@ -216,7 +216,6 @@ public class PulsarFunctionTlsTest {
         workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
 
         workerConfig.setWorkerPortTls(0);
-        workerConfig.setTlsEnabled(true);
         workerConfig.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         workerConfig.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 

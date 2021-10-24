@@ -203,7 +203,6 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
     public void setConfig3DefaultValue() {
         setConfigDefaults(config3, "r3", bkEnsemble3);
-        config3.setTlsEnabled(true);
     }
 
     public void setConfig1DefaultValue(){

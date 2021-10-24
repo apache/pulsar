@@ -1311,9 +1311,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public synchronized PulsarClient getClient() throws PulsarServerException {
         if (this.client == null) {
             try {
+                final String serviceUrl = this.getConfiguration().isBrokerClientTlsEnabled()
+                        ? brokerServiceUrlTls : brokerServiceUrl;
+                if (serviceUrl == null) {
+                    throw new IllegalArgumentException("Service URL was not set properly "
+                            + ", isBrokerClientTlsEnabled: " + this.getConfiguration().isBrokerClientTlsEnabled()
+                            + ", brokerServiceUrl: " + brokerServiceUrl
+                            + ", brokerServiceUrlTls: " + brokerServiceUrlTls);
+                }
                 ClientConfigurationData conf = new ClientConfigurationData();
-                conf.setServiceUrl(this.getConfiguration().isTlsEnabled()
-                                ? this.brokerServiceUrlTls : this.brokerServiceUrl);
+                conf.setServiceUrl(serviceUrl);
                 conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                 conf.setTlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
 
@@ -1412,7 +1419,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      */
     protected String brokerUrl(ServiceConfiguration config) {
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
-        return internalListener != null && internalListener.getBrokerServiceUrl() != null
+        return internalListener.getBrokerServiceUrl() != null
                 ? internalListener.getBrokerServiceUrl().toString() : null;
     }
 
@@ -1425,7 +1432,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      */
     public String brokerUrlTls(ServiceConfiguration config) {
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
-        return internalListener != null && internalListener.getBrokerServiceUrlTls() != null
+        return internalListener.getBrokerServiceUrlTls() != null
                 ? internalListener.getBrokerServiceUrlTls().toString() : null;
     }
 
@@ -1604,7 +1611,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
         workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
-        workerConfig.setTlsEnabled(brokerConfig.isTlsEnabled());
         workerConfig.setTlsEnableHostnameVerification(false);
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 

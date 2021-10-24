@@ -167,9 +167,6 @@ public class WebSocketService implements Closeable {
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
                 .statsInterval(0, TimeUnit.SECONDS) //
-                .enableTls(config.isTlsEnabled()) //
-                .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
-                .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
                 .ioThreads(config.getWebSocketNumIoThreads()) //
                 .connectionsPerBroker(config.getWebSocketConnectionsPerBroker());
 
@@ -181,7 +178,9 @@ public class WebSocketService implements Closeable {
 
         if (config.isBrokerClientTlsEnabled()) {
 			if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
+					clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls())
+                            .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection())
+                            .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath());
 			} else if (isNotBlank(clusterData.getServiceUrlTls())) {
 					clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
 			}

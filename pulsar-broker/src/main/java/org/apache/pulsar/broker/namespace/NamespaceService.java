@@ -1205,7 +1205,7 @@ public class NamespaceService implements AutoCloseable {
                         pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
 
-                if (pulsar.getConfiguration().isTlsEnabled()) {
+                if (pulsar.getBrokerServiceUrlTls() != null) {
                     clientBuilder
                         .serviceUrl(isNotBlank(cluster.getBrokerServiceUrlTls())
                             ? cluster.getBrokerServiceUrlTls() : cluster.getServiceUrlTls())

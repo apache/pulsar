@@ -83,7 +83,7 @@ public class ServiceConfigurationUtils {
 
     /**
      * Gets the internal advertised listener for broker-to-broker communication.
-     * @return an advertised listener
+     * @return an advertised listener that is not null
      */
     public static AdvertisedListener getInternalListener(ServiceConfiguration config) {
         Map<String, AdvertisedListener> result = MultipleListenerValidator
