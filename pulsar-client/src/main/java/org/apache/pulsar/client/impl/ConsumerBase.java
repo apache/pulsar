@@ -717,7 +717,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected void onAckTimeoutSend(Set<MessageId> messageIds) {
         if (interceptors != null) {
-            interceptors. onAckTimeoutSend(this, messageIds);
+            interceptors.onAckTimeoutSend(this, messageIds);
         }
     }
 
