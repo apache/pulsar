@@ -2035,6 +2035,10 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
 
+        <!-- tiered-storage related modules -->
+        <module>tiered-storage/file-system</module>
+        <module>tiered-storage/jcloud</module>
+
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
 
