@@ -387,13 +387,13 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>tiered-storage-file-system</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>tiered-storage-jcloud</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
