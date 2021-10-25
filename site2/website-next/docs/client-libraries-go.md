@@ -1,7 +1,7 @@
 ---
 id: client-libraries-go
 title: Pulsar Go client
-sidebar_label: Go
+sidebar_label: "Go"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -51,6 +51,7 @@ pulsar://localhost:6650
 If you have multiple brokers, you can set the URL as below.
 
 ```
+
 pulsar://localhost:6550,localhost:6651,localhost:6652
 
 ```
@@ -102,6 +103,7 @@ func main() {
 If you have multiple brokers, you can initiate a client object as below.
 
 ```
+
 import (
     "log"
     "time"
@@ -882,3 +884,4 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 })
 
 ```
+

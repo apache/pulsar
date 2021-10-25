@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import com.google.common.collect.Lists;
-
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -69,8 +67,8 @@ public class WebServer {
     private final Server server;
     private final WebExecutorThreadPool webServiceExecutor;
     private final AuthenticationService authenticationService;
-    private final List<String> servletPaths = Lists.newArrayList();
-    private final List<Handler> handlers = Lists.newArrayList();
+    private final List<String> servletPaths = new ArrayList<>();
+    private final List<Handler> handlers = new ArrayList<>();
     private final ProxyConfiguration config;
     protected int externalServicePort;
     private URI serviceURI = null;
@@ -84,7 +82,7 @@ public class WebServer {
         this.authenticationService = authenticationService;
         this.config = config;
 
-        List<ServerConnector> connectors = Lists.newArrayList();
+        List<ServerConnector> connectors = new ArrayList<>();
 
         HttpConfiguration http_config = new HttpConfiguration();
         http_config.setOutputBufferSize(config.getHttpOutputBufferSize());

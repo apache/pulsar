@@ -1,7 +1,7 @@
 ---
 id: administration-proxy
 title: Pulsar proxy
-sidebar_label: Pulsar proxy
+sidebar_label: "Pulsar proxy"
 original_id: administration-proxy
 ---
 

@@ -72,6 +72,10 @@ If you construct a producer without specifying a schema, then the producer can o
 **Example**
 
 ```
+<<<<<<< HEAD
+=======
+
+>>>>>>> up/master
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .create();
@@ -80,6 +84,10 @@ byte[] message = … // serialize the `user` by yourself;
 producer.send(message);
 
 ```
+<<<<<<< HEAD
+=======
+
+>>>>>>> up/master
 ### With schema
 
 If you construct a producer with specifying a schema, then you can send a class to a topic directly without worrying about how to serialize POJOs into bytes. 

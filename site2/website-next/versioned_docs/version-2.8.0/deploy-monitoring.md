@@ -1,7 +1,7 @@
 ---
 id: deploy-monitoring
 title: Monitor
-sidebar_label: Monitor
+sidebar_label: "Monitor"
 original_id: deploy-monitoring
 ---
 
@@ -22,17 +22,17 @@ You can collect Pulsar broker metrics from brokers and export the metrics in JSO
 * *Destination dumps*, which contain stats for each individual topic. You can fetch the destination dumps using the command below:
 
   ```shell
-
+  
   bin/pulsar-admin broker-stats destinations
-
+  
   ```
 
 * Broker metrics, which contain the broker information and topics stats aggregated at namespace level. You can fetch the broker metrics by using the following command:
 
   ```shell
-
+  
   bin/pulsar-admin broker-stats monitoring-metrics
-
+  
   ```
 
 All the message rates are updated every minute.
@@ -76,7 +76,8 @@ The default port for bookie is `8000`. You can change the port by configuring `p
 The acknowledgment state is persistent to the ledger first. When the acknowledgment state fails to be persistent to the ledger, they are persistent to ZooKeeper. To track the stats of acknowledgement, you can configure the metrics for the managed cursor. 
 
 ```
-brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")
+
+brk_ml_cursor_persistLedgerSucceed(namespace=", ledger_name="", cursor_name:")
 brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")
@@ -91,6 +92,7 @@ Those metrics are added in the Prometheus interface, you can monitor and check t
 You can collect functions worker stats from `functions-worker` and export the metrics in JSON formats, which contain functions worker JVM metrics.
 
 ```
+
 pulsar-admin functions-worker monitoring-metrics
 
 ```
@@ -98,6 +100,7 @@ pulsar-admin functions-worker monitoring-metrics
 You can collect functions and connectors metrics from `functions-worker` and export the metrics in JSON formats.
 
 ```
+
 pulsar-admin functions-worker function-stats
 
 ```
@@ -105,6 +108,7 @@ pulsar-admin functions-worker function-stats
 The aggregated functions and connectors metrics can be exposed in Prometheus formats as below. You can get [`FUNCTIONS_WORKER_ADDRESS`](http://pulsar.apache.org/docs/en/next/functions-worker/) and `WORKER_PORT` from the `functions_worker.yml` file.
 
 ```
+
 http://$FUNCTIONS_WORKER_ADDRESS:$WORKER_PORT/metrics:
 
 ```

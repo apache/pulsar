@@ -1,7 +1,7 @@
 ---
 id: admin-api-brokers
 title: Managing Brokers
-sidebar_label: Brokers
+sidebar_label: "Brokers"
 original_id: admin-api-brokers
 ---
 
@@ -55,6 +55,7 @@ $ pulsar-admin brokers list use
 ```
 
 ```
+
 broker1.use.org.com:8080
 
 ```
@@ -117,6 +118,7 @@ $ pulsar-admin brokers namespaces use \
 }
 
 ```
+
 </TabItem>
 <TabItem value="REST API">
 
@@ -130,6 +132,7 @@ $ pulsar-admin brokers namespaces use \
 admin.brokers().getOwnedNamespaces(cluster,brokerUrl);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -184,6 +187,7 @@ $ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --
 admin.brokers().updateDynamicConfiguration(configName, configValue);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -229,6 +233,7 @@ brokerShutdownTimeoutMs
 admin.brokers().getDynamicConfigurationNames();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -275,6 +280,7 @@ brokerShutdownTimeoutMs:100
 admin.brokers().getAllDynamicConfigurations();
 
 ```
+
 </TabItem>
 
 </Tabs>

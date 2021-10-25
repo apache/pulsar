@@ -1,7 +1,7 @@
 ---
 id: admin-api-persistent-topics
 title: Managing persistent topics
-sidebar_label: Persistent topics
+sidebar_label: "Persistent topics"
 ---
 
 import Tabs from '@theme/Tabs';

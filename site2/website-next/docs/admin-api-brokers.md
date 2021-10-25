@@ -1,7 +1,7 @@
 ---
 id: admin-api-brokers
 title: Managing Brokers
-sidebar_label: Brokers
+sidebar_label: "Brokers"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -64,6 +64,7 @@ $ pulsar-admin brokers list use
 ```
 
 ```
+
 broker1.use.org.com:8080
 
 ```
@@ -115,6 +116,7 @@ $ pulsar-admin brokers leader-broker
 ```
 
 ```
+
 BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 
 ```
@@ -132,6 +134,7 @@ BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 admin.brokers().getLeaderBroker()
 
 ```
+
 For the detail of the code above, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/BrokersImpl.java#L80)
 
 </TabItem>
@@ -178,6 +181,7 @@ $ pulsar-admin brokers namespaces use \
 }
 
 ```
+
 </TabItem>
 <TabItem value="REST API">
 
@@ -191,6 +195,7 @@ $ pulsar-admin brokers namespaces use \
 admin.brokers().getOwnedNamespaces(cluster,brokerUrl);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -245,6 +250,7 @@ $ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --
 admin.brokers().updateDynamicConfiguration(configName, configValue);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -290,6 +296,7 @@ brokerShutdownTimeoutMs
 admin.brokers().getDynamicConfigurationNames();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -336,6 +343,7 @@ brokerShutdownTimeoutMs:100
 admin.brokers().getAllDynamicConfigurations();
 
 ```
+
 </TabItem>
 
 </Tabs>

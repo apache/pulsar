@@ -1,7 +1,7 @@
 ---
 id: adaptors-spark
 title: Pulsar adaptor for Apache Spark
-sidebar_label: Apache Spark
+sidebar_label: "Apache Spark"
 original_id: adaptors-spark
 ---
 
@@ -92,3 +92,4 @@ SparkStreamingPulsarReceiver pulsarReceiver = new SparkStreamingPulsarReceiver(
         new AuthenticationToken("token:<secret-JWT-token>"));
 
 ```
+

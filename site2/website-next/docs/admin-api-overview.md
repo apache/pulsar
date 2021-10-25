@@ -1,7 +1,7 @@
 ---
 id: admin-api-overview
 title: Pulsar admin interface
-sidebar_label: Overview
+sidebar_label: "Overview"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -14,11 +14,11 @@ You can interact with the admin interface via:
 
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
-    ```shell
-
-    bin/pulsar-admin
-
-    ```
+  ```shell
+  
+  bin/pulsar-admin
+  
+  ```
 
   > **Important**
   > 
@@ -121,6 +121,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .build();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -141,12 +142,10 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   - Dots (.) 
   
 - Replace beginning and ending non-alphanumeric characters with 0
-
+  
 :::tip
 
-
 - If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
-
 - For how to configure Kubernetes runtime, see [here](https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime).
 
 :::

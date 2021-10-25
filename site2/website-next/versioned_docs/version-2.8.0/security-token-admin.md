@@ -1,7 +1,7 @@
 ---
 id: security-token-admin
 title: Token authentication admin
-sidebar_label: Token authentication admin
+sidebar_label: "Token authentication admin"
 original_id: security-token-admin
 ---
 
@@ -21,9 +21,10 @@ A user will typically be given a token string by an administrator (or some autom
 The compact representation of a signed JWT is a string that looks like:
 
 ```
+
  eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 
- ```
+```
 
 Application will specify the token when creating the client instance. An alternative is to pass
 a "token supplier", that is to say a function that returns the token when the client library
@@ -59,6 +60,7 @@ the brokers to allow them to validate the clients.
 $ bin/pulsar tokens create-secret-key --output my-secret.key
 
 ```
+
 To generate base64 encoded private key
 
 ```shell
@@ -182,3 +184,4 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 # brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
 
 ```
+

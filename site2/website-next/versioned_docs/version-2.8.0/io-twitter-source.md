@@ -1,7 +1,7 @@
 ---
 id: io-twitter-source
 title: Twitter Firehose source connector
-sidebar_label: Twitter Firehose source connector
+sidebar_label: "Twitter Firehose source connector"
 original_id: io-twitter-source
 ---
 

@@ -1,7 +1,7 @@
 ---
 id: admin-api-partitioned-topics
 title: Managing partitioned topics
-sidebar_label: Partitioned topics
+sidebar_label: "Partitioned topics"
 original_id: admin-api-partitioned-topics
 ---
 

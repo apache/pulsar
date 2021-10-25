@@ -1,7 +1,7 @@
 ---
 id: io-cli
 title: Connector Admin CLI
-sidebar_label: CLI
+sidebar_label: "CLI"
 original_id: io-cli
 ---
 

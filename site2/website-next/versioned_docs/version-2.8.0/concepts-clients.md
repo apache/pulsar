@@ -1,7 +1,7 @@
 ---
 id: concepts-clients
 title: Pulsar Clients
-sidebar_label: Clients
+sidebar_label: "Clients"
 original_id: concepts-clients
 ---
 
@@ -93,3 +93,4 @@ Reader<byte[]> reader = pulsarClient.newReader()
     .create();
 
 ```
+

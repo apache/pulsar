@@ -1,7 +1,7 @@
 ---
 id: io-kinesis-source
 title: Kinesis source connector
-sidebar_label: Kinesis source connector
+sidebar_label: "Kinesis source connector"
 original_id: io-kinesis-source
 ---
 
@@ -46,40 +46,40 @@ Before using the Kinesis source connector, you need to create a configuration fi
 
 * JSON 
 
-    ```json
-
-    {
-        "awsEndpoint": "https://some.endpoint.aws",
-        "awsRegion": "us-east-1",
-        "awsKinesisStreamName": "my-stream",
-        "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
-        "applicationName": "My test application",
-        "checkpointInterval": "30000",
-        "backoffTime": "4000",
-        "numRetries": "3",
-        "receiveQueueSize": 2000,
-        "initialPositionInStream": "TRIM_HORIZON",
-        "startAtTime": "2019-03-05T19:28:58.000Z"
-    }
-
-    ```
+  ```json
+  
+  {
+      "awsEndpoint": "https://some.endpoint.aws",
+      "awsRegion": "us-east-1",
+      "awsKinesisStreamName": "my-stream",
+      "awsCredentialPluginParam": "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}",
+      "applicationName": "My test application",
+      "checkpointInterval": "30000",
+      "backoffTime": "4000",
+      "numRetries": "3",
+      "receiveQueueSize": 2000,
+      "initialPositionInStream": "TRIM_HORIZON",
+      "startAtTime": "2019-03-05T19:28:58.000Z"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-
-    configs:
-        awsEndpoint: "https://some.endpoint.aws"
-        awsRegion: "us-east-1"
-        awsKinesisStreamName: "my-stream"
-        awsCredentialPluginParam: "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}"
-        applicationName: "My test application"
-        checkpointInterval: 30000
-        backoffTime: 4000
-        numRetries: 3
-        receiveQueueSize: 2000
-        initialPositionInStream: "TRIM_HORIZON"
-        startAtTime: "2019-03-05T19:28:58.000Z"
-
-    ```
+  ```yaml
+  
+  configs:
+      awsEndpoint: "https://some.endpoint.aws"
+      awsRegion: "us-east-1"
+      awsKinesisStreamName: "my-stream"
+      awsCredentialPluginParam: "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}"
+      applicationName: "My test application"
+      checkpointInterval: 30000
+      backoffTime: 4000
+      numRetries: 3
+      receiveQueueSize: 2000
+      initialPositionInStream: "TRIM_HORIZON"
+      startAtTime: "2019-03-05T19:28:58.000Z"
+  
+  ```
 
