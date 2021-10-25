@@ -2036,8 +2036,8 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-config-validation</module>
 
         <!-- tiered-storage related modules -->
-        <module>tiered-storage/file-system</module>
-        <module>tiered-storage/jcloud</module>
+        <module>tiered-storage</module>
+        <module>jclouds-shaded</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
