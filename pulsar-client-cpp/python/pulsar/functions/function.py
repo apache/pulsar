@@ -44,9 +44,11 @@
 """
 from abc import abstractmethod
 
+
 class Function(object):
-  """Interface for Pulsar Function"""
-  @abstractmethod
-  def process(self, input, context):
-    """Process input message"""
-    pass
+    """Interface for Pulsar Function"""
+
+    @abstractmethod
+    def process(self, input, context):
+        """Process input message"""
+        pass

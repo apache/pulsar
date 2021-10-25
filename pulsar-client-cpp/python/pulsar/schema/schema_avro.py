@@ -26,15 +26,16 @@ from .schema import Schema
 
 try:
     import fastavro
+
     HAS_AVRO = True
 except ModuleNotFoundError:
     HAS_AVRO = False
 
 if HAS_AVRO:
+
     class AvroSchema(Schema):
         def __init__(self, record_cls):
-            super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                             record_cls.schema(), 'AVRO')
+            super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO, record_cls.schema(), "AVRO")
             self._schema = record_cls.schema()
 
         def _get_serialized_value(self, x):
@@ -70,11 +71,15 @@ if HAS_AVRO:
             d = fastavro.schemaless_reader(buffer, self._schema)
             return self._record_cls(**d)
 
+
 else:
+
     class AvroSchema(Schema):
         def __init__(self, _record_cls):
-            raise Exception("Avro library support was not found. Make sure to install Pulsar client " +
-                            "with Avro support: pip3 install 'pulsar-client[avro]'")
+            raise Exception(
+                "Avro library support was not found. Make sure to install Pulsar client "
+                + "with Avro support: pip3 install 'pulsar-client[avro]'"
+            )
 
         def encode(self, obj):
             pass
