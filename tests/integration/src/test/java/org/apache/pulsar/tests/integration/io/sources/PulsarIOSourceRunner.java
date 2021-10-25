@@ -137,7 +137,7 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-            result.getStdout().contains("\"Created successfully\""),
+            result.getStdout().contains("Created successfully"),
             result.getStdout());
     }
 
@@ -162,7 +162,7 @@ public class PulsarIOSourceRunner extends PulsarIOTestRunner {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Updated successfully\""),
+                result.getStdout().contains("Updated successfully"),
                 result.getStdout());
     }
 
