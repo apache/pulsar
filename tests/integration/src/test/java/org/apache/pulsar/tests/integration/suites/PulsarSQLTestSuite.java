@@ -50,7 +50,7 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
         specBuilder.queryLastMessage(true);
         specBuilder.clusterName("pulsar-sql-test");
         specBuilder.numBrokers(1);
-        specBuilder.maxMessageSize(2 * (Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING));
+        specBuilder.maxMessageSize(2 * Commands.DEFAULT_MAX_MESSAGE_SIZE);
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 

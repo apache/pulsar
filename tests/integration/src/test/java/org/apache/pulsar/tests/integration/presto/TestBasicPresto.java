@@ -344,9 +344,9 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 .enableBatching(false)
                 .create();
 
-        int dataLength = pulsarCluster.getSpec().maxMessageSize() - 1024 * 1024;
         // Make sure that the data length bigger than the default maxMessageSize
-        Assert.assertTrue(dataLength > Commands.DEFAULT_MAX_MESSAGE_SIZE);
+        int dataLength = Commands.DEFAULT_MAX_MESSAGE_SIZE + 2 * 1024 * 1024;
+        Assert.assertTrue(dataLength < pulsarCluster.getSpec().maxMessageSize());
         byte[] data = new byte[dataLength];
         for (int i = 0; i < dataLength; i++) {
             data[i] = 'a';
