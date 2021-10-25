@@ -46,6 +46,7 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
     protected  CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
         return client.newProducer(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
+                .enableBatching(false)
                 .createAsync().thenCompose(producer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);

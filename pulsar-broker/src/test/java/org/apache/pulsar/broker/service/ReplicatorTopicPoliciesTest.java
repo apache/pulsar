@@ -87,7 +87,6 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         admin1.topicPolicies(true).setRetention(persistentTopicName, retentionPolicies);
 
         Awaitility.await().untilAsserted(() -> {
-            System.out.println("111111" + admin2.topicPolicies(true).getRetention(persistentTopicName));
             assertEquals(admin2.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies);
         });
         Awaitility.await().untilAsserted(() -> {
