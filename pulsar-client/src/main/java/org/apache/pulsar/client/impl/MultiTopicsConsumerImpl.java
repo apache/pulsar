@@ -265,9 +265,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // from getting stalled.
                 resumeReceivingFromPausedConsumersIfNeeded();
             } else {
-                // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
-                // recursion and stack overflow
-                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
+                // Call receiveAsync() if the incoming queue is not full. Because this block is run with
+                // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
+                receiveMessageFromConsumer(consumer);
             }
         }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
