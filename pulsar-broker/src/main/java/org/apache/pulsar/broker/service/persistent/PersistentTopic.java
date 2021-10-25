@@ -1021,6 +1021,11 @@ public class PersistentTopic extends AbstractTopic
                     log.debug("[{}][{}] Error deleting cursor for subscription",
                             topic, subscriptionName, exception);
                 }
+                if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
+                    unsubscribeFuture.complete(null);
+                    lastActive = System.nanoTime();
+                    return;
+                }
                 unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
