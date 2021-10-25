@@ -151,6 +151,16 @@ Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/
 
 > In addition to client-level configuration, you can also apply [producer](#configure-producer) and [consumer](#configure-consumer) specific configuration as described in sections below.
 
+### client memory allocator settings
+The client memory allocator parameters are config through java property.<br/>
+example: `-Dpulsar.allocator.pooled=true -Dpulsar.allocator.exit_on_oom=false -Dpulsar.allocator.leak_detection=Disabled -Dpulsar.allocator.out_of_memory_policy=ThrowException`
+| Property | Type |  <div>Description</div> | Default
+|---|---|---|---
+`pulsar.allocator.pooled` | String | If set to true, the client use direct memory pool. False use the heap memory without pool | true
+`pulsar.allocator.exit_on_oom` | String | Whether to exit the jvm when OOM happen | false
+`pulsar.allocator.leak_detection` | String | Service URL provider for Pulsar service | Disabled
+`pulsar.allocator.out_of_memory_policy` | String | When OOM, throw exception or fallback to heap | FallbackToHeap
+
 ## Producer
 
 In Pulsar, producers write messages to topics. Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object (as in the section [above](#client-configuration)), you can create a {@inject: javadoc:Producer:/client/org/apache/pulsar/client/api/Producer} for a specific Pulsar [topic](reference-terminology.md#topic).
