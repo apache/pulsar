@@ -1,7 +1,7 @@
 ---
 id: admin-api-clusters
 title: Managing Clusters
-sidebar_label: Clusters
+sidebar_label: "Clusters"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -82,6 +82,7 @@ ClusterData clusterData = new ClusterData(
 admin.clusters().createCluster(clusterName, clusterData);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -172,6 +173,7 @@ $ pulsar-admin clusters get cluster-1
 admin.clusters().getCluster(clusterName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -227,6 +229,7 @@ ClusterData clusterData = new ClusterData(
 admin.clusters().updateCluster(clusterName, clusterData);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -256,6 +259,7 @@ Clusters can be deleted from a Pulsar [instance](reference-terminology.md#instan
 Use the [`delete`](reference-pulsar-admin.md#clusters-delete) subcommand and specify the name of the cluster.
 
 ```
+
 $ pulsar-admin clusters delete cluster-1
 
 ```
@@ -273,6 +277,7 @@ $ pulsar-admin clusters delete cluster-1
 admin.clusters().deleteCluster(clusterName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -322,6 +327,7 @@ cluster-2
 admin.clusters().getClusters();
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -351,6 +357,7 @@ Peer clusters can be configured for a given cluster in a Pulsar [instance](refer
 Use the [`update-peer-clusters`](reference-pulsar-admin.md#clusters-update-peer-clusters) subcommand and specify the list of peer-cluster names.
 
 ```
+
 $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 
 ```
@@ -368,6 +375,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 admin.clusters().updatePeerClusterNames(clusterName, peerClusterList);
 
 ```
+
 </TabItem>
 
 </Tabs>

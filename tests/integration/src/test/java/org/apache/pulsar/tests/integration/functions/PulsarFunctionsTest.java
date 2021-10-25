@@ -272,7 +272,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
 
         ContainerExecResult containerExecResult = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertTrue(containerExecResult.getStdout().contains("\"Created successfully\""));
+        assertTrue(containerExecResult.getStdout().contains("Created successfully"));
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -848,7 +848,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Created successfully\""));
+        assertTrue(result.getStdout().contains("Created successfully"));
 
         if (StringUtils.isNotEmpty(inputTopicName)) {
             ensureSubscriptionCreated(
@@ -869,7 +869,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Updated successfully\""));
+        assertTrue(result.getStdout().contains("Updated successfully"));
     }
 
     protected <T> void submitFunction(Runtime runtime,
@@ -912,7 +912,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Created successfully\""));
+        assertTrue(result.getStdout().contains("Created successfully"));
     }
 
     private <T> void ensureSubscriptionCreated(String inputTopicName,
@@ -1514,7 +1514,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
-        assertTrue(result.getStdout().contains("\"Created successfully\""));
+        assertTrue(result.getStdout().contains("Created successfully"));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
     }

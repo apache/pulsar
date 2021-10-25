@@ -1,7 +1,7 @@
 ---
 id: admin-api-permissions
 title: Managing permissions
-sidebar_label: Permissions
+sidebar_label: "Permissions"
 original_id: admin-api-permissions
 ---
 
@@ -96,6 +96,7 @@ Roles `my.1.role`, `my.2.role`, `my.foo.role`, `my.bar.role`, etc. **cannot** pr
 admin.namespaces().grantPermissionOnNamespace(namespace, role, getAuthActions(actions));
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -132,7 +133,7 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
     "produce",
     "consume"
   ]
-}   
+}
 
 ```
 
@@ -149,6 +150,7 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
 admin.namespaces().getPermissions(namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -197,6 +199,7 @@ $ pulsar-admin namespaces revoke-permission test-tenant/ns1 \
 admin.namespaces().revokePermissionsOnNamespace(namespace, role);
 
 ```
+
 </TabItem>
 
 </Tabs>

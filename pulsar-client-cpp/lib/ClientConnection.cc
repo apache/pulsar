@@ -162,11 +162,11 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       resolver_(executor_->createTcpResolver()),
       socket_(executor_->createSocket()),
 #if BOOST_VERSION >= 107000
-      strand_(boost::asio::make_strand(executor_->io_service_->get_executor())),
+      strand_(boost::asio::make_strand(executor_->getIOService().get_executor())),
 #elif BOOST_VERSION >= 106600
-      strand_(executor_->io_service_->get_executor()),
+      strand_(executor_->getIOService().get_executor()),
 #else
-      strand_(*(executor_->io_service_)),
+      strand_(executor_->getIOService()),
 #endif
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
@@ -183,7 +183,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
 #if BOOST_VERSION >= 105400
         boost::asio::ssl::context ctx(boost::asio::ssl::context::tlsv12_client);
 #else
-        boost::asio::ssl::context ctx(*executor_->io_service_, boost::asio::ssl::context::tlsv1_client);
+        boost::asio::ssl::context ctx(executor_->getIOService(), boost::asio::ssl::context::tlsv1_client);
 #endif
         Url serviceUrl;
         Url::parse(physicalAddress, serviceUrl);
@@ -240,7 +240,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             }
         }
 
-        tlsSocket_ = executor_->createTlsSocket(socket_, ctx);
+        tlsSocket_ = ExecutorService::createTlsSocket(socket_, ctx);
 
         LOG_DEBUG("TLS SNI Host: " << serviceUrl.host());
         if (!SSL_set_tlsext_host_name(tlsSocket_->native_handle(), serviceUrl.host().c_str())) {
@@ -458,7 +458,14 @@ void ClientConnection::handleHandshake(const boost::system::error_code& err) {
     }
 
     bool connectingThroughProxy = logicalAddress_ != physicalAddress_;
-    SharedBuffer buffer = Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
+    Result result = ResultOk;
+    SharedBuffer buffer =
+        Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy, result);
+    if (result != ResultOk) {
+        LOG_ERROR(cnxString_ << "Failed to establish connection: " << result);
+        close(result);
+        return;
+    }
     // Send CONNECT command to broker
     asyncWrite(buffer.const_asio_buffer(), std::bind(&ClientConnection::handleSentPulsarConnect,
                                                      shared_from_this(), std::placeholders::_1, buffer));
@@ -525,18 +532,25 @@ void ClientConnection::handleResolve(const boost::system::error_code& err,
         return;
     }
 
-    auto self = shared_from_this();
-    connectTimeoutTask_->setCallback([this, self](const PeriodicTask::ErrorCode& ec) {
-        if (state_ != Ready) {
-            LOG_ERROR(cnxString_ << "Connection was not established in " << connectTimeoutTask_->getPeriodMs()
-                                 << " ms, close the socket");
+    auto self = ClientConnectionWeakPtr(shared_from_this());
+
+    connectTimeoutTask_->setCallback([self](const PeriodicTask::ErrorCode& ec) {
+        ClientConnectionPtr ptr = self.lock();
+        if (!ptr) {
+            // Connection was already destroyed
+            return;
+        }
+
+        if (ptr->state_ != Ready) {
+            LOG_ERROR(ptr->cnxString_ << "Connection was not established in "
+                                      << ptr->connectTimeoutTask_->getPeriodMs() << " ms, close the socket");
             PeriodicTask::ErrorCode err;
-            socket_->close(err);
+            ptr->socket_->close(err);
             if (err) {
-                LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+                LOG_WARN(ptr->cnxString_ << "Failed to close socket: " << err.message());
             }
         }
-        connectTimeoutTask_->stop();
+        ptr->connectTimeoutTask_->stop();
     });
 
     LOG_DEBUG(cnxString_ << "Connecting to " << endpointIterator->endpoint() << "...");
@@ -1144,7 +1158,13 @@ void ClientConnection::handleIncomingCommand() {
                 case BaseCommand::AUTH_CHALLENGE: {
                     LOG_DEBUG(cnxString_ << "Received auth challenge from broker");
 
-                    SharedBuffer buffer = Commands::newAuthResponse(authentication_);
+                    Result result;
+                    SharedBuffer buffer = Commands::newAuthResponse(authentication_, result);
+                    if (result != ResultOk) {
+                        LOG_ERROR(cnxString_ << "Failed to send auth response: " << result);
+                        close(result);
+                        break;
+                    }
                     asyncWrite(buffer.const_asio_buffer(),
                                std::bind(&ClientConnection::handleSentAuthResponse, shared_from_this(),
                                          std::placeholders::_1, buffer));
@@ -1472,7 +1492,7 @@ void ClientConnection::handleConsumerStatsTimeout(const boost::system::error_cod
     startConsumerStatsTimer(consumerStatsRequests);
 }
 
-void ClientConnection::close() {
+void ClientConnection::close(Result result) {
     Lock lock(mutex_);
     if (isClosed()) {
         return;
@@ -1529,7 +1549,7 @@ void ClientConnection::close() {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
 
-    connectPromise_.setFailed(ResultConnectError);
+    connectPromise_.setFailed(result);
 
     // Fail all pending requests, all these type are map whose value type contains the Promise object
     for (auto& kv : pendingRequests) {

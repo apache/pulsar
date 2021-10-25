@@ -57,4 +57,9 @@ public class ProducerInterceptorWrapper implements ProducerInterceptor {
                                       Throwable exception) {
         innerInterceptor.onSendAcknowledgement(producer, message, msgId, exception);
     }
+
+    @Override
+    public void onPartitionsChange(String topicName, int partitions) {
+        innerInterceptor.onPartitionsChange(topicName, partitions);
+    }
 }

@@ -2456,7 +2456,6 @@ $ pulsar-admin topics remove-deduplication tenant/namespace/topic
 ```
 
 
-```
 
 ## `tenants`
 Operations for managing tenants

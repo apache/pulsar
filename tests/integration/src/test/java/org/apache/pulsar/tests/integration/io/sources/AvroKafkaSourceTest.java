@@ -328,7 +328,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
+                result.getStdout().contains("Created successfully"),
                 result.getStdout());
     }
 

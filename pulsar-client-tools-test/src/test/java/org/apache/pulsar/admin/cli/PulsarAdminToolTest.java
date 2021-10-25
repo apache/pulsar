@@ -369,6 +369,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-subscription-types-enabled myprop/clust/ns1"));
         verify(mockNamespaces).getSubscriptionTypesEnabled("myprop/clust/ns1");
 
+        namespaces.run(split("get-schema-validation-enforce myprop/clust/ns1 -ap"));
+        verify(mockNamespaces).getSchemaValidationEnforced("myprop/clust/ns1", true);
+
         namespaces
                 .run(split("set-bookie-affinity-group myprop/clust/ns1 --primary-group test1 --secondary-group test2"));
         verify(mockNamespaces).setBookieAffinityGroup("myprop/clust/ns1",
@@ -649,6 +652,9 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("set-max-unacked-messages-per-consumer myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxUnackedMessagesPerConsumer("myprop/clust/ns1", 3);
+
+        namespaces.run(split("remove-max-unacked-messages-per-consumer myprop/clust/ns1"));
+        verify(mockNamespaces).removeMaxUnackedMessagesPerConsumer("myprop/clust/ns1");
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);

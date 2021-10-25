@@ -2163,18 +2163,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void seek(Position newReadPositionInt) {
+    public void seek(Position newReadPositionInt, boolean force) {
         checkArgument(newReadPositionInt instanceof PositionImpl);
         PositionImpl newReadPosition = (PositionImpl) newReadPositionInt;
 
         lock.writeLock().lock();
         try {
-            if (newReadPosition.compareTo(markDeletePosition) <= 0) {
+            if (!force && newReadPosition.compareTo(markDeletePosition) <= 0) {
                 // Make sure the newReadPosition comes after the mark delete position
                 newReadPosition = ledger.getNextValidPosition(markDeletePosition);
             }
-
-            PositionImpl oldReadPosition = readPosition;
             readPosition = newReadPosition;
         } finally {
             lock.writeLock().unlock();
@@ -2235,18 +2233,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         public void operationComplete() {
                             log.info("[{}][{}] Updated md-position={} into cursor-ledger {}", ledger.getName(), name,
                                     markDeletePosition, cursorLedger.getId());
-                            cursorLedger.asyncClose((rc, lh, ctx1) -> {
-                                callback.closeComplete(ctx);
-
-                                if (rc == BKException.Code.OK) {
-                                    log.info("[{}][{}] Closed cursor-ledger {}", ledger.getName(), name,
-                                            cursorLedger.getId());
-                                } else {
-                                    log.warn("[{}][{}] Failed to close cursor-ledger {}: {}", ledger.getName(), name,
-                                            cursorLedger.getId(), BKException.getMessage(rc));
-                                }
-                            }, ctx);
-
+                            asyncCloseCursorLedger(callback, ctx);
                         }
 
                         @Override
@@ -2733,8 +2720,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void closeComplete(int rc, LedgerHandle lh, Object ctx) {
                 ledger.mbean.endCursorLedgerCloseOp();
                 if (rc == BKException.Code.OK) {
+                    log.info("[{}][{}] Closed cursor-ledger {}", ledger.getName(), name,
+                            cursorLedger.getId());
                     callback.closeComplete(ctx);
                 } else {
+                    log.warn("[{}][{}] Failed to close cursor-ledger {}: {}", ledger.getName(), name,
+                            cursorLedger.getId(), BKException.getMessage(rc));
                     callback.closeFailed(createManagedLedgerException(rc), ctx);
                 }
             }

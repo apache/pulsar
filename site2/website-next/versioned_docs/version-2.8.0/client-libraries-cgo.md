@@ -1,7 +1,7 @@
 ---
 id: client-libraries-cgo
 title: Pulsar CGo client
-sidebar_label: CGo(deprecated)
+sidebar_label: "CGo(deprecated)"
 original_id: client-libraries-cgo
 ---
 
@@ -580,3 +580,4 @@ fmt.Println(s.Name) // output: pulsar
 defer consumer.Close()
 
 ```
+

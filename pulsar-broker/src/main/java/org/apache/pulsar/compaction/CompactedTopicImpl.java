@@ -122,7 +122,12 @@ public class CompactedTopicImpl implements CompactedTopic {
                                 return readEntries(context.ledger, startPoint, endPoint)
                                     .thenAccept((entries) -> {
                                         Entry lastEntry = entries.get(entries.size() - 1);
-                                        cursor.seek(lastEntry.getPosition().getNext());
+                                        // The compaction task depends on the last snapshot and the incremental
+                                        // entries to build the new snapshot. So for the compaction cursor, we
+                                        // need to force seek the read position to ensure the compactor can read
+                                        // the complete last snapshot because of the compactor will read the data
+                                        // before the compaction cursor mark delete position
+                                        cursor.seek(lastEntry.getPosition().getNext(), true);
                                         callback.readEntriesComplete(entries, consumer);
                                     });
                             }

@@ -28,7 +28,7 @@ public class ElasticSearchContainer extends ChaosContainer<ElasticSearchContaine
     static final Integer[] PORTS = { 9200, 9300 };
 
     public static final String IMAGE_NAME = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.13.3");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.15.0");
 
     public ElasticSearchContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);       
@@ -40,6 +40,7 @@ public class ElasticSearchContainer extends ChaosContainer<ElasticSearchContaine
         this.withNetworkAliases(NAME)
             .withExposedPorts(PORTS)
             .withEnv("discovery.type", "single-node")
+            .withEnv("ES_JAVA_OPTS", "-Xms2g -Xmx2g")
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(clusterName + "-" + NAME);
