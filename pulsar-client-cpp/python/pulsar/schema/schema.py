@@ -27,8 +27,7 @@ import enum
 class Schema(object):
     def __init__(self, record_cls, schema_type, schema_definition, schema_name):
         self._record_cls = record_cls
-        self._schema_info = _pulsar.SchemaInfo(schema_type, schema_name,
-                                               json.dumps(schema_definition, indent=True))
+        self._schema_info = _pulsar.SchemaInfo(schema_type, schema_name, json.dumps(schema_definition, indent=True))
 
     @abstractmethod
     def encode(self, obj):
@@ -43,13 +42,14 @@ class Schema(object):
 
     def _validate_object_type(self, obj):
         if not isinstance(obj, self._record_cls):
-            raise TypeError('Invalid record obj of type ' + str(type(obj))
-                            + ' - expected type is ' + str(self._record_cls))
+            raise TypeError(
+                "Invalid record obj of type " + str(type(obj)) + " - expected type is " + str(self._record_cls)
+            )
 
 
 class BytesSchema(Schema):
     def __init__(self):
-        super(BytesSchema, self).__init__(bytes, _pulsar.SchemaType.BYTES, None, 'BYTES')
+        super(BytesSchema, self).__init__(bytes, _pulsar.SchemaType.BYTES, None, "BYTES")
 
     def encode(self, data):
         self._validate_object_type(data)
@@ -61,21 +61,19 @@ class BytesSchema(Schema):
 
 class StringSchema(Schema):
     def __init__(self):
-        super(StringSchema, self).__init__(str, _pulsar.SchemaType.STRING, None, 'STRING')
+        super(StringSchema, self).__init__(str, _pulsar.SchemaType.STRING, None, "STRING")
 
     def encode(self, obj):
         self._validate_object_type(obj)
-        return obj.encode('utf-8')
+        return obj.encode("utf-8")
 
     def decode(self, data):
-        return data.decode('utf-8')
+        return data.decode("utf-8")
 
 
 class JsonSchema(Schema):
-
     def __init__(self, record_cls):
-        super(JsonSchema, self).__init__(record_cls, _pulsar.SchemaType.JSON,
-                                         record_cls.schema(), 'JSON')
+        super(JsonSchema, self).__init__(record_cls, _pulsar.SchemaType.JSON, record_cls.schema(), "JSON")
 
     def _get_serialized_value(self, o):
         if isinstance(o, enum.Enum):
@@ -85,11 +83,16 @@ class JsonSchema(Schema):
 
     def encode(self, obj):
         self._validate_object_type(obj)
-        del obj.__dict__['_default']
-        del obj.__dict__['_required']
-        del obj.__dict__['_required_default']
+        # Copy the dict of the object so we don't modify the provided object which was passed by reference
+        data = obj.__dict__.copy()
+        if "_default" in data:
+            del data["_default"]
+        if "_required" in data:
+            del data["_required"]
+        if "_required_default" in data:
+            del data["_required_default"]
 
-        return json.dumps(obj.__dict__, default=self._get_serialized_value, indent=True).encode('utf-8')
+        return json.dumps(data, default=self._get_serialized_value, indent=True).encode("utf-8")
 
     def decode(self, data):
         return self._record_cls(**json.loads(data))
