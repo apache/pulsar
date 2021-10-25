@@ -37,6 +37,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
 import org.testng.annotations.AfterMethod;
@@ -163,7 +164,7 @@ public class MultiTopicsConsumerImplTest {
         // given
         MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
         CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
-        assertTrue(consumer.hasNextPendingReceive());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasNextPendingReceive()));
         // when
         future.cancel(true);
         // then
