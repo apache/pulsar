@@ -1018,7 +1018,9 @@ public class BrokerService implements Closeable {
             if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
                     .containsKey(topic)) {
                 // if there is no auth policy for the topic, just complete and return
-                log.info("Auth policies not found for topic {}", topic);
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication policies not found for topic {}", topic);
+                }
                 future.complete(null);
                 return;
             }
