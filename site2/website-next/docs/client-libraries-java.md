@@ -159,7 +159,7 @@ example: `-Dpulsar.allocator.pooled=true -Dpulsar.allocator.exit_on_oom=false -D
 `pulsar.allocator.pooled` | String | If set to `true`, the client uses a direct memory pool. </br> If set to `false`, the client uses a heap memory without pool | true
 `pulsar.allocator.exit_on_oom` | String | Whether to exit the JVM when OOM happens | false
 `pulsar.allocator.leak_detection` | String | Service URL provider for Pulsar service | Disabled
-`pulsar.allocator.out_of_memory_policy` | String | When OOM, throw exception or fallback to heap | FallbackToHeap
+`pulsar.allocator.out_of_memory_policy` | String | When an OOM occurs, the client throws an exception or fallbacks to heap | FallbackToHeap
 
 ## Producer
 
