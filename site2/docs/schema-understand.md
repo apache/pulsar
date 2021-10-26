@@ -418,8 +418,16 @@ You can define the `schemaDefinition` to generate a `struct` schema.
       mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
       mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
       JacksonJsonWriter<User> writer = new JacksonJsonWriter<>(mapper);
-      JacksonJsonReader<User> reader = new JacksonJsonReader<>(mapper, User.class);    
+      JacksonJsonReader<User> reader = new JacksonJsonReader<>(mapper, User.class);
+   
+      SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder()
+                                                            .withPojo(User.class)
+                                                            .withSchemaWriter(writer)
+                                                            .withSchemaReader(reader)
+                                                            .build();
+    
     ```
+   You can define `SchemaWriter` and `SchemaReader` as singletons
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
