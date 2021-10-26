@@ -53,7 +53,7 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
             // use the variable, in case the compiler optimization
             log.trace("{}", byteBufAllocator);
             PowerMockito.verifyNew(ByteBufAllocatorImpl.class).withArguments(Mockito.any(ByteBufAllocator.class), Mockito.any(),
-                    Mockito.eq(PoolingPolicy.PooledDirect), Mockito.any(), Mockito.eq(OutOfMemoryPolicy.ThrowException),
+                    Mockito.eq(PoolingPolicy.UnpooledHeap), Mockito.any(), Mockito.eq(OutOfMemoryPolicy.ThrowException),
                     Mockito.any(), Mockito.eq(LeakDetectionPolicy.Advanced));
         } finally {
             System.clearProperty("pulsar.allocator.out_of_memory_policy");

@@ -51,7 +51,7 @@ public class PulsarByteBufAllocatorDefaultTest {
         // use the variable, in case the compiler optimization
         log.trace("{}", byteBufAllocator);
         PowerMockito.verifyNew(ByteBufAllocatorImpl.class).withArguments(Mockito.any(ByteBufAllocator.class), Mockito.any(),
-                Mockito.eq(PoolingPolicy.PooledDirect), Mockito.any(), Mockito.eq(OutOfMemoryPolicy.FallbackToHeap),
+                Mockito.eq(PoolingPolicy.UnpooledHeap), Mockito.any(), Mockito.eq(OutOfMemoryPolicy.FallbackToHeap),
                 Mockito.any(), Mockito.eq(LeakDetectionPolicy.Advanced));
     }
 
