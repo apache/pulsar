@@ -771,7 +771,7 @@ public class CmdTopics extends CmdBase {
         private String resetTimeStr;
 
         @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId to reset back to (ledgerId:entryId or earliest/latest)", required =
+                "-m" }, description = "messageId to reset back to ('latest', 'earliest', or 'ledgerId:entryId')", required =
                 false)
         private String resetMessageIdStr;
 
