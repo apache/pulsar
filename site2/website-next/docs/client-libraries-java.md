@@ -152,7 +152,7 @@ Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/
 > In addition to client-level configuration, you can also apply [producer](#configure-producer) and [consumer](#configure-consumer) specific configuration as described in sections below.
 
 ### Client memory allocator configuration
-The client memory allocator parameters are config through java property.<br/>
+You can set the client memory allocator configurations through Java properties.<br/>
 example: `-Dpulsar.allocator.pooled=true -Dpulsar.allocator.exit_on_oom=false -Dpulsar.allocator.leak_detection=Disabled -Dpulsar.allocator.out_of_memory_policy=ThrowException`
 | Property | Type |  <div>Description</div> | Default
 |---|---|---|---
