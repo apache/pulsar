@@ -1,7 +1,7 @@
 ---
 id: cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Message deduplication 
+sidebar_label: "Message deduplication "
 ---
 
 import Tabs from '@theme/Tabs';
@@ -127,6 +127,7 @@ producer = client.create_producer(
     send_timeout_millis=0)
 
 ```
+
 </TabItem>
 <TabItem value="C++ clients">
 
@@ -151,6 +152,7 @@ Producer producer;
 Result result = client.createProducer(topic, producerConfig, producer);
 
 ```
+
 </TabItem>
 
 </Tabs>

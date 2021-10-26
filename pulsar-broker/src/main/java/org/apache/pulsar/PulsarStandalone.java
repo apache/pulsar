@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -300,31 +301,30 @@ public class PulsarStandalone implements AutoCloseable {
         broker.start();
 
         final String cluster = config.getClusterName();
+        final AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(config);
         if (!config.isTlsEnabled()) {
+            checkArgument(config.getWebServicePort().isPresent(), "webServicePort must be present");
+            checkArgument(internalListener.getBrokerServiceUrl() != null,
+                    "plaintext must be configured on internal listener");
             URL webServiceUrl = new URL(String.format("http://%s:%d",
-                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
+                    ServiceConfigurationUtils.getWebServiceAddress(config),
                     config.getWebServicePort().get()));
-            String brokerServiceUrl = String.format("pulsar://%s:%d",
-                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
-                    config.getBrokerServicePort().get());
             admin = PulsarAdmin.builder().serviceHttpUrl(
                     webServiceUrl.toString()).authentication(
                     config.getBrokerClientAuthenticationPlugin(),
                     config.getBrokerClientAuthenticationParameters()).build();
             ClusterData clusterData = ClusterData.builder()
                     .serviceUrl(webServiceUrl.toString())
-                    .brokerServiceUrl(brokerServiceUrl)
+                    .brokerServiceUrl(internalListener.getBrokerServiceUrl().toString())
                     .build();
             createSampleNameSpace(clusterData, cluster);
         } else {
             checkArgument(config.getWebServicePortTls().isPresent(), "webServicePortTls must be present");
-            checkArgument(config.getBrokerServicePortTls().isPresent(), "brokerServicePortTls must be present");
+            checkArgument(internalListener.getBrokerServiceUrlTls() != null,
+                    "TLS must be configured on internal listener");
             URL webServiceUrlTls = new URL(String.format("https://%s:%d",
-                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
+                    ServiceConfigurationUtils.getWebServiceAddress(config),
                     config.getWebServicePortTls().get()));
-            String brokerServiceUrlTls = String.format("pulsar+ssl://%s:%d",
-                    ServiceConfigurationUtils.getAppliedAdvertisedAddress(config, true),
-                    config.getBrokerServicePortTls().get());
             PulsarAdminBuilder builder = PulsarAdmin.builder()
                     .serviceHttpUrl(webServiceUrlTls.toString())
                     .authentication(
@@ -347,7 +347,7 @@ public class PulsarStandalone implements AutoCloseable {
             admin = builder.build();
             ClusterData clusterData = ClusterData.builder()
                     .serviceUrlTls(webServiceUrlTls.toString())
-                    .brokerServiceUrlTls(brokerServiceUrlTls)
+                    .brokerServiceUrlTls(internalListener.getBrokerServiceUrlTls().toString())
                     .build();
             createSampleNameSpace(clusterData, cluster);
         }

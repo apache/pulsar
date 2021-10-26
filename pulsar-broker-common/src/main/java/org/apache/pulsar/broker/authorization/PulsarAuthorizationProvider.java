@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.authorization;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.base.Function;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -46,6 +47,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -322,48 +324,43 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return updateSubscriptionPermissionAsync(namespace, subscriptionName, Collections.singleton(role), true);
     }
 
-    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
-            boolean remove) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-
+    private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName,
+                                                                      Set<String> roles,
+                                                                      boolean remove) {
         try {
             validatePoliciesReadOnlyAccess();
         } catch (Exception e) {
-            result.completeExceptionally(e);
+            return FutureUtil.failedFuture(e);
         }
 
-        try {
-            Policies policies = pulsarResources.getNamespaceResources().getPolicies(namespace)
-                    .orElseThrow(() -> new NotFoundException(namespace + " not found"));
-            if (remove) {
-                if (policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName) != null) {
-                    policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName).removeAll(roles);
-                }else {
-                    log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace, subscriptionName, roles);
-                    result.completeExceptionally(new IllegalArgumentException("couldn't find subscription"));
-                    return result;
-                }
-            } else {
-                policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
-            }
-            pulsarResources.getNamespaceResources().setPolicies(namespace, (data)->policies);
+        CompletableFuture<Void> future =
+                pulsarResources.getNamespaceResources().setPoliciesAsync(namespace, policies -> {
+                    if (remove) {
+                        Set<String> subscriptionAuth =
+                                policies.auth_policies.getSubscriptionAuthentication().get(subscriptionName);
+                        if (subscriptionAuth != null) {
+                            subscriptionAuth.removeAll(roles);
+                        } else {
+                            log.info("[{}] Couldn't find role {} while revoking for sub = {}", namespace,
+                                    roles, subscriptionName);
+                            throw new IllegalArgumentException("couldn't find subscription");
+                        }
+                    } else {
+                        policies.auth_policies.getSubscriptionAuthentication().put(subscriptionName, roles);
+                    }
+                    return policies;
+                }).thenRun(() -> {
+                    log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName,
+                            roles);
+                });
 
-            log.info("[{}] Successfully granted access for role {} for sub = {}", namespace, subscriptionName, roles);
-            result.complete(null);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", subscriptionName, namespace);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespace));
-        } catch (BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for {} on namespace {}: concurrent modification", subscriptionName, roles, namespace);
-            result.completeExceptionally(new IllegalStateException(
-                    "Concurrent modification on metadata path: " + namespace + ", " + e.getMessage()));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace, e);
-            result.completeExceptionally(
-                    new IllegalStateException("Failed to get permissions for namespace " + namespace));
-        }
+        future.exceptionally(ex -> {
+            log.error("[{}] Failed to get permissions for role {} on namespace {}", subscriptionName, roles, namespace,
+                    ex);
+            return null;
+        });
 
-        return result;
+        return future;
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {

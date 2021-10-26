@@ -190,10 +190,7 @@ Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::st
     AuthenticationDataPtr authDataContent;
     Result authResult = authenticationPtr_->getAuthData(authDataContent);
     if (authResult != ResultOk) {
-        LOG_ERROR(
-            "All Authentication methods should have AuthenticationData and return true on getAuthData for "
-            "url "
-            << completeUrl);
+        LOG_ERROR("Failed to getAuthData: " << authResult);
         curl_easy_cleanup(handle);
         return authResult;
     }

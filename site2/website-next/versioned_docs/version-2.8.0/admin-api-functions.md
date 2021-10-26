@@ -1,7 +1,7 @@
 ---
 id: admin-api-functions
 title: Manage Functions
-sidebar_label: Functions
+sidebar_label: "Functions"
 original_id: admin-api-functions
 ---
 
@@ -91,6 +91,7 @@ functionConfig.setOutput(sinkTopic);
 admin.functions().createFunction(functionConfig, fileName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -154,6 +155,7 @@ updateOptions.setUpdateAuthData(updateAuthData);
 admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -205,6 +207,7 @@ $ pulsar-admin functions start \
 admin.functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -257,6 +260,7 @@ $ pulsar-admin functions start \
 admin.functions().startFunction(tenant, namespace, functionName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -310,6 +314,7 @@ $ pulsar-admin functions stop \
 admin.functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -362,6 +367,7 @@ $ pulsar-admin functions stop \
 admin.functions().stopFunction(tenant, namespace, functionName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -415,6 +421,7 @@ $ pulsar-admin functions restart \
 admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -467,6 +474,7 @@ $ pulsar-admin functions restart \
 admin.functions().restartFunction(tenant, namespace, functionName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -518,6 +526,7 @@ $ pulsar-admin functions list \
 admin.functions().getFunctions(tenant, namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -553,7 +562,7 @@ Use the [`delete`](reference-pulsar-admin.md#functions-delete) subcommand.
 $ pulsar-admin functions delete \
   --tenant public \
   --namespace default \
-  --name (the name of Pulsar Functions) 
+  --name (the name of Pulsar Functions)
 
 ```
 
@@ -570,6 +579,7 @@ $ pulsar-admin functions delete \
 admin.functions().deleteFunction(tenant, namespace, functionName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -605,7 +615,7 @@ Use the [`get`](reference-pulsar-admin.md#functions-get) subcommand.
 $ pulsar-admin functions get \
   --tenant public \
   --namespace default \
-  --name (the name of Pulsar Functions) 
+  --name (the name of Pulsar Functions)
 
 ```
 
@@ -622,6 +632,7 @@ $ pulsar-admin functions get \
 admin.functions().getFunction(tenant, namespace, functionName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -674,6 +685,7 @@ $ pulsar-admin functions status \
 admin.functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId));
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -709,7 +721,7 @@ Use the [`status`](reference-pulsar-admin.md#functions-status) subcommand.
 $ pulsar-admin functions status \
   --tenant public \
   --namespace default \
-  --name (the name of Pulsar Functions) 
+  --name (the name of Pulsar Functions)
 
 ```
 
@@ -726,6 +738,7 @@ $ pulsar-admin functions status \
 admin.functions().getFunctionStatus(tenant, namespace, functionName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -778,6 +791,7 @@ $ pulsar-admin functions stats \
 admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId));
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -813,7 +827,7 @@ Use the [`stats`](reference-pulsar-admin.md#functions-stats) subcommand.
 $ pulsar-admin functions stats \
   --tenant public \
   --namespace default \
-  --name (the name of Pulsar Functions) 
+  --name (the name of Pulsar Functions)
 
 ```
 
@@ -830,6 +844,7 @@ $ pulsar-admin functions stats \
 admin.functions().getFunctionStats(tenant, namespace, functionName);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -871,6 +886,7 @@ $ pulsar-admin functions trigger \
   # or --trigger-file (the path of trigger file)
 
 ```
+
 </TabItem>
 <TabItem value="REST API">
 
@@ -884,6 +900,7 @@ $ pulsar-admin functions trigger \
 admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -920,7 +937,7 @@ $ pulsar-admin functions putstate \
   --tenant public \
   --namespace default \
   --name (the name of Pulsar Functions) \
-  --state "{\"key\":\"pulsar\", \"stringValue\":\"hello pulsar\"}" 
+  --state "{\"key\":\"pulsar\", \"stringValue\":\"hello pulsar\"}"
 
 ```
 
@@ -939,6 +956,7 @@ FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, 
 admin.functions().putFunctionState(tenant, namespace, functionName, stateRepr);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -975,7 +993,7 @@ $ pulsar-admin functions querystate \
   --tenant public \
   --namespace default \
   --name (the name of Pulsar Functions) \
-  --key (the key of state) 
+  --key (the key of state)
 
 ```
 
@@ -992,6 +1010,7 @@ $ pulsar-admin functions querystate \
 admin.functions().getFunctionState(tenant, namespace, functionName, key);
 
 ```
+
 </TabItem>
 
 </Tabs>

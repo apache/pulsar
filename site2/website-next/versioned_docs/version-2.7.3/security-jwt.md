@@ -1,7 +1,7 @@
 ---
 id: security-jwt
 title: Client authentication using tokens based on JSON Web Tokens
-sidebar_label: Authentication using JWT
+sidebar_label: "Authentication using JWT"
 original_id: security-jwt
 ---
 
@@ -21,6 +21,7 @@ A user typically gets a token string from the administrator (or some automated s
 The compact representation of a signed JWT is a string that looks like as the following:
 
 ```
+
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 
 ```
@@ -29,11 +30,11 @@ Application specifies the token when you create the client instance. An alternat
 
 > #### Always use TLS transport encryption
 > Sending a token is equivalent to sending a password over the wire. You had better use TLS encryption all the time when you connect to the Pulsar service. See
-> [Transport Encryption using TLS](security-tls-transport.md) for more details.
+> [Transport Encryption using TLS](security-tls-transport) for more details.
 
 ### CLI Tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
 
@@ -49,6 +50,7 @@ authParams=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPt
 The token string can also be read from a file, for example:
 
 ```
+
 authParams=file:///path/to/token/file
 
 ```
@@ -144,6 +146,7 @@ client, err := NewClient(ClientOptions{
 })
 
 ```
+
 Similarly, you can also pass a `Supplier`:
 
 ```go
@@ -162,6 +165,7 @@ client, err := NewClient(ClientOptions{
 <TabItem value="C++">
 
 ```c++
+
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
@@ -175,6 +179,7 @@ pulsar::Client client("pulsar://broker.example.com:6650/", config);
 <TabItem value="C#">
 
 ```c#
+
 var client = PulsarClient.Builder()
                          .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
                          .Build();
@@ -315,7 +320,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`:
 
-The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization.md).
+The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization).
 
 ```properties
 
@@ -336,3 +341,4 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 forwardAuthorizationCredentials=true
 
 ```
+

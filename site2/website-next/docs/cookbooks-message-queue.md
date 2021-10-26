@@ -1,7 +1,7 @@
 ---
 id: cookbooks-message-queue
 title: Using Pulsar as a message queue
-sidebar_label: Message queue
+sidebar_label: "Message queue"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -127,3 +127,4 @@ if err != nil {
 }
 
 ```
+

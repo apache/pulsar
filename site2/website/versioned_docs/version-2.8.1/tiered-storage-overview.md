@@ -7,11 +7,9 @@ original_id: tiered-storage-overview
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be moved from BookKeeper to long term and cheaper storage, while still allowing clients to access the backlog as if nothing has changed. 
 
-* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support
-[Amazon S3](https://aws.amazon.com/s3/) and [GCS (Google Cloud Storage)](https://cloud.google.com/storage/) for long term storage. 
+* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/) and [GCS (Google Cloud Storage)](https://cloud.google.com/storage/) for long term storage. 
 
-    With jclouds, it is easy to add support for more
-[cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+    With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
     > #### Tip
     > 

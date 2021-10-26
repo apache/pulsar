@@ -535,6 +535,72 @@ configs:
 
 For the full list of configuration properties supported by Debezium, see [Debezium Connector for Oracle](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties).
 
+## Example of Microsoft SQL
+
+### Configuration
+
+Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview) SQL Server with CDC enabled.
+Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
+For more information, see [Enable and disable change data capture in Microsoft SQL Server](https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server).
+
+Similarly to other connectors, you can use JSON or YAMl to configure the connector.
+
+* JSON
+
+```json
+{
+  "database.hostname": "localhost",
+  "database.port": "1433",
+  "database.user": "sa",
+  "database.password": "MyP@ssw0rd!",
+  "database.dbname": "MyTestDB",
+  "database.server.name": "mssql",
+  "snapshot.mode": "schema_only",
+  "topic.namespace": "public/default",
+  "task.class": "io.debezium.connector.sqlserver.SqlServerConnectorTask",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "typeClassName": "org.apache.pulsar.common.schema.KeyValue",
+  "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+  "database.tcpKeepAlive": "true",
+  "decimal.handling.mode": "double",
+  "database.history.pulsar.topic": "debezium-mssql-source-history-topic",
+  "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
+}
+```
+* YAML
+
+```yaml
+tenant: "public"
+namespace: "default"
+name: "debezium-mssql-source"
+topicName: "debezium-mssql-topic"
+parallelism: 1
+
+className: "org.apache.pulsar.io.debezium.mssql.DebeziumMsSqlSource"
+database.dbname: "mssql"
+
+configs:
+    database.hostname: "localhost"
+    database.port: "1433"
+    database.user: "sa"
+    database.password: "MyP@ssw0rd!"
+    database.dbname: "MyTestDB"
+    database.server.name: "mssql"
+    snapshot.mode: "schema_only"
+    topic.namespace: "public/default"
+    task.class: "io.debezium.connector.sqlserver.SqlServerConnectorTask"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
+    typeClassName: "org.apache.pulsar.common.schema.KeyValue"
+    database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
+    database.tcpKeepAlive: "true"
+    decimal.handling.mode: "double"
+    database.history.pulsar.topic: "debezium-mssql-source-history-topic"
+    database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+```
+
+For the full list of configuration properties supported by Debezium, see [Debezium Connector for MS SQL](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-connector-properties).
 
 ## FAQ
  

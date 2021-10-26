@@ -1,7 +1,7 @@
 ---
 id: security-oauth2
 title: Client authentication using OAuth 2.0 access tokens
-sidebar_label: Authentication using OAuth 2.0 access tokens
+sidebar_label: "Authentication using OAuth 2.0 access tokens"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -33,6 +33,7 @@ The following table lists parameters supported for the `client credentials` auth
 | `issuerUrl` | URL of the authentication provider which allows the Pulsar client to obtain an access token | `https://accounts.google.com` | Required |
 | `privateKey` | URL to a JSON credentials file  | Support the following pattern formats: <br /> <li> `file:///path/to/file` </li><li>`file:/path/to/file` </li><li> `data:application/json;base64,<base64-encoded value>` </li>| Required |
 | `audience`  | An OAuth 2.0 "resource server" identifier for the Pulsar cluster | `https://broker.example.com` | Required |
+| `scope` |  Scope of an access request. <br />For more more information, see [access token scope](https://datatracker.ietf.org/doc/html/rfc6749#section-3.3). | api://pulsar-cluster-1/.default | Optional |
 
 The credentials file contains service account credentials used with the client authentication type. The following shows an example of a credentials file `credentials_file.json`.
 
@@ -110,9 +111,10 @@ PulsarClient client = PulsarClient.builder()
 
 ### C++ client
 
-The C++ client is similar to the Java client. You need to provide parameters of `issuerUrl`, `private_key` (the credentials file path), and the audience.
+The C++ client is similar to the Java client. You need to provide parameters of `issuerUrl`, `private_key` (the credentials file path), and `audience`.
 
 ```c++
+
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
@@ -178,6 +180,7 @@ This section describes how to use Pulsar CLI tools to connect a cluster through 
 This example shows how to use pulsar-admin to connect to a cluster through OAuth2 authentication plugin.
 
 ```shell script
+
 bin/pulsar-admin --admin-url https://streamnative.cloud:443 \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
 --auth-params '{"privateKey":"file:///path/to/key/file.json",
@@ -195,6 +198,7 @@ Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based
 This example shows how to use pulsar-client to connect to a cluster through OAuth2 authentication plugin.
 
 ```shell script
+
 bin/pulsar-client \
 --url SERVICE_URL \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
@@ -213,6 +217,7 @@ Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based
 This example shows how to use pulsar-perf to connect to a cluster through OAuth2 authentication plugin.
 
 ```shell script
+
 bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
 --auth-params '{"privateKey":"file:///path/to/key/file.json",

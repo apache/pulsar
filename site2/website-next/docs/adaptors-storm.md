@@ -1,7 +1,7 @@
 ---
 id: adaptors-storm
 title: Pulsar adaptor for Apache Storm
-sidebar_label: Apache Storm
+sidebar_label: "Apache Storm"
 ---
 
 import Tabs from '@theme/Tabs';

@@ -79,10 +79,10 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
             protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
                 BrokerService broker = new BrokerService(this, ioEventLoopGroup);
                 broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, tls) -> {
-                            return new PulsarChannelInitializer(_pulsar, tls) {
+                        (_pulsar, opts) -> {
+                            return new PulsarChannelInitializer(_pulsar, opts) {
                                 @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar) throws Exception {
+                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
                                     connectionsCreated.incrementAndGet();
                                     return new ErrorByTopicServerCnx(pulsar, failureMap);
                                 }

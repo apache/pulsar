@@ -198,6 +198,16 @@
     },
     {
       "type": "category",
+      "label": "Development",
+      "items": [
+        "develop-tools",
+        "develop-binary-protocol",
+        "develop-schema",
+        "develop-load-manager"
+      ]
+    },
+    {
+      "type": "category",
       "label": "Reference",
       "items": [
         "reference-terminology",
