@@ -568,6 +568,12 @@ public class KubernetesRuntime implements Runtime {
         String statefulSetName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
         final V1DeleteOptions options = new V1DeleteOptions();
         options.setGracePeriodSeconds(5L);
+        // gracePeriodSeconds == 0 to force pod deletion and
+        // avoid cases when pod hangs during termination
+        // https://amalgjose.com/2021/07/28/how-to-delete-a-kubernetes-pod-which-is-stuck-in-terminating-state/
+        // https://www.ibm.com/support/pages/kubernetes-pods-are-stuck-terminating-state
+        // https://github.com/kubernetes-client/java/issues/770
+        options.setGracePeriodSeconds(0L);
         options.setPropagationPolicy("Foreground");
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
@@ -583,8 +589,8 @@ public class KubernetesRuntime implements Runtime {
                         response = appsClient.deleteNamespacedStatefulSetCall(
                                 statefulSetName,
                                 jobNamespace, null, null,
-                                5, null, "Foreground",
-                                null, null)
+                                0, null, "Foreground",
+                                options, null)
                                 .execute();
                     } catch (ApiException e) {
                         // if already deleted
@@ -735,7 +741,7 @@ public class KubernetesRuntime implements Runtime {
                                 serviceName,
                                 jobNamespace, null, null,
                                 0, null,
-                                "Foreground", null, null).execute();
+                                "Foreground", options, null).execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
