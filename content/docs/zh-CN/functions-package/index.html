@@ -244,7 +244,7 @@ docker cp &lt;path of Python <span class="hljs-keyword">function</span> file&gt;
 </code></pre>
 <p>(2) 使用如下命令运行 Python 函数。</p>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin <span class="hljs-built_in">functions</span> localrun \
---classname org.example.test.ExclamationFunction \
+--classname &lt;Python Function file name&gt;.&lt;Python Function class name&gt; \
 --py &lt;path of Python Function file&gt; \
 --inputs persistent://public/default/my-topic-1 \
 --output persistent://public/default/<span class="hljs-built_in">test</span>-1 \
