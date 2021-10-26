@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -120,7 +121,7 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final Map<String, Long> inactiveProducers = new HashMap<>();
+    private final Map<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
 
@@ -138,6 +139,7 @@ public class MessageDeduplication {
     private CompletableFuture<Void> recoverSequenceIdsMap() {
         // Load the sequence ids from the snapshot in the cursor properties
         managedCursor.getProperties().forEach((k, v) -> {
+            inactiveProducers.put(k, System.currentTimeMillis());
             highestSequencedPushed.put(k, v);
             highestSequencedPersisted.put(k, v);
         });
@@ -168,6 +170,7 @@ public class MessageDeduplication {
                     long sequenceId = Math.max(md.getHighestSequenceId(), md.getSequenceId());
                     highestSequencedPushed.put(producerName, sequenceId);
                     highestSequencedPersisted.put(producerName, sequenceId);
+                    inactiveProducers.put(producerName, System.currentTimeMillis());
 
                     entry.release();
                 }
@@ -443,7 +446,7 @@ public class MessageDeduplication {
     /**
      * Topic will call this method whenever a producer connects.
      */
-    public synchronized void producerAdded(String producerName) {
+    public void producerAdded(String producerName) {
         // Producer is no-longer inactive
         inactiveProducers.remove(producerName);
     }
@@ -451,7 +454,7 @@ public class MessageDeduplication {
     /**
      * Topic will call this method whenever a producer disconnects.
      */
-    public synchronized void producerRemoved(String producerName) {
+    public void producerRemoved(String producerName) {
         // Producer is no-longer active
         inactiveProducers.put(producerName, System.currentTimeMillis());
     }
