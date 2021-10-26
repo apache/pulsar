@@ -410,6 +410,17 @@ You can define the `schemaDefinition` to generate a `struct` schema.
     User user = consumer.receive().getValue();
     ```
 
+4. Use a custom `Serialization` method, such as json configuration method, the following is the default
+
+   ```java
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+      mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+      mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+      JacksonJsonWriter<User> writer = new JacksonJsonWriter<>(mapper);
+      JacksonJsonReader<User> reader = new JacksonJsonReader<>(mapper, User.class);    
+    ```
+
 <!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Auto Schema
