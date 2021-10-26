@@ -53,6 +53,10 @@ public class SchemaTestUtils {
     }
 
     @Data
+    public static class Empty {
+    }
+
+    @Data
     public static class Bar {
         private boolean field1;
     }

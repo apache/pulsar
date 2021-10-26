@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.DerivedFoo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
+import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Empty;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBarList;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
@@ -271,6 +272,12 @@ public class JSONSchemaTest {
     public void testAllowNullDecodeWithInvalidContent() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         jsonSchema.decode(new byte[0]);
+    }
+
+    @Test
+    public void testAllowNullFieldClass() {
+        JSONSchema<Empty> jsonSchema = JSONSchema.of(SchemaDefinition.<Empty>builder().withPojo(Empty.class).build());
+        jsonSchema.encode(new Empty());
     }
 
     @Test
