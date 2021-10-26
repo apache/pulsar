@@ -1,7 +1,7 @@
 ---
 id: administration-pulsar-manager
 title: Pulsar Manager
-sidebar_label: Pulsar Manager
+sidebar_label: "Pulsar Manager"
 original_id: administration-pulsar-manager
 ---
 
@@ -36,20 +36,21 @@ docker run -it \
 ### Set administrator account and password
 
  ```shell
-
-CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
-curl \
-    -H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
-    -H 'Cookie: XSRF-TOKEN=$CSRF_TOKEN;' \
-    -H "Content-Type: application/json" \
-    -X PUT http://localhost:7750/pulsar-manager/users/superuser \
-    -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
-
-```
+ 
+ CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
+ curl \
+     -H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
+     -H 'Cookie: XSRF-TOKEN=$CSRF_TOKEN;' \
+     -H "Content-Type: application/json" \
+     -X PUT http://localhost:7750/pulsar-manager/users/superuser \
+     -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
+ 
+ ```
 
 You can find the docker image in the [Docker Hub](https://github.com/apache/pulsar-manager/tree/master/docker) directory and build an image from the source code as well:
 
 ```
+
 git clone https://github.com/apache/pulsar-manager
 cd pulsar-manager/front-end
 npm install --save
@@ -70,6 +71,7 @@ If you have a large amount of data, you can use a custom database. The following
 2. Modify the [configuration file](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/application.properties) and add PostgreSQL configuration.
 
 ```
+
 spring.datasource.driver-class-name=org.postgresql.Driver
 spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/pulsar_manager
 spring.datasource.username=postgres
@@ -80,6 +82,7 @@ spring.datasource.password=postgres
 3. Compile to generate a new executable jar package.
 
 ```
+
 ./gradlew build -x test
 
 ```
@@ -103,15 +106,17 @@ If you want to enable JWT authentication, use one of the following methods.
 * Method 1: use command-line tool
 
 ```
+
 wget https://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/apache-pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz
 tar -zxvf apache-pulsar-manager-0.2.0-bin.tar.gz
 cd pulsar-manager
 tar -zxvf pulsar-manager.tar
 cd pulsar-manager
 cp -r ../dist ui
-./bin/pulsar-manager --redirect.host=http://localhost --redirect.port=9527 insert.stats.interval=600000 --backend.jwt.token=token --jwt.broker.token.mode=PRIVATE --jwt.broker.private.key=file:///path/broker-private.key --jwt.broker.public.key=file:///path/broker-public.key 
+./bin/pulsar-manager --redirect.host=http://localhost --redirect.port=9527 insert.stats.interval=600000 --backend.jwt.token=token --jwt.broker.token.mode=PRIVATE --jwt.broker.private.key=file:///path/broker-private.key --jwt.broker.public.key=file:///path/broker-public.key
 
 ```
+
 Firstly, [set the administrator account and password](#set-administrator-account-and-password)
 
 Secondly, log in to Pulsar manager through http://localhost:7750/ui/index.html.
@@ -119,6 +124,7 @@ Secondly, log in to Pulsar manager through http://localhost:7750/ui/index.html.
 * Method 2: configure the application.properties file
 
 ```
+
 backend.jwt.token=token
 
 jwt.broker.token.mode=PRIVATE
@@ -134,6 +140,7 @@ jwt.broker.secret.key=file:///path/broker-secret.key
 * Method 3: use Docker and enable token authentication.
 
 ```
+
 export JWT_TOKEN="your-token"
 docker run -it -p 9527:9527 -p 7750:7750 -e REDIRECT_HOST=http://localhost -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -v $PWD:/data apachepulsar/pulsar-manager:v0.2.0 /bin/sh
 
@@ -151,6 +158,7 @@ docker run -it -p 9527:9527 -p 7750:7750 -e REDIRECT_HOST=http://localhost -e RE
 * Method 4: use Docker and turn on **token authentication** and **token management** by private key and public key.
 
 ```
+
 export JWT_TOKEN="your-token"
 export PRIVATE_KEY="file:///pulsar-manager/secret/my-private.key"
 export PUBLIC_KEY="file:///pulsar-manager/secret/my-public.key"
@@ -173,6 +181,7 @@ docker run -it -p 9527:9527 -p 7750:7750 -e REDIRECT_HOST=http://localhost -e RE
 * Method 5: use Docker and turn on **token authentication** and **token management** by secret key.
 
 ```
+
 export JWT_TOKEN="your-token"
 export SECRET_KEY="file:///pulsar-manager/secret/my-secret.key"
 docker run -it -p 9527:9527 -p 7750:7750 -e REDIRECT_HOST=http://localhost -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e SECRET_KEY=$SECRET_KEY -v $PWD:/data -v $PWD/secret:/pulsar-manager/secret apachepulsar/pulsar-manager:v0.2.0 /bin/sh

@@ -1,7 +1,7 @@
 ---
 id: schema-understand
 title: Understand schema
-sidebar_label: Understand schema
+sidebar_label: "Understand schema"
 original_id: schema-understand
 ---
 
@@ -22,7 +22,7 @@ A `SchemaInfo` consists of the following fields:
 |  Field  |   Description  | 
 | --- | --- |
 |  `name`  |   Schema name (a string).  | 
-|  `type`  |   Schema type, which determines how to interpret the schema data. * Predefined schema: see [here](schema-understand.md#schema-type). * Customized schema: it is left as an empty string.  | 
+|  `type`  |   Schema type, which determines how to interpret the schema data. <li>Predefined schema: see [here](schema-understand.md#schema-type). </li><li>Customized schema: it is left as an empty string. </li> | 
 |  `schema`（`payload`)  |   Schema data, which is a sequence of 8-bit unsigned bytes and schema-type specific.  | 
 |  `properties`  |   It is a user defined properties as a string/string map. Applications can use this bag for carrying any application specific logics. Possible properties might be the Git hash associated with the schema, an environment string like `dev` or `prod`.  | 
 
@@ -101,21 +101,21 @@ This example demonstrates how to use a string schema.
 
 1. Create a producer with a string schema and send messages.
 
-    ```java
-
-    Producer<String> producer = client.newProducer(Schema.STRING).create();
-    producer.newMessage().value("Hello Pulsar!").send();
-
-    ```
+   ```java
+   
+   Producer<String> producer = client.newProducer(Schema.STRING).create();
+   producer.newMessage().value("Hello Pulsar!").send();
+   
+   ```
 
 2. Create a consumer with a string schema and receive messages.  
 
-    ```java
-
-    Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
-    consumer.receive();
-
-    ```
+   ```java
+   
+   Consumer<String> consumer = client.newConsumer(Schema.STRING).subscribe();
+   consumer.receive();
+   
+   ```
 
 ### Complex type
 
@@ -168,72 +168,72 @@ This example shows how to construct a key/value schema and then use it to produc
 
 1. Construct a key/value schema with `INLINE` encoding type.
 
-    ```java
-
-    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-    Schema.INT32,
-    Schema.STRING,
-    KeyValueEncodingType.INLINE
-    );
-
-    ```
+   ```java
+   
+   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+   Schema.INT32,
+   Schema.STRING,
+   KeyValueEncodingType.INLINE
+   );
+   
+   ```
 
 2. Optionally, construct a key/value schema with `SEPARATED` encoding type.
 
-    ```java
-
-    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-    Schema.INT32,
-    Schema.STRING,
-    KeyValueEncodingType.SEPARATED
-    );
-
-    ```
+   ```java
+   
+   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+   Schema.INT32,
+   Schema.STRING,
+   KeyValueEncodingType.SEPARATED
+   );
+   
+   ```
 
 3. Produce messages using a key/value schema.
 
-    ```java
+   ```java
+   
+   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+   Schema.INT32,
+   Schema.STRING,
+   KeyValueEncodingType.SEPARATED
+   );
 
-    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-    Schema.INT32,
-    Schema.STRING,
-    KeyValueEncodingType.SEPARATED
-    );
+   Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
+       .topic(TOPIC)
+       .create();
 
-    Producer<KeyValue<Integer, String>> producer = client.newProducer(kvSchema)
-        .topic(TOPIC)
-        .create();
+   final int key = 100;
+   final String value = "value-100";
 
-    final int key = 100;
-    final String value = "value-100";
-
-    // send the key/value message
-    producer.newMessage()
-    .value(new KeyValue(key, value))
-    .send();
-
-    ```
+   // send the key/value message
+   producer.newMessage()
+   .value(new KeyValue(key, value))
+   .send();
+   
+   ```
 
 4. Consume messages using a key/value schema.
 
-    ```java
+   ```java
+   
+   Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
+   Schema.INT32,
+   Schema.STRING,
+   KeyValueEncodingType.SEPARATED
+   );
 
-    Schema<KeyValue<Integer, String>> kvSchema = Schema.KeyValue(
-    Schema.INT32,
-    Schema.STRING,
-    KeyValueEncodingType.SEPARATED
-    );
+   Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
+       ...
+       .topic(TOPIC)
+       .subscriptionName(SubscriptionName).subscribe();
 
-    Consumer<KeyValue<Integer, String>> consumer = client.newConsumer(kvSchema)
-        ...
-        .topic(TOPIC)
-        .subscriptionName(SubscriptionName).subscribe();
-
-    // receive key/value pair
-    Message<KeyValue<Integer, String>> msg = consumer.receive();
-    KeyValue<Integer, String> kv = msg.getValue();
-
-    ```
+   // receive key/value pair
+   Message<KeyValue<Integer, String>> msg = consumer.receive();
+   KeyValue<Integer, String> kv = msg.getValue();
+   
+   ```
 
 </TabItem>
 
@@ -289,35 +289,35 @@ Pulsar gets the schema definition from the predefined `struct` using an Avro lib
 
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
-    ```java
-
-    @Builder
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class User {
-        String name;
-        int age;
-    }
-
-    ```
+   ```java
+   
+   @Builder
+   @AllArgsConstructor
+   @NoArgsConstructor
+   public static class User {
+       String name;
+       int age;
+   }
+   
+   ```
 
 2. Create a producer with a `struct` schema and send messages.
 
-    ```java
-
-    Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
-    producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
-
-    ```
+   ```java
+   
+   Producer<User> producer = client.newProducer(Schema.AVRO(User.class)).create();
+   producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
+   
+   ```
 
 3. Create a consumer with a `struct` schema and receive messages
 
-    ```java
-
-    Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
-    User user = consumer.receive();
-
-    ```
+   ```java
+   
+   Consumer<User> consumer = client.newConsumer(Schema.AVRO(User.class)).subscribe();
+   User user = consumer.receive();
+   
+   ```
 
 </TabItem>
 <TabItem value="generic">
@@ -330,25 +330,25 @@ You can define the `struct` schema using the `GenericSchemaBuilder`, generate a 
 
 1. Use `RecordSchemaBuilder` to build a schema.
 
-    ```java
+   ```java
+   
+   RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+   recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+   SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
 
-    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
-    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
-    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
-
-    Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
-
-    ```
+   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+   
+   ```
 
 2. Use `RecordBuilder` to build the struct records.
 
-    ```java
-
-    producer.newMessage().value(schema.newRecordBuilder()
-                .set("intField", 32)
-                .build()).send();
-
-    ```
+   ```java
+   
+   producer.newMessage().value(schema.newRecordBuilder()
+               .set("intField", 32)
+               .build()).send();
+   
+   ```
 
 </TabItem>
 <TabItem value="SchemaDefinition">
@@ -359,37 +359,37 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 
 1. Create the _User_ class to define the messages sent to Pulsar topics.
 
-    ```java
-
-    @Builder
-    @AllArgsConstructor
-    @NoArgsConstructor
-    public static class User {
-        String name;
-        int age;
-    }
-
-    ```
+   ```java
+   
+   @Builder
+   @AllArgsConstructor
+   @NoArgsConstructor
+   public static class User {
+       String name;
+       int age;
+   }
+   
+   ```
 
 2. Create a producer with a `SchemaDefinition` and send messages.
 
-    ```java
-
-    SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
-    Producer<User> producer = client.newProducer(Schema.AVRO(schemaDefinition)).create();
-    producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
-
-    ```
+   ```java
+   
+   SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
+   Producer<User> producer = client.newProducer(Schema.AVRO(schemaDefinition)).create();
+   producer.newMessage().value(User.builder().name("pulsar-user").age(1).build()).send();
+   
+   ```
 
 3. Create a consumer with a `SchemaDefinition` schema and receive messages
 
-    ```java
-
-    SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
-    Consumer<User> consumer = client.newConsumer(Schema.AVRO(schemaDefinition)).subscribe();
-    User user = consumer.receive().getValue();
-
-    ```
+   ```java
+   
+   SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder().withPojo(User.class).build();
+   Consumer<User> consumer = client.newConsumer(Schema.AVRO(schemaDefinition)).subscribe();
+   User user = consumer.receive().getValue();
+   
+   ```
 
 </TabItem>
 
@@ -494,8 +494,8 @@ The table below lists the possible scenarios when this connection attempt occurs
 
 | Scenario |  What happens | 
 | --- | --- |
-|  * No schema exists for the topic.  |   (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
-|  * A schema already exists. * The producer connects using the same schema that is already stored.  |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |   * A schema already exists. * The producer connects using a new schema that is compatible.  |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
+|  <li>No schema exists for the topic. </li> |   (1) The producer is created using the given schema. (2) Since no existing schema is compatible with the `SensorReading` schema, the schema is transmitted to the broker and stored. (3) Any consumer created using the same schema or topic can consume messages from the `sensor-data` topic.  | 
+|  <li>A schema already exists. </li><li>The producer connects using the same schema that is already stored. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible. (3) The broker attempts to store the schema in [BookKeeper](concepts-architecture-overview.md#persistent-storage) but then determines that it's already stored, so it is used to tag produced messages.  |   <li>A schema already exists. </li><li>The producer connects using a new schema that is compatible. </li> |   (1) The schema is transmitted to the broker. (2) The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).  | 
 
 ## How does schema work
 
@@ -511,9 +511,9 @@ This diagram illustrates how does schema work on the Producer side.
 
 1. The application uses a schema instance to construct a producer instance. 
 
-    The schema instance defines the schema for the data being produced using the producer instance. 
+   The schema instance defines the schema for the data being produced using the producer instance. 
 
-    Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the `SchemaInfo` that the producer needs to pass to a broker when it connects.
+   Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the `SchemaInfo` that the producer needs to pass to a broker when it connects.
 
 2. The producer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    
@@ -537,7 +537,7 @@ For how to set `isAllowAutoUpdateSchema` via Pulsar admin API, see [Manage AutoU
   
   * If the schema is compatible, the broker stores it and returns the schema version to the producer. 
 
-    All the messages produced by this producer are tagged with the schema version. 
+   All the messages produced by this producer are tagged with the schema version. 
 
   * If the schema is incompatible, the broker rejects it.
 
@@ -549,24 +549,24 @@ This diagram illustrates how does Schema work on the consumer side.
 
 1. The application uses a schema instance to construct a consumer instance.
    
-    The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
+   The schema instance defines the schema that the consumer uses for decoding messages received from a broker.
 
 2. The consumer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
 
 3. The broker determines whether the topic has one of them (a schema/data/a local consumer and a local producer).
 
 4. If a topic does not have all of them (a schema/data/a local consumer and a local producer):
-    
-      * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
-        
-      * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
-        
+   
+     * If `isAllowAutoUpdateSchema` sets to **true**, then the consumer registers a schema and it is connected to a broker.
+       
+     * If `isAllowAutoUpdateSchema` sets to **false**, then the consumer is rejected to connect to a broker.
+       
 5. If a topic has one of them (a schema/data/a local consumer and a local producer), then the schema compatibility check is performed.
-    
-      * If the schema passes the compatibility check, then the consumer is connected to the broker.
-        
-      * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker. 
+   
+     * If the schema passes the compatibility check, then the consumer is connected to the broker.
+       
+     * If the schema does not pass the compatibility check, then the consumer is rejected to connect to the broker. 
 
 6. The consumer receives messages from the broker. 
 
-    If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the `SchemaInfo` of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.
+   If the schema used by the consumer supports schema versioning (for example, AVRO schema), the consumer fetches the `SchemaInfo` of the version tagged in messages and uses the passed-in schema and the schema tagged in messages to decode the messages.

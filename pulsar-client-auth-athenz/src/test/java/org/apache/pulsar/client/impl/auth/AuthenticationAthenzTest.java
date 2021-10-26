@@ -103,7 +103,7 @@ public class AuthenticationAthenzTest {
 
         int count = 0;
         for (Map.Entry<String, String> header : auth.getAuthData().getHttpHeaders()) {
-            if (header.getKey() == ZTSClient.getHeader()) {
+            if (header.getKey().equals(ZTSClient.getHeader())) {
                 com.yahoo.athenz.auth.token.RoleToken roleTokenFromHeader = new com.yahoo.athenz.auth.token.RoleToken(
                         header.getValue());
                 assertEquals(roleTokenFromHeader.getPrincipal(), String.format("%s.%s", TENANT_DOMAIN, TENANT_SERVICE));

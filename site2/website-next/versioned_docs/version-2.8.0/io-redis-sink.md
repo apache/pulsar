@@ -1,7 +1,7 @@
 ---
 id: io-redis-sink
 title: Redis sink connector
-sidebar_label: Redis sink connector
+sidebar_label: "Redis sink connector"
 original_id: io-redis-sink
 ---
 
@@ -44,35 +44,35 @@ Before using the Redis sink connector, you need to create a configuration file t
 
 * JSON
 
-    ```json
-
-    {
-        "redisHosts": "localhost:6379",
-        "redisPassword": "fake@123",
-        "redisDatabase": "1",
-        "clientMode": "Standalone",
-        "operationTimeout": "2000",
-        "batchSize": "100",
-        "batchTimeMs": "1000",
-        "connectTimeout": "3000"
-    }
-
-    ```
+  ```json
+  
+  {
+      "redisHosts": "localhost:6379",
+      "redisPassword": "fake@123",
+      "redisDatabase": "1",
+      "clientMode": "Standalone",
+      "operationTimeout": "2000",
+      "batchSize": "100",
+      "batchTimeMs": "1000",
+      "connectTimeout": "3000"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-
-    {
-        redisHosts: "localhost:6379"
-        redisPassword: "fake@123"
-        redisDatabase: 1
-        clientMode: "Standalone"
-        operationTimeout: 2000
-        batchSize: 100
-        batchTimeMs: 1000
-        connectTimeout: 3000
-    }
-
-    ```
+  ```yaml
+  
+  {
+      redisHosts: "localhost:6379"
+      redisPassword: "fake@123"
+      redisDatabase: 1
+      clientMode: "Standalone"
+      operationTimeout: 2000
+      batchSize: 100
+      batchTimeMs: 1000
+      connectTimeout: 3000
+  }
+  
+  ```
 

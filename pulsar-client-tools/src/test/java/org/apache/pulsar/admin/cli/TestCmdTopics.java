@@ -18,8 +18,19 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import com.google.common.collect.Lists;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.testng.Assert;
@@ -53,5 +64,28 @@ public class TestCmdTopics {
                             new MessageIdImpl(2, 0, -1));
         Assert.assertEquals(CmdTopics.findFirstLedgerWithinThreshold(ledgers, 5000),
                             new MessageIdImpl(1, 0, -1));
+    }
+
+    @Test
+    public void testListCmd() throws Exception {
+        List<String> topicList = Lists.newArrayList("persistent://public/default/t1", "persistent://public/default/t2",
+                "persistent://public/default/t3");
+
+        Topics topics = mock(Topics.class);
+        doReturn(topicList).when(topics).getList(anyString(), any());
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topics()).thenReturn(topics);
+
+        CmdTopics cmd = new CmdTopics(() -> admin);
+
+        PrintStream defaultSystemOut = System.out;
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); PrintStream ps = new PrintStream(out)) {
+            System.setOut(ps);
+            cmd.run("list public/default".split("\\s+"));
+            Assert.assertEquals(out.toString(), String.join("\n", topicList) + "\n");
+        } finally {
+            System.setOut(defaultSystemOut);
+        }
     }
 }

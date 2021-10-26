@@ -1,7 +1,7 @@
 ---
 id: admin-api-topics
 title: Manage topics
-sidebar_label: Topics
+sidebar_label: "Topics"
 original_id: admin-api-topics
 ---
 
@@ -24,6 +24,7 @@ Non-persistent topics are used in applications that only consume real-time publi
 non-persistent://tenant/namespace/topic
 
 ```
+
 ## Manage topic resources
 Whether it is persistent or non-persistent topic, you can obtain the topic resources through `pulsar-admin` tool, REST API and Java.
 
@@ -77,6 +78,7 @@ String namespace = "my-tenant/my-namespace";
 admin.topics().getList(namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -472,6 +474,7 @@ The following is an example of a topic status.
 }
 
 ```
+
 To get the status of a topic, you can use the following ways.
 
 <Tabs 
@@ -663,6 +666,7 @@ The following is an example of the detailed statistics of a topic.
 }
 
 ```
+
 To get the internal status of a topic, you can use the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
@@ -1240,6 +1244,7 @@ You can create non-partitioned topics in the following ways.
   }
 ]}>
 <TabItem value="pulsar-admin">
+
 When you create non-partitioned topics with the [`create`](reference-pulsar-admin.md#create-3) command, you need to specify the topic name as an argument.
 
 ```shell
@@ -1248,6 +1253,7 @@ $ bin/pulsar-admin topics create \
   persistent://my-tenant/my-namespace/my-topic
 
 ```
+
 :::note
 
 When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
@@ -1403,6 +1409,7 @@ You can check the current statistics of a given topic. The following is an examp
 }
 
 ```
+
 You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
 <Tabs 
   defaultValue="pulsar-admin"
@@ -1443,6 +1450,7 @@ $ pulsar-admin topics stats \
 admin.topics().getStats(topic, false /* is precise backlog */);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -1476,6 +1484,7 @@ You can create partitioned topics in the following ways.
   }
 ]}>
 <TabItem value="pulsar-admin">
+
 When you create partitioned topics with the [`create-partitioned-topic`](reference-pulsar-admin.md#create-partitioned-topic)
 command, you need to specify the topic name as an argument and the number of partitions using the `-p` or `--partitions` flag.
 
@@ -1534,6 +1543,7 @@ When topic auto-creation is disabled, and you have a partitioned topic without a
   }
 ]}>
 <TabItem value="pulsar-admin">
+
 You can create missed partitions with the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command and specify the topic name as an argument.
 
 ```shell
@@ -1587,6 +1597,7 @@ Field | Description
   }
 ]}>
 <TabItem value="pulsar-admin">
+
 You can check the number of partitions in a partitioned topic with the [`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata) subcommand. 
 
 ```shell
@@ -1641,6 +1652,7 @@ Producers and consumers can find the newly created partitions automatically.
   }
 ]}>
 <TabItem value="pulsar-admin">
+
 You can update partitioned topics with the [`update-partitioned-topic`](reference-pulsar-admin.md#update-partitioned-topic) command.
 
 ```shell
@@ -2047,4 +2059,6 @@ If a message has a key, it supersedes the round robin routing policy. The follow
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
 
-```        
+```
+
+        

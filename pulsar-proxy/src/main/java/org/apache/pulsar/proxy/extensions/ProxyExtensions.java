@@ -19,10 +19,10 @@
 package org.apache.pulsar.proxy.extensions;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+import java.util.HashMap;
+import java.util.HashSet;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
@@ -108,8 +108,8 @@ public class ProxyExtensions implements AutoCloseable {
     }
 
     public Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> newChannelInitializers() {
-        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> channelInitializers = Maps.newHashMap();
-        Set<InetSocketAddress> addresses = Sets.newHashSet();
+        Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> channelInitializers = new HashMap<>();
+        Set<InetSocketAddress> addresses = new HashSet<>();
 
         for (Map.Entry<String, ProxyExtensionWithClassLoader> extension : extensions.entrySet()) {
             Map<InetSocketAddress, ChannelInitializer<SocketChannel>> initializers =

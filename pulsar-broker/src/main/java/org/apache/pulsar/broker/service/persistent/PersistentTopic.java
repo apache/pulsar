@@ -1023,6 +1023,11 @@ public class PersistentTopic extends AbstractTopic
                     log.debug("[{}][{}] Error deleting cursor for subscription",
                             topic, subscriptionName, exception);
                 }
+                if (exception instanceof ManagedLedgerException.ManagedLedgerNotFoundException) {
+                    unsubscribeFuture.complete(null);
+                    lastActive = System.nanoTime();
+                    return;
+                }
                 unsubscribeFuture.completeExceptionally(new PersistenceException(exception));
             }
         }, null);
@@ -2986,6 +2991,10 @@ public class PersistentTopic extends AbstractTopic
                             decrementPendingWriteOpsAndCheck();
                         })
                         .exceptionally(throwable -> {
+                            throwable = throwable.getCause();
+                            if (!(throwable instanceof ManagedLedgerException)) {
+                                throwable = new ManagedLedgerException(throwable);
+                            }
                             addFailed((ManagedLedgerException) throwable, publishContext);
                             return null;
                         });

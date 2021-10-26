@@ -1,7 +1,7 @@
 ---
 id: client-libraries-cpp
 title: Pulsar C++ client
-sidebar_label: C++
+sidebar_label: "C++"
 original_id: client-libraries-cpp
 ---
 
@@ -63,6 +63,7 @@ The command the when use this pulsar library is like this:
  g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib
 
 ```
+
 `libpulsarwithdeps.a` does not include library openssl related libraries: `libssl` and `libcrypto`, because these 2 library is related to security, 
 by using user local system provided version is more reasonable, and more easy for user to handling security issue and library upgrade.
 
@@ -196,6 +197,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 To connect to Pulsar as a consumer, you need to create a consumer on the C++ client. The following is an example. 
 
 ```c++
+
 Client client("pulsar://localhost:6650");
 
 Consumer consumer;
@@ -223,6 +225,7 @@ client.close();
 To connect to Pulsar as a producer, you need to create a producer on the C++ client. The following is an example. 
 
 ```c++
+
 Client client("pulsar://localhost:6650");
 
 Producer producer;
@@ -295,3 +298,4 @@ consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
 client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
 
 ```
+

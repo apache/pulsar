@@ -1,7 +1,7 @@
 ---
 id: reference-cli-tools
 title: Pulsar command-line tools
-sidebar_label: Pulsar CLI tools
+sidebar_label: "Pulsar CLI tools"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -21,9 +21,12 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 
 > ### Getting help
 > You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+
 > ```shell
->
+> 
 > $ bin/pulsar broker --help
+>
+> 
 > ```
 
 ## `pulsar`
@@ -39,6 +42,7 @@ Usage:
 $ pulsar command
 
 ```
+
 Commands:
 * `bookie`
 * `broker`
@@ -146,6 +150,7 @@ Usage
 $ pulsar compact-topic options
 
 ```
+
 Options
 
 |Flag|Description|Default|
@@ -509,6 +514,7 @@ Run a consumer
 Usage
 
 ```
+
 $ pulsar-perf consume options
 
 ```
@@ -518,7 +524,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full|false|
 |`--listener-name`|Listener name for the broker||
 |`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
@@ -569,7 +575,7 @@ Options
 |`-am`, `--access-mode`|Producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`|Shared|
 |`-au`, `--admin-url`|Pulsar admin URL||
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`-bb`, `--batch-max-bytes`|Maximum number of bytes per batch|4194304|
@@ -626,7 +632,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
@@ -660,12 +666,15 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-t`, `--num-topic`|The number of topics|1|
 |`-f`, `--payload-file`|Use payload from a file instead of empty buffer||
+|`-e`, `--payload-delimiter`|The delimiter used to split lines when using payload from a file|\n|
+|`-fp`, `--format-payload`|Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds|false|
+|`-fc`, `--format-class`|Custom formatter class name|`org.apache.pulsar.testclient.DefaultMessageFormatter`|
 |`-u`, `--proxy-url`|Pulsar Proxy URL, e.g., "ws://localhost:8080/"||
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
 |`-s`, `--size`|Message size in byte|1024|
@@ -905,6 +914,7 @@ Usage
 $ broker-tool command
 
 ```
+
 Commands
 * `load-report`
 * `help`

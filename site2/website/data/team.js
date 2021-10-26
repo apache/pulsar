@@ -46,6 +46,11 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'David Kjerrumgaard',
+      apacheId: 'david-streamlio',
+      roles: 'Committer'
+    },
+    {
       name: 'Enrico Olivelli',
       apacheId: 'eolivelli',
       roles: 'Committer, PMC'

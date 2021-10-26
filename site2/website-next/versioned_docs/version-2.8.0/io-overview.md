@@ -1,7 +1,7 @@
 ---
 id: io-overview
 title: Pulsar connector overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: io-overview
 ---
 

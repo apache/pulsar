@@ -1,7 +1,7 @@
 ---
 id: reference-cli-tools
 title: Pulsar command-line tools
-sidebar_label: Pulsar CLI tools
+sidebar_label: "Pulsar CLI tools"
 original_id: reference-cli-tools
 ---
 
@@ -22,9 +22,12 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 
 > ### Getting help
 > You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+
 > ```shell
->
+> 
 > $ bin/pulsar broker --help
+>
+> 
 > ```
 
 ## `pulsar`
@@ -40,6 +43,7 @@ Usage:
 $ pulsar command
 
 ```
+
 Commands:
 * `bookie`
 * `broker`
@@ -149,6 +153,7 @@ Usage
 $ pulsar compact-topic options
 
 ```
+
 Options
 
 |Flag|Description|Default|
@@ -526,6 +531,7 @@ Run a consumer
 Usage
 
 ```
+
 $ pulsar-perf consume options
 
 ```
@@ -908,6 +914,7 @@ Usage
 $ broker-tool command
 
 ```
+
 Commands
 * `load-report`
 * `help`

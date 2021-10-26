@@ -1,7 +1,7 @@
 ---
 id: cookbooks-retention-expiry
 title: Message retention and expiry
-sidebar_label: Message retention and expiry
+sidebar_label: "Message retention and expiry"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -78,6 +78,7 @@ You can set a retention policy for a namespace by specifying the namespace, a si
   }
 ]}>
 <TabItem value="pulsar-admin">
+
 You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
 
 In the following example, the size limit is set to 10 GB and the time limit is set to 3 hours for each topic within the `my-tenant/my-ns` namespace. 
@@ -208,6 +209,7 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 admin.namespaces().getRetention(namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -297,6 +299,7 @@ BacklogQuota quota = new BacklogQuota(sizeLimit, policy);
 admin.namespaces().setBacklogQuota(namespace, quota);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -351,6 +354,7 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
   admin.namespaces().getBacklogQuotas(namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -396,6 +400,7 @@ $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
 admin.namespaces().removeBacklogQuota(namespace);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -464,6 +469,7 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
 admin.namespaces().setNamespaceMessageTTL(namespace, ttlInSeconds);
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -512,6 +518,7 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 admin.namespaces().getNamespaceMessageTTL(namespace)
 
 ```
+
 </TabItem>
 
 </Tabs>
@@ -559,6 +566,7 @@ $ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
 admin.namespaces().removeNamespaceMessageTTL(namespace)
 
 ```
+
 </TabItem>
 
 </Tabs>
