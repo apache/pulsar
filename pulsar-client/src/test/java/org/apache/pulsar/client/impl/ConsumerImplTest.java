@@ -193,6 +193,7 @@ public class ConsumerImplTest {
         Exception checkException = null;
         try {
             if (consumer != null) {
+                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
                 consumer.close();
             }
         } catch (Exception e) {
