@@ -567,7 +567,6 @@ public class KubernetesRuntime implements Runtime {
     public void deleteStatefulSet() throws InterruptedException {
         String statefulSetName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
         final V1DeleteOptions options = new V1DeleteOptions();
-        options.setGracePeriodSeconds(5L);
         // gracePeriodSeconds == 0 to force pod deletion and
         // avoid cases when pod hangs during termination
         // https://amalgjose.com/2021/07/28/how-to-delete-a-kubernetes-pod-which-is-stuck-in-terminating-state/
