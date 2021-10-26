@@ -24,6 +24,9 @@ pulsar.entry-read-batch-size=100
 
 # default number of splits to use per query
 pulsar.target-num-splits=4
+
+# max size of one batch message (default value is 5MB)
+pulsar.max-message-size=5242880
 ```
 
 You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers, add multiple URLs to `pulsar.web-service-url`. To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. The following is an example.

@@ -427,8 +427,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (message == null) {
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-            }
-            if (message != null) {
+            } else {
                 messageProcessed(message);
                 result.complete(beforeConsume(message));
             }
@@ -1237,10 +1236,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (listener != null) {
             triggerListener();
         }
-    }
-
-    private boolean isTxnMessage(MessageMetadata messageMetadata) {
-        return messageMetadata.hasTxnidMostBits() && messageMetadata.hasTxnidLeastBits();
     }
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
