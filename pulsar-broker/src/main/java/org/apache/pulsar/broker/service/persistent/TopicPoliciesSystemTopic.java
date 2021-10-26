@@ -40,7 +40,7 @@ public class TopicPoliciesSystemTopic extends SystemTopic {
         boolean isReplicatorStarted = super.addReplicationCluster(remoteCluster, cursor, localCluster);
         if (isReplicatorStarted) {
             getReplicators().get(remoteCluster).setFilterFunction((messageImpl)
-                    -> !IS_GLOBAL.equals(messageImpl.getProperty(IS_GLOBAL)));
+                    -> !messageImpl.getProperties().containsKey(IS_GLOBAL));
         }
         return isReplicatorStarted;
     }

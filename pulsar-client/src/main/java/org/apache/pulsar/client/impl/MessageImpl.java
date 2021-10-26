@@ -302,7 +302,6 @@ public class MessageImpl<T> implements Message<T> {
         msg.messageId = null;
         msg.topic = null;
         msg.cnx = null;
-        //msg.properties = Collections.emptyMap();
         msg.brokerEntryMetadata = brokerEntryMetadata;
         return msg;
     }

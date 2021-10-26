@@ -47,14 +47,6 @@ public interface TopicPoliciesService {
     CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
 
     /**
-     * Delete policies for a topic async.
-     * @param topicName
-     * @param isGlobal
-     * @return
-     */
-    CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName, boolean isGlobal);
-
-    /**
      * Update policies for a topic async.
      *
      * @param topicName topic name
@@ -74,13 +66,14 @@ public interface TopicPoliciesService {
      * @param topicName topic name
      * @return future of the topic policies
      */
-    TopicPolicies getGlobalTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
+    TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal) throws TopicPoliciesCacheNotInitException;
 
     /**
      * When getting TopicPolicies, if the initialization has not been completed,
      * we will go back off and try again until time out.
      * @param topicName topic name
      * @param backoff back off policy
+     * @param isGlobal is global policies
      * @return CompletableFuture<Optional<TopicPolicies>>
      */
     default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
@@ -94,8 +87,7 @@ public interface TopicPoliciesService {
         try {
             RetryUtil.retryAsynchronously(() -> {
                 try {
-                    return Optional.ofNullable(isGlobal ?
-                            getGlobalTopicPolicies(topicName) : getTopicPolicies(topicName));
+                    return Optional.ofNullable(getTopicPolicies(topicName, isGlobal));
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
                     throw new RuntimeException(exception);
                 }
@@ -152,11 +144,6 @@ public interface TopicPoliciesService {
         }
 
         @Override
-        public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName, boolean isGlobal) {
-            return null;
-        }
-
-        @Override
         public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
             return FutureUtil.failedFuture(new UnsupportedOperationException("Topic policies service is disabled."));
         }
@@ -167,7 +154,8 @@ public interface TopicPoliciesService {
         }
 
         @Override
-        public TopicPolicies getGlobalTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+        public TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal)
+                throws TopicPoliciesCacheNotInitException {
             return null;
         }
 

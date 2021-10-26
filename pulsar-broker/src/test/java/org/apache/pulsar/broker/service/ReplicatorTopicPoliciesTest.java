@@ -22,14 +22,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import com.google.common.collect.Sets;
-import java.lang.reflect.Method;
 import java.util.UUID;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -39,32 +37,36 @@ import org.testng.annotations.Test;
 public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeMethod(alwaysRun = true, timeOut = 300000)
+    @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
         config1.setSystemTopicEnabled(true);
+        config1.setDefaultNumberOfNamespaceBundles(1);
         config1.setTopicLevelPoliciesEnabled(true);
         config2.setSystemTopicEnabled(true);
         config2.setTopicLevelPoliciesEnabled(true);
+        config2.setDefaultNumberOfNamespaceBundles(1);
         config3.setSystemTopicEnabled(true);
         config3.setTopicLevelPoliciesEnabled(true);
+        config3.setDefaultNumberOfNamespaceBundles(1);
         super.setup();
-        admin1.namespaces().removeBacklogQuota("pulsar/ns");
-        admin1.namespaces().removeBacklogQuota("pulsar/ns1");
-        admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
     }
 
     @Override
-    @AfterMethod(alwaysRun = true, timeOut = 300000)
+    @AfterClass(alwaysRun = true, timeOut = 300000)
     public void cleanup() throws Exception {
         super.cleanup();
     }
 
     @Test
     public void testReplicatorTopicPolicies() throws Exception {
-        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
-        final String persistentTopicName = "persistent://" + namespace + "/partTopic" + UUID.randomUUID();
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String cluster3 = pulsar3.getConfig().getClusterName();
 
-        admin1.namespaces().createNamespace(namespace);
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
         // Create partitioned-topic from R1
         admin1.topics().createPartitionedTopic(persistentTopicName, 3);
@@ -78,20 +80,20 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> assertEquals(
                 admin3.topics().getPartitionedTopicList(namespace).get(0), persistentTopicName));
 
-        //int topic policies server
-        pulsar1.getClient().newProducer().topic(persistentTopicName).create().close();
-        pulsar2.getClient().newProducer().topic(persistentTopicName).create().close();
-        pulsar3.getClient().newProducer().topic(persistentTopicName).create().close();
+        //init topic policies server
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
+            assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
+            assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(persistentTopicName)));
+        });
 
         RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
         admin1.topicPolicies(true).setRetention(persistentTopicName, retentionPolicies);
 
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin2.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies);
-        });
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin3.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies);
-        });
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin2.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin3.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies));
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(admin1.topicPolicies(true).getRetention(persistentTopicName), retentionPolicies);

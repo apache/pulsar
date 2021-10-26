@@ -2681,8 +2681,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
         // check global topic policies can be added correctly.
-        Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic))));
-        TopicPolicies topicPolicies = topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic));
+        Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true)));
+        TopicPolicies topicPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
         assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
         assertEquals(topicPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 1);
         assertEquals(topicPolicies.getRetentionPolicies().getRetentionSizeInMB(), 2);
@@ -2690,7 +2690,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // check global topic policies can be updated correctly.
         admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(3, 4));
         Awaitility.await().untilAsserted(() -> {
-            TopicPolicies tempPolicies = topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic));
+            TopicPolicies tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
             assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic)));
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
@@ -2699,7 +2699,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //Local topic policies and global topic policies can exist together.
         admin.topicPolicies().setRetention(topic, new RetentionPolicies(10, 20));
         Awaitility.await().untilAsserted(() -> assertNotNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic))));
-        TopicPolicies tempPolicies = topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic));
+        TopicPolicies tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic), true);
         assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
         assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
         tempPolicies = topicPoliciesService.getTopicPolicies(TopicName.get(topic));
@@ -2709,7 +2709,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // check remove global topic policies can be removed correctly.
         admin.topicPolicies(true).removeRetention(topic);
         Awaitility.await().untilAsserted(() ->
-                assertNull(topicPoliciesService.getGlobalTopicPolicies(TopicName.get(topic))));
+                assertNull(topicPoliciesService.getTopicPolicies(TopicName.get(topic), true).getRetentionPolicies()));
 
     }
 

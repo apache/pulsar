@@ -82,11 +82,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     @Override
-    public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName, boolean isGlobal) {
-        return sendTopicPolicyEvent(topicName, ActionType.DELETE, TopicPolicies.builder().isGlobal(true).build());
-    }
-
-    @Override
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
         return sendTopicPolicyEvent(topicName, ActionType.UPDATE, policies);
     }
@@ -137,7 +132,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private PulsarEvent getPulsarEvent(TopicName topicName, ActionType actionType, TopicPolicies policies) {
         PulsarEvent.PulsarEventBuilder builder = PulsarEvent.builder();
         if (policies != null && policies.isGlobalPolicies()) {
-            builder.properties(ImmutableMap.of(IS_GLOBAL, IS_GLOBAL));
+            builder.properties(ImmutableMap.of(IS_GLOBAL, ""));
         }
         return builder
                 .actionType(actionType)
@@ -181,20 +176,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
-        if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
-                && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
-            throw new TopicPoliciesCacheNotInitException();
-        }
-        return policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+        return getTopicPolicies(topicName, false);
     }
 
     @Override
-    public TopicPolicies getGlobalTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
+    public TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal)
+            throws TopicPoliciesCacheNotInitException {
         if (policyCacheInitMap.containsKey(topicName.getNamespaceObject())
                 && !policyCacheInitMap.get(topicName.getNamespaceObject())) {
             throw new TopicPoliciesCacheNotInitException();
         }
-        return globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
+        return isGlobal ? globalPoliciesCache.get(TopicName.get(topicName.getPartitionedTopicName()))
+                : policiesCache.get(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     @Override
@@ -358,7 +351,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // delete policies
         if (msg.getValue() == null) {
             TopicName topicName = TopicName.get(TopicName.get(msg.getKey()).getPartitionedTopicName());
-            if (IS_GLOBAL.equals(msg.getProperty(IS_GLOBAL))) {
+            if (msg.getProperties().containsKey(IS_GLOBAL)) {
                 globalPoliciesCache.remove(topicName);
             } else {
                 policiesCache.remove(topicName);
