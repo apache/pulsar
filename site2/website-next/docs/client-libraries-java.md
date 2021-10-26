@@ -156,7 +156,7 @@ You can set the client memory allocator configurations through Java properties.<
 example: `-Dpulsar.allocator.pooled=true -Dpulsar.allocator.exit_on_oom=false -Dpulsar.allocator.leak_detection=Disabled -Dpulsar.allocator.out_of_memory_policy=ThrowException`
 | Property | Type |  <div>Description</div> | Default
 |---|---|---|---
-`pulsar.allocator.pooled` | String | If set to true, the client use direct memory pool. False use the heap memory without pool | true
+`pulsar.allocator.pooled` | String | If set to `true`, the client uses a direct memory pool. </br> If set to `false`, the client uses a heap memory without pool | true
 `pulsar.allocator.exit_on_oom` | String | Whether to exit the jvm when OOM happen | false
 `pulsar.allocator.leak_detection` | String | Service URL provider for Pulsar service | Disabled
 `pulsar.allocator.out_of_memory_policy` | String | When OOM, throw exception or fallback to heap | FallbackToHeap
