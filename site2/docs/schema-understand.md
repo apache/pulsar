@@ -425,7 +425,6 @@ You can define the `schemaDefinition` to generate a `struct` schema.
                                                             .withSchemaWriter(writer)
                                                             .withSchemaReader(reader)
                                                             .build();
-    
     ```
    You can define `SchemaWriter` and `SchemaReader` as singletons
 
