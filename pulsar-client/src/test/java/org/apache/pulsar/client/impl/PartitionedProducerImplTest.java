@@ -153,4 +153,37 @@ public class PartitionedProducerImplTest {
         impl.getStats();
     }
 
+    @Test
+    public void testGetStatsWithoutArriveUpdateInterval() throws Exception {
+        String topicName = "test-stats-without-arrive-interval";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory =
+                new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        EventLoopGroup eventLoopGroup = EventLoopUtil
+                .newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+
+        assertEquals(Long.parseLong("100"), clientImpl.getConfiguration().getStatsIntervalSeconds());
+
+        PartitionedProducerImpl<byte[]> impl = new PartitionedProducerImpl<>(
+                clientImpl, topicName, producerConfData,
+                1, null, null, null);
+
+        impl.getProducers().get(0).getStats().incrementSendFailed();
+        ProducerStatsRecorderImpl stats = impl.getStats();
+        assertEquals(stats.getTotalSendFailed(), 0);
+        // When close producer, the ProducerStatsRecorder will update stats immediately
+        impl.close();
+        stats = impl.getStats();
+        assertEquals(stats.getTotalSendFailed(), 1);
+    }
+
 }
