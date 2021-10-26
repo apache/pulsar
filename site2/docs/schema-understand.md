@@ -413,19 +413,19 @@ You can define the `schemaDefinition` to generate a `struct` schema.
 4. Use a custom `Serialization` method, such as json configuration method, the following is the default
 
    ```java
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-      mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-      mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-      JacksonJsonWriter<User> writer = new JacksonJsonWriter<>(mapper);
-      JacksonJsonReader<User> reader = new JacksonJsonReader<>(mapper, User.class);
+   ObjectMapper mapper = new ObjectMapper();
+   mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+   mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+   mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+   JacksonJsonWriter<User> writer = new JacksonJsonWriter<>(mapper);
+   JacksonJsonReader<User> reader = new JacksonJsonReader<>(mapper, User.class);
    
-      SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder()
-                                                            .withPojo(User.class)
-                                                            .withSchemaWriter(writer)
-                                                            .withSchemaReader(reader)
-                                                            .build();
-    ```
+   SchemaDefinition<User> schemaDefinition = SchemaDefinition.<User>builder()
+                                                         .withPojo(User.class)
+                                                         .withSchemaWriter(writer)
+                                                         .withSchemaReader(reader)
+                                                         .build();
+   ```
    You can define `SchemaWriter` and `SchemaReader` as singletons
 
 <!--END_DOCUSAURUS_CODE_TABS-->
