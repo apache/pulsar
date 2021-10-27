@@ -91,6 +91,9 @@
 <span class="hljs-comment">
 # default number of splits to use per query</span>
 <span class="hljs-meta">pulsar.target-num-splits</span>=<span class="hljs-string">4</span>
+<span class="hljs-comment">
+# max size of one batch message (default value is 5MB)</span>
+<span class="hljs-meta">pulsar.max-message-size</span>=<span class="hljs-string">5242880</span>
 </code></pre>
 <p>你可以使用 Presto 連接到有多個主機的 Pulsar 集群。 To configure multiple hosts for brokers, add multiple URLs to <code>pulsar.web-service-url</code>. 要為 ZooKeeper 配置多個主機, 添加多個 URI 到 <code>pulsar.zookeeper-uri</code>。 以下是一個範例。</p>
 <pre><code class="hljs">pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082

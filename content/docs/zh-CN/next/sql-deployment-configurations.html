@@ -92,6 +92,9 @@
 <span class="hljs-comment">
 # default number of splits to use per query</span>
 <span class="hljs-meta">pulsar.target-num-splits</span>=<span class="hljs-string">4</span>
+<span class="hljs-comment">
+# max size of one batch message (default value is 5MB)</span>
+<span class="hljs-meta">pulsar.max-message-size</span>=<span class="hljs-string">5242880</span>
 </code></pre>
 <p>Presto 可通过多个主机连接到 Pulsar 集群。 要为 broker 配置多个主机，需要添加多个 URL 到 <code>pulsar.web-service-url</code>。 要为 ZooKeeper 配置多个主机，需要添加多个 URI 到 <code>pulsar.zookeeper-uri</code>。 示例如下：</p>
 <pre><code class="hljs">pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082

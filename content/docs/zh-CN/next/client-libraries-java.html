@@ -151,13 +151,41 @@ dependencies {
 <p><strong>例如</strong>  <br>
 key1:val1,key2:val2|None <code>operationTimeoutMs</code>|long|<code>操作超时时间(毫秒)</code>|Operation timeout |30000 <code>statsIntervalSeconds</code>|long|每个统计信息之间的间隔(秒)</p>
 <p>统计有效的激活数<code>statsInterval</code></p>
-<p>Set <code>statsIntervalSeconds</code>设置为至少 1 秒。 |60 <code>numIoThreads</code>| int| 用于处理 brokers 的连接线程数 | 1 <code>numListenerThreads</code>|int|用于处理消息侦听器的线程数. 所有的消费者和读者共享监听器线程池，并使用 “监听器”模式获取消息。 对于某个消费者来说，为了保证有序性，总在同一线程中调用监听器。 如果想用多线程处理单个 topic，需要采用 <a href="https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared"><code>shared</code></a> 订阅模式，并为这个订阅创建多个消费者。 This does not ensure ordering.| 1 <code>useTcpNoDelay</code>| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true <code>useTls</code> |boolean |Whether to use TLS encryption on the connection| false <code>tlsTrustCertsFilePath</code> |string |Path to the trusted TLS certificate file|None <code>tlsAllowInsecureConnection</code>|boolean|Whether the Pulsar client accepts untrusted TLS certificate from broker | false <code>tlsHostnameVerificationEnable</code> |boolean | Whether to enable TLS hostname verification|false <code>concurrentLookupRequest</code>|int|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000 <code>maxLookupRequest</code>|int|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000 <code>maxNumberOfRejectedRequestPerConnection</code>|int|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50 <code>keepAliveIntervalSeconds</code>|int|Seconds of keeping alive interval for each client broker connection|30 <code>connectionTimeoutMs</code>|int|Duration of waiting for a connection to a broker to be established</p>
-<p>If the duration passes without a response from a broker, the connection attempt is dropped|10000 <code>requestTimeoutMs</code>|int|Maximum duration for completing a request |60000 <code>defaultBackoffIntervalNanos</code>|int| Default duration for a backoff interval | TimeUnit.MILLISECONDS.toNanos(100); <code>maxBackoffIntervalNanos</code>|long|Maximum duration for a backoff interval|TimeUnit.SECONDS.toNanos(30) <code>socks5ProxyAddress</code>|SocketAddress|SOCKS5 proxy address | None <code>socks5ProxyUsername</code>|string|SOCKS5 proxy username | None <code>socks5ProxyPassword</code>|string|SOCKS5 proxy password | None</p>
+<p>Set <code>statsIntervalSeconds</code>设置为至少 1 秒。 |60 <code>numIoThreads</code>| int| 用于处理 brokers 的连接线程数 | 1 <code>numListenerThreads</code>|int|用于处理消息侦听器的线程数. 所有的消费者和读者共享监听器线程池，并使用 “监听器”模式获取消息。 对于某个消费者来说，为了保证有序性，总在同一线程中调用监听器。 如果想用多线程处理单个 topic，需要采用 <a href="https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared"><code>shared</code></a> 订阅模式，并为这个订阅创建多个消费者。 不保证顺序正确。| 1 <code>useTcpNoDelay</code>| boolean| 是否在连接上使用TCP无延迟标志来禁用Nagle算法 |true <code>useTls</code> |boolean | 是否使用TLS加密连接 | false <code>tlsTrustCertsFilePath</code> |string | TLS 证书的文件路径 |None <code>tlsAllowInsecureConnection</code>|boolean| Pulsar 客户端是否接受来自 broker 的不受信任的 TLS 证书 | false <code>tlsHostnameVerificationEnable</code> |boolean | 是否启用TLS主机名称检验 |false <code>concurrentLookupRequest</code>|int| 允许在每个 Broker 连接上发送的并发请求数，以防止Broker过载 |5000 <code>maxLookupRequest</code>|int| 每个 Broker 连接上允许最大的并发请求数，以防止Broker过载 | 50000 <code>maxNumberOfRejectedRequestPerConnection</code>|int| 当前连接关闭后，客户端在一定时间范围内（30秒）拒绝的最大请求数，客户端需要创建新连接来连接不同的 broker |50 <code>keepAliveIntervalSeconds</code>|int| 每个客户端与 Broker 连接维持存活的间隔,单位是秒 |30 <code>connectionTimeoutMs</code>|int| 与 Broker 建立连接的等待超时时间</p>
+<p>如果持续时间过去了还没有收到 Broker 响应，则连接将尝试被丢弃 |10000 <code>requestTimeoutMs</code>|int|请求的最长超时时间 |60000 <code>defaultBackoffIntervalNanos</code>|int| 默认补偿的间隔时间 | TimeUnit.MILLISECONDS.toNanos(100); <code>maxBackoffIntervalNanos</code>|long| 补偿的最大间隔时间 |TimeUnit.SECONDS.toNanos(30) <code>socks5ProxyAddress</code>|SocketAddress| SOCKS5 代理地址 | None <code>socks5ProxyUsername</code>|string| SOCKS5 代理用户账号 | None <code>socks5ProxyPassword</code>|string| SOCKS5 代理用户密码 | None</p>
 <p>Check out the Javadoc for the <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  class for a full list of configurable parameters.</p>
 <blockquote>
-<p>In addition to client-level configuration, you can also apply <a href="#configure-producer">producer</a> and <a href="#configure-consumer">consumer</a> specific configuration as described in sections below.</p>
+<p>除了客户端级别的配置，你还可以使用 <a href="#configure-producer">生产者</a>和<a href="#configure-consumer">消费者</a>特定配置，你将在下面的章节中看到。</p>
 </blockquote>
+<h3><a class="anchor" aria-hidden="true" id="客户端内存分配配置"></a><a href="#客户端内存分配配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端内存分配配置</h3>
+<p>您可以通过 Java 属性设置客户端内存分配配置。</p>
+<p>| 属性 | 类型 |</p>
+<div>
+  说明
+</div>
+<p>| 默认 | 可用值 |---|---|---|---|----- <code>pulsar.allocator.pooled</code> | String | 如果设置为 true <code>true</code>，客户端使用直接内存池。 </br> 如果没有设置 <code>false</code>, 客户端将使用无池的堆内存| true |</p>
+<ul>
+<li><p>true</p></li>
+<li><p>false
+<code>pulsar.allocator.exit_on_oom</code> | String | 当JVM OOM出现的时候是否直接退出 | false |</p></li>
+<li><p>true</p></li>
+<li><p>false
+<code>pulsar.allocator.leak_detection</code> | String | Pulsar 服务提供的URL地址 | Disabled |</p></li>
+<li><p>禁用</p></li>
+<li><p>简单</p></li>
+<li><p>高级</p></li>
+<li><p>Paranoid
+<code>pulsar.allocator.out_of_memory_policy</code> | 字符串 | 当OOM发生时，客户端将异常返回到堆中 | FallbackToHeap |</p></li>
+<li><p>ThrowException</p></li>
+<li><p>FallbackToHeap</p></li>
+</ul>
+<p><strong>例子</strong>:</p>
+<pre><code class="hljs">-Dpulsar.allocator.pooled=true
+-Dpulsar.allocator.exit_on_oom=false
+-Dpulsar.allocator.leak_detection=Disabled
+-Dpulsar.allocator.out_of_memory_policy=ThrowException
+</code></pre>
 <h2><a class="anchor" aria-hidden="true" id="生产者producer"></a><a href="#生产者producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者（Producer）</h2>
 <p>在Pulsar中，生产者写消息到主题中。 一旦你实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
 客户端对象(在<a href="#client-configuration">如上</a>z章节)，你可以创建一个<a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/Producer">Producer</a>
@@ -169,7 +197,7 @@ key1:val1,key2:val2|None <code>operationTimeoutMs</code>|long|<code>操作超时
 <span class="hljs-comment">// 然后你就可以发送消息到指定的broker 和topic上：</span>
 producer.send(<span class="hljs-string">"My message"</span>.getBytes());
 </code></pre>
-<p>By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message <a href="#schema">schema</a>.</p>
+<p>默认情况下，生产者生产的消息为字节数组。但是你可以通过指定消息的<a href="#schema">schema</a>类型来生成不同类型的消息。</p>
 <pre><code class="hljs css language-java">Producer&lt;String&gt; stringProducer = client.newProducer(Schema.STRING)
         .topic(<span class="hljs-string">"my-topic"</span>)
         .create();
@@ -994,7 +1022,7 @@ PulsarClient client = PulsarClient.builder()
     .authentication(auth)
     .build();
 ```</code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#配置消息">配置消息</a></li></ul></li><li><a href="#消费者consumer">消费者（Consumer）</a><ul class="toc-headings"><li><a href="#配置消费者">配置消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries"><span class="arrow-prev">← </span><span>概述</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#默认的broker-url是单机集群">默认的broker URL是单机集群。</a></li><li><a href="#客户端内存分配配置">客户端内存分配配置</a></li></ul></li><li><a href="#生产者producer">生产者（Producer）</a><ul class="toc-headings"><li><a href="#配置producer生产者">配置Producer（生产者）</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#配置消息">配置消息</a></li></ul></li><li><a href="#消费者consumer">消费者（Consumer）</a><ul class="toc-headings"><li><a href="#配置消费者">配置消费者</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -158,6 +158,34 @@ key1:val1,key2:val2|None <code>operationTimeoutMs</code>|long|<code>operationTim
 <blockquote>
 <p>In addition to client-level configuration, you can also apply <a href="#configure-producer">producer</a> and <a href="#configure-consumer">consumer</a> specific configuration as described in sections below.</p>
 </blockquote>
+<h3><a class="anchor" aria-hidden="true" id="client-memory-allocator-configuration"></a><a href="#client-memory-allocator-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client memory allocator configuration</h3>
+<p>You can set the client memory allocator configurations through Java properties.</p>
+<p>| Property | Type |</p>
+<div>
+  Description
+</div>
+<p>| Default | Available values |---|---|---|---|--- <code>pulsar.allocator.pooled</code> | String | If set to <code>true</code>, the client uses a direct memory pool. </br> If set to <code>false</code>, the client uses a heap memory without pool | true |</p>
+<ul>
+<li><p>true</p></li>
+<li><p>false
+<code>pulsar.allocator.exit_on_oom</code> | String | Whether to exit the JVM when OOM happens | false |</p></li>
+<li><p>true</p></li>
+<li><p>false
+<code>pulsar.allocator.leak_detection</code> | String | Service URL provider for Pulsar service | Disabled |</p></li>
+<li><p>Disabled</p></li>
+<li><p>Simple</p></li>
+<li><p>Advanced</p></li>
+<li><p>Paranoid
+<code>pulsar.allocator.out_of_memory_policy</code> | String | When an OOM occurs, the client throws an exception or fallbacks to heap | FallbackToHeap |</p></li>
+<li><p>ThrowException</p></li>
+<li><p>FallbackToHeap</p></li>
+</ul>
+<p><strong>Example</strong>:</p>
+<pre><code class="hljs">-Dpulsar.allocator.pooled=true
+-Dpulsar.allocator.exit_on_oom=false
+-Dpulsar.allocator.leak_detection=Disabled
+-Dpulsar.allocator.out_of_memory_policy=ThrowException
+</code></pre>
 <h2><a class="anchor" aria-hidden="true" id="producer"></a><a href="#producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer</h2>
 <p>In Pulsar, producers write messages to topics. Once you've instantiated a <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  object (as in the section <a href="#client-configuration">above</a>), you can create a <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/Producer">Producer</a>
@@ -994,7 +1022,7 @@ PulsarClient client = PulsarClient.builder()
     .authentication(auth)
     .build();
 ```</code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/next/client-libraries"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#default-broker-urls-for-standalone-clusters">Default broker URLs for standalone clusters</a></li></ul></li><li><a href="#producer">Producer</a><ul class="toc-headings"><li><a href="#configure-producer">Configure producer</a></li><li><a href="#message-routing">Message routing</a></li><li><a href="#async-send">Async send</a></li><li><a href="#configure-messages">Configure messages</a></li></ul></li><li><a href="#consumer">Consumer</a><ul class="toc-headings"><li><a href="#configure-consumer">Configure consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/next/client-libraries"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/next/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#connection-urls">Connection URLs</a></li><li><a href="#client">Client</a><ul class="toc-headings"><li><a href="#default-broker-urls-for-standalone-clusters">Default broker URLs for standalone clusters</a></li><li><a href="#client-memory-allocator-configuration">Client memory allocator configuration</a></li></ul></li><li><a href="#producer">Producer</a><ul class="toc-headings"><li><a href="#configure-producer">Configure producer</a></li><li><a href="#message-routing">Message routing</a></li><li><a href="#async-send">Async send</a></li><li><a href="#configure-messages">Configure messages</a></li></ul></li><li><a href="#consumer">Consumer</a><ul class="toc-headings"><li><a href="#configure-consumer">Configure consumer</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
