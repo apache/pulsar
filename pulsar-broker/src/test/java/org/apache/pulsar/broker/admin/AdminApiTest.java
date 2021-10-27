@@ -786,9 +786,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
 
         // Force topic creation and namespace being loaded
-        producer = pulsarClient.newProducer(Schema.BYTES).topic("persistent://prop-xyz/use/ns2/my-topic").create();
+        producer = pulsarClient.newProducer(Schema.BYTES).topic("persistent://prop-xyz/ns2/my-topic").create();
         producer.close();
-        admin.topics().delete("persistent://prop-xyz/use/ns2/my-topic");
+        admin.topics().delete("persistent://prop-xyz/ns2/my-topic");
 
         // both unload and delete should succeed for ns2 on other broker with a redirect
         // otheradmin.namespaces().unload("prop-xyz/use/ns2");
