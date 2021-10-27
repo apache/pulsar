@@ -361,6 +361,7 @@ $ pulsar-daemon command
 Commands
 * `start`
 * `stop`
+* `restart`
 
 
 ### `start`
@@ -385,7 +386,11 @@ Options
 |---|---|---|
 |-force|Stop the service forcefully if not stopped by normal shutdown.|false|
 
-
+### `restart`
+Restart a service that has already been started.
+```bash
+$ pulsar-daemon restart service
+```
 
 ## `pulsar-perf`
 A tool for performance testing a Pulsar broker.
