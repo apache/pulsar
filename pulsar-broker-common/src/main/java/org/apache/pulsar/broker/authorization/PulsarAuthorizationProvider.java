@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -277,7 +278,39 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        return grantPermissionAsync(topicName.getNamespaceObject(), actions, role, authDataJson);
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        try {
+            validatePoliciesReadOnlyAccess();
+        } catch (Exception e) {
+            result.completeExceptionally(e);
+            return result;
+        }
+
+        String topicUri = topicName.toString();
+        try {
+            pulsarResources.getNamespaceResources().setPolicies(topicName.getNamespaceObject(), policies -> {
+                policies.auth_policies.getTopicAuthentication()
+                        .computeIfAbsent(topicUri, __ -> new HashMap<>())
+                        .put(role, actions);
+                return policies;
+            });
+            log.info("[{}] Successfully granted access for role {}: {} - topic {}", role, role, actions, topicUri);
+            result.complete(null);
+        } catch (NotFoundException e) {
+            log.warn("[{}] Failed to set permissions for topic {}: Namespace does not exist", role, topicUri);
+            result.completeExceptionally(
+                    new IllegalArgumentException("Topic's namespace does not exist " + topicName.getNamespace()));
+        } catch (BadVersionException e) {
+            log.warn("[{}] Failed to set permissions for topic {}: concurrent modification", role, topicUri);
+            result.completeExceptionally(new IllegalStateException(
+                    "Concurrent modification on metadata: " + topicName + ", " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("[{}] Failed to get permissions for topic {}", role, topicName, e);
+            result.completeExceptionally(
+                    new IllegalStateException("Failed to get permissions for topic " + topicName));
+        }
+
+        return result;
     }
 
     @Override
