@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -67,9 +69,26 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                         future.completeExceptionally(throwable);
                         return;
                     }
-                    future.complete(new TransactionImpl(client, txnTimeout,
-                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                    TransactionImpl transaction = new TransactionImpl(client, txnTimeout,
+                            txnID.getLeastSigBits(), txnID.getMostSigBits());
+                    client.getTimer().newTimeout(new TxnTimeoutTasker(transaction),
+                            txnTimeout, timeUnit);
+                    future.complete(transaction);
                 });
         return future;
+    }
+
+    private class TxnTimeoutTasker implements TimerTask {
+
+        TransactionImpl transaction;
+
+        public TxnTimeoutTasker(TransactionImpl transaction) {
+            this.transaction = transaction;
+        }
+
+        @Override
+        public void run(Timeout timeout) throws Exception {
+            transaction.changToAbortedByTimeout();
+        }
     }
 }

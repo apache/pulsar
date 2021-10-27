@@ -490,6 +490,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (null != txn) {
             checkArgument(txn instanceof TransactionImpl);
             txnImpl = (TransactionImpl) txn;
+           if (txnImpl.getState() == TransactionImpl.State.ABORTED) {
+                throw new IllegalArgumentException("Shouldn`t ack messages in a aborted transaction: "
+                        + txn.getTxnID() + ". This may be caused by transaction timeout");
+            }
         }
         return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);
     }

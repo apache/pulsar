@@ -95,6 +95,9 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         if (conf.getSendTimeoutMs() > 0) {
             throw new IllegalArgumentException("Only producers disabled sendTimeout are allowed to"
                 + " produce transactional messages");
+        } else if (((TransactionImpl) txn).getState() == TransactionImpl.State.ABORTED) {
+            throw new IllegalArgumentException("Shouldn`t produce messages in a aborted transaction: "
+                    + txn.getTxnID() + ". This may be caused by transaction timeout");
         }
 
         return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
