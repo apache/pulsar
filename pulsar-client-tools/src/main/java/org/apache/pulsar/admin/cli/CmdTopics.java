@@ -804,7 +804,7 @@ public class CmdTopics extends CmdBase {
                 getTopics().resetCursor(persistentTopic, subName, timestamp);
             } else {
                 throw new PulsarAdminException(
-                        "Either Timestamp (--time) or messageId (--messagId) has to be provided to reset cursor");
+                        "Either Timestamp (--time) or messageId (--messageId) has to be provided to reset cursor");
             }
         }
     }
