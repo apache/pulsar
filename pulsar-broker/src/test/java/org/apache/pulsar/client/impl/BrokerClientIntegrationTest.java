@@ -945,7 +945,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertNotNull(msg);
         ByteBuf payload = msg.getPayload();
         assertNotEquals(payload.refCnt(), 0);
-        consumer.redeliverUnacknowledgedMessages().get();
+        consumer.redeliverUnacknowledgedMessages();
         consumer.clearIncomingMessagesAndGetMessageNumber();
         if (payload.refCnt() != 0) {
             assertNotNull(msg.getMessageId());

@@ -45,10 +45,12 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.schema.Schemas;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -295,7 +297,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         epoch.set(1);
         Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
-        consumer.redeliverUnacknowledgedMessages().get();
+        consumer.redeliverUnacknowledgedMessages();
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(message);
         consumer.acknowledgeCumulativeAsync(message).get();
@@ -307,10 +309,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
 
-        consumer.redeliverUnacknowledgedMessages().get();
+        consumer.redeliverUnacknowledgedMessages();
         message = consumer.receive(3, TimeUnit.SECONDS);
         consumer.acknowledgeCumulativeAsync(message).get();
-        consumer.redeliverUnacknowledgedMessages().get();
+        consumer.redeliverUnacknowledgedMessages();
         assertNotNull(message);
         assertEquals(message.getValue(), test2);
 

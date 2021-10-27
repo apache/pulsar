@@ -563,9 +563,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             cumulativeAckOfTransaction = null;
                         }
                         // pendingAck handle next pr will fix
-                        this.persistentSubscription.redeliverUnacknowledgedMessages(consumer,
-                                ((PersistentDispatcherSingleActiveConsumer) this.persistentSubscription
-                                        .getDispatcher()).getConsumerEpoch());
+                        PersistentDispatcherSingleActiveConsumer activeConsumer =
+                                (PersistentDispatcherSingleActiveConsumer) this.persistentSubscription.getDispatcher();
+
+                        if (activeConsumer == null) {
+                            this.persistentSubscription.redeliverUnacknowledgedMessages(consumer, 0);
+                        } else {
+                            this.persistentSubscription.redeliverUnacknowledgedMessages(consumer,
+                                    activeConsumer.getConsumerEpoch());
+                        }
                         abortFuture.complete(null);
                     }).exceptionally(e -> {
                         log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
