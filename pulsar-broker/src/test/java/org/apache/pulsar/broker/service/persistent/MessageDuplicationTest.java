@@ -32,7 +32,13 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
+
+import java.lang.reflect.Field;
+import java.util.Map;
+
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,7 +48,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
@@ -143,6 +151,64 @@ public class MessageDuplicationTest {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
+    }
+
+    @Test
+    public void testInactiveProducerRemove() throws Exception {
+        PulsarService pulsarService = mock(PulsarService.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
+        ManagedLedger managedLedger = mock(ManagedLedger.class);
+
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
+
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, topic, managedLedger));
+        doReturn(true).when(messageDeduplication).isEnabled();
+
+        Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
+
+        Field field = MessageDeduplication.class.getDeclaredField("inactiveProducers");
+        field.setAccessible(true);
+        Map<String, Long> map = (Map<String, Long>) field.get(messageDeduplication);
+
+        String producerName1 = "test1";
+        when(publishContext.getHighestSequenceId()).thenReturn(2L);
+        when(publishContext.getSequenceId()).thenReturn(1L);
+        when(publishContext.getProducerName()).thenReturn(producerName1);
+        messageDeduplication.isDuplicate(publishContext, null);
+
+        String producerName2 = "test2";
+        when(publishContext.getProducerName()).thenReturn(producerName2);
+        messageDeduplication.isDuplicate(publishContext, null);
+
+        String producerName3 = "test3";
+        when(publishContext.getProducerName()).thenReturn(producerName3);
+        messageDeduplication.isDuplicate(publishContext, null);
+
+        messageDeduplication.producerRemoved(producerName1);
+        assertTrue(map.containsKey(producerName1));
+        messageDeduplication.producerAdded(producerName1);
+        assertFalse(map.containsKey(producerName1));
+        messageDeduplication.purgeInactiveProducers();
+        // messageDeduplication.purgeInactiveProducers() will remove producer2 and producer3
+        map.put(producerName2, System.currentTimeMillis() - 70000);
+        map.put(producerName3, System.currentTimeMillis() - 70000);
+        messageDeduplication.purgeInactiveProducers();
+        assertFalse(map.containsKey(producerName2));
+        assertFalse(map.containsKey(producerName3));
+
+        field = MessageDeduplication.class.getDeclaredField("highestSequencedPushed");
+        field.setAccessible(true);
+        ConcurrentOpenHashMap<String, Long> highestSequencedPushed = (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
+
+        assertEquals((long) highestSequencedPushed.get(producerName1), 2L);
+        assertFalse(highestSequencedPushed.containsKey(producerName2));
+        assertFalse(highestSequencedPushed.containsKey(producerName3));
+
     }
 
     @Test
