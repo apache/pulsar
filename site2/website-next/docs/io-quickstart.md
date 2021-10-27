@@ -453,9 +453,12 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 :::tip
 
 * Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
-* The JDBC sink connector pulls messages from Pulsar topics and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. For more information, see [JDBC sink connector](io-jdbc-sink).
+* The JDBC sink connector pulls messages from Pulsar topics 
 
 :::
+
+and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. 
+>For more information, see [JDBC sink connector](io-jdbc-sink).
 
 
 ### Setup a PostgreSQL cluster
@@ -655,7 +658,7 @@ The sink has been created successfully if the following message appears.
 
 ```bash
 
-"Created successfully"
+Created successfully
 
 ```
 
@@ -803,7 +806,7 @@ The sink instance has been stopped successfully if the following message disappe
 
 ```bash
 
-"Stopped successfully"
+Stopped successfully
 
 ```
 
@@ -831,7 +834,7 @@ The sink instance has been started successfully if the following message disappe
 
 ```bash
 
-"Started successfully"
+Started successfully
 
 ```
 
@@ -868,7 +871,7 @@ The sink connector has been updated successfully if the following message disapp
 
 ```bash
 
-"Updated successfully"
+Updated successfully
 
 ```
 
@@ -937,7 +940,7 @@ The sink connector has been deleted successfully if the following message appear
 
 ```text
 
-"Deleted successfully"
+Deleted successfully
 
 ```
 
