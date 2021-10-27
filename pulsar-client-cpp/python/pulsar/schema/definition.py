@@ -179,7 +179,7 @@ class Record(with_metaclass(RecordMeta, object)):
         return self.__class__
 
     def validate_type(self, name, val):
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if not isinstance(val, self.__class__):
@@ -214,7 +214,7 @@ class Field(object):
         pass
 
     def validate_type(self, name, val):
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if type(val) != self.python_type():
@@ -345,7 +345,7 @@ class String(Field):
     def validate_type(self, name, val):
         t = type(val)
 
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if not (t is str or t.__name__ == 'unicode'):
