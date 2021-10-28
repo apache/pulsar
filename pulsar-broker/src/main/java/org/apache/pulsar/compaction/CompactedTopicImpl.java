@@ -131,7 +131,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                         // the complete last snapshot because of the compactor will read the data
                                         // before the compaction cursor mark delete position
                                         cursor.seek(lastEntry.getPosition().getNext(), true);
-                                        callback.readEntriesComplete(entries, consumer);
+                                        callback.readEntriesComplete(entries, wrapper);
                                     });
                             }
                         }))
