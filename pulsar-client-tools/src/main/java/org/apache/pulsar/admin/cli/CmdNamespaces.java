@@ -1845,7 +1845,14 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
 
             String strategyStr = strategyParam != null ? strategyParam.toUpperCase() : "";
-            getAdmin().namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.valueOf(strategyStr));
+            SchemaCompatibilityStrategy strategy;
+            try {
+                strategy = SchemaCompatibilityStrategy.valueOf(strategyStr);
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(String.format("Illegal schema compatibility strategy %s. " +
+                        "Possible values: %s", strategyStr, Arrays.toString(SchemaCompatibilityStrategy.values())));
+            }
+            getAdmin().namespaces().setSchemaCompatibilityStrategy(namespace, strategy);
         }
     }
 
