@@ -791,12 +791,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             timeoutTxn.commit().get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionNotFoundException);
+            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
         }
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
         TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
-        assertEquals(state, TransactionImpl.State.ERROR);
+        assertEquals(state, TransactionImpl.State.ABORTED);
     }
 
     @Test
@@ -959,5 +959,39 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         }
         assertTrue(flag);
+    }
+
+    @Test
+    public void testTxnTimeOutInClient() throws Exception{
+        String topic = NAMESPACE1 + "/testTxnTimeOutInClient";
+        Producer producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
+                .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
+        Consumer consumer = pulsarClient.newConsumer(Schema.STRING).consumerName("testTxnTimeOut_consumer")
+                .topic(topic).subscriptionName("testTxnTimeOut_sub").subscribe();
+
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage().send();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.ABORTED);
+        });
+
+        try {
+            producer.newMessage(transaction).send();
+            Assert.fail();
+        } catch (IllegalArgumentException e) {
+            if (log.isDebugEnabled()) {
+                log.debug(e.getMessage());
+            }
+        }
+        try {
+            Message message = consumer.receive();
+            consumer.acknowledgeAsync(message.getMessageId(), transaction);
+            Assert.fail();
+        } catch (IllegalArgumentException e) {
+            if (log.isDebugEnabled()) {
+                log.debug(e.getMessage());
+            }
+        }
     }
 }
