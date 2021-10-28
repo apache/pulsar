@@ -25,7 +25,6 @@ import pulsar
 from pulsar.schema import *
 from enum import Enum
 import json
-import avro.schema
 from fastavro.schema import load_schema
 
 
@@ -1190,9 +1189,9 @@ class SchemaTest(TestCase):
             ]
         }
         encode_and_decode(schema_definition)
-        # Users could load schema from file by `avro.schema` or `fastavro.schema`
+        # Users could load schema from file by `fastavro.schema`
+        # Or use `avro.schema` like this `avro.schema.parse(open("examples/company.avsc", "rb").read()).to_json()`
         encode_and_decode(load_schema("examples/company.avsc"))
-        encode_and_decode(avro.schema.parse(open("examples/company.avsc", "rb").read()).to_json())
 
     def custom_schema_produce_and_consume_test(self):
         client = pulsar.Client(self.serviceUrl)
@@ -1266,8 +1265,6 @@ class SchemaTest(TestCase):
         }
         produce_and_consume('custom-schema-test-1', schema_definition=schema_definition)
         produce_and_consume('custom-schema-test-2', schema_definition=load_schema("examples/company.avsc"))
-        produce_and_consume('custom-schema-test-3',
-                            schema_definition=avro.schema.parse(open("examples/company.avsc", "rb").read()).to_json())
 
         client.close()
 
