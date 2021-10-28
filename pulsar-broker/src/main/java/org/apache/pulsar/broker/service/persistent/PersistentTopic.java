@@ -1864,7 +1864,8 @@ public class PersistentTopic extends AbstractTopic
     }
 
     @Override
-    public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+    public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                   boolean getEarliestTimeInBacklog) {
 
         TopicStatsImpl stats = new TopicStatsImpl();
 
@@ -1923,6 +1924,10 @@ public class PersistentTopic extends AbstractTopic
 
         stats.storageSize = ledger.getTotalSize();
         stats.backlogSize = ledger.getEstimatedBacklogSize();
+        long earliestTime =
+                (getEarliestTimeInBacklog && stats.backlogSize != 0) ? ledger.getEarliestMessagePublishTimeInBacklog() :
+                        0;
+        stats.timeBacklogInMills = earliestTime == 0 ? 0 : System.currentTimeMillis() - earliestTime;
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
         stats.offloadedStorageSize = ledger.getOffloadedSize();

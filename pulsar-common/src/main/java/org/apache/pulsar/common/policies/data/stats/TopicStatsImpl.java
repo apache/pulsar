@@ -76,6 +76,9 @@ public class TopicStatsImpl implements TopicStats {
     /** Get estimated total unconsumed or backlog size in bytes. */
     public long backlogSize;
 
+    /** Get the time from the oldest message in the backlog to current time. */
+    public long timeBacklogInMills;
+
     /** Space used to store the offloaded messages for the topic/. */
     public long offloadedStorageSize;
 

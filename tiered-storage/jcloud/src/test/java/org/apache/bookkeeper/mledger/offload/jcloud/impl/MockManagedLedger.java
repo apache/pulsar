@@ -185,6 +185,11 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public long getEarliestMessagePublishTimeInBacklog() {
+        return 0;
+    }
+
+    @Override
     public long getOffloadedSize() {
         return 0;
     }
