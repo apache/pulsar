@@ -1090,6 +1090,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean disableBrokerInterceptors = true;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of interceptors for payload processing.")
+    private String brokerEntryPayloadProcessor;
+
+    @FieldContext(
         doc = "There are two policies to apply when broker metadata session expires: session expired happens, \"shutdown\" or \"reconnect\". \n\n"
         + " With \"shutdown\", the broker will be restarted.\n\n"
         + " With \"reconnect\", the broker will keep serving the topics, while attempting to recreate a new session."

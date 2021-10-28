@@ -77,6 +77,7 @@ public class ManagedLedgerConfig {
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private ManagedLedgerInterceptor managedLedgerPayloadProcessor;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -645,5 +646,13 @@ public class ManagedLedgerConfig {
 
     public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
         this.managedLedgerInterceptor = managedLedgerInterceptor;
+    }
+
+    public ManagedLedgerInterceptor getManagedLedgerPayloadProcessor() {
+        return managedLedgerPayloadProcessor;
+    }
+
+    public void setManagedLedgerPayloadProcessor(ManagedLedgerInterceptor managedLedgerInterceptor) {
+        this.managedLedgerPayloadProcessor = managedLedgerInterceptor;
     }
 }

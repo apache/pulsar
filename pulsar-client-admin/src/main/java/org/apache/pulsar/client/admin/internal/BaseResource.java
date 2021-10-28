@@ -105,6 +105,19 @@ public abstract class BaseResource {
                         if (headers != null) {
                             headers.forEach(entry -> builder.header(entry.getKey(), entry.getValue()));
                         }
+                    } else {
+                        if (target.getConfiguration() != null && target.getConfiguration().getProperties()
+                                .get(PulsarAdminImpl.EXTRA_CLIENT_HEADERS) != null){
+                            String extraHeaders = (String) target.getConfiguration().getProperties()
+                                    .get(PulsarAdminImpl.EXTRA_CLIENT_HEADERS);
+                            String[] headerList = extraHeaders.split(",");
+                            for (String header : headerList) {
+                                String[] parts = header.split(":");
+                                if (parts.length == 2){
+                                    builder.header(parts[0], parts[1]);
+                                }
+                            }
+                        }
                     }
                     builderFuture.complete(builder);
                 } catch (Throwable t) {

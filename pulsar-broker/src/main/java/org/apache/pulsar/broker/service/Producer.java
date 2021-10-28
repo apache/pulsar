@@ -29,6 +29,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -317,6 +318,7 @@ public class Producer {
     }
 
     private static final class MessagePublishContext implements PublishContext, Runnable {
+        Map<String, Object> propertyMap = new HashMap<>();
         private Producer producer;
         private long sequenceId;
         private long ledgerId;
@@ -345,6 +347,16 @@ public class Producer {
 
         public boolean isChunked() {
             return chunked;
+        }
+
+        @Override
+        public void setProperty(String propertyName, Object value){
+            this.propertyMap.put(propertyName, value);
+        }
+
+        @Override
+        public Object getProperty(String propertyName){
+            return this.propertyMap.get(propertyName);
         }
 
         @Override
@@ -446,6 +458,10 @@ public class Producer {
                 producer.chunkedMessageRate.recordEvent();
             }
             producer.publishOperationCompleted();
+            if (producer.cnx.getBrokerService().getInterceptor() != null){
+                producer.cnx.getBrokerService().getInterceptor().messageProduced(
+                        (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, rateIn, this);
+            }
             recycle();
         }
 
@@ -462,6 +478,7 @@ public class Producer {
             callback.originalSequenceId = -1L;
             callback.startTimeNs = startTimeNs;
             callback.isMarker = isMarker;
+            callback.propertyMap.clear();
             return callback;
         }
 
@@ -479,6 +496,7 @@ public class Producer {
             callback.startTimeNs = startTimeNs;
             callback.chunked = chunked;
             callback.isMarker = isMarker;
+            callback.propertyMap.clear();
             return callback;
         }
 
@@ -518,6 +536,7 @@ public class Producer {
             startTimeNs = -1L;
             chunked = false;
             isMarker = false;
+            propertyMap.clear();
             recyclerHandle.recycle(this);
         }
     }

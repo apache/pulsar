@@ -215,7 +215,7 @@ public class EntryCacheImpl implements EntryCache {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
                                 LedgerEntry ledgerEntry = iterator.next();
-                                EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+                                EntryImpl returnEntry = EntryImpl.create(ledgerEntry, ml.getConfig().getManagedLedgerPayloadProcessor());
 
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
@@ -301,7 +301,7 @@ public class EntryCacheImpl implements EntryCache {
                             final List<EntryImpl> entriesToReturn
                                 = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : ledgerEntries) {
-                                EntryImpl entry = EntryImpl.create(e);
+                                EntryImpl entry = EntryImpl.create(e, ml.getConfig().getManagedLedgerPayloadProcessor());
 
                                 entriesToReturn.add(entry);
                                 totalSize += entry.getLength();

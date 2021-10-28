@@ -103,6 +103,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
+import org.apache.pulsar.broker.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -136,6 +137,7 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
+import org.apache.pulsar.common.intercept.MessagePayloadProcessor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -273,6 +275,7 @@ public class BrokerService implements Closeable {
     private ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
+    private MessagePayloadProcessor brokerEntryPayloadProcessor;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -369,6 +372,9 @@ public class BrokerService implements Closeable {
         this.brokerEntryMetadataInterceptors = BrokerEntryMetadataUtils
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
                         BrokerService.class.getClassLoader());
+
+        this.brokerEntryPayloadProcessor = BrokerEntryMetadataUtils.loadInterceptors(pulsar.getConfiguration()
+                        .getBrokerEntryPayloadProcessor(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
     }
@@ -1351,6 +1357,11 @@ public class BrokerService implements Closeable {
                     }
                 }
                 managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(interceptors));
+            }
+
+            if (isBrokerPayloadProcessorEnabled()) {
+                managedLedgerConfig.setManagedLedgerPayloadProcessor(
+                        new ManagedLedgerPayloadProcessor(this, brokerEntryPayloadProcessor));
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
@@ -2786,6 +2797,10 @@ public class BrokerService implements Closeable {
 
     public boolean isBrokerEntryMetadataEnabled() {
         return !brokerEntryMetadataInterceptors.isEmpty();
+    }
+
+    public boolean isBrokerPayloadProcessorEnabled() {
+        return (brokerEntryPayloadProcessor != null);
     }
 
     public void pausedConnections(int numberOfConnections) {

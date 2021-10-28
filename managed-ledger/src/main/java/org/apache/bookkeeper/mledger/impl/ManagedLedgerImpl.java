@@ -224,6 +224,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     volatile PositionImpl lastConfirmedEntry;
 
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private ManagedLedgerInterceptor managedLedgerPayloadProcessor;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
@@ -321,6 +322,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.propertiesMap = Maps.newHashMap();
         if (config.getManagedLedgerInterceptor() != null) {
             this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
+        }
+        if (config.getManagedLedgerPayloadProcessor() != null) {
+            this.managedLedgerPayloadProcessor = config.getManagedLedgerPayloadProcessor();
         }
     }
 
@@ -1713,6 +1717,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
         return managedLedgerInterceptor;
+    }
+
+    public ManagedLedgerInterceptor getManagedLedgerPayloadProcessor(){
+        return managedLedgerPayloadProcessor;
     }
 
     void clearPendingAddEntries(ManagedLedgerException e) {

@@ -125,6 +125,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
+            if (ml.getManagedLedgerPayloadProcessor() != null)
+                duplicateBuffer = ml.getManagedLedgerPayloadProcessor().beforeStoreEntryToLedger(this,duplicateBuffer);
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
             log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
@@ -306,6 +308,10 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     public int getNumberOfMessages() {
         return numberOfMessages;
+    }
+
+    public Object getCtx() {
+        return ctx;
     }
 
     public void setNumberOfMessages(int numberOfMessages) {
