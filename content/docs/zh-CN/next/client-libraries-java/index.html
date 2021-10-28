@@ -219,14 +219,14 @@ client.close();
 </code></pre>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="配置producer生产者"></a><a href="#配置producer生产者" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置Producer（生产者）</h3>
-<p>If you instantiate a <code>Producer</code> object by specifying only a topic name as the example above, the default configuration of producer is used.</p>
-<p>If you create a producer, you can use the <code>loadConf</code> configuration. The following parameters are available in <code>loadConf</code>.</p>
-<p>Name| Type |</p>
+<p>如上例，在实例化<code>Producer</code>对象时指定唯一的topic名字，生产者将使用默认配置。</p>
+<p>如果要创建客户端，可以采用 <code>loadConf</code> 方式进行配置。<code>loadConf</code> 方式可配置的参数如下所示。</p>
+<p>名称|类型 |</p>
 <div style="width:300px">
   说明
 </div>| Default |\---|\---|\---|\--- 
-<p><code>topicName</code>| string| Topic name| null| <code>producerName</code>| string|Producer name| null <code>sendTimeoutMs</code>| long|Message send timeout in ms.<br>
-If a message is not acknowledged by a server before the <code>sendTimeout</code> expires, an error occurs.|30000 <code>blockIfQueueFull</code>|boolean|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.<br>
+<p><code>topicName</code>| string| Topic 名称| null| <code>producerName</code>| string| 生产者名称 | null <code>sendTimeoutMs</code>|消息发送超时毫秒时间。<br>
+如果超时时间之内一条消息没有被服务端确认 <code>sendTimeout</code> 就会产生错误 <code>blockIfQueueFull</code>|boolean|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.<br>
 If it is set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and <code>ProducerQueueIsFullError</code> exceptions occur.</p>
 <p>The <code>MaxPendingMessages</code> parameter determines the size of the outgoing message queue.|false <code>maxPendingMessages</code>| int|The maximum size of a queue holding pending messages.</p>
 <p>For example, a message waiting to receive an acknowledgment from a <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
