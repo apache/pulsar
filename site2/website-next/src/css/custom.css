@@ -12,9 +12,9 @@
   @tailwind screens;
 }
 
-/* .section {
-  @apply max-w-screen-xl xl:max-w-screen-xl px-8 container;
-} */
+.tailwind .section {
+  @apply max-w-screen-xl container mx-auto;
+}
 
 svg {
   width: inherit;

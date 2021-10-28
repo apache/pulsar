@@ -115,6 +115,7 @@ module.exports = {
           position: "left",
           label: "Docs",
         },
+        { to: "/versions", label: "Versions", position: "left" },
         { to: "/blog", label: "Blog", position: "left" },
         {
           href: "https://github.com/apache/pulsar",
