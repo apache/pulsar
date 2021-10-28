@@ -22,10 +22,10 @@ import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAME
 import static org.apache.pulsar.broker.namespace.NamespaceService.HEARTBEAT_NAMESPACE_PATTERN_V2;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.AtomicDouble;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
@@ -36,9 +36,9 @@ import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import com.google.common.util.concurrent.AtomicDouble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * Load shedding strategy that unloads any broker that exceeds the average resource utilization of all brokers by a
@@ -112,8 +112,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         }
 
         //4. Calculate the percentage of traffic to be migrated by each broker in overAvgUsageBrokers;
-        double percentOfTrafficToOffload = ADDITIONAL_THRESHOLD_PERCENT_MARGIN +
-                sumOfAcceptableTrafficFromBelowAvgUsageBrokers.get() / totalTrafficOfOverAvgUsageBrokers.get() ;
+        double percentOfTrafficToOffload = ADDITIONAL_THRESHOLD_PERCENT_MARGIN
+                + sumOfAcceptableTrafficFromBelowAvgUsageBrokers.get() / totalTrafficOfOverAvgUsageBrokers.get();
 
         //5. Select the bundle to unload
         overAvgUsageBrokers.forEach((broker, brokerData) -> {
