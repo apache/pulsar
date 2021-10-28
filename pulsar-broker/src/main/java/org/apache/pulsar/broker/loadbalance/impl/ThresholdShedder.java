@@ -24,6 +24,10 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import com.google.common.util.concurrent.AtomicDouble;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
@@ -74,7 +78,45 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             return selectedBundlesCache;
         }
 
+        AtomicBoolean isBalanced = new AtomicBoolean(true);
+        Map<String, BrokerData> belowAvgUsageBrokers = new HashMap<>();
+        Map<String, BrokerData> overAvgUsageBrokers = new HashMap<>();
+        AtomicDouble sumOfAcceptableTrafficFromBelowAvgUsageBrokers = new AtomicDouble(0);
+        AtomicDouble totalTrafficOfOverAvgUsageBrokers = new AtomicDouble(0);
+
+        //  1. Divided into two categories：① overAvgUsageBrokers: (currentUsage > avgUsage); ② belowAvgUsageBrokers: (currentUsage < avgUsage);
+        //  2. Calculate the sum of acceptable traffic in belowAvgUsageBrokers: sumOfAcceptableTrafficFromBelowAvgUsageBrokers;
+        //  3. Calculate the total traffic in overAvgUsageBrokers: totalTrafficOfOverAvgUsageBrokers;
         loadData.getBrokerData().forEach((broker, brokerData) -> {
+            final LocalBrokerData localData = brokerData.getLocalData();
+            double brokerCurrentThroughput = localData.getMsgThroughputIn() + localData.getMsgThroughputOut();
+            final double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
+
+            if (currentUsage > avgUsage - threshold && currentUsage < avgUsage + threshold) {
+                isBalanced.set(false);
+                return;
+            }
+            if (currentUsage < avgUsage) {
+                double percentOfTrafficToAccept = avgUsage - currentUsage;
+                double trafficToAccept = percentOfTrafficToAccept * brokerCurrentThroughput;
+                sumOfAcceptableTrafficFromBelowAvgUsageBrokers.addAndGet(trafficToAccept);
+                belowAvgUsageBrokers.put(broker, brokerData);
+            }
+            if (currentUsage > avgUsage) {
+                totalTrafficOfOverAvgUsageBrokers.addAndGet(brokerCurrentThroughput);
+                overAvgUsageBrokers.put(broker, brokerData);
+            }
+        });
+
+        if (isBalanced.get()) {
+            return selectedBundlesCache;
+        }
+
+        //4. Calculate the percentage of traffic to be migrated by each broker in overAvgUsageBrokers;
+        double percentOfTrafficToOffload = sumOfAcceptableTrafficFromBelowAvgUsageBrokers.get() / totalTrafficOfOverAvgUsageBrokers.get() + ADDITIONAL_THRESHOLD_PERCENT_MARGIN;
+
+        //5. Select the bundle to unload
+        overAvgUsageBrokers.forEach((broker, brokerData) -> {
             final LocalBrokerData localData = brokerData.getLocalData();
             final double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
 
@@ -85,8 +127,6 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                 return;
             }
 
-            double percentOfTrafficToOffload =
-                    currentUsage - avgUsage - threshold + ADDITIONAL_THRESHOLD_PERCENT_MARGIN;
             double brokerCurrentThroughput = localData.getMsgThroughputIn() + localData.getMsgThroughputOut();
             double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
 
