@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -50,6 +51,8 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         super.producerBaseSetup();
         doReturn(1L).when(transaction).getTxnIdLeastBits();
         doReturn(1L).when(transaction).getTxnIdMostBits();
+        doReturn(new TxnID(1L, 1L)).when(transaction).getTxnID();
+        doReturn(TransactionImpl.State.OPEN).when(transaction).getState();
         CompletableFuture<Void> completableFuture = CompletableFuture.completedFuture(null);
         doNothing().when(transaction).registerAckOp(any());
         doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
