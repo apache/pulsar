@@ -1118,7 +1118,7 @@ public class CmdNamespaces extends CmdBase {
             try {
                 limit = validateSizeString(limitStr);
             } catch (IllegalArgumentException e) {
-                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid format are: %s",
+                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid formats are: %s",
                         limitStr, "(4096, 100K, 10M, 16G, 2T)"));
             }
 
