@@ -264,4 +264,11 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader);
 
+    /**
+     *  Set extra headers.
+     * @param extraClientHeaders
+     * @return
+     */
+    PulsarAdminBuilder extraClientHeaders(String extraClientHeaders);
+
 }

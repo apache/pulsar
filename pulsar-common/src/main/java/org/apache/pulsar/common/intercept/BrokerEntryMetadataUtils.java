@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A tool class for loading BrokerEntryMetadataInterceptor classes.
  */
-public class BrokerEntryMetadataUtils {
+public class BrokerEntryMetadataUtils<T> {
 
     private static final Logger log = LoggerFactory.getLogger(BrokerEntryMetadataUtils.class);
 
@@ -56,5 +56,27 @@ public class BrokerEntryMetadataUtils {
             }
         }
         return interceptors;
+    }
+    public static <T> T loadInterceptors(
+            String interceptorName, ClassLoader classLoader) {
+        log.info("Loading interceptor {}",interceptorName);
+        if (interceptorName != null && interceptorName.length() > 0) {
+            try {
+                Class<T> clz = (Class<T>) ClassLoaderUtils
+                        .loadClass(interceptorName, classLoader);
+                try {
+                    return clz.getDeclaredConstructor().newInstance();
+                } catch (InstantiationException | IllegalAccessException
+                        | InvocationTargetException | NoSuchMethodException e) {
+                    log.error("Create new BrokerEntryMetadataInterceptor instance for {} failed.",
+                            interceptorName, e);
+                    throw new RuntimeException(e);
+                }
+            } catch (ClassNotFoundException e) {
+                log.error("Load BrokerEntryMetadataInterceptor class for {} failed.", interceptorName, e);
+                throw new RuntimeException(e);
+            }
+        }
+        return null;
     }
 }

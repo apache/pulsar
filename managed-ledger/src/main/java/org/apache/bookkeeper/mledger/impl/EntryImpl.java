@@ -29,6 +29,7 @@ import io.netty.util.ReferenceCounted;
 
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 
 public final class EntryImpl extends AbstractCASReferenceCounted implements Entry, Comparable<EntryImpl>, ReferenceCounted {
@@ -47,12 +48,22 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     ByteBuf data;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
+        return create(ledgerEntry,null);
+    }
+
+    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor managedLedgerInterceptor) {
         EntryImpl entry = RECYCLER.get();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerEntry.getLedgerId();
         entry.entryId = ledgerEntry.getEntryId();
         entry.data = ledgerEntry.getEntryBuffer();
-        entry.data.retain();
+        ByteBuf cacheBuf = entry.data;
+        if(managedLedgerInterceptor != null)
+            cacheBuf = managedLedgerInterceptor.beforeCacheEntryFromLedger(entry.data);
+        if(cacheBuf != null && cacheBuf != entry.data)
+            entry.data = cacheBuf;
+        else
+            entry.data.retain();
         entry.setRefCnt(1);
         return entry;
     }

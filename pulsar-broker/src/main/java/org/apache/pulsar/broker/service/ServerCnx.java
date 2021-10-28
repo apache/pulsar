@@ -609,6 +609,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
             this.clientVersion = clientVersion.intern();
         }
+        BrokerInterceptor brokerInterceptor = getBrokerService().getInterceptor();
+        if (brokerInterceptor != null) {
+            brokerInterceptor.onConnectionCreated(this);
+        }
     }
 
     // According to auth result, send newConnected or newAuthChallenge command.
@@ -1031,6 +1035,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 log.info("[{}] Created subscription on topic {} / {}",
                                         remoteAddress, topicName, subscriptionName);
                                 commandSender.sendSuccessResponse(requestId);
+                                if (getBrokerService().getInterceptor() != null){
+                                    getBrokerService().getInterceptor().consumerCreated(this, consumer, metadata);
+                                }
                             } else {
                                 // The consumer future was completed before by a close command
                                 try {
@@ -1303,6 +1310,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     commandSender.sendProducerSuccessResponse(requestId, producerName,
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);
+                    if (getBrokerService().getInterceptor() != null) {
+                        getBrokerService().getInterceptor().
+                            producerCreated(this, producer, metadata);
+                    }
                     return;
                 } else {
                     // The producer's future was completed before by
@@ -1342,6 +1353,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 commandSender.sendProducerSuccessResponse(requestId, producerName,
                         producer.getLastSequenceId(), producer.getSchemaVersion(),
                         Optional.empty(), false/* producer is not ready now */);
+                if (getBrokerService().getInterceptor() != null) {
+                    getBrokerService().getInterceptor().
+                       producerCreated(this, producer, metadata);
+                }
             }
         });
     }
@@ -1420,10 +1435,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long consumerId = ack.getConsumerId();
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
+            Consumer consumer = consumerFuture.getNow(null);
             consumerFuture.getNow(null).messageAcked(ack).thenRun(() -> {
                         if (hasRequestId) {
                             ctx.writeAndFlush(Commands.newAckResponse(
                                     requestId, null, null, consumerId));
+                        }
+                        if (getBrokerService().getInterceptor() != null) {
+                            getBrokerService().getInterceptor().messageAcked(this, consumer, ack);
                         }
                     }).exceptionally(e -> {
                         if (hasRequestId) {
@@ -2620,6 +2639,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             val brokerInterceptor = getBrokerService().getInterceptor();
             if (brokerInterceptor != null) {
                 brokerInterceptor.onPulsarCommand(command, this);
+
+                CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
+                if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
+                    Consumer consumer = consumerFuture.getNow(null);
+                    brokerInterceptor.messageDispatched(this, consumer, ledgerId, entryId, metadataAndPayload);
+                }
             } else {
                 log.debug("BrokerInterceptor is not set in newMessageAndIntercept");
             }
