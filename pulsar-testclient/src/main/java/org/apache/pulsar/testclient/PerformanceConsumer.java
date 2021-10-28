@@ -26,8 +26,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
-import java.lang.management.BufferPoolMXBean;
-import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -48,7 +46,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,13 +79,13 @@ public class PerformanceConsumer {
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
+        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
         public int numTopics = 1;
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive")
+        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only one consumer is allowed when subscriptionType is Exclusive", validateWith = PositiveNumberParameterValidator.class)
         public int numConsumers = 1;
 
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)")
+        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)", validateWith = PositiveNumberParameterValidator.class)
         public int numSubscriptions = 1;
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
@@ -133,7 +130,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
         public String serviceURL;
 
-        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
+        @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
+        public String deprecatedAuthPluginClassName;
+
+        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
         @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
@@ -170,7 +170,7 @@ public class PerformanceConsumer {
         public String encKeyFile = null;
 
         @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
+                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
         @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
@@ -205,10 +205,14 @@ public class PerformanceConsumer {
             PerfClientUtils.exit(-1);
         }
 
+        if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
+            arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
+        }
+
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
-                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString();
+                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
                 List<String> defaultTopics = Lists.newArrayList();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));

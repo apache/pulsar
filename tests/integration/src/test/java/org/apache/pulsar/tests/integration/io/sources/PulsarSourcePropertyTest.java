@@ -104,7 +104,7 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
-                result.getStdout().contains("\"Created successfully\""),
+                result.getStdout().contains("Created successfully"),
                 result.getStdout());
     }
 

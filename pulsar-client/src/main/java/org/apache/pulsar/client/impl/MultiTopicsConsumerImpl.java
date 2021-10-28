@@ -245,7 +245,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
-        consumer.receiveAsync().thenAccept(message -> {
+        consumer.receiveAsync().thenAcceptAsync(message -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());
@@ -260,16 +260,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
 
-                // Since we din't get a mutex, the condition on the incoming queue might have changed after
+                // Since we didn't get a mutex, the condition on the incoming queue might have changed after
                 // we have paused the current consumer. We need to re-check in order to avoid this consumer
                 // from getting stalled.
                 resumeReceivingFromPausedConsumersIfNeeded();
             } else {
-                // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
-                // recursion and stack overflow
-                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
+                // Call receiveAsync() if the incoming queue is not full. Because this block is run with
+                // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
+                receiveMessageFromConsumer(consumer);
             }
-        }).exceptionally(ex -> {
+        }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
                     || ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                 // ignore the exception that happens when the consumer is closed
@@ -281,6 +281,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         });
     }
 
+    // Must be called from the internalPinnedExecutor thread
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
         TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
@@ -409,17 +410,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
-        Message<T> message = incomingMessages.poll();
-        if (message == null) {
-            pendingReceives.add(result);
-            cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-        } else {
-            decreaseIncomingMessageSize(message);
-            checkState(message instanceof TopicMessageImpl);
-            unAckedMessageTracker.add(message.getMessageId());
-            resumeReceivingFromPausedConsumersIfNeeded();
-            result.complete(message);
-        }
+        internalPinnedExecutor.execute(() -> {
+            Message<T> message = incomingMessages.poll();
+            if (message == null) {
+                pendingReceives.add(result);
+                cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
+            } else {
+                decreaseIncomingMessageSize(message);
+                checkState(message instanceof TopicMessageImpl);
+                unAckedMessageTracker.add(message.getMessageId());
+                resumeReceivingFromPausedConsumersIfNeeded();
+                result.complete(message);
+            }
+        });
         return result;
     }
 
@@ -649,7 +652,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         checkArgument(messageIds.stream().findFirst().get() instanceof TopicMessageIdImpl);
 
-        if (conf.getSubscriptionType() != SubscriptionType.Shared) {
+        if (conf.getSubscriptionType() != SubscriptionType.Shared
+                && conf.getSubscriptionType() != SubscriptionType.Key_Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
             return;
@@ -1308,7 +1312,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         return subFuture;
                     })
                     .collect(Collectors.toList());
-
+                // call interceptor
+                onPartitionsChange(topicName, currentPartitionNumber);
                 // wait for all partitions subscribe future complete, then startReceivingMessages
                 return FutureUtil.waitForAll(futureList)
                     .thenAccept(finalFuture -> {

@@ -29,7 +29,6 @@ import io.netty.channel.EventLoopGroup;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -320,19 +319,15 @@ public class NamespaceService implements AutoCloseable {
      * @throws Exception
      */
     public boolean registerNamespace(NamespaceName nsname, boolean ensureOwned) throws PulsarServerException {
-
-        String myUrl = pulsar.getSafeBrokerServiceUrl();
-
         try {
-            String otherUrl = null;
             NamespaceBundle nsFullBundle = null;
 
             // all pre-registered namespace is assumed to have bundles disabled
             nsFullBundle = bundleFactory.getFullBundle(nsname);
             // v2 namespace will always use full bundle object
-            otherUrl = ownershipCache.tryAcquiringOwnership(nsFullBundle).get().getNativeUrl();
-
-            if (myUrl.equals(otherUrl)) {
+            NamespaceEphemeralData otherData = ownershipCache.tryAcquiringOwnership(nsFullBundle).get();
+            if (StringUtils.equals(pulsar.getBrokerServiceUrl(), otherData.getNativeUrl())
+                || StringUtils.equals(pulsar.getBrokerServiceUrlTls(), otherData.getNativeUrlTls())) {
                 if (nsFullBundle != null) {
                     // preload heartbeat namespace
                     pulsar.loadNamespaceTopics(nsFullBundle);
@@ -341,7 +336,9 @@ public class NamespaceService implements AutoCloseable {
             }
 
             String msg = String.format("namespace already owned by other broker : ns=%s expected=%s actual=%s",
-                    nsname, myUrl, otherUrl);
+                    nsname,
+                    StringUtils.defaultString(pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls()),
+                    StringUtils.defaultString(otherData.getNativeUrl(), otherData.getNativeUrlTls()));
 
             // ignore if not be owned for now
             if (!ensureOwned) {
@@ -416,9 +413,10 @@ public class NamespaceService implements AutoCloseable {
                                     new PulsarServerException("the broker do not have "
                                             + options.getAdvertisedListenerName() + " listener"));
                         } else {
+                            URI url = listener.getBrokerServiceUrl();
                             URI urlTls = listener.getBrokerServiceUrlTls();
                             future.complete(Optional.of(new LookupResult(nsData.get(),
-                                    listener.getBrokerServiceUrl().toString(),
+                                    url == null ? null : url.toString(),
                                     urlTls == null ? null : urlTls.toString())));
                         }
                         return;
@@ -536,9 +534,11 @@ public class NamespaceService implements AutoCloseable {
                                                 + options.getAdvertisedListenerName() + " listener"));
                                 return;
                             } else {
+                                URI url = listener.getBrokerServiceUrl();
                                 URI urlTls = listener.getBrokerServiceUrlTls();
                                 lookupFuture.complete(Optional.of(
-                                        new LookupResult(ownerInfo, listener.getBrokerServiceUrl().toString(),
+                                        new LookupResult(ownerInfo,
+                                                url == null ? null : url.toString(),
                                                 urlTls == null ? null : urlTls.toString())));
                                 return;
                             }
@@ -597,9 +597,10 @@ public class NamespaceService implements AutoCloseable {
                                     new PulsarServerException(
                                             "the broker do not have " + advertisedListenerName + " listener"));
                         } else {
+                            URI url = listener.getBrokerServiceUrl();
                             URI urlTls = listener.getBrokerServiceUrlTls();
                             lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
-                                    lookupData.getWebServiceUrlTls(), listener.getBrokerServiceUrl().toString(),
+                                    lookupData.getWebServiceUrlTls(), url == null ? null : url.toString(),
                                     urlTls == null ? null : urlTls.toString(), authoritativeRedirect));
                         }
                     } else {
@@ -1325,26 +1326,6 @@ public class NamespaceService implements AutoCloseable {
             LOG.debug("SLA Monitoring not owned by the broker: ns={}", getSLAMonitorNamespace(host, config));
         }
         return isNameSpaceRegistered;
-    }
-
-    public void registerOwnedBundles() {
-        List<OwnedBundle> ownedBundles = new ArrayList<>(ownershipCache.getOwnedBundles().values());
-        ownershipCache.invalidateLocalOwnerCache();
-        ownedBundles.forEach(ownedBundle -> {
-            try {
-                ownershipCache.tryAcquiringOwnership(ownedBundle.getNamespaceBundle());
-            } catch (Exception e) {
-                try {
-                    ownedBundle.handleUnloadRequest(pulsar, 5, TimeUnit.MINUTES);
-                } catch (IllegalStateException ex) {
-                    // The owned bundle is not in active state.
-                } catch (Exception ex) {
-                    LOG.error("Unexpected exception occur when register owned bundle {}. Shutdown broker now !!!",
-                        ownedBundle.getNamespaceBundle(), ex);
-                    pulsar.getShutdownService().shutdown(-1);
-                }
-            }
-        });
     }
 
     @Override

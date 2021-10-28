@@ -16,7 +16,6 @@ You can manage Pulsar configuration by configuration files in the [`conf`](https
 - [BookKeeper](#bookkeeper)
 - [Broker](#broker)
 - [Client](#client)
-- [Service discovery](#service-discovery)
 - [Log4j](#log4j)
 - [Log4j shell](#log4j-shell)
 - [Standalone](#standalone)
@@ -162,6 +161,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |exposeConsumerLevelMetricsInPrometheus|Whether to enable consumer level metrics.|false|
 |jvmGCMetricsLoggerClassName|Classname of Pluggable JVM GC metrics logger that can log GC specific metrics.|N/A|
 |bindAddress| Hostname or IP address the service binds on, default is 0.0.0.0.  |0.0.0.0|
+|bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
 |advertisedAddress| Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 |clusterName| Name of the cluster to which this broker belongs to ||
 |brokerDeduplicationEnabled|  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.  |false|
@@ -288,11 +288,11 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15|
 |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1|
 |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30|
-|loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more that once within this timeframe |30|
+|loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more than once within this timeframe |30|
 |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000|
 |loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1|
 |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85|
-|loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quotat |15|
+|loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quota |15|
 |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65|
 |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false|
 |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000|
@@ -373,26 +373,7 @@ You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool
 | tlsTrustStorePassword | TLS TrustStore password. | |
 
 
-## Service discovery
 
-|Name|Description|Default|
-|---|---|---|
-|zookeeperServers|  Zookeeper quorum connection string (comma-separated)  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
-|zookeeperSessionTimeoutMs| ZooKeeper session timeout |30000|
-|servicePort| Port to use to server binary-proto request  |6650|
-|servicePortTls|  Port to use to server binary-proto-tls request  |6651|
-|webServicePort|  Port that discovery service listen on |8080|
-|webServicePortTls| Port to use to server HTTPS request |8443|
-|bindOnLocalhost| Control whether to bind directly on localhost rather than on normal hostname  |false|
-|authenticationEnabled| Enable authentication |false|
-|authenticationProviders| Authentication provider name list, which is comma separated list of class names (comma-separated) ||
-|authorizationEnabled|  Enforce authorization |false|
-|superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated) ||
-|tlsEnabled|  Enable TLS  |false|
-|tlsCertificateFilePath|  Path for the TLS certificate file ||
-|tlsKeyFilePath|  Path for the TLS private key file ||
 
 
 
@@ -451,6 +432,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
+|bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
 |advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 | numAcceptorThreads | Number of threads to use for Netty Acceptor | 1 |
 | numIOThreads | Number of threads to use for Netty IO | 2 * Runtime.getRuntime().availableProcessors() |
@@ -500,6 +482,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |subscribeRatePeriodPerConsumerInSecond|Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.|30|
 | dispatchThrottlingRatePerTopicInMsg | Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled. |0 |
 | dispatchThrottlingRatePerTopicInByte | Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled. | 0|
+| dispatchThrottlingOnBatchMessageEnabled |Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
+
 | dispatchThrottlingRateRelativeToPublishRate | Enable dispatch rate-limiting relative to publish rate. | false |
 |dispatchThrottlingRatePerSubscriptionInMsg|The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.|0|
 |dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.|0|

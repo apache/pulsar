@@ -158,7 +158,7 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             if (numBundles < 0 || numBundles > MAX_BUNDLES) {
                 throw new ParameterException(
-                        "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");
+                        "Invalid number of bundles. Number of bundles has to be in the range of (0, 2^32].");
             }
 
             NamespaceName namespaceName = NamespaceName.get(namespace);
@@ -573,8 +573,10 @@ public class CmdNamespaces extends CmdBase {
                             "Possible values: (partitioned, non-partitioned)");
                 }
 
-                if (TopicType.PARTITIONED.toString().equals(type) && !(defaultNumPartitions > 0)) {
-                    throw new ParameterException("Must specify num-partitions > 0 for partitioned topic type.");
+                if (TopicType.PARTITIONED.toString().equals(type)
+                        && (defaultNumPartitions == null || !(defaultNumPartitions > 0))) {
+                    throw new ParameterException("Must specify num-partitions or num-partitions > 0 " +
+                            "for partitioned topic type.");
                 }
             }
             getAdmin().namespaces().setAutoTopicCreation(namespace,
@@ -786,7 +788,8 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}", required = true)
+        @Parameter(names = { "--bundle",
+                "-b" }, description = "{start-boundary}_{end-boundary} / LARGEST(bundle with highest topics)", required = true)
         private String bundle;
 
         @Parameter(names = { "--unload",
@@ -1175,7 +1178,7 @@ public class CmdNamespaces extends CmdBase {
         private int bookkeeperWriteQuorum;
 
         @Parameter(names = { "-a",
-                "--bookkeeper-ack-quorum" }, description = "Number of acks (garanteed copies) to wait for each entry", required = true)
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry", required = true)
         private int bookkeeperAckQuorum;
 
         @Parameter(names = { "-r",
@@ -1587,6 +1590,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove maxUnackedMessagesPerConsumer for a namespace")
+    private class RemoveMaxUnackedMessagesPerConsumer extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeMaxUnackedMessagesPerConsumer(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get maxUnackedMessagesPerSubscription for a namespace")
     private class GetMaxUnackedMessagesPerSubscription extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -1874,11 +1889,14 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the namespace")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
 
-            System.out.println(getAdmin().namespaces().getSchemaValidationEnforced(namespace));
+            System.out.println(getAdmin().namespaces().getSchemaValidationEnforced(namespace, applied));
         }
     }
 
@@ -2432,6 +2450,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesPerConsumer());
         jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesPerConsumer());
+        jcommander.addCommand("remove-max-unacked-messages-per-consumer", new RemoveMaxUnackedMessagesPerConsumer());
 
         jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
         jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());

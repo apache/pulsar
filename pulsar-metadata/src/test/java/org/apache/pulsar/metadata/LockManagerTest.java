@@ -149,6 +149,58 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
+    public void updateValueWhenVersionIsOutOfSync(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        MetadataCache<String> cache = store.getMetadataCache(String.class);
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+
+        ResourceLock<String> lock = lockManager.acquireLock("/my/path/1", "lock-1").join();
+        assertEquals(lock.getValue(), "lock-1");
+        assertEquals(cache.get("/my/path/1").join().get(), "lock-1");
+
+        store.put("/my/path/1",
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-2"),
+                Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+
+        lock.updateValue("value-2").join();
+        assertEquals(lock.getValue(), "value-2");
+        assertEquals(cache.get("/my/path/1").join().get(), "value-2");
+    }
+
+    @Test(dataProvider = "impl")
+    public void updateValueWhenKeyDisappears(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        MetadataCache<String> cache = store.getMetadataCache(String.class);
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+
+        ResourceLock<String> lock = lockManager.acquireLock("/my/path/1", "lock-1").join();
+        assertEquals(lock.getValue(), "lock-1");
+        assertEquals(cache.get("/my/path/1").join().get(), "lock-1");
+
+        store.delete("/my/path/1", Optional.empty()).join();
+
+        lock.updateValue("value-2").join();
+        assertEquals(lock.getValue(), "value-2");
+        assertEquals(cache.get("/my/path/1").join().get(), "value-2");
+    }
+
+    @Test(dataProvider = "impl")
     public void revalidateLockWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),

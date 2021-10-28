@@ -122,7 +122,12 @@ public class CompactedTopicImpl implements CompactedTopic {
                                 return readEntries(context.ledger, startPoint, endPoint)
                                     .thenAccept((entries) -> {
                                         Entry lastEntry = entries.get(entries.size() - 1);
-                                        cursor.seek(lastEntry.getPosition().getNext());
+                                        // The compaction task depends on the last snapshot and the incremental
+                                        // entries to build the new snapshot. So for the compaction cursor, we
+                                        // need to force seek the read position to ensure the compactor can read
+                                        // the complete last snapshot because of the compactor will read the data
+                                        // before the compaction cursor mark delete position
+                                        cursor.seek(lastEntry.getPosition().getNext(), true);
                                         callback.readEntriesComplete(entries, consumer);
                                     });
                             }
@@ -279,6 +284,18 @@ public class CompactedTopicImpl implements CompactedTopic {
      */
     public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException {
         return compactedTopicContext == null ? Optional.empty() : Optional.of(compactedTopicContext.get());
+    }
+
+    @Override
+    public CompletableFuture<Entry> readLastEntryOfCompactedLedger() {
+        if (compactionHorizon == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return compactedTopicContext.thenCompose(context ->
+                readEntries(context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
+                        .thenCompose(entries -> entries.size() > 0
+                                ? CompletableFuture.completedFuture(entries.get(0))
+                                : CompletableFuture.completedFuture(null)));
     }
 
     private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {

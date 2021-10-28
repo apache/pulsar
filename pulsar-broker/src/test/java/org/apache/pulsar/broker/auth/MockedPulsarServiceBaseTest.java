@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 import java.lang.reflect.Field;
 import io.netty.channel.EventLoopGroup;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -84,6 +85,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected PulsarService pulsar;
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
+    protected PortForwarder brokerGateway;
+    protected boolean enableBrokerGateway =  false;
     protected URL brokerUrl;
     protected URL brokerUrlTls;
 
@@ -118,6 +121,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
             lookupUrl = new URI(pulsar.getBrokerServiceUrl());
+
+            // setup port forwarding from the advertised port to the listen port
+            if (enableBrokerGateway) {
+                InetSocketAddress gatewayAddress = new InetSocketAddress(lookupUrl.getHost(), lookupUrl.getPort());
+                InetSocketAddress brokerAddress = new InetSocketAddress("127.0.0.1", pulsar.getBrokerListenPort().get());
+                brokerGateway = new PortForwarder(gatewayAddress, brokerAddress);
+            }
         }
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
     }
@@ -194,6 +204,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (pulsarClient != null) {
             pulsarClient.shutdown();
             pulsarClient = null;
+        }
+        if (brokerGateway != null) {
+            brokerGateway.close();
         }
         if (pulsar != null) {
             stopBroker();

@@ -29,6 +29,7 @@ import lombok.Setter;
 import lombok.Singular;
 import lombok.experimental.Accessors;
 
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
 
@@ -152,4 +153,7 @@ public class PulsarClusterSpec {
      * Specify mount files.
      */
     Map<String, String> brokerMountFiles;
+
+    @Default
+    int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 }

@@ -113,7 +113,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
      */
     void tcpConnectAsync();
 
-    void close();
+    void close(Result result = ResultConnectError);
 
     bool isClosed() const;
 
@@ -193,6 +193,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     bool verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& remainingBytes,
                         proto::BaseCommand& incomingCmd_);
 
+    void handleActiveConsumerChange(const proto::CommandActiveConsumerChange& change);
     void handleIncomingCommand();
     void handleIncomingMessage(const proto::CommandMessage& msg, bool isChecksumValid,
                                proto::MessageMetadata& msgMetadata, SharedBuffer& payload);

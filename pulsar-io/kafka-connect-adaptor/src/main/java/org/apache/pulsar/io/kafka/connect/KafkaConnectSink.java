@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.kafka.connect.schema.KafkaConnectData;
 import org.apache.pulsar.io.kafka.connect.schema.PulsarSchemaToKafkaSchema;
 
 import java.util.List;
@@ -199,9 +200,14 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         final Record<GenericObject> lastNotFlushed = pendingFlushQueue.getLast();
         try {
             Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
-            task.flush(currentOffsets);
+            Map<TopicPartition, OffsetAndMetadata> committedOffsets = task.preCommit(currentOffsets);
+            if (committedOffsets.isEmpty()) {
+                log.info("Task returned empty committedOffsets map; skipping flush; task will retry later");
+                return;
+            }
             taskContext.flushOffsets(currentOffsets);
             ackUntil(lastNotFlushed, Record::ack);
+            log.info("Flush succeeded");
         } catch (Throwable t) {
             log.error("error flushing pending records", t);
             ackUntil(lastNotFlushed, Record::fail);
@@ -222,7 +228,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     }
 
     @SuppressWarnings("rawtypes")
-    private SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
+    protected SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
         final int partition = sourceRecord.getPartitionIndex().orElse(0);
         final String topic = sourceRecord.getTopicName().orElse(topicName);
         final Object key;
@@ -237,10 +243,10 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 && sourceRecord.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) sourceRecord.getSchema();
             KeyValue kv = (KeyValue) sourceRecord.getValue().getNativeObject();
-            key = kv.getKey();
-            value = kv.getValue();
             keySchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getKeySchema());
             valueSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getValueSchema());
+            key = kv.getKey();
+            value = kv.getValue();
         } else {
             if (sourceRecord.getMessage().get().hasBase64EncodedKey()) {
                 key = sourceRecord.getMessage().get().getKeyBytes();
@@ -250,7 +256,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 keySchema = Schema.STRING_SCHEMA;
             }
             valueSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(sourceRecord.getSchema());
-            value = sourceRecord.getValue().getNativeObject();
+            value = KafkaConnectData.getKafkaConnectData(sourceRecord.getValue().getNativeObject(), valueSchema);
         }
 
         long offset = sourceRecord.getRecordSequence()

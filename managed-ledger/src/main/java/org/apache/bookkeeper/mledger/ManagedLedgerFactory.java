@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;

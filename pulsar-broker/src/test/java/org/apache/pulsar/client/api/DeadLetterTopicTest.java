@@ -519,4 +519,100 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(msg);
     }
+
+    @Test
+    public void testDeadLetterTopicUnderPartitionedTopicWithKeyShareType() throws Exception {
+        final String topic = "persistent://my-property/my-ns/dead-letter-topic-with-partitioned-topic";
+
+        final int maxRedeliveryCount = 2;
+
+        final int sendMessages = 1;
+
+        int partitionCount = 2;
+
+        admin.topics().createPartitionedTopic(topic, partitionCount);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .receiverQueueSize(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Consumer<byte[]> deadLetterConsumer0 = pulsarClient.newConsumer(Schema.BYTES)
+                .topic("persistent://my-property/my-ns/dead-letter-topic-with-partitioned-topic-partition-0-my-subscription-DLQ")
+                .subscriptionName("my-subscription")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Consumer<byte[]> deadLetterConsumer1 = pulsarClient.newConsumer(Schema.BYTES)
+                .topic("persistent://my-property/my-ns/dead-letter-topic-with-partitioned-topic-partition-1-my-subscription-DLQ")
+                .subscriptionName("my-subscription")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < sendMessages; i++) {
+            producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
+        }
+
+        producer.close();
+
+        int totalReceived = 0;
+        do {
+            Message<byte[]> message = consumer.receive();
+            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            totalReceived++;
+        } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
+
+        int totalInDeadLetter = 0;
+        do {
+            Message message = deadLetterConsumer0.receive(3, TimeUnit.SECONDS);
+            if (message != null) {
+                log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+                deadLetterConsumer0.acknowledge(message);
+                totalInDeadLetter++;
+            } else {
+                break;
+            }
+        } while (totalInDeadLetter < sendMessages);
+
+        do {
+            Message message = deadLetterConsumer1.receive(3, TimeUnit.SECONDS);
+            if (message != null) {
+                log.info("dead letter consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+                deadLetterConsumer1.acknowledge(message);
+                totalInDeadLetter++;
+            } else {
+                break;
+            }
+        } while (totalInDeadLetter < sendMessages);
+
+        assertEquals(totalInDeadLetter, sendMessages);
+        deadLetterConsumer0.close();
+        deadLetterConsumer1.close();
+        consumer.close();
+
+        Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        if (checkMessage != null) {
+            log.info("check consumer received message : {} {}", checkMessage.getMessageId(), new String(checkMessage.getData()));
+        }
+        assertNull(checkMessage);
+
+        checkConsumer.close();
+    }
 }

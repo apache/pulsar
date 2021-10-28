@@ -133,7 +133,7 @@ abstract class CliCommand {
 
         String[] parts = params.get(0).split("/");
         if (parts.length != n) {
-            throw new ParameterException("Paramter format is incorrect");
+            throw new ParameterException("Parameter format is incorrect");
         }
 
         return parts;
@@ -188,7 +188,11 @@ abstract class CliCommand {
 
     <T> void print(T item) {
         try {
-            System.out.println(writer.writeValueAsString(item));
+            if (item instanceof String) {
+                System.out.println(item);
+            } else {
+                System.out.println(writer.writeValueAsString(item));
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -458,6 +458,150 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
     {"schema":{"type":"struct","fields":[{"type":"string","optional":false,"field":"id"}],"optional":false,"name":"dbserver1.inventory.products.Key"},"payload":{"id":"104"}}, value = {"schema":{"type":"struct","fields":[{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"after"},{"type":"string","optional":true,"name":"io.debezium.data.Json","version":1,"field":"patch"},{"type":"struct","fields":[{"type":"string","optional":false,"field":"version"},{"type":"string","optional":false,"field":"connector"},{"type":"string","optional":false,"field":"name"},{"type":"int64","optional":false,"field":"ts_ms"},{"type":"string","optional":true,"name":"io.debezium.data.Enum","version":1,"parameters":{"allowed":"true,last,false"},"default":"false","field":"snapshot"},{"type":"string","optional":false,"field":"db"},{"type":"string","optional":false,"field":"rs"},{"type":"string","optional":false,"field":"collection"},{"type":"int32","optional":false,"field":"ord"},{"type":"int64","optional":true,"field":"h"}],"optional":false,"name":"io.debezium.connector.mongo.Source","field":"source"},{"type":"string","optional":true,"field":"op"},{"type":"int64","optional":true,"field":"ts_ms"}],"optional":false,"name":"dbserver1.inventory.products.Envelope"},"payload":{"after":"{\"_id\": {\"$numberLong\": \"104\"},\"name\": \"hammer\",\"description\": \"12oz carpenter's hammer\",\"weight\": 1.25,\"quantity\": 4}","patch":null,"source":{"version":"0.10.0.Final","connector":"mongodb","name":"dbserver1","ts_ms":1573541905000,"snapshot":"true","db":"inventory","rs":"rs0","collection":"products","ord":1,"h":4983083486544392763},"op":"r","ts_ms":1573541909761}}.
     ```
    
+## Example of Oracle
+
+### Packaging
+
+Oracle connector does not include Oracle JDBC driver and you need to package it with the connector.
+Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended to use the driver provided with your Oracle DB installation, or you can [download](https://www.oracle.com/database/technologies/appdev/jdbc.html) one.
+Integration test have an [example](https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122) of packaging the driver into the connector nar file. 
+
+### Configuration
+
+Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) Oracle DB with LogMiner or XStream API enabled. 
+Supported options and steps for enabling them vary from version to version of Oracle DB.
+Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java) may or may not work for the version and edition of Oracle DB you are using.
+Please refer to the [documentation for Oracle DB](https://docs.oracle.com/en/database/oracle/oracle-database/) as needed.
+
+Similarly to other connectors, you can use JSON or YAMl to configure the connector.
+Using yaml as an example, you can create a debezium-oracle-source-config.yaml file like:
+
+* JSON
+
+```json
+{
+  "database.hostname": "localhost",
+  "database.port": "1521",
+  "database.user": "dbzuser",
+  "database.password": "dbz",
+  "database.dbname": "XE",
+  "database.server.name": "XE",
+  "schema.exclude.list": "system,dbzuser",
+  "snapshot.mode": "initial",
+  "topic.namespace": "public/default",
+  "task.class": "io.debezium.connector.oracle.OracleConnectorTask",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "typeClassName": "org.apache.pulsar.common.schema.KeyValue",
+  "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+  "database.tcpKeepAlive": "true",
+  "decimal.handling.mode": "double",
+  "database.history.pulsar.topic": "debezium-oracle-source-history-topic",
+  "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
+}
+```
+* YAML
+
+```yaml
+tenant: "public"
+namespace: "default"
+name: "debezium-oracle-source"
+topicName: "debezium-oracle-topic"
+parallelism: 1
+
+className: "org.apache.pulsar.io.debezium.oracle.DebeziumOracleSource"
+database.dbname: "XE"
+
+configs:
+    database.hostname: "localhost"
+    database.port: "1521"
+    database.user: "dbzuser"
+    database.password: "dbz"
+    database.dbname: "XE"
+    database.server.name: "XE"
+    schema.exclude.list: "system,dbzuser"
+    snapshot.mode: "initial"
+    topic.namespace: "public/default"
+    task.class: "io.debezium.connector.oracle.OracleConnectorTask"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
+    typeClassName: "org.apache.pulsar.common.schema.KeyValue"
+    database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
+    database.tcpKeepAlive: "true"
+    decimal.handling.mode: "double"
+    database.history.pulsar.topic: "debezium-oracle-source-history-topic"
+    database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+```
+
+For the full list of configuration properties supported by Debezium, see [Debezium Connector for Oracle](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties).
+
+## Example of Microsoft SQL
+
+### Configuration
+
+Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview) SQL Server with CDC enabled.
+Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
+For more information, see [Enable and disable change data capture in Microsoft SQL Server](https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server).
+
+Similarly to other connectors, you can use JSON or YAMl to configure the connector.
+
+* JSON
+
+```json
+{
+  "database.hostname": "localhost",
+  "database.port": "1433",
+  "database.user": "sa",
+  "database.password": "MyP@ssw0rd!",
+  "database.dbname": "MyTestDB",
+  "database.server.name": "mssql",
+  "snapshot.mode": "schema_only",
+  "topic.namespace": "public/default",
+  "task.class": "io.debezium.connector.sqlserver.SqlServerConnectorTask",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "typeClassName": "org.apache.pulsar.common.schema.KeyValue",
+  "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+  "database.tcpKeepAlive": "true",
+  "decimal.handling.mode": "double",
+  "database.history.pulsar.topic": "debezium-mssql-source-history-topic",
+  "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
+}
+```
+* YAML
+
+```yaml
+tenant: "public"
+namespace: "default"
+name: "debezium-mssql-source"
+topicName: "debezium-mssql-topic"
+parallelism: 1
+
+className: "org.apache.pulsar.io.debezium.mssql.DebeziumMsSqlSource"
+database.dbname: "mssql"
+
+configs:
+    database.hostname: "localhost"
+    database.port: "1433"
+    database.user: "sa"
+    database.password: "MyP@ssw0rd!"
+    database.dbname: "MyTestDB"
+    database.server.name: "mssql"
+    snapshot.mode: "schema_only"
+    topic.namespace: "public/default"
+    task.class: "io.debezium.connector.sqlserver.SqlServerConnectorTask"
+    value.converter: "org.apache.kafka.connect.json.JsonConverter"
+    key.converter: "org.apache.kafka.connect.json.JsonConverter"
+    typeClassName: "org.apache.pulsar.common.schema.KeyValue"
+    database.history: "org.apache.pulsar.io.debezium.PulsarDatabaseHistory"
+    database.tcpKeepAlive: "true"
+    decimal.handling.mode: "double"
+    database.history.pulsar.topic: "debezium-mssql-source-history-topic"
+    database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+```
+
+For the full list of configuration properties supported by Debezium, see [Debezium Connector for MS SQL](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-connector-properties).
+
 ## FAQ
  
 ### Debezium postgres connector will hang when create snap

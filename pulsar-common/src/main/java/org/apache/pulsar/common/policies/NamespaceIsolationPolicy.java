@@ -46,18 +46,18 @@ public interface NamespaceIsolationPolicy {
     /**
      * Get the list of primary brokers for the namespace according to the policy.
      *
-     * @param availableBrokers
-     * @param namespace
-     * @return
+     * @param availableBrokers brokers identified by service URL.
+     * @param namespace the namespace
+     * @return a list brokers by service URL.
      */
     List<URL> findPrimaryBrokers(List<URL> availableBrokers, NamespaceName namespace);
 
     /**
      * Get the list of secondary brokers for the namespace according to the policy.
      *
-     * @param availableBrokers
-     * @param namespace
-     * @return
+     * @param availableBrokers brokers identified by service URL.
+     * @param namespace the namespace
+     * @return a list brokers by service URL.
      */
     List<URL> findSecondaryBrokers(List<URL> availableBrokers, NamespaceName namespace);
 

@@ -741,4 +741,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * corruption, deserialization error, etc.).
      */
     ConsumerBuilder<T> poolMessages(boolean poolMessages);
+
+    /**
+     * If it's configured with a non-null value, the consumer will use the processor to process the payload, including
+     * decoding it to messages and triggering the listener.
+     *
+     * Default: null
+     */
+    ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
 }

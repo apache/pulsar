@@ -105,7 +105,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private final Set<String> bundleLossesCache;
 
     // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
-    // Used to distribute bundles within a namespace evely across brokers.
+    // Used to distribute bundles within a namespace evenly across brokers.
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String,
             ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange;
 
@@ -227,7 +227,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         }
         this.policies = new SimpleResourceAllocationPolicies(pulsar);
         lastLoadReport = new LoadReport(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+                pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         lastLoadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
         lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
@@ -1045,7 +1045,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         synchronized (bundleGainsCache) {
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getSafeWebServiceAddress(),
-                        pulsar.getWebServiceAddressTls(), pulsar.getSafeBrokerServiceUrl(),
+                        pulsar.getWebServiceAddressTls(), pulsar.getBrokerServiceUrl(),
                         pulsar.getBrokerServiceUrlTls());
                 loadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
