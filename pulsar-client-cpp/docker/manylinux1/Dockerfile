@@ -154,7 +154,7 @@ RUN pip install twine
 RUN pip install fastavro
 RUN pip install six
 RUN pip install enum34
-
+RUN pip install avro
 
 ENV PYTHON_INCLUDE_DIR /opt/python/${PYTHON_SPEC}/include
 ENV PYTHON_LIBRARIES   /opt/python/${PYTHON_SPEC}/lib/python${PYTHON_VERSION}
