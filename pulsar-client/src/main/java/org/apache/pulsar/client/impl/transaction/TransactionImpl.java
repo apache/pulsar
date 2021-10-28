@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,7 +51,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  */
 @Slf4j
 @Getter
-public class TransactionImpl implements Transaction {
+public class TransactionImpl implements Transaction , TimerTask {
 
     private final PulsarClientImpl client;
     private final long transactionTimeoutMs;
@@ -66,6 +68,11 @@ public class TransactionImpl implements Transaction {
     private volatile State state;
     private final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
+
+    @Override
+    public void run(Timeout timeout) throws Exception {
+        STATE_UPDATE.compareAndSet(this, State.OPEN, State.ABORTED);
+    }
 
     public enum State {
         OPEN,
@@ -234,10 +241,6 @@ public class TransactionImpl implements Transaction {
                     + txnIdLeastBits + "] with unexpected state : "
                     + state.name() + ", expect " + State.OPEN + " state!"));
         }
-    }
-
-    public boolean changToAbortedByTimeout() {
-        return STATE_UPDATE.compareAndSet(this, State.OPEN, State.ABORTED);
     }
 
     private CompletableFuture<Void> allOpComplete() {

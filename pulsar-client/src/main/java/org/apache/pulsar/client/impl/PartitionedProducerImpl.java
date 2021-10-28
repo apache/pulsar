@@ -47,7 +47,9 @@ import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -191,6 +193,15 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     @Override
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
+        if (txn != null && ((TransactionImpl)txn).getState() != TransactionImpl.State.OPEN) {
+            CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+            completableFuture
+                    .completeExceptionally(new TransactionCoordinatorClientException
+                            .InvalidTxnStatusException("["+ txn.getTxnID().toString() +"] with unexpected state : "
+                            + ((TransactionImpl) txn).getState().name()
+                            + ", expect " + TransactionImpl.State.OPEN + " state!"));
+            return completableFuture;
+        }
         int partition = routerPolicy.choosePartition(message, topicMetadata);
         checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
                 "Illegal partition index chosen by the message routing policy: " + partition);

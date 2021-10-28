@@ -69,6 +69,7 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -386,6 +387,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (txn == null) {
             return internalSendAsync(message);
         } else {
+            if (((TransactionImpl)txn).getState() != TransactionImpl.State.OPEN) {
+                CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+                completableFuture
+                        .completeExceptionally(new TransactionCoordinatorClientException
+                                .InvalidTxnStatusException("["+ txn.getTxnID().toString() +"] with unexpected state : "
+                                + ((TransactionImpl) txn).getState().name()
+                                + ", expect " + TransactionImpl.State.OPEN + " state!"));
+                return completableFuture;
+            }
             return ((TransactionImpl) txn).registerProducedTopic(topic)
                         .thenCompose(ignored -> internalSendAsync(message));
         }

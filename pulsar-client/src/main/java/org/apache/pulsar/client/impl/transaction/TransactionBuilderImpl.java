@@ -71,24 +71,10 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                     }
                     TransactionImpl transaction = new TransactionImpl(client, txnTimeout,
                             txnID.getLeastSigBits(), txnID.getMostSigBits());
-                    client.getTimer().newTimeout(new TxnTimeoutTasker(transaction),
+                    client.getTimer().newTimeout(transaction,
                             txnTimeout, timeUnit);
                     future.complete(transaction);
                 });
         return future;
-    }
-
-    private class TxnTimeoutTasker implements TimerTask {
-
-        TransactionImpl transaction;
-
-        public TxnTimeoutTasker(TransactionImpl transaction) {
-            this.transaction = transaction;
-        }
-
-        @Override
-        public void run(Timeout timeout) throws Exception {
-            transaction.changToAbortedByTimeout();
-        }
     }
 }

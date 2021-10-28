@@ -979,19 +979,17 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         try {
             producer.newMessage(transaction).send();
             Assert.fail();
-        } catch (IllegalArgumentException e) {
-            if (log.isDebugEnabled()) {
-                log.debug(e.getMessage());
-            }
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
+                    .InvalidTxnStatusException);
         }
         try {
             Message message = consumer.receive();
-            consumer.acknowledgeAsync(message.getMessageId(), transaction);
+            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
             Assert.fail();
-        } catch (IllegalArgumentException e) {
-            if (log.isDebugEnabled()) {
-                log.debug(e.getMessage());
-            }
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
+                    .InvalidTxnStatusException);
         }
     }
 }
