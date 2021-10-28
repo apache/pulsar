@@ -1116,6 +1116,36 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetStats() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/my-topic" + UUID.randomUUID().toString();
+        admin.topics().createNonPartitionedTopic(topic);
+        String subName = "my-sub";
+
+        // create consumer and subscription
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(subName).subscribe();
+        TopicStats topicStats = admin.topics().getStats(topic, false, false, true);
+
+        assertEquals(topicStats.getTimeBacklogInMills(), 0);
+
+        // publish several messages
+        publishMessagesOnPersistentTopic(topic, 10);
+        Thread.sleep(1000);
+
+        topicStats = admin.topics().getStats(topic, false, false, true);
+        assertTrue(topicStats.getTimeBacklogInMills() > 0);
+
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> message = consumer.receive();
+            consumer.acknowledge(message);
+        }
+        Thread.sleep(1000);
+
+        topicStats = admin.topics().getStats(topic, false, false, true);
+        assertEquals(topicStats.getTimeBacklogInMills(), 0);
+    }
+
+
+    @Test
     public void testGetPartitionedStatsInternal() throws Exception {
         String partitionedTopic = "my-topic" + UUID.randomUUID().toString();
         String subName = "my-sub";
