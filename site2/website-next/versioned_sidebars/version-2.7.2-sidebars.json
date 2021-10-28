@@ -63,6 +63,66 @@
           "id": "version-2.7.2/concepts-multiple-advertised-listeners"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Schema",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/schema-get-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/schema-understand"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/schema-evolution-compatibility"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/schema-manage"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar IO",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-quickstart"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-use"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-connectors"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-cdc"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/io-cli"
+        }
+      ]
     }
   ]
 }
