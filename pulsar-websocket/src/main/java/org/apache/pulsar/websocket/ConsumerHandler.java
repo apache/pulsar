@@ -93,7 +93,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
     // of the BatchMessageIdImpl will not complete.
-    private Map<TripleLong, BatchMessageIdImpl> batchMessageIdCache = new ConcurrentHashMap<>();
+    private Map<String, MessageId> messageIdCache = new ConcurrentHashMap<>();
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -163,6 +163,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 dm.key = msg.getKey();
             }
             final long msgSize = msg.getData().length;
+
+            messageIdCache.put(dm.messageId, msg.getMessageId());
 
             try {
                 getSession().getRemote()
@@ -296,25 +298,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
-        if (msgId instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) msgId;
-            TripleLong key = new TripleLong(batchMessageId.getLedgerId(), batchMessageId.getEntryId(),
-                    batchMessageId.getPartitionIndex());
-            BatchMessageIdImpl existMessageId = batchMessageIdCache.compute(key, (k, v) ->
-                    v == null ? batchMessageId : v);
-            BatchMessageIdImpl usedToAck = new BatchMessageIdImpl(batchMessageId.getLedgerId(),
-                    batchMessageId.getEntryId(),
-                    batchMessageId.getPartitionIndex(),
-                    batchMessageId.getBatchIndex(),
-                    batchMessageId.getBatchSize(),
-                    existMessageId.getAcker());
-            consumer.acknowledgeAsync(usedToAck).thenAccept(consumer -> numMsgsAcked.increment());
-            if (existMessageId.getAcker().ackIndividual(batchMessageId.getBatchIndex())) {
-                batchMessageIdCache.remove(key);
-            }
+
+        MessageId originalMsgId = messageIdCache.remove(command.messageId);
+        if (originalMsgId != null) {
+            consumer.acknowledgeAsync(originalMsgId).thenAccept(consumer -> numMsgsAcked.increment());
         } else {
             consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
         }
+
         checkResumeReceive();
     }
 
@@ -487,43 +478,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
         return Codec.decode(parts.get(8));
-    }
-
-    private static class TripleLong {
-        private final long l;
-        private final long m;
-        private final long r;
-
-        private TripleLong(long l, long m, long r) {
-            this.l = l;
-            this.m = m;
-            this.r = r;
-        }
-
-        public long getL() {
-            return l;
-        }
-
-        public long getM() {
-            return m;
-        }
-
-        public long getR() {
-            return r;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            TripleLong that = (TripleLong) o;
-            return l == that.l && m == that.m && r == that.r;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(l, m, r);
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
