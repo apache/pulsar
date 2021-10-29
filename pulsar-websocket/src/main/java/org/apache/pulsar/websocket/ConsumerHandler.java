@@ -27,6 +27,9 @@ import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -45,6 +48,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -86,6 +90,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private volatile long msgDeliveredCounter = 0;
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
+
+    // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
+    // of the BatchMessageIdImpl will not complete.
+    private Map<TripleLong, BatchMessageIdImpl> batchMessageIdCache = new ConcurrentHashMap<>();
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -288,7 +296,25 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
-        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        if (msgId instanceof BatchMessageIdImpl) {
+            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) msgId;
+            TripleLong key = new TripleLong(batchMessageId.getLedgerId(), batchMessageId.getEntryId(),
+                    batchMessageId.getPartitionIndex());
+            BatchMessageIdImpl existMessageId = batchMessageIdCache.compute(key, (k, v) ->
+                    v == null ? batchMessageId : v);
+            BatchMessageIdImpl usedToAck = new BatchMessageIdImpl(batchMessageId.getLedgerId(),
+                    batchMessageId.getEntryId(),
+                    batchMessageId.getPartitionIndex(),
+                    batchMessageId.getBatchIndex(),
+                    batchMessageId.getBatchSize(),
+                    existMessageId.getAcker());
+            consumer.acknowledgeAsync(usedToAck).thenAccept(consumer -> numMsgsAcked.increment());
+            if (existMessageId.getAcker().ackIndividual(batchMessageId.getBatchIndex())) {
+                batchMessageIdCache.remove(key);
+            }
+        } else {
+            consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        }
         checkResumeReceive();
     }
 
@@ -461,6 +487,43 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
         return Codec.decode(parts.get(8));
+    }
+
+    private static class TripleLong {
+        private final long l;
+        private final long m;
+        private final long r;
+
+        private TripleLong(long l, long m, long r) {
+            this.l = l;
+            this.m = m;
+            this.r = r;
+        }
+
+        public long getL() {
+            return l;
+        }
+
+        public long getM() {
+            return m;
+        }
+
+        public long getR() {
+            return r;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            TripleLong that = (TripleLong) o;
+            return l == that.l && m == that.m && r == that.r;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(l, m, r);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
