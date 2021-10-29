@@ -1361,7 +1361,7 @@ public class BrokerService implements Closeable {
 
             if (isBrokerPayloadProcessorEnabled()) {
                 managedLedgerConfig.setManagedLedgerPayloadProcessor(
-                        new ManagedLedgerPayloadProcessor(this, brokerEntryPayloadProcessor));
+                        new ManagedLedgerPayloadProcessor(this.pulsar.getConfiguration(), brokerEntryPayloadProcessor));
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);

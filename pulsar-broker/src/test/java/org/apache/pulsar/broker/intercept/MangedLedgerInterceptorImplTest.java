@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -28,19 +30,24 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
+import org.apache.pulsar.common.intercept.MessagePayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -49,6 +56,40 @@ import static org.testng.Assert.assertNotNull;
 @Test(groups = "broker")
 public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
+
+    public class TestPayloadProcessor implements MessagePayloadProcessor {
+        public ByteBuf interceptIn(String clusterName, ByteBuf headersAndPayload, Map<String,Object> contextMap){
+            byte[] newMessage = (new String("Modified Test Message")).getBytes();
+            return Unpooled.wrappedBuffer(newMessage, 0, newMessage.length);
+        }
+        public ByteBuf interceptOut(ByteBuf headersAndPayload){
+            byte[] bytes = new byte[headersAndPayload.readableBytes()];
+            headersAndPayload.readBytes(bytes);
+            String storedMessage = new String(bytes);
+            Assert.assertTrue(storedMessage.equals("Modified Test Message"));
+
+            byte[] newMessage = (new String("Test Message")).getBytes();
+            return Unpooled.wrappedBuffer(newMessage, 0, newMessage.length);
+        }
+    }
+
+    protected static ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setAdvertisedAddress("localhost");
+        configuration.setClusterName("testcluster");
+        configuration.setManagedLedgerCacheSizeMB(8);
+        configuration.setActiveConsumerFailoverDelayTimeMillis(0);
+        configuration.setDefaultNumberOfNamespaceBundles(1);
+        configuration.setZookeeperServers("localhost:2181");
+        configuration.setConfigurationStoreServers("localhost:3181");
+        configuration.setAllowAutoTopicCreationType("non-partitioned");
+        configuration.setBrokerShutdownTimeoutMs(0L);
+        configuration.setBookkeeperClientExposeStatsToPrometheus(true);
+        configuration.setNumExecutorThreadPoolSize(5);
+        configuration.setBrokerMaxConnections(0);
+        configuration.setBrokerMaxConnectionsPerIp(0);
+        return configuration;
+    }
 
     @Test
     public void testAddBrokerEntryMetadata() throws Exception {
@@ -82,6 +123,32 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         ledger.close();
         factory.shutdown();
     }
+
+    @Test
+    public void testMessagePayloadProcessor() throws Exception {
+        final int MOCK_BATCH_SIZE = 2;
+        int numberOfEntries = 10;
+        final String ledgerAndCursorName = "topicEntryWithPayloadProcessed";
+
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerPayloadProcessor(getDefaultConf(), new TestPayloadProcessor());
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setManagedLedgerPayloadProcessor(interceptor);
+
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+        ledger.addEntry("Test Message".getBytes());
+        factory.getEntryCacheManager().clear();
+        List<Entry> entryList = cursor.readEntries(1);
+        String message = new String(entryList.get(0).getData());
+        Assert.assertTrue(message.equals("Test Message"));
+        cursor.close();
+        ledger.close();
+        factory.shutdown();
+        config.setManagedLedgerPayloadProcessor(null);
+    }
+
 
     @Test(timeOut = 20000)
     public void testRecoveryIndex() throws Exception {

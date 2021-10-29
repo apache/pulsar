@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.intercept.MessagePayloadProcessor;
 import org.slf4j.Logger;
@@ -34,13 +34,13 @@ import org.slf4j.LoggerFactory;
 public class ManagedLedgerPayloadProcessor implements ManagedLedgerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerPayloadProcessor.class);
     private static final String INDEX = "index";
-    private BrokerService thisBroker;
+    private ServiceConfiguration serviceConfig;
 
 
     private final MessagePayloadProcessor brokerEntryPayloadProcessor;
-    public ManagedLedgerPayloadProcessor(BrokerService brokerService,
+    public ManagedLedgerPayloadProcessor(ServiceConfiguration serviceConfig,
                                          MessagePayloadProcessor brokerEntryPayloadProcessor) {
-        this.thisBroker = brokerService;
+        this.serviceConfig = serviceConfig;
         this.brokerEntryPayloadProcessor = brokerEntryPayloadProcessor;
     }
     @Override
@@ -52,7 +52,7 @@ public class ManagedLedgerPayloadProcessor implements ManagedLedgerInterceptor {
         Map<String, Object> contextMap = new HashMap<>();
 
         ByteBuf newData = brokerEntryPayloadProcessor.interceptIn(
-                thisBroker.getPulsar().getConfiguration().getClusterName(),
+                serviceConfig.getClusterName(),
                 ledgerData, contextMap);
         if (op.getCtx() instanceof Topic.PublishContext){
             Topic.PublishContext ctx = (Topic.PublishContext) op.getCtx();
