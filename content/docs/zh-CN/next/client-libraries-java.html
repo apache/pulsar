@@ -226,10 +226,10 @@ client.close();
   说明
 </div>| Default |\---|\---|\---|\--- 
 <p><code>topicName</code>| string| Topic 名称| null| <code>producerName</code>| string| 生产者名称 | null <code>sendTimeoutMs</code>|消息发送超时毫秒时间。<br>
-如果超时时间之内一条消息没有被服务端确认 <code>sendTimeout</code> 就会产生错误 <code>blockIfQueueFull</code>|boolean|If it is set to <code>true</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer block, rather than failing and throwing errors.<br>
-If it is set to <code>false</code>, when the outgoing message queue is full, the <code>Send</code> and <code>SendAsync</code> methods of producer fail and <code>ProducerQueueIsFullError</code> exceptions occur.</p>
-<p>The <code>MaxPendingMessages</code> parameter determines the size of the outgoing message queue.|false <code>maxPendingMessages</code>| int|The maximum size of a queue holding pending messages.</p>
-<p>For example, a message waiting to receive an acknowledgment from a <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
+如果超时时间之内一条消息没有被服务端确认 <code>sendTimeout</code> 就会产生错误 <code>blockIfQueueFull</code>|boolean| 如果设置为 <code>true</code>当发出消息队列满时, <code>Send</code> and <code>SendAsync</code> 会阻塞生产者的方法，而不是失败和引发错误。<br>
+If it is set to <code>false</code>当发出消息队列满时, <code>Send</code> and <code>SendAsync</code> 生产者方法会失败和 <code>ProducerQueueIsFullError</code> 异常出现</p>
+<p>这个 <code>MaxPendingMessages</code> 参数决定发送消息队列的大小。|falseint <code>maxPendingMessages</code>| int|待处理消息队列的最大大小。</p>
+<p>例如，正等待 broker 确认的消息 <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
 <p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> you set <code>BlockIfQueueFull</code> to <code>true</code>.|1000 <code>maxPendingMessagesAcrossPartitions</code>|int|The maximum number of pending messages across partitions.</p>
 <p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 <code>messageRoutingMode</code>| MessageRoutingMode|Message routing logic for producers on <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.<br>
 Apply the logic only when setting no key on messages.<br>
