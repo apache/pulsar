@@ -24,6 +24,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
@@ -93,7 +95,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
     // of the BatchMessageIdImpl will not complete.
-    private Map<String, MessageId> messageIdCache = new ConcurrentHashMap<>();
+    private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -299,7 +303,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
 
-        MessageId originalMsgId = messageIdCache.remove(command.messageId);
+        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
         if (originalMsgId != null) {
             consumer.acknowledgeAsync(originalMsgId).thenAccept(consumer -> numMsgsAcked.increment());
         } else {
@@ -316,7 +320,13 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             log.debug("[{}/{}] Received negative ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
-        consumer.negativeAcknowledge(msgId);
+
+        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
+        if (originalMsgId != null) {
+            consumer.negativeAcknowledge(originalMsgId);
+        } else {
+            consumer.negativeAcknowledge(msgId);
+        }
         checkResumeReceive();
     }
 
