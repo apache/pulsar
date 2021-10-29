@@ -24,9 +24,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -45,6 +50,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -86,6 +92,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private volatile long msgDeliveredCounter = 0;
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
+
+    // Make sure use the same BatchMessageIdImpl to acknowledge the batch message, otherwise the BatchMessageAcker
+    // of the BatchMessageIdImpl will not complete.
+    private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .build();
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -155,6 +167,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 dm.key = msg.getKey();
             }
             final long msgSize = msg.getData().length;
+
+            messageIdCache.put(dm.messageId, msg.getMessageId());
 
             try {
                 getSession().getRemote()
@@ -288,7 +302,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
-        consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+
+        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
+        if (originalMsgId != null) {
+            consumer.acknowledgeAsync(originalMsgId).thenAccept(consumer -> numMsgsAcked.increment());
+        } else {
+            consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
+        }
+
         checkResumeReceive();
     }
 
@@ -299,7 +320,13 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             log.debug("[{}/{}] Received negative ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
         }
-        consumer.negativeAcknowledge(msgId);
+
+        MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
+        if (originalMsgId != null) {
+            consumer.negativeAcknowledge(originalMsgId);
+        } else {
+            consumer.negativeAcknowledge(msgId);
+        }
         checkResumeReceive();
     }
 

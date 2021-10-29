@@ -34,6 +34,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -889,6 +890,48 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                     .untilAsserted(() -> assertEquals(consumeSocket.getReceivedMessagesCount(), 2));
         } finally {
             stopWebSocketClient(consumeClient, produceClient);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void ackBatchMessageTest() throws Exception {
+        final String subscription = "my-sub";
+        final String topic = "my-property/my-ns/ack-batch-message" + UUID.randomUUID();
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
+                "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final int messages = 10;
+
+        WebSocketClient consumerClient = new WebSocketClient();
+        SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+
+        try {
+            consumerClient.start();
+            ClientUpgradeRequest consumerRequest = new ClientUpgradeRequest();
+            Future<Session> consumerFuture = consumerClient.connect(consumeSocket, URI.create(consumerUri), consumerRequest);
+
+            assertTrue(consumerFuture.get().isOpen());
+            assertEquals(consumeSocket.getReceivedMessagesCount(), 0);
+
+            for (int i = 0; i < messages; i++) {
+                producer.sendAsync(String.valueOf(i).getBytes(StandardCharsets.UTF_8));
+            }
+
+            producer.flush();
+            consumeSocket.sendPermits(messages);
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
+
+            // The message should not be acked since we only acked 1 message of the batch message
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions()
+                            .get(subscription).getMsgBacklog(), 0));
+
+        } finally {
+            stopWebSocketClient(consumerClient);
         }
     }
 
