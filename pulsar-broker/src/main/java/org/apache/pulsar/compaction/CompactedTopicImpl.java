@@ -20,6 +20,7 @@ package org.apache.pulsar.compaction;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
@@ -303,6 +304,11 @@ public class CompactedTopicImpl implements CompactedTopic {
         return ComparisonChain.start()
             .compare(p.getLedgerId(), m.getLedgerId())
             .compare(p.getEntryId(), m.getEntryId()).result();
+    }
+
+    @VisibleForTesting
+    PositionImpl getCompactionHorizon() {
+        return this.compactionHorizon;
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }
