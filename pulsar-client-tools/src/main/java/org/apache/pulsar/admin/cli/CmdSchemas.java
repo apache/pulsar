@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
@@ -51,13 +52,24 @@ public class CmdSchemas extends CmdBase {
         @Parameter(names = { "--version" }, description = "version", required = false)
         private Long version;
 
+        @Parameter(names = {"--all"}, description = "all version", required = false)
+        private boolean all = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            if (version == null) {
+            if (version != null && all) {
+                throw new ParameterException("Only one or neither of --version and --all can be specified.");
+            }
+            if (version == null && !all) {
                 System.out.println(getAdmin().schemas().getSchemaInfoWithVersion(topic));
-            } else {
+            } else if (!all) {
+                if (version < 0) {
+                    throw new ParameterException("Option --version must be greater than 0, but found " + version);
+                }
                 System.out.println(getAdmin().schemas().getSchemaInfo(topic, version));
+            } else {
+                System.out.println(getAdmin().schemas().getAllSchemas(topic));
             }
         }
     }
