@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar Helm Chart · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="[Helm chart](https://github.com/apache/pulsar-helm-chart) supports you to install Apache Pulsar in a cloud-native environment."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Apache Pulsar Helm Chart · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="[Helm chart](https://github.com/apache/pulsar-helm-chart) supports you to install Apache Pulsar in a cloud-native environment."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Apache Pulsar Helm Chart · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="[Helm chart](https://github.com/apache/pulsar-helm-chart) 支持在云原生环境中安装 Apache Pulsar。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Apache Pulsar Helm Chart · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="[Helm chart](https://github.com/apache/pulsar-helm-chart) 支持在云原生环境中安装 Apache Pulsar。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -75,10 +75,10 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Apache Pulsar Helm Chart</h1></header><article><div><span><p><a href="https://github.com/apache/pulsar-helm-chart">Helm chart</a> supports you to install Apache Pulsar in a cloud-native environment.</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Apache Pulsar Helm Chart</h1></header><article><div><span><p><a href="https://github.com/apache/pulsar-helm-chart">Helm chart</a> 支持在云原生环境中安装 Apache Pulsar。</p>
 <h2><a class="anchor" aria-hidden="true" id="简介"></a><a href="#简介" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>简介</h2>
-<p>The Apache Pulsar Helm chart provides one of the most convenient ways to operate Pulsar on Kubernetes. With all the required components, Helm chart is scalable and thus being suitable for large-scale deployments.</p>
-<p>The Apache Pulsar Helm chart contains all components to support the features and functions that Pulsar delivers. You can install and configure these components separately.</p>
+<p>Apache Pulsar Helm chart 提供了一种在 Kubernetes 中操作 Pulsar 最简便的方法。 Helm chart 包含所有必需的组件，具有可扩展性，因此适合大规模部署。</p>
+<p>Apache Pulsar Helm chart 包含支持 Pulsar 提供的特性和功能的所有组件。 您可以单独安装和配置这些组件。</p>
 <ul>
 <li>Pulsar 核心组件：
 <ul>
@@ -95,7 +95,7 @@
 <li>Grafana</li>
 </ul></li>
 </ul>
-<p>Moreover, Helm chart supports:</p>
+<p>此外，Helm chart 支持：</p>
 <ul>
 <li>安全
 <ul>
@@ -121,7 +121,7 @@
 <li>存储
 <ul>
 <li>非持久化存储</li>
-<li>Persistent volume</li>
+<li>持久卷</li>
 <li>本地持久化存储数据卷</li>
 </ul></li>
 <li>Functions
@@ -136,19 +136,19 @@
 </ul></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="快速开始"></a><a href="#快速开始" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>快速开始</h2>
-<p>To run with Apache Pulsar Helm chart as fast as possible in a <strong>non-production</strong> use case, we provide a <a href="/docs/zh-CN/next/kubernetes-helm">quick start guide</a> for Proof of Concept (PoC) deployments.</p>
-<p>This guide walks you through deploying Apache Pulsar Helm chart with default values and features, but it is <em>not</em> suitable for deployments in production-ready environments. To deploy the charts in production under sustained load, you can follow the complete <a href="/docs/zh-CN/next/helm-install">Installation Guide</a>.</p>
+<p>为了在<strong>非生产</strong>用例中尽可能快地运行 Apache Pulsar Helm chart，我们提供了 PoC（Proof of Concept）部署的快速入门指南。</p>
+<p>本指南将指导您使用默认值和特性部署 Apache Pulsar Helm chart ，但它 <em>不</em> 适合在生产就绪环境中部署。 要在持续负载生产环境下部署 chart，您可以按照完整的 <a href="/docs/zh-CN/next/helm-install">安装指南</a> 进行操作。</p>
 <h2><a class="anchor" aria-hidden="true" id="故障排除"></a><a href="#故障排除" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>故障排除</h2>
-<p>Although we have done our best to make these charts as seamless as possible, troubles do go out of our control occasionally. We have been collecting tips and tricks for troubleshooting common issues. Please check it first before raising an <a href="https://github.com/apache/pulsar/issues/new/choose">issue</a>, and feel free to add your solutions by creating a <a href="https://github.com/apache/pulsar/compare">Pull Request</a>.</p>
+<p>虽然我们已经尽了最大努力把 chart 做得尽可能完美，但偶尔还是会出现一些无法控制的故障。 我们一直在收集解决常见问题的方法和技巧。 请在提出<a href="https://github.com/apache/pulsar/issues/new/choose">问题</a>之前先核实，并随时通过创建<a href="https://github.com/apache/pulsar/compare">拉取请求</a>来添加您的解决方案。</p>
 <h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
 <p>Apache Pulsar Helm chart 包含所有必须的依赖项。</p>
-<p>If you deploy a PoC for testing, we strongly suggest you follow this <a href="/docs/zh-CN/next/kubernetes-helm">Quick Start Guide</a> for your first iteration.</p>
+<p>如果您部署 PoC 进行测试，强烈建议在第一次迭代时遵循<a href="/docs/zh-CN/next/kubernetes-helm">快速入门指南</a>。</p>
 <ol>
 <li><a href="/docs/zh-CN/next/helm-prepare">准备工作</a></li>
 <li><a href="/docs/zh-CN/next/helm-deploy">部署</a></li>
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="升级"></a><a href="#升级" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级</h2>
-<p>Once the Apache Pulsar Helm chart is installed, you can use <code>helm upgrade</code> command to configure and update it.</p>
+<p>安装 Apache Pulsar Helm chart 后，您可以使用 <code>helm upgrade</code> 命令对其进行配置和更新。</p>
 <pre><code class="hljs css language-bash">helm repo add apache https://pulsar.apache.org/charts
 helm repo update
 helm get values &lt;pulsar-release-name&gt; &gt; pulsar.yaml
@@ -156,12 +156,12 @@ helm upgrade &lt;pulsar-release-name&gt; apache/pulsar -f pulsar.yaml
 </code></pre>
 <p>更多详细的信息，请参考<a href="/docs/zh-CN/next/helm-upgrade">升级</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="卸载"></a><a href="#卸载" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载</h2>
-<p>To uninstall the Apache Pulsar Helm chart, run the following command:</p>
+<p>要卸载 Apache Pulsar Helm chart，请运行以下命令：</p>
 <pre><code class="hljs css language-bash">helm delete &lt;pulsar-release-name&gt;
 </code></pre>
-<p>For the purposes of continuity, some Kubernetes objects in these charts cannot be removed by <code>helm delete</code> command. It is recommended to <em>consciously</em> remove these items, as they affect re-deployment.</p>
+<p>为了保持一致性，这些 chart 中的某些 Kubernetes 对象不能通过 <code>helm delete</code> 命令删除。 建议<em>谨慎</em>移除这些项目，因为它们会影响重新部署。</p>
 <ul>
-<li>PVCs for stateful data: remove these items.
+<li>有状态数据的 PVC：移除这些项。
 <ul>
 <li>ZooKeeper：这是 Pulsar 的元数据管理中心。</li>
 <li>BookKeeper：这是 Pulsar 消息数据的存储中心。</li>
