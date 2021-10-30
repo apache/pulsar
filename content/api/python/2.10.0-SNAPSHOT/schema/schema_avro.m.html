@@ -1046,10 +1046,15 @@ except ModuleNotFoundError:
 
 if HAS_AVRO:
     class AvroSchema(Schema):
-        def __init__(self, record_cls):
-            super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                             record_cls.schema(), 'AVRO')
-            self._schema = record_cls.schema()
+        def __init__(self, record_cls, schema_definition=None):
+            if record_cls is None and schema_definition is None:
+                raise AssertionError("The param record_cls and schema_definition shouldn't be both None.")
+
+            if record_cls is not None:
+                self._schema = record_cls.schema()
+            else:
+                self._schema = schema_definition
+            super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO, self._schema, 'AVRO')
 
         def _get_serialized_value(self, x):
             if isinstance(x, enum.Enum):
@@ -1067,9 +1072,14 @@ if HAS_AVRO:
                 return x
 
         def encode(self, obj):
-            self._validate_object_type(obj)
             buffer = io.BytesIO()
-            m = self.encode_dict(obj.__dict__)
+            m = obj
+            if self._record_cls is not None:
+                self._validate_object_type(obj)
+                m = self.encode_dict(obj.__dict__)
+            elif not isinstance(obj, dict):
+                raise ValueError('If using the custom schema, the record data should be dict type.')
+
             fastavro.schemaless_writer(buffer, self._schema, m)
             return buffer.getvalue()
 
@@ -1082,11 +1092,14 @@ if HAS_AVRO:
         def decode(self, data):
             buffer = io.BytesIO(data)
             d = fastavro.schemaless_reader(buffer, self._schema)
-            return self._record_cls(**d)
+            if self._record_cls is not None:
+                return self._record_cls(**d)
+            else:
+                return d
 
 else:
     class AvroSchema(Schema):
-        def __init__(self, _record_cls):
+        def __init__(self, _record_cls, _schema_definition):
             raise Exception("Avro library support was not found. Make sure to install Pulsar client " +
                             "with Avro support: pip3 install 'pulsar-client[avro]'")
 
@@ -1122,10 +1135,14 @@ else:
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema_avro.AvroSchema', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.schema_avro.AvroSchema" class="source">
     <pre><code>class AvroSchema(Schema):
-    def __init__(self, record_cls):
-        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                         record_cls.schema(), 'AVRO')
-        self._schema = record_cls.schema()
+    def __init__(self, record_cls, schema_definition=None):
+        if record_cls is None and schema_definition is None:
+            raise AssertionError("The param record_cls and schema_definition shouldn't be both None.")
+        if record_cls is not None:
+            self._schema = record_cls.schema()
+        else:
+            self._schema = schema_definition
+        super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO, self._schema, 'AVRO')
     def _get_serialized_value(self, x):
         if isinstance(x, enum.Enum):
             return x.name
@@ -1141,9 +1158,13 @@ else:
         else:
             return x
     def encode(self, obj):
-        self._validate_object_type(obj)
         buffer = io.BytesIO()
-        m = self.encode_dict(obj.__dict__)
+        m = obj
+        if self._record_cls is not None:
+            self._validate_object_type(obj)
+            m = self.encode_dict(obj.__dict__)
+        elif not isinstance(obj, dict):
+            raise ValueError('If using the custom schema, the record data should be dict type.')
         fastavro.schemaless_writer(buffer, self._schema, m)
         return buffer.getvalue()
     def encode_dict(self, d):
@@ -1154,7 +1175,10 @@ else:
     def decode(self, data):
         buffer = io.BytesIO(data)
         d = fastavro.schemaless_reader(buffer, self._schema)
-        return self._record_cls(**d)
+        if self._record_cls is not None:
+            return self._record_cls(**d)
+        else:
+            return d
 </code></pre>
   </div>
 </div>
@@ -1171,7 +1195,7 @@ else:
             
   <div class="item">
     <div class="name def" id="pulsar.schema.schema_avro.AvroSchema.__init__">
-    <p>def <span class="ident">__init__</span>(</p><p>self, record_cls)</p>
+    <p>def <span class="ident">__init__</span>(</p><p>self, record_cls, schema_definition=None)</p>
     </div>
     
 
@@ -1180,10 +1204,14 @@ else:
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema_avro.AvroSchema.__init__', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.schema_avro.AvroSchema.__init__" class="source">
-    <pre><code>def __init__(self, record_cls):
-    super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO,
-                                     record_cls.schema(), 'AVRO')
-    self._schema = record_cls.schema()
+    <pre><code>def __init__(self, record_cls, schema_definition=None):
+    if record_cls is None and schema_definition is None:
+        raise AssertionError("The param record_cls and schema_definition shouldn't be both None.")
+    if record_cls is not None:
+        self._schema = record_cls.schema()
+    else:
+        self._schema = schema_definition
+    super(AvroSchema, self).__init__(record_cls, _pulsar.SchemaType.AVRO, self._schema, 'AVRO')
 </code></pre>
   </div>
 </div>
@@ -1205,7 +1233,10 @@ else:
     <pre><code>def decode(self, data):
     buffer = io.BytesIO(data)
     d = fastavro.schemaless_reader(buffer, self._schema)
-    return self._record_cls(**d)
+    if self._record_cls is not None:
+        return self._record_cls(**d)
+    else:
+        return d
 </code></pre>
   </div>
 </div>
@@ -1225,9 +1256,13 @@ else:
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.schema_avro.AvroSchema.encode', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.schema_avro.AvroSchema.encode" class="source">
     <pre><code>def encode(self, obj):
-    self._validate_object_type(obj)
     buffer = io.BytesIO()
-    m = self.encode_dict(obj.__dict__)
+    m = obj
+    if self._record_cls is not None:
+        self._validate_object_type(obj)
+        m = self.encode_dict(obj.__dict__)
+    elif not isinstance(obj, dict):
+        raise ValueError('If using the custom schema, the record data should be dict type.')
     fastavro.schemaless_writer(buffer, self._schema, m)
     return buffer.getvalue()
 </code></pre>
