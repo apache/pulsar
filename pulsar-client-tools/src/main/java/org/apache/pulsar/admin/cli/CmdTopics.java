@@ -771,7 +771,8 @@ public class CmdTopics extends CmdBase {
         private String resetTimeStr;
 
         @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
+                "-m" }, description = "messageId to reset back to ('latest', 'earliest', or 'ledgerId:entryId')", required =
+                false)
         private String resetMessageIdStr;
 
         @Parameter(names = { "-e", "--exclude-reset-position" },
@@ -782,7 +783,14 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
-                MessageId messageId = validateMessageIdString(resetMessageIdStr);
+                MessageId messageId;
+                if ("earliest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.earliest;
+                } else if ("latest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.latest;
+                } else {
+                    messageId = validateMessageIdString(resetMessageIdStr);
+                }
                 if (excludeResetPosition) {
                     getTopics().resetCursor(persistentTopic, subName, messageId, true);
                 } else {
@@ -796,7 +804,7 @@ public class CmdTopics extends CmdBase {
                 getTopics().resetCursor(persistentTopic, subName, timestamp);
             } else {
                 throw new PulsarAdminException(
-                        "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
+                        "Either Timestamp (--time) or messageId (--messageId) has to be provided to reset cursor");
             }
         }
     }
