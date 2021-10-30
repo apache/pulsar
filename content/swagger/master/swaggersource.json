@@ -827,16 +827,16 @@
     "Base64Variant" : {
       "type" : "object",
       "properties" : {
-        "maxLineLength" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "paddingChar" : {
           "type" : "string"
         },
         "paddingByte" : {
           "type" : "string",
           "format" : "byte"
+        },
+        "maxLineLength" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "name" : {
           "type" : "string"
@@ -904,36 +904,36 @@
     "CompletableFuture" : {
       "type" : "object",
       "properties" : {
-        "completedExceptionally" : {
+        "cancelled" : {
           "type" : "boolean"
         },
         "done" : {
           "type" : "boolean"
         },
-        "cancelled" : {
-          "type" : "boolean"
-        },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "completedExceptionally" : {
+          "type" : "boolean"
         }
       }
     },
     "CompletableFutureClusterData" : {
       "type" : "object",
       "properties" : {
-        "completedExceptionally" : {
+        "cancelled" : {
           "type" : "boolean"
         },
         "done" : {
           "type" : "boolean"
         },
-        "cancelled" : {
-          "type" : "boolean"
-        },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "completedExceptionally" : {
+          "type" : "boolean"
         }
       }
     },
@@ -1057,10 +1057,6 @@
         "defaultPropertyInclusion" : {
           "$ref" : "#/definitions/Value"
         },
-        "deserializationFeatures" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "problemHandlers" : {
           "$ref" : "#/definitions/LinkedNodeDeserializationProblemHandler"
         },
@@ -1069,6 +1065,10 @@
         },
         "annotationIntrospector" : {
           "$ref" : "#/definitions/AnnotationIntrospector"
+        },
+        "deserializationFeatures" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "rootName" : {
           "type" : "string"
@@ -1097,9 +1097,6 @@
         "annotationProcessingEnabled" : {
           "type" : "boolean"
         },
-        "base64Variant" : {
-          "$ref" : "#/definitions/Base64Variant"
-        },
         "handlerInstantiator" : {
           "$ref" : "#/definitions/HandlerInstantiator"
         },
@@ -1108,6 +1105,9 @@
         },
         "dateFormat" : {
           "$ref" : "#/definitions/DateFormat"
+        },
+        "base64Variant" : {
+          "$ref" : "#/definitions/Base64Variant"
         },
         "classIntrospector" : {
           "$ref" : "#/definitions/ClassIntrospector"
@@ -1132,13 +1132,6 @@
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
         },
-        "deserializationFeatures" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "base64Variant" : {
-          "$ref" : "#/definitions/Base64Variant"
-        },
         "arrayBuilders" : {
           "$ref" : "#/definitions/ArrayBuilders"
         },
@@ -1150,6 +1143,13 @@
         },
         "contextualType" : {
           "$ref" : "#/definitions/JavaType"
+        },
+        "deserializationFeatures" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "base64Variant" : {
+          "$ref" : "#/definitions/Base64Variant"
         },
         "factory" : {
           "$ref" : "#/definitions/DeserializerFactory"
@@ -1206,6 +1206,9 @@
         "contentType" : {
           "$ref" : "#/definitions/JavaType"
         },
+        "throwable" : {
+          "type" : "boolean"
+        },
         "bindings" : {
           "$ref" : "#/definitions/TypeBindings"
         },
@@ -1216,9 +1219,6 @@
           "$ref" : "#/definitions/JavaType"
         },
         "arrayType" : {
-          "type" : "boolean"
-        },
-        "throwable" : {
           "type" : "boolean"
         },
         "javaLangObject" : {
@@ -1295,17 +1295,17 @@
         "formatName" : {
           "type" : "string"
         },
-        "characterEscapes" : {
-          "$ref" : "#/definitions/CharacterEscapes"
-        },
-        "rootValueSeparator" : {
-          "type" : "string"
-        },
         "inputDecorator" : {
           "$ref" : "#/definitions/InputDecorator"
         },
         "outputDecorator" : {
           "$ref" : "#/definitions/OutputDecorator"
+        },
+        "rootValueSeparator" : {
+          "type" : "string"
+        },
+        "characterEscapes" : {
+          "$ref" : "#/definitions/CharacterEscapes"
         }
       }
     },
@@ -1357,6 +1357,10 @@
     "JsonLocation" : {
       "type" : "object",
       "properties" : {
+        "byteOffset" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "sourceRef" : {
           "type" : "object"
         },
@@ -1371,10 +1375,6 @@
         "charOffset" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "byteOffset" : {
-          "type" : "integer",
-          "format" : "int64"
         }
       }
     },
@@ -1387,9 +1387,6 @@
         "textLength" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "closed" : {
-          "type" : "boolean"
         },
         "textCharacters" : {
           "type" : "array",
@@ -1423,8 +1420,8 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "objectId" : {
-          "type" : "object"
+        "closed" : {
+          "type" : "boolean"
         },
         "intValue" : {
           "type" : "integer",
@@ -1522,6 +1519,9 @@
         "valueAsString" : {
           "type" : "string"
         },
+        "objectId" : {
+          "type" : "object"
+        },
         "inputSource" : {
           "type" : "object"
         },
@@ -1552,13 +1552,6 @@
     "JsonStreamContext" : {
       "type" : "object",
       "properties" : {
-        "typeDesc" : {
-          "type" : "string"
-        },
-        "currentIndex" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "currentName" : {
           "type" : "string"
         },
@@ -1566,6 +1559,13 @@
           "type" : "object"
         },
         "entryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "typeDesc" : {
+          "type" : "string"
+        },
+        "currentIndex" : {
           "type" : "integer",
           "format" : "int32"
         },
@@ -1972,9 +1972,6 @@
         "annotationProcessingEnabled" : {
           "type" : "boolean"
         },
-        "base64Variant" : {
-          "$ref" : "#/definitions/Base64Variant"
-        },
         "handlerInstantiator" : {
           "$ref" : "#/definitions/HandlerInstantiator"
         },
@@ -1983,6 +1980,9 @@
         },
         "dateFormat" : {
           "$ref" : "#/definitions/DateFormat"
+        },
+        "base64Variant" : {
+          "$ref" : "#/definitions/Base64Variant"
         },
         "classIntrospector" : {
           "$ref" : "#/definitions/ClassIntrospector"
@@ -2001,9 +2001,6 @@
         "timeZone" : {
           "$ref" : "#/definitions/TimeZone"
         },
-        "generator" : {
-          "$ref" : "#/definitions/JsonGenerator"
-        },
         "config" : {
           "$ref" : "#/definitions/SerializationConfig"
         },
@@ -2018,6 +2015,9 @@
         },
         "defaultNullValueSerializer" : {
           "$ref" : "#/definitions/JsonSerializerObject"
+        },
+        "generator" : {
+          "$ref" : "#/definitions/JsonGenerator"
         },
         "annotationIntrospector" : {
           "$ref" : "#/definitions/AnnotationIntrospector"
@@ -2187,9 +2187,6 @@
         "displayName" : {
           "type" : "string"
         },
-        "id" : {
-          "type" : "string"
-        },
         "dstsavings" : {
           "type" : "integer",
           "format" : "int32"
@@ -2197,6 +2194,9 @@
         "rawOffset" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "id" : {
+          "type" : "string"
         }
       }
     },
@@ -2278,21 +2278,14 @@
         "issuerX500Principal" : {
           "$ref" : "#/definitions/X500Principal"
         },
-        "version" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "issuerDN" : {
-          "$ref" : "#/definitions/Principal"
-        },
-        "subjectDN" : {
-          "$ref" : "#/definitions/Principal"
+        "extendedKeyUsage" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
         },
         "sigAlgName" : {
           "type" : "string"
-        },
-        "serialNumber" : {
-          "type" : "integer"
         },
         "notBefore" : {
           "type" : "string",
@@ -2301,13 +2294,6 @@
         "notAfter" : {
           "type" : "string",
           "format" : "date-time"
-        },
-        "tbscertificate" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
         },
         "sigAlgOID" : {
           "type" : "string"
@@ -2329,12 +2315,6 @@
           "type" : "array",
           "items" : {
             "type" : "boolean"
-          }
-        },
-        "extendedKeyUsage" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string"
           }
         },
         "keyUsage" : {
@@ -2361,6 +2341,26 @@
             }
           }
         },
+        "serialNumber" : {
+          "type" : "integer"
+        },
+        "tbscertificate" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "issuerDN" : {
+          "$ref" : "#/definitions/Principal"
+        },
+        "subjectDN" : {
+          "$ref" : "#/definitions/Principal"
+        },
         "signature" : {
           "type" : "array",
           "items" : {
@@ -2372,14 +2372,14 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "nonCriticalExtensionOIDs" : {
+        "criticalExtensionOIDs" : {
           "type" : "array",
           "uniqueItems" : true,
           "items" : {
             "type" : "string"
           }
         },
-        "criticalExtensionOIDs" : {
+        "nonCriticalExtensionOIDs" : {
           "type" : "array",
           "uniqueItems" : true,
           "items" : {
