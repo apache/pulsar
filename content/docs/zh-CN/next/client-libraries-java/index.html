@@ -553,7 +553,7 @@ Consumer multiTopicConsumer = consumerBuilder
         .subscribe();
 ```
 
-You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. The following is an example.
+还可以使用 `subscribeAsync` 异步方法而不是同步的 `subscribe` 方法来订阅多个主题。具体例子如下。
 
 ```java
 Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default.*&quot;);
@@ -576,7 +576,7 @@ Pulsar has various [subscription modes](concepts-messaging#subscription-modes) t
 
 A subscription is identical with the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
 
-Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.
+不同的订阅方式对应不同的消息分发模式。本节介绍订阅模式的区别和怎样使用它们。
 
 In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.
 
@@ -973,7 +973,7 @@ PulsarClient client = PulsarClient.builder()
 * `providerDomain`
 * `privateKey`
 
-You can also set an optional `keyId`. The following is an example.
+也可以设置可选的 `keyId`。例子如下所示。
 
 ```java
 Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
