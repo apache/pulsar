@@ -275,7 +275,7 @@ public class BrokerService implements Closeable {
     private ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
-    private MessagePayloadProcessor brokerEntryPayloadProcessor;
+    private Set<MessagePayloadProcessor> brokerEntryPayloadProcessors;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -373,8 +373,8 @@ public class BrokerService implements Closeable {
                 .loadBrokerEntryMetadataInterceptors(pulsar.getConfiguration().getBrokerEntryMetadataInterceptors(),
                         BrokerService.class.getClassLoader());
 
-        this.brokerEntryPayloadProcessor = BrokerEntryMetadataUtils.loadInterceptors(pulsar.getConfiguration()
-                        .getBrokerEntryPayloadProcessor(), BrokerService.class.getClassLoader());
+        this.brokerEntryPayloadProcessors = BrokerEntryMetadataUtils.loadInterceptors(pulsar.getConfiguration()
+                        .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
     }
@@ -1361,7 +1361,8 @@ public class BrokerService implements Closeable {
 
             if (isBrokerPayloadProcessorEnabled()) {
                 managedLedgerConfig.setManagedLedgerPayloadProcessor(
-                        new ManagedLedgerPayloadProcessor(this.pulsar.getConfiguration(), brokerEntryPayloadProcessor));
+                        new ManagedLedgerPayloadProcessor(this.pulsar.getConfiguration(),
+                            brokerEntryPayloadProcessors));
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
@@ -2800,7 +2801,7 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isBrokerPayloadProcessorEnabled() {
-        return (brokerEntryPayloadProcessor != null);
+        return !brokerEntryPayloadProcessors.isEmpty();
     }
 
     public void pausedConnections(int numberOfConnections) {

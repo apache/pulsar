@@ -130,7 +130,9 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         int numberOfEntries = 10;
         final String ledgerAndCursorName = "topicEntryWithPayloadProcessed";
 
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerPayloadProcessor(getDefaultConf(), new TestPayloadProcessor());
+        Set<MessagePayloadProcessor> processors = new HashSet();
+        processors.add(new TestPayloadProcessor());
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerPayloadProcessor(getDefaultConf(), processors);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);

@@ -1092,7 +1092,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "List of interceptors for payload processing.")
-    private String brokerEntryPayloadProcessor;
+    private Set<String> brokerEntryPayloadProcessors = Sets.newLinkedHashSet();
 
     @FieldContext(
         doc = "There are two policies to apply when broker metadata session expires: session expired happens, \"shutdown\" or \"reconnect\". \n\n"

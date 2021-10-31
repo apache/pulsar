@@ -21,6 +21,7 @@ package org.apache.pulsar.common.intercept;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.LinkedHashSet;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,26 +58,28 @@ public class BrokerEntryMetadataUtils<T> {
         }
         return interceptors;
     }
-    public static <T> T loadInterceptors(
-            String interceptorName, ClassLoader classLoader) {
-        log.info("Loading interceptor {}",interceptorName);
-        if (interceptorName != null && interceptorName.length() > 0) {
-            try {
-                Class<T> clz = (Class<T>) ClassLoaderUtils
-                        .loadClass(interceptorName, classLoader);
+    public static <T> Set<T> loadInterceptors(
+            Set<String> interceptorNames, ClassLoader classLoader) {
+        Set<T> interceptors = new LinkedHashSet<>();
+        if (interceptorNames != null && interceptorNames.size() > 0) {
+            for (String interceptorName : interceptorNames) {
                 try {
-                    return clz.getDeclaredConstructor().newInstance();
-                } catch (InstantiationException | IllegalAccessException
+                    Class<T> clz = (Class<T>) ClassLoaderUtils
+                        .loadClass(interceptorName, classLoader);
+                    try {
+                        interceptors.add(clz.getDeclaredConstructor().newInstance());
+                    } catch (InstantiationException | IllegalAccessException
                         | InvocationTargetException | NoSuchMethodException e) {
-                    log.error("Create new BrokerEntryMetadataInterceptor instance for {} failed.",
+                        log.error("Create new instance for {} failed. Exception is {}",
                             interceptorName, e);
+                        throw new RuntimeException(e);
+                    }
+                } catch (ClassNotFoundException e) {
+                    log.error("Load class for {} failed. Exception is {}", interceptorName, e);
                     throw new RuntimeException(e);
                 }
-            } catch (ClassNotFoundException e) {
-                log.error("Load BrokerEntryMetadataInterceptor class for {} failed.", interceptorName, e);
-                throw new RuntimeException(e);
             }
         }
-        return null;
+        return interceptors;
     }
 }
