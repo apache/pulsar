@@ -960,6 +960,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
         }
+        negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
     }
 
