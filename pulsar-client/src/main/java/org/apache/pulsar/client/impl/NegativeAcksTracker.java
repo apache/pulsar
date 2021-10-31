@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 
+import java.io.Closeable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,7 +31,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import static org.apache.pulsar.client.impl.UnAckedMessageTracker.addChunkedMessageIdsAndRemoveFromSequnceMap;
 
-class NegativeAcksTracker {
+class NegativeAcksTracker implements Closeable {
 
     private HashMap<MessageId, Long> nackedMessages = null;
 
@@ -91,6 +92,19 @@ class NegativeAcksTracker {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
             // nack immediately following the current one will be batched into the same redeliver request.
             this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
+        }
+    }
+
+    @Override
+    public synchronized void close() {
+        if (timeout != null && !timeout.isCancelled()) {
+            timeout.cancel();
+            timeout = null;
+        }
+
+        if (nackedMessages != null) {
+            nackedMessages.clear();
+            nackedMessages = null;
         }
     }
 }
