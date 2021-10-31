@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.intercept;
 import io.netty.buffer.ByteBuf;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
@@ -37,11 +38,11 @@ public class ManagedLedgerPayloadProcessor implements ManagedLedgerInterceptor {
     private ServiceConfiguration serviceConfig;
 
 
-    private final MessagePayloadProcessor brokerEntryPayloadProcessor;
+    private final Set<MessagePayloadProcessor> brokerEntryPayloadProcessors;
     public ManagedLedgerPayloadProcessor(ServiceConfiguration serviceConfig,
-                                         MessagePayloadProcessor brokerEntryPayloadProcessor) {
+                                         Set<MessagePayloadProcessor> brokerEntryPayloadProcessors) {
         this.serviceConfig = serviceConfig;
-        this.brokerEntryPayloadProcessor = brokerEntryPayloadProcessor;
+        this.brokerEntryPayloadProcessors = brokerEntryPayloadProcessors;
     }
     @Override
     public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
@@ -50,22 +51,29 @@ public class ManagedLedgerPayloadProcessor implements ManagedLedgerInterceptor {
     @Override
     public ByteBuf beforeStoreEntryToLedger(OpAddEntry op, ByteBuf ledgerData) {
         Map<String, Object> contextMap = new HashMap<>();
+        ByteBuf dataToStore = ledgerData;
 
-        ByteBuf newData = brokerEntryPayloadProcessor.interceptIn(
+        for (MessagePayloadProcessor payloadProcessor : brokerEntryPayloadProcessors) {
+            dataToStore = payloadProcessor.interceptIn(
                 serviceConfig.getClusterName(),
-                ledgerData, contextMap);
-        if (op.getCtx() instanceof Topic.PublishContext){
-            Topic.PublishContext ctx = (Topic.PublishContext) op.getCtx();
-            contextMap.forEach((k, v) -> {
-                ctx.setProperty(k, v);
-            });
+                dataToStore, contextMap);
+            if (op.getCtx() instanceof Topic.PublishContext){
+                Topic.PublishContext ctx = (Topic.PublishContext) op.getCtx();
+                contextMap.forEach((k, v) -> {
+                    ctx.setProperty(k, v);
+                });
+            }
         }
-        return newData;
+        return dataToStore;
     }
 
     @Override
     public ByteBuf beforeCacheEntryFromLedger(ByteBuf ledgerData){
-        return brokerEntryPayloadProcessor.interceptOut(ledgerData);
+        ByteBuf dataToCache = ledgerData;
+        for (MessagePayloadProcessor payloadProcessor : brokerEntryPayloadProcessors) {
+            dataToCache = payloadProcessor.interceptOut(dataToCache);
+        }
+        return dataToCache;
     }
 
     @Override
