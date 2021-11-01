@@ -52,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -3016,5 +3017,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         managedLedgerA.close();
         managedLedgerB.close();
 
+    }
+
+    @Test
+    public void testCancellationOfScheduledTasks() throws Exception {
+        Field timeoutTaskField = ManagedLedgerImpl.class.getDeclaredField("timeoutTask");
+        timeoutTaskField.setAccessible(true);
+        Field checkLedgerRollTaskField = ManagedLedgerImpl.class.getDeclaredField("checkLedgerRollTask");
+        checkLedgerRollTaskField.setAccessible(true);
+
+        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory.open("my_test_ledger_1");
+        ledger1.addEntry("dummy-entry-1".getBytes(Encoding));
+        ScheduledFuture<?> timeoutTask1 = (ScheduledFuture<?>) timeoutTaskField.get(ledger1);
+        assertNotNull(timeoutTask1);
+        assertFalse(timeoutTask1.isDone());
+        ScheduledFuture<?> checkLedgerRollTask1 = (ScheduledFuture<?>) checkLedgerRollTaskField.get(ledger1);
+        assertNotNull(checkLedgerRollTask1);
+        assertFalse(checkLedgerRollTask1.isDone());
+        ledger1.close();
+        assertTrue(timeoutTask1.isCancelled());
+        assertTrue(checkLedgerRollTask1.isCancelled());
+
+        ManagedLedgerImpl ledger2 = (ManagedLedgerImpl) factory.open("my_test_ledger_2");
+        ledger2.addEntry("dummy-entry-2".getBytes(Encoding));
+        ScheduledFuture<?> timeoutTask2 = (ScheduledFuture<?>) timeoutTaskField.get(ledger2);
+        assertNotNull(timeoutTask2);
+        assertFalse(timeoutTask2.isDone());
+        ScheduledFuture<?> checkLedgerRollTask2 = (ScheduledFuture<?>) checkLedgerRollTaskField.get(ledger2);
+        assertNotNull(checkLedgerRollTask2);
+        assertFalse(checkLedgerRollTask2.isDone());
+        ledger2.delete();
+        assertTrue(timeoutTask2.isCancelled());
+        assertTrue(checkLedgerRollTask2.isCancelled());
     }
 }
