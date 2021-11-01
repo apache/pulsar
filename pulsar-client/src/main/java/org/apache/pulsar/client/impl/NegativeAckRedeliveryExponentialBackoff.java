@@ -46,36 +46,23 @@ public class NegativeAckRedeliveryExponentialBackoff implements NegativeAckRedel
         return Math.min(Math.abs(minNackTimeMs << redeliveryCount), maxNackTimeMs);
     }
 
-    @Override
-    public long getMinNackTimeMs() {
-        return minNackTimeMs;
-    }
-
-    @Override
-    public long getMaxNackTimeMs() {
-        return maxNackTimeMs;
-    }
-
     /**
      * Builder of NegativeAckRedeliveryExponentialBackoff.
      */
-    public static class NegativeAckRedeliveryExponentialBackoffBuilder implements Builder {
+    public static class NegativeAckRedeliveryExponentialBackoffBuilder {
         private long minNackTimeMs = 1000 * 10;
         private long maxNackTimeMs = 1000 * 60 * 10;
 
-        @Override
-        public Builder minNackTimeMs(long minNackTimeMs) {
+        public NegativeAckRedeliveryExponentialBackoffBuilder minNackTimeMs(long minNackTimeMs) {
             this.minNackTimeMs = minNackTimeMs;
             return this;
         }
 
-        @Override
-        public Builder maxNackTimeMs(long maxNackTimeMs) {
+        public NegativeAckRedeliveryExponentialBackoffBuilder maxNackTimeMs(long maxNackTimeMs) {
             this.maxNackTimeMs = maxNackTimeMs;
             return this;
         }
 
-        @Override
         public NegativeAckRedeliveryExponentialBackoff build() {
             return new NegativeAckRedeliveryExponentialBackoff(minNackTimeMs, maxNackTimeMs);
         }

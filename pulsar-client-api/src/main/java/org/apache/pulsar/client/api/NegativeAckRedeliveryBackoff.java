@@ -37,16 +37,4 @@ public interface NegativeAckRedeliveryBackoff extends Serializable  {
      * @param redeliveryCount indicates the number of times the message was redelivered
      */
     long next(int redeliveryCount);
-
-    long getMinNackTimeMs();
-
-    long getMaxNackTimeMs();
-
-    interface Builder {
-        NegativeAckRedeliveryBackoff.Builder minNackTimeMs(long minNackTimeMs);
-
-        NegativeAckRedeliveryBackoff.Builder maxNackTimeMs(long maxNackTimeMs);
-
-        NegativeAckRedeliveryBackoff build();
-    }
 }

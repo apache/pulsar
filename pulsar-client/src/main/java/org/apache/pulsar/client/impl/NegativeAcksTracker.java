@@ -56,7 +56,7 @@ class NegativeAcksTracker implements Closeable {
         this.negativeAckRedeliveryBackoff = conf.getNegativeAckRedeliveryBackoff();
         if (negativeAckRedeliveryBackoff != null) {
             this.timerIntervalNanos = Math.max(
-                    TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.getMinNackTimeMs()),
+                    TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(0)),
                     MIN_NACK_DELAY_NANOS) / 3;
         } else {
             this.timerIntervalNanos = nackDelayNanos / 3;
@@ -114,6 +114,11 @@ class NegativeAcksTracker implements Closeable {
     }
 
     private synchronized void add(MessageId messageId, int redeliveryCount) {
+        if (messageId instanceof TopicMessageIdImpl) {
+            TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
+            messageId = topicMessageId.getInnerMessageId();
+        }
+
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
             messageId = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId(),
