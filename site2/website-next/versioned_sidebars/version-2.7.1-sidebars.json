@@ -85,7 +85,6 @@
           "id": "version-2.7.1/schema-manage"
         }
       ]
-<<<<<<< HEAD
     },
     {
       "type": "category",
@@ -128,8 +127,6 @@
           "id": "version-2.7.1/window-functions-context"
         }
       ]
-=======
->>>>>>> up/master
     }
   ]
 }
