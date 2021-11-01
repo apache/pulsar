@@ -115,6 +115,7 @@ module.exports = {
           position: "left",
           label: "Docs",
         },
+        { to: "/versions", label: "Versions", position: "left" },
         { to: "/blog", label: "Blog", position: "left" },
         {
           href: "https://github.com/apache/pulsar",
@@ -137,6 +138,10 @@ module.exports = {
             {
               label: "2.7.2",
               to: "docs/2.7.2/",
+            },
+            {
+              label: "2.7.1",
+              to: "docs/2.7.1/",
             },
             {
               label: "2.2.0",

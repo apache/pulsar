@@ -25,6 +25,7 @@ import pulsar
 from pulsar.schema import *
 from enum import Enum
 import json
+from fastavro.schema import load_schema
 
 
 class SchemaTest(TestCase):
@@ -1145,12 +1146,127 @@ class SchemaTest(TestCase):
 
         client.close()
 
-    def test(self):
-        class NamespaceDemo(Record):
-            _namespace = 'xxx.xxx.xxx'
-            x = String()
-            y = Integer()
-        print('schema: ', NamespaceDemo.schema())
+    def custom_schema_test(self):
+
+        def encode_and_decode(schema_definition):
+            avro_schema = AvroSchema(None, schema_definition=schema_definition)
+
+            company = {
+                "name": "company-name",
+                "address": 'xxx road xxx street',
+                "employees": [
+                    {"name": "user1", "age": 25},
+                    {"name": "user2", "age": 30},
+                    {"name": "user3", "age": 35},
+                ],
+                "labels": {
+                    "industry": "software",
+                    "scale": ">100",
+                    "funds": "1000000.0"
+                }
+            }
+            data = avro_schema.encode(company)
+            company_decode = avro_schema.decode(data)
+            self.assertEqual(company, company_decode)
+
+        schema_definition = {
+            'doc': 'this is doc',
+            'namespace': 'example.avro',
+            'type': 'record',
+            'name': 'Company',
+            'fields': [
+                {'name': 'name', 'type': ['null', 'string']},
+                {'name': 'address', 'type': ['null', 'string']},
+                {'name': 'employees', 'type': ['null', {'type': 'array', 'items': {
+                    'type': 'record',
+                    'name': 'Employee',
+                    'fields': [
+                        {'name': 'name', 'type': ['null', 'string']},
+                        {'name': 'age', 'type': ['null', 'int']}
+                    ]
+                }}]},
+                {'name': 'labels', 'type': ['null', {'type': 'map', 'values': 'string'}]}
+            ]
+        }
+        encode_and_decode(schema_definition)
+        # Users could load schema from file by `fastavro.schema`
+        # Or use `avro.schema` like this `avro.schema.parse(open("examples/company.avsc", "rb").read()).to_json()`
+        encode_and_decode(load_schema("examples/company.avsc"))
+
+    def custom_schema_produce_and_consume_test(self):
+        client = pulsar.Client(self.serviceUrl)
+
+        def produce_and_consume(topic, schema_definition):
+            print('custom schema produce and consume test topic - ', topic)
+            example_avro_schema = AvroSchema(None, schema_definition=schema_definition)
+
+            producer = client.create_producer(
+                topic=topic,
+                schema=example_avro_schema)
+            consumer = client.subscribe(topic, 'test', schema=example_avro_schema)
+
+            for i in range(0, 10):
+                company = {
+                    "name": "company-name" + str(i),
+                    "address": 'xxx road xxx street ' + str(i),
+                    "employees": [
+                        {"name": "user" + str(i), "age": 20 + i},
+                        {"name": "user" + str(i), "age": 30 + i},
+                        {"name": "user" + str(i), "age": 35 + i},
+                    ],
+                    "labels": {
+                        "industry": "software" + str(i),
+                        "scale": ">100",
+                        "funds": "1000000.0"
+                    }
+                }
+                producer.send(company)
+
+            for i in range(0, 10):
+                msg = consumer.receive()
+                company = {
+                    "name": "company-name" + str(i),
+                    "address": 'xxx road xxx street ' + str(i),
+                    "employees": [
+                        {"name": "user" + str(i), "age": 20 + i},
+                        {"name": "user" + str(i), "age": 30 + i},
+                        {"name": "user" + str(i), "age": 35 + i},
+                    ],
+                    "labels": {
+                        "industry": "software" + str(i),
+                        "scale": ">100",
+                        "funds": "1000000.0"
+                    }
+                }
+                self.assertEqual(msg.value(), company)
+                consumer.acknowledge(msg)
+
+            consumer.close()
+            producer.close()
+
+        schema_definition = {
+            'doc': 'this is doc',
+            'namespace': 'example.avro',
+            'type': 'record',
+            'name': 'Company',
+            'fields': [
+                {'name': 'name', 'type': ['null', 'string']},
+                {'name': 'address', 'type': ['null', 'string']},
+                {'name': 'employees', 'type': ['null', {'type': 'array', 'items': {
+                    'type': 'record',
+                    'name': 'Employee',
+                    'fields': [
+                        {'name': 'name', 'type': ['null', 'string']},
+                        {'name': 'age', 'type': ['null', 'int']}
+                    ]
+                }}]},
+                {'name': 'labels', 'type': ['null', {'type': 'map', 'values': 'string'}]}
+            ]
+        }
+        produce_and_consume('custom-schema-test-1', schema_definition=schema_definition)
+        produce_and_consume('custom-schema-test-2', schema_definition=load_schema("examples/company.avsc"))
+
+        client.close()
 
 if __name__ == '__main__':
     main()

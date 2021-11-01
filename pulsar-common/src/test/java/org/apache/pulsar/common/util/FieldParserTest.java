@@ -20,17 +20,16 @@ package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Maps;
 
 public class FieldParserTest {
 
     @Test
     public void testMap() {
-        Map<String, String> properties = Maps.newHashMap();
+        Map<String, String> properties = new HashMap<>();
         properties.put("name", "config");
         properties.put("stringStringMap", "key1=value1,key2=value2");
         properties.put("stringIntMap", "key1=1,key2=2");

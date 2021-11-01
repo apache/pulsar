@@ -771,7 +771,8 @@ public class CmdTopics extends CmdBase {
         private String resetTimeStr;
 
         @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
+                "-m" }, description = "messageId to reset back to ('latest', 'earliest', or 'ledgerId:entryId')", required =
+                false)
         private String resetMessageIdStr;
 
         @Parameter(names = { "-e", "--exclude-reset-position" },
@@ -782,7 +783,14 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
-                MessageId messageId = validateMessageIdString(resetMessageIdStr);
+                MessageId messageId;
+                if ("earliest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.earliest;
+                } else if ("latest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.latest;
+                } else {
+                    messageId = validateMessageIdString(resetMessageIdStr);
+                }
                 if (excludeResetPosition) {
                     getTopics().resetCursor(persistentTopic, subName, messageId, true);
                 } else {
@@ -796,7 +804,7 @@ public class CmdTopics extends CmdBase {
                 getTopics().resetCursor(persistentTopic, subName, timestamp);
             } else {
                 throw new PulsarAdminException(
-                        "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
+                        "Either Timestamp (--time) or messageId (--messageId) has to be provided to reset cursor");
             }
         }
     }
@@ -1850,15 +1858,24 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--types",
-                "-t" }, description = "Subscription types enabled list (comma separated values)", required = true)
-        private String subTypes;
+        @Parameter(names = {"--types", "-t"}, description = "Subscription types enabled list (comma separated values)."
+                + " Possible values: (Exclusive, Shared, Failover, Key_Shared).", required = true)
+        private List<String> subTypes;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             Set<SubscriptionType> types = new HashSet<>();
-            Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
+            subTypes.forEach(s -> {
+                SubscriptionType subType;
+                try {
+                    subType = SubscriptionType.valueOf(s);
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(String.format("Illegal subscription type %s. Possible values: %s.", s,
+                            Arrays.toString(SubscriptionType.values())));
+                }
+                types.add(subType);
+            });
             getTopics().setSubscriptionTypesEnabled(persistentTopic, types);
         }
     }

@@ -1,0 +1,22 @@
+{
+  "version-2.7.1/docsSidebar": [
+    {
+      "type": "category",
+      "label": "Get Started",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/standalone"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/standalone-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/kubernetes-helm"
+        }
+      ]
+    }
+  ]
+}
