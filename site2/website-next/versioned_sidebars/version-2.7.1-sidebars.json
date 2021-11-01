@@ -85,6 +85,48 @@
           "id": "version-2.7.1/schema-manage"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar Functions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-worker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-runtime"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-develop"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-package"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-debug"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/functions-cli"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/window-functions-context"
+        }
+      ]
     }
   ]
 }
