@@ -964,9 +964,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void testTxnTimeOutInClient() throws Exception{
         String topic = NAMESPACE1 + "/testTxnTimeOutInClient";
-        Producer producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
                 .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
-        Consumer consumer = pulsarClient.newConsumer(Schema.STRING).consumerName("testTxnTimeOut_consumer")
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).consumerName("testTxnTimeOut_consumer")
                 .topic(topic).subscriptionName("testTxnTimeOut_sub").subscribe();
 
         Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
@@ -980,16 +980,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             producer.newMessage(transaction).send();
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
-                    .InvalidTxnStatusException);
+            if (!(e.getCause().getCause() instanceof TransactionCoordinatorClientException
+                    .InvalidTxnStatusException)) {
+                throw new TransactionCoordinatorClientException
+                        .TransactionTimeoutException(transaction.getTxnID().toString());
+
+            }
         }
         try {
             Message message = consumer.receive();
             consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
             Assert.fail();
         } catch (Exception e) {
-            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
-                    .InvalidTxnStatusException);
+            if (!(e.getCause() instanceof TransactionCoordinatorClientException
+                    .InvalidTxnStatusException)) {
+                throw new TransactionCoordinatorClientException
+                        .TransactionTimeoutException(transaction.getTxnID().toString());
+            }
         }
     }
 }

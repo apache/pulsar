@@ -197,9 +197,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
             completableFuture
                     .completeExceptionally(new TransactionCoordinatorClientException
-                            .InvalidTxnStatusException("["+ txn.getTxnID().toString() +"] with unexpected state : "
-                            + ((TransactionImpl) txn).getState().name()
-                            + ", expect " + TransactionImpl.State.OPEN + " state!"));
+                            .InvalidTxnStatusException(txn.getTxnID().toString(),
+                            ((TransactionImpl) txn).getState().name()));
             return completableFuture;
         }
         int partition = routerPolicy.choosePartition(message, topicMetadata);

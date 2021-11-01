@@ -391,9 +391,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
                 completableFuture
                         .completeExceptionally(new TransactionCoordinatorClientException
-                                .InvalidTxnStatusException("["+ txn.getTxnID().toString() +"] with unexpected state : "
-                                + ((TransactionImpl) txn).getState().name()
-                                + ", expect " + TransactionImpl.State.OPEN + " state!"));
+                                .InvalidTxnStatusException(txn.getTxnID().toString(),
+                                ((TransactionImpl) txn).getState().name()));
                 return completableFuture;
             }
             return ((TransactionImpl) txn).registerProducedTopic(topic)

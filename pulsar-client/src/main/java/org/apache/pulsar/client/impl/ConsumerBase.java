@@ -495,9 +495,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
                completableFuture
                        .completeExceptionally(new TransactionCoordinatorClientException
-                               .InvalidTxnStatusException("["+ txn.getTxnID().toString() +"] with unexpected state : "
-                               + ((TransactionImpl) txn).getState().name()
-                               + ", expect " + TransactionImpl.State.OPEN + " state!"));
+                               .InvalidTxnStatusException(txn.getTxnID().toString(),
+                               ((TransactionImpl) txn).getState().name()));
                 return completableFuture;
             }
         }

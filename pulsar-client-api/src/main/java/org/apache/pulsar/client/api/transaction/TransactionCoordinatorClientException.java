@@ -68,6 +68,11 @@ public class TransactionCoordinatorClientException extends IOException {
         public InvalidTxnStatusException(String message) {
             super(message);
         }
+
+        public InvalidTxnStatusException(String txnId, String state) {
+            super("["+ txnId +"] with unexpected state : "
+                    + state + ", expect " + "OPEN" + " state!");
+        }
     }
 
     /**
@@ -90,6 +95,21 @@ public class TransactionCoordinatorClientException extends IOException {
 
         public MetaStoreHandlerNotExistsException(String message) {
             super(message);
+        }
+    }
+
+
+    /**
+     * Thrown when transaction meta was timeout.
+     */
+    public static class TransactionTimeoutException extends TransactionCoordinatorClientException {
+
+        public TransactionTimeoutException(Throwable t) {
+            super(t);
+        }
+
+        public TransactionTimeoutException(String transactionId) {
+            super("The transaction " +  transactionId + " is timeout.");
         }
     }
 
