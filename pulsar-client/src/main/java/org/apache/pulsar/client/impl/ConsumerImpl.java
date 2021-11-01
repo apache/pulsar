@@ -689,6 +689,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public void negativeAcknowledge(Message<?> message) {
+        negativeAcksTracker.add(message);
+
+        // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
+        unAckedMessageTracker.remove(message.getMessageId());
+    }
+
+    @Override
     public void connectionOpened(final ClientCnx cnx) {
         previousExceptions.clear();
 
