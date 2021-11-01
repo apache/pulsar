@@ -427,8 +427,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (message == null) {
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-            }
-            if (message != null) {
+            } else {
                 messageProcessed(message);
                 result.complete(beforeConsume(message));
             }
@@ -649,8 +648,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (message.getProperties() != null) {
             propertiesMap.putAll(message.getProperties());
         }
-        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
-        propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
+        propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, originTopicNameStr);
+        propertiesMap.putIfAbsent(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID, originMessageIdStr);
         return propertiesMap;
     }
 
@@ -979,6 +978,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (batchReceiveTimeout != null) {
             batchReceiveTimeout.cancel();
         }
+        negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
     }
 
@@ -1237,10 +1237,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (listener != null) {
             triggerListener();
         }
-    }
-
-    private boolean isTxnMessage(MessageMetadata messageMetadata) {
-        return messageMetadata.hasTxnidMostBits() && messageMetadata.hasTxnidLeastBits();
     }
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,

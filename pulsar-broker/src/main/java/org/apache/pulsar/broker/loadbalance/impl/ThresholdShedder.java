@@ -102,7 +102,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             log.info(
                     "Attempting to shed load on {}, which has max resource usage above avgUsage  and threshold {}%"
                             + " > {}% + {}% -- Offloading at least {} MByte/s of traffic, left throughput {} MByte/s",
-                    broker, currentUsage, avgUsage, threshold, minimumThroughputToOffload / MB,
+                    broker, 100 * currentUsage, 100 * avgUsage, 100 * threshold, minimumThroughputToOffload / MB,
                     (brokerCurrentThroughput - minimumThroughputToOffload) / MB);
 
             MutableDouble trafficMarkedToOffload = new MutableDouble(0);

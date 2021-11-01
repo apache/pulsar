@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import com.google.common.collect.Maps;
-
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -46,7 +45,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 public class TopicPolicies {
 
     @Builder.Default
-    private Map<String, BacklogQuotaImpl> backLogQuotaMap = Maps.newHashMap();
+    private Map<String, BacklogQuotaImpl> backLogQuotaMap = new HashMap<>();
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
 

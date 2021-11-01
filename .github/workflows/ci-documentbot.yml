@@ -17,12 +17,13 @@ on:
 
 jobs:
   labeling:
+    permissions:
+      pull-requests: write 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
       - uses: apache/pulsar-test-infra/doc-label-check@master
         with:
-          github-token: ${{ secrets.DOCBOT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           label-pattern: '- \[(.*?)\] ?`(.+?)`' # matches '- [x] `label`'
-          bot-name: 'eolivelli'
