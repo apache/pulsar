@@ -19,12 +19,12 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Objects;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 
 public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
@@ -53,16 +53,16 @@ public class EnsemblePlacementPolicyConfig {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(policyClass != null ? policyClass.getName() : "", properties);
+        return Objects.hash(policyClass != null ? policyClass.getName() : "", properties);
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof EnsemblePlacementPolicyConfig) {
             EnsemblePlacementPolicyConfig other = (EnsemblePlacementPolicyConfig) obj;
-            return Objects.equal(this.policyClass == null ? null : this.policyClass.getName(),
+            return Objects.equals(this.policyClass == null ? null : this.policyClass.getName(),
                 other.policyClass == null ? null : other.policyClass.getName())
-                && Objects.equal(this.properties, other.properties);
+                && Objects.equals(this.properties, other.properties);
         }
         return false;
     }
