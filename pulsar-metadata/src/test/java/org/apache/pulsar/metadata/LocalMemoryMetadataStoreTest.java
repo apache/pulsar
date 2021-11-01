@@ -45,6 +45,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class LocalMemoryMetadataStoreTest {
@@ -84,7 +85,11 @@ public class LocalMemoryMetadataStoreTest {
 
         store2.delete("/test", Optional.empty()).join();
 
-        assertFalse(store1.exists("/test").join());
         assertFalse(store2.exists("/test").join());
+
+        // The exists will be updated based on the cache invalidation in store1
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(store1.exists("/test").join());
+        });
     }
 }
