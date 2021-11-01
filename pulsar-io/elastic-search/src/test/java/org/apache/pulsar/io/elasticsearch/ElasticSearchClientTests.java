@@ -26,7 +26,9 @@ import org.apache.pulsar.io.elasticsearch.testcontainers.ChaosContainer;
 import org.awaitility.Awaitility;
 import org.junit.AfterClass;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -47,14 +49,14 @@ public class ElasticSearchClientTests {
 
     static ElasticsearchContainer container;
 
-    @BeforeClass
-    public static final void initBeforeClass() throws IOException {
+    @BeforeMethod
+    public static void initBeforeMethod() throws IOException {
         container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
         container.start();
     }
 
-    @AfterClass
-    public static void closeAfterClass() {
+    @AfterMethod
+    public static void closeAfterMethod() {
         container.close();
     }
 
