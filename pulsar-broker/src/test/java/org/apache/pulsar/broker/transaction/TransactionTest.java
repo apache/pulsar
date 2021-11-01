@@ -86,36 +86,12 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionTest extends TransactionTestBase {
 
-    private static final String TENANT = "tnx";
-    private static final String NAMESPACE1 = TENANT + "/ns1";
     private static final int NUM_BROKERS = 1;
     private static final int NUM_PARTITIONS = 1;
 
     @BeforeMethod
     protected void setup() throws Exception {
-        this.setBrokerCount(NUM_BROKERS);
-        this.internalSetup();
-
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
-                .serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
-
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
-        pulsarClient.close();
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-        // wait tc init success to ready state
-        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);
+       setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     @Test

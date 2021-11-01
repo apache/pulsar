@@ -23,9 +23,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Sets;
-
 import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -63,11 +60,8 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.api.proto.CommandAck;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -87,42 +81,14 @@ import org.testng.annotations.Test;
 public class TransactionEndToEndTest extends TransactionTestBase {
 
     private static final int TOPIC_PARTITION = 3;
-
-    private static final String TENANT = "tnx";
-    private static final String NAMESPACE1 = TENANT + "/ns1";
     private static final String TOPIC_OUTPUT = NAMESPACE1 + "/output";
     private static final String TOPIC_MESSAGE_ACK_TEST = NAMESPACE1 + "/message-ack-test";
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
-        setBrokerCount(1);
-        internalSetup();
-
-        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NAMESPACE1);
-        admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
+        setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
-
-        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
-        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
-
-        if (pulsarClient != null) {
-            pulsarClient.close();
-        }
-        pulsarClient = PulsarClient.builder()
-                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
-
-        // wait tc init success to ready state
-        waitForCoordinatorToBeAvailable(NUM_PARTITIONS);    }
+    }
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() {

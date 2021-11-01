@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
@@ -45,10 +46,10 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
-import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -61,6 +62,7 @@ import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 
 @Slf4j
 public abstract class TransactionTestBase extends TestRetrySupport {
@@ -82,6 +84,9 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     private MockZooKeeper mockZooKeeper;
     private OrderedExecutor bkExecutor;
     private NonClosableMockBookKeeper mockBookKeeper;
+
+    public static final String TENANT = "tnx";
+    protected static final String NAMESPACE1 = TENANT + "/ns1";
 
     public void internalSetup() throws Exception {
         incrementSetupNumber();
@@ -107,6 +112,40 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 .build();
         mockBookKeeper = createMockBookKeeper(bkExecutor);
         startBroker();
+    }
+    protected void setUpBase(int numBroker,int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
+        setBrokerCount(numBroker);
+        internalSetup();
+
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:"
+                + webServicePort).build());
+
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), numPartitionsOfTC);
+        if (topic != null) {
+            admin.tenants().createTenant(TENANT,
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
+            admin.namespaces().createNamespace(NAMESPACE1);
+            if (numPartitions == 0) {
+                admin.topics().createNonPartitionedTopic(topic);
+            } else {
+                admin.topics().createPartitionedTopic(topic, numPartitions);
+            }
+        }
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(true)
+                .build();
+        // wait tc init success to ready state
+        waitForCoordinatorToBeAvailable(numPartitionsOfTC);
     }
 
     protected void startBroker() throws Exception {
@@ -295,20 +334,12 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     }
     public void waitForCoordinatorToBeAvailable(int numOfTCPerBroker){
         // wait tc init success to ready state
-        Awaitility.await().until(() -> {
-            Map<TransactionCoordinatorID, TransactionMetadataStore> stores =
-                    getPulsarServiceList().get(brokerCount-1).getTransactionMetadataStoreService().getStores();
-            if (stores.size() == numOfTCPerBroker) {
-                for (TransactionCoordinatorID transactionCoordinatorID : stores.keySet()) {
-                    if (((MLTransactionMetadataStore) stores.get(transactionCoordinatorID)).getState()
-                            != TransactionMetadataStoreState.State.Ready) {
-                        return false;
-                    }
-                }
-                return true;
-            } else {
-                return false;
-            }
-        });
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    int transactionMetaStoreCount = pulsarServiceList.stream()
+                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
+                            .sum();
+                    Assert.assertEquals(transactionMetaStoreCount, numOfTCPerBroker);
+                });
     }
 }
