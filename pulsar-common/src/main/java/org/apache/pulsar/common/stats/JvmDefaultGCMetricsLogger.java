@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.common.stats;
 
-import com.google.common.collect.Maps;
-
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +43,7 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
     private static Method getTotalSafepointTimeHandle;
     private static Method getSafepointCountHandle;
 
-    private Map<String, GCMetrics> gcMetricsMap = Maps.newHashMap();
+    private Map<String, GCMetrics> gcMetricsMap = new HashMap<>();
 
     static {
         try {

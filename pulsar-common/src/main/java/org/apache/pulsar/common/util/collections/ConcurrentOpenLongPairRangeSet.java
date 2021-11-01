@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -309,7 +310,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     public boolean contains(LongPair position) {
-        checkNotNull(position, "argument can't be null");
+        requireNonNull(position, "argument can't be null");
         return contains(position.getKey(), position.getValue());
     }
 
