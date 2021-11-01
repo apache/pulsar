@@ -26,6 +26,8 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -36,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
+import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -407,6 +410,16 @@ public class PerformanceConsumer {
 
         Histogram reportHistogram = null;
 
+        String statsFileName = "perf-consumer-" + System.currentTimeMillis() + ".hgrm";
+        log.info("Dumping latency stats to {}", statsFileName);
+
+        PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
+        HistogramLogWriter histogramLogWriter = new HistogramLogWriter(histogramLog);
+
+        // Some log header bits
+        histogramLogWriter.outputLogFormatVersion();
+        histogramLogWriter.outputLegend();
+
 
         while (true) {
             try {
@@ -431,6 +444,7 @@ public class PerformanceConsumer {
                     reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
                     reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
 
+            histogramLogWriter.outputIntervalHistogram(reportHistogram);
             reportHistogram.reset();
             oldTime = now;
         }
