@@ -311,7 +311,7 @@ All the loadbalancing metrics are labelled with the following labels:
 | pulsar_lb_bandwidth_in_usage | Gauge | The broker inbound bandwith usage (in percent). |
 | pulsar_lb_bandwidth_out_usage | Gauge | The broker outbound bandwith usage (in percent). |
 | pulsar_lb_cpu_usage | Gauge | The broker cpu usage (in percent). |
-| pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage (in percent). |
+| pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage (in percent). | 
 | pulsar_lb_memory_usage | Gauge | The broker process memory usage (in percent). |
 
 #### BundleUnloading metrics
