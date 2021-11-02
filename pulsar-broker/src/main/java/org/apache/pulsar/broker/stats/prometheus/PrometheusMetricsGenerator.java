@@ -154,9 +154,6 @@ public class PrometheusMetricsGenerator {
                                 List<Metrics> metrics =
                                         new LedgerOffloaderMetrics(pulsar, true, namespace, topicName).generate();
                                 metricList.addAll(metrics);
-                                log.info("topic:" + topic
-                                        + " generate ledger offloader topic level metrics succeed, size:"
-                                        + metrics.size());
                             } catch (Exception ex) {
                                 log.error("generate ledger offloader topic level metrics error", ex);
                             }
@@ -254,9 +251,9 @@ public class PrometheusMetricsGenerator {
                         continue;
                     }
                     stream.write(", ").write(metric.getKey()).write("=\"").write(metric.getValue()).write('"');
-                    if (value != null && !value.isEmpty()) {
-                        stream.write(", ").write("quantile=\"").write(value).write('"');
-                    }
+                }
+                if (value != null && !value.isEmpty()) {
+                    stream.write(", ").write("quantile=\"").write(value).write('"');
                 }
                 stream.write("} ").write(String.valueOf(entry.getValue()))
                         .write(' ').write(System.currentTimeMillis()).write("\n");
