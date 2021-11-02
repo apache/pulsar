@@ -38,7 +38,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
@@ -72,7 +71,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private volatile ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
-    private volatile long consumerEpoch;
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
                                                     PersistentTopic topic, Subscription subscription) {
@@ -121,16 +119,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
-                        serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
+            synchronized (PersistentDispatcherSingleActiveConsumer.this) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
+                            serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
+                }
+                cursor.rewind();
+                Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+                notifyActiveConsumerChanged(activeConsumer);
+                readMoreEntries(activeConsumer);
+                readOnActiveConsumerTask = null;
             }
-            consumerEpoch = 0;
-            cursor.rewind();
-            Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-            notifyActiveConsumerChanged(activeConsumer);
-            readMoreEntries(activeConsumer);
-            readOnActiveConsumerTask = null;
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
@@ -298,17 +297,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private synchronized void internalRedeliverUnacknowledgedMessages(Consumer consumer,
                                                                       CompletableFuture<Void> completableFuture,
                                                                       long epoch) {
-        if (epoch >= this.consumerEpoch) {
-            this.consumerEpoch = epoch;
-        } else {
-            completableFuture.completeExceptionally(new BrokerServiceException("consumerId: " + consumer.consumerId()
-                    +  "redeliver fail! " + "now epoch : " + this.consumerEpoch + " epoch : " + epoch));
-            return;
-        }
+        consumer.setConsumerEpoch(epoch);
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
-            completableFuture.complete(null);
             return;
         }
 
@@ -371,7 +363,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                         this, consumer);
             } else {
                 ReadEntriesCallBackWrapper readEntriesCallBackWrapper =
-                        ReadEntriesCallBackWrapper.create(consumer, consumerEpoch);
+                        ReadEntriesCallBackWrapper.create(consumer, consumer.getConsumerEpoch());
                 cursor.asyncReadEntriesOrWait(messagesToRead,
                         bytesToRead, this, readEntriesCallBackWrapper, topic.getMaxReadPosition());
             }
@@ -600,10 +592,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             return true;
         }
         return false;
-    }
-
-    public long getConsumerEpoch() {
-        return consumerEpoch;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);

@@ -570,7 +570,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             this.persistentSubscription.redeliverUnacknowledgedMessages(consumer, 0);
                         } else {
                             this.persistentSubscription.redeliverUnacknowledgedMessages(consumer,
-                                    activeConsumer.getConsumerEpoch());
+                                    0L);
                         }
                         abortFuture.complete(null);
                     }).exceptionally(e -> {

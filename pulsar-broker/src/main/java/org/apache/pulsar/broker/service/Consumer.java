@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -127,6 +129,9 @@ public class Consumer {
     private final String clientAddress; // IP address only, no port number included
     private final MessageId startMessageId;
 
+    @Getter
+    @Setter
+    private volatile long consumerEpoch = DEFAULT_READ_EPOCH;
     public static final long DEFAULT_READ_EPOCH = 0L;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,

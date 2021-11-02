@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterables;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -59,7 +58,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -200,7 +199,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
+    @Getter
     private final AtomicLong consumerEpoch = new AtomicLong(0);
+
+    public static final long DEFAULT_CONSUMER_EPOCH = 0L;
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -1027,7 +1029,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                   final boolean containMetadata,
                                                   final BitSetRecyclable ackBitSet,
                                                   final BatchMessageAcker acker,
-                                                  final int redeliveryCount) {
+                                                  final int redeliveryCount,
+                                                  final long consumerEpoch) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, index);
         }
@@ -1065,8 +1068,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             final ByteBuf payloadBuffer = (singleMessagePayload != null) ? singleMessagePayload : payload;
             final MessageImpl<U> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
                     msgMetadata, singleMessageMetadata, payloadBuffer,
-                    createEncryptionContext(msgMetadata), cnx(), schema, redeliveryCount, poolMessages
-            );
+                    createEncryptionContext(msgMetadata), cnx(), schema, redeliveryCount, poolMessages, consumerEpoch);
             message.setBrokerEntryMetadata(brokerEntryMetadata);
             return message;
         } catch (IOException | IllegalStateException e) {
@@ -1083,10 +1085,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                             final MessageMetadata messageMetadata,
                                             final ByteBuf payload,
                                             final Schema<U> schema,
-                                            final int redeliveryCount) {
+                                            final int redeliveryCount,
+                                            final long consumerEpoch) {
         final MessageImpl<U> message = MessageImpl.create(topicName.toString(), messageId, messageMetadata, payload,
-                createEncryptionContext(messageMetadata), cnx(), schema, redeliveryCount, poolMessages
-        );
+                createEncryptionContext(messageMetadata), cnx(), schema, redeliveryCount, poolMessages, consumerEpoch);
         message.setBrokerEntryMetadata(brokerEntryMetadata);
         return message;
     }
@@ -1126,7 +1128,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                            ClientCnx cnx) {
         final MessagePayloadImpl payload = MessagePayloadImpl.create(byteBuf);
         final MessagePayloadContextImpl entryContext = MessagePayloadContextImpl.get(
-                brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet);
+                brokerEntryMetadata, messageMetadata, messageId, this, redeliveryCount, ackSet, consumerEpoch);
         final AtomicInteger skippedMessages = new AtomicInteger(0);
         try {
             conf.getPayloadProcessor().process(payload, entryContext, schema, message -> {
@@ -1251,7 +1253,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             final MessageImpl<T> message =
-                    newMessage(msgId, brokerEntryMetadata, msgMetadata, uncompressedPayload, schema, redeliveryCount);
+                    newMessage(msgId, brokerEntryMetadata, msgMetadata, uncompressedPayload,
+                            schema, redeliveryCount, consumerEpoch);
             uncompressedPayload.release();
 
             if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null &&
@@ -1433,7 +1436,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             for (int i = 0; i < batchSize; ++i) {
                 final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
                         singleMessageMetadata, uncompressedPayload, batchMessage, schema, true, ackBitSet, acker,
-                        redeliveryCount);
+                        redeliveryCount, consumerEpoch);
                 if (message == null) {
                     skippedMessages++;
                     continue;
@@ -1742,13 +1745,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Void> doRedeliverUnacknowledgedMessages(CompletableFuture<Void> completableFuture,
                                                                      Backoff backoff) {
         internalPinnedExecutor.execute(() -> {
-            if (conf.getSubscriptionType() == SubscriptionType.Failover
-                    || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
-                this.consumerEpoch.getAndIncrement();
+            ClientCnx cnx = cnx();
+
+            // V1 don't support redeliverUnacknowledgedMessages
+            if (cnx != null && cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v2.getValue()) {
+                if ((getState() == State.Connecting)) {
+                    log.warn("[{}] Client Connection needs to be established " +
+                            "for redelivery of unacknowledged messages", this);
+                } else {
+                    log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
+                    cnx.ctx().close();
+                }
+                return;
             }
 
-            ClientCnx cnx = cnx();
-            if (isConnected() && cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v2.getValue()) {
+            if (isConnected()) {
                 int currentSize = 0;
                 synchronized (this) {
                     currentSize = incomingMessages.size();
@@ -1761,6 +1772,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             .newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
                     completableFuture.complete(null);
                 } else {
+                    if (conf.getSubscriptionType() == SubscriptionType.Failover
+                            || conf.getSubscriptionType() == SubscriptionType.Exclusive) {
+                        this.consumerEpoch.getAndIncrement();
+                    }
                     cnx.newRedeliverUnacknowledgedMessages(
                             Commands.newRedeliverUnacknowledgedMessages(consumerId,
                                     requestId, consumerEpoch.get()), requestId).thenRun(() ->
@@ -1781,7 +1796,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             consumerName, currentSize);
                 }
             } else {
-
                 if (getState() == State.Closed || getState() == State.Closing) {
                     log.warn("doRedeliverUnacknowledgedMessages but consumer has been closed! consumerID: "
                                     + "{}, topicName: {}, subName: {}", consumerId,

@@ -284,21 +284,32 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // Must be called from the internalPinnedExecutor thread
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
-        TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
-                consumer.getTopicNameWithoutPartition(), message, consumer);
+        // in order to prevent consumer invoke redeliverUnacknowledgedMessages, in this time message append to incomingMessages
+        lock.readLock().lock();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received message from topics-consumer {}",
-                    topic, subscription, message.getMessageId());
-        }
+        try {
+            // message consumer epoch < consumer.getConsumerEpoch().get() represents this message
+            if (((MessageImpl) message).getConsumerEpoch() < consumer.getConsumerEpoch().get()) {
+                return;
+            }
+            TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
+                    consumer.getTopicNameWithoutPartition(), message, consumer);
 
-        // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
-        CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
-        if (receivedFuture != null) {
-            unAckedMessageTracker.add(topicMessage.getMessageId());
-            completePendingReceive(receivedFuture, topicMessage);
-        } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
-            notifyPendingBatchReceivedCallBack();
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Received message from topics-consumer {}",
+                        topic, subscription, message.getMessageId());
+            }
+
+            // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
+            CompletableFuture<Message<T>> receivedFuture = nextPendingReceive();
+            if (receivedFuture != null) {
+                unAckedMessageTracker.add(topicMessage.getMessageId());
+                completePendingReceive(receivedFuture, topicMessage);
+            } else if (enqueueMessageAndCheckBatchReceive(topicMessage) && hasPendingBatchReceive()) {
+                notifyPendingBatchReceivedCallBack();
+            }
+        } finally {
+            lock.readLock().unlock();
         }
 
         if (listener != null) {
