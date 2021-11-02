@@ -195,10 +195,16 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
         if (txn != null && ((TransactionImpl)txn).getState() != TransactionImpl.State.OPEN) {
             CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
-            completableFuture
-                    .completeExceptionally(new TransactionCoordinatorClientException
-                            .InvalidTxnStatusException(txn.getTxnID().toString(),
-                            ((TransactionImpl) txn).getState().name()));
+            if (((TransactionImpl)txn).getState() == TransactionImpl.State.TIMEOUT) {
+                completableFuture
+                        .completeExceptionally(new TransactionCoordinatorClientException
+                                .TransactionTimeoutException(txn.getTxnID().toString()));
+            } else {
+                completableFuture
+                        .completeExceptionally(new TransactionCoordinatorClientException
+                                .InvalidTxnStatusException(txn.getTxnID().toString(),
+                                ((TransactionImpl) txn).getState().name(), TransactionImpl.State.OPEN.name()));
+            }
             return completableFuture;
         }
         int partition = routerPolicy.choosePartition(message, topicMetadata);

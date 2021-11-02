@@ -973,30 +973,23 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
         producer.newMessage().send();
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.ABORTED);
+            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.TIMEOUT);
         });
 
         try {
             producer.newMessage(transaction).send();
             Assert.fail();
         } catch (Exception e) {
-            if (!(e.getCause().getCause() instanceof TransactionCoordinatorClientException
-                    .InvalidTxnStatusException)) {
-                throw new TransactionCoordinatorClientException
-                        .TransactionTimeoutException(transaction.getTxnID().toString());
-
-            }
+            Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
+                    .TransactionTimeoutException);
         }
         try {
-            Message message = consumer.receive();
+            Message<String> message = consumer.receive();
             consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
             Assert.fail();
         } catch (Exception e) {
-            if (!(e.getCause() instanceof TransactionCoordinatorClientException
-                    .InvalidTxnStatusException)) {
-                throw new TransactionCoordinatorClientException
-                        .TransactionTimeoutException(transaction.getTxnID().toString());
-            }
+            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
+                    .TransactionTimeoutException);
         }
     }
 }

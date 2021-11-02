@@ -493,12 +493,18 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             txnImpl = (TransactionImpl) txn;
            if (txnImpl.getState() != TransactionImpl.State.OPEN) {
                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-               completableFuture
-                       .completeExceptionally(new TransactionCoordinatorClientException
-                               .InvalidTxnStatusException(txn.getTxnID().toString(),
-                               ((TransactionImpl) txn).getState().name()));
-                return completableFuture;
-            }
+               if (txnImpl.getState() == TransactionImpl.State.TIMEOUT) {
+                   completableFuture
+                           .completeExceptionally(new TransactionCoordinatorClientException
+                                   .TransactionTimeoutException(txn.getTxnID().toString()));
+               } else {
+                   completableFuture
+                           .completeExceptionally(new TransactionCoordinatorClientException
+                                   .InvalidTxnStatusException(txn.getTxnID().toString(),
+                                   ((TransactionImpl) txn).getState().name(), TransactionImpl.State.OPEN.name()));
+               }
+               return completableFuture;
+           }
         }
         return doAcknowledgeWithTxn(messageId, AckType.Individual, Collections.emptyMap(), txnImpl);
     }

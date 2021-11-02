@@ -71,7 +71,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        STATE_UPDATE.compareAndSet(this, State.OPEN, State.ABORTED);
+        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT);
     }
 
     public enum State {
@@ -80,7 +80,8 @@ public class TransactionImpl implements Transaction , TimerTask {
         ABORTING,
         COMMITTED,
         ABORTED,
-        ERROR
+        ERROR,
+        TIMEOUT
     }
 
     TransactionImpl(PulsarClientImpl client,

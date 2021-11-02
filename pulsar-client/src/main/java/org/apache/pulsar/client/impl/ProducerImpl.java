@@ -389,10 +389,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             if (((TransactionImpl)txn).getState() != TransactionImpl.State.OPEN) {
                 CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
-                completableFuture
-                        .completeExceptionally(new TransactionCoordinatorClientException
-                                .InvalidTxnStatusException(txn.getTxnID().toString(),
-                                ((TransactionImpl) txn).getState().name()));
+                if (((TransactionImpl)txn).getState() == TransactionImpl.State.TIMEOUT) {
+                    completableFuture
+                            .completeExceptionally(new TransactionCoordinatorClientException
+                                    .TransactionTimeoutException(txn.getTxnID().toString()));
+                } else {
+                    completableFuture
+                            .completeExceptionally(new TransactionCoordinatorClientException
+                                    .InvalidTxnStatusException(txn.getTxnID().toString(),
+                                    ((TransactionImpl) txn).getState().name(), TransactionImpl.State.OPEN.name()));
+                }
                 return completableFuture;
             }
             return ((TransactionImpl) txn).registerProducedTopic(topic)
