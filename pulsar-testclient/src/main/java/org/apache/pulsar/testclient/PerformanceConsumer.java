@@ -188,6 +188,9 @@ public class PerformanceConsumer {
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
         public boolean enableBusyWait = false;
+
+        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        public String histogramFile = null;
     }
 
     public static void main(String[] args) throws Exception {
@@ -409,17 +412,19 @@ public class PerformanceConsumer {
         long oldTime = System.nanoTime();
 
         Histogram reportHistogram = null;
+        HistogramLogWriter histogramLogWriter = null;
 
-        String statsFileName = "perf-consumer-" + System.currentTimeMillis() + ".hgrm";
-        log.info("Dumping latency stats to {}", statsFileName);
+        if (arguments.histogramFile != null) {
+            String statsFileName = arguments.histogramFile;
+            log.info("Dumping latency stats to {}", statsFileName);
 
-        PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
-        HistogramLogWriter histogramLogWriter = new HistogramLogWriter(histogramLog);
+            PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
+            histogramLogWriter = new HistogramLogWriter(histogramLog);
 
-        // Some log header bits
-        histogramLogWriter.outputLogFormatVersion();
-        histogramLogWriter.outputLegend();
-
+            // Some log header bits
+            histogramLogWriter.outputLogFormatVersion();
+            histogramLogWriter.outputLegend();
+        }
 
         while (true) {
             try {
@@ -444,7 +449,10 @@ public class PerformanceConsumer {
                     reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
                     reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
 
-            histogramLogWriter.outputIntervalHistogram(reportHistogram);
+            if (histogramLogWriter != null) {
+                histogramLogWriter.outputIntervalHistogram(reportHistogram);
+            }
+
             reportHistogram.reset();
             oldTime = now;
         }
