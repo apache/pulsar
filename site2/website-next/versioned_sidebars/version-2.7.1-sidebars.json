@@ -213,6 +213,24 @@
           "id": "version-2.7.1/tiered-storage-azure"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Transactions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/transactions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/transactions-guarantee"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/transactions-api"
+        }
+      ]
     }
   ]
 }
