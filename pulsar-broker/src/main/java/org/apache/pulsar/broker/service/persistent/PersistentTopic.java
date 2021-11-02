@@ -1035,7 +1035,7 @@ public class PersistentTopic extends AbstractTopic
     void removeSubscription(String subscriptionName) {
         PersistentSubscription sub = subscriptions.remove(subscriptionName);
         // preserve accumulative stats form removed subscription
-        SubscriptionStatsImpl stats = sub.getStats(false, false);
+        SubscriptionStatsImpl stats = sub.getStats(false, false, false);
         bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
         msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
     }
@@ -1892,7 +1892,8 @@ public class PersistentTopic extends AbstractTopic
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStatsImpl subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);
+            SubscriptionStatsImpl subStats =
+                    subscription.getStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;

@@ -55,6 +55,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Size of backlog in byte. **/
     public long backlogSize;
 
+    /** Get the time from the oldest message in the backlog to current time. */
+    public long timeBacklogInMills;
+
     /** Number of messages in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 

@@ -61,6 +61,7 @@ public interface TopicStats {
     /** Get estimated total unconsumed or backlog size in bytes. */
     long getBacklogSize();
 
+    /** Get the time from the oldest message in the backlog to current time. */
     long getTimeBacklogInMills();
 
     /** Space used to store the offloaded messages for the topic/. */

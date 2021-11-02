@@ -1126,6 +1126,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getStats(topic, false, false, true);
 
         assertEquals(topicStats.getTimeBacklogInMills(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getTimeBacklogInMills(), 0);
 
         // publish several messages
         publishMessagesOnPersistentTopic(topic, 10);
@@ -1133,6 +1134,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         topicStats = admin.topics().getStats(topic, false, false, true);
         assertTrue(topicStats.getTimeBacklogInMills() > 0);
+        assertTrue(topicStats.getSubscriptions().get(subName).getTimeBacklogInMills() > 0);
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
@@ -1142,6 +1144,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         topicStats = admin.topics().getStats(topic, false, false, true);
         assertEquals(topicStats.getTimeBacklogInMills(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getTimeBacklogInMills(), 0);
     }
 
 

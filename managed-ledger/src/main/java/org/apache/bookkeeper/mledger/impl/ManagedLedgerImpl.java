@@ -1147,11 +1147,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public long getEarliestMessagePublishTimeInBacklog() {
         PositionImpl pos = getMarkDeletePositionOfSlowestConsumer();
+
+        return getEarliestMessagePublishTimeOfPos(pos);
+    }
+
+    public long getEarliestMessagePublishTimeOfPos(PositionImpl pos) {
         if (pos == null) {
             return 0L;
         }
-
         PositionImpl nextPos = getNextValidPosition(pos);
+
         CompletableFuture<Long> future = new CompletableFuture<>();
         asyncReadEntry(nextPos, new ReadEntryCallback() {
             @Override
