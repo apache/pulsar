@@ -140,7 +140,6 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                         statsBuckets.getBuckets(),
                         statsPeriodSeconds);
             }
-
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_readOffloadError",
                     (double) mbean.getReadOffloadErrors().getOrDefault(managedLedgerName, new Rate()).getCount());
             populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ledgeroffloader_readOffloadRate",
