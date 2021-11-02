@@ -39,6 +39,6 @@ public class TestRunMain {
         PulsarAdminTool.setAllowSystemExit(false);
         Path dummyEmptyFile = Files.createTempFile("test", ".conf");
         PulsarAdminTool.main(new String[] {dummyEmptyFile.toAbsolutePath().toString()});
-        assertEquals(PulsarAdminTool.getLastExitCode(), 0);
+        assertEquals(PulsarAdminTool.getLastExitCode(), 1);
     }
 }
