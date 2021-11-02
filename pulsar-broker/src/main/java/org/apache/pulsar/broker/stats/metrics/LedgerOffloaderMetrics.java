@@ -152,12 +152,13 @@ public class LedgerOffloaderMetrics extends AbstractMetrics {
                     (double) mbean.getStreamingWriteToStorageErrors().
                             getOrDefault(managedLedgerName, new Rate()).getCount());
         } catch (Exception e) {
-            log.error("aggregate ledger offload metrics for topic: {} managedLedgerName {} failed ", topicName, managedLedgerName, e);
+            log.error("aggregate ledger offload metrics for topic: {} managedLedgerName {} failed ",
+                    topicName, managedLedgerName, e);
         } finally {
             return tempAggregatedMetricsMap;
         }
     }
-    
+
     /**
      * Aggregation by topic.
      *
