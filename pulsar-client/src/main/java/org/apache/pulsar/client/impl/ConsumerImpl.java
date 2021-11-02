@@ -1743,7 +1743,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
 
     public void doRedeliverUnacknowledgedMessages(CompletableFuture<Void> completableFuture,
-                                                                     Backoff backoff) {
+                                                  Backoff backoff) {
         internalPinnedExecutor.execute(() -> {
             ClientCnx cnx = cnx();
 
@@ -1756,6 +1756,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
                     cnx.ctx().close();
                 }
+
+                completableFuture.complete(null);
                 return;
             }
 

@@ -1458,25 +1458,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     protected void handleRedeliverUnacknowledged(CommandRedeliverUnacknowledgedMessages redeliver) {
+        checkArgument(state == State.Connected);
         CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
         final boolean hasRequestId = redeliver.hasRequestId();
         final long requestId = hasRequestId ? redeliver.getRequestId() : 0;
         final long consumerId = redeliver.getConsumerId();
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received Resend Command from consumer {} , requestId {}",
-                    remoteAddress, redeliver.getConsumerId(), requestId);
+            log.debug("[{}] redeliverUnacknowledged from consumer {} , requestId {}, consumerEpoch {}",
+                    remoteAddress, redeliver.getConsumerId(), requestId, redeliver.getConsumerEpoch());
         }
 
-        if (state != State.Connected && hasRequestId) {
-            log.error("redeliverUnacknowledgedMessages error! "
-                            + "consumerId : {}, requestId: {}", consumerId, requestId,
-                    new ServiceUnitNotReadyException("ServerCnx don't connect!"));
-            ctx.writeAndFlush(Commands.newError(requestId,
-                    ServerError.ServiceNotReady,
-                    consumerId + " don't connect broker!"));
-
-        }
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
             if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {

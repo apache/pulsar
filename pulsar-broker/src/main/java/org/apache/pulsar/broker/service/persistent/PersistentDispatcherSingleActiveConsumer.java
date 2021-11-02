@@ -119,6 +119,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
+            // in order to prevent redeliverUnacknowledgedMessages rewind cursor again
             synchronized (PersistentDispatcherSingleActiveConsumer.this) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
@@ -301,6 +302,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         if (consumer != ACTIVE_CONSUMER_UPDATER.get(this)) {
             log.info("[{}-{}] Ignoring reDeliverUnAcknowledgedMessages: Only the active consumer can call resend",
                     name, consumer);
+            completableFuture.complete(null);
             return;
         }
 
