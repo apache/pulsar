@@ -149,9 +149,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
-    private ConcurrentOpenHashMap<String, MessageIdImpl> chunkMessageIds;
-
-
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
@@ -172,7 +169,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.semaphore = Optional.empty();
         }
-        this.chunkMessageIds = new ConcurrentOpenHashMap<>();
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
 
@@ -466,10 +462,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     sequenceId = msgMetadata.getSequenceId();
                 }
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
+                ChunkedMessageCtx chunkedMessageCtx = ChunkedMessageCtx.RECYCLER.get();
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
-                            compressedPayload.readableBytes(), uncompressedSize, callback);
+                            compressedPayload.readableBytes(), uncompressedSize, callback, chunkedMessageCtx);
                     readStartIndex = ((chunkId + 1) * ClientCnx.getMaxMessageSize());
                 }
             }
@@ -484,7 +481,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void serializeAndSendMessage(MessageImpl<?> msg, ByteBuf payload,
             long sequenceId, String uuid, int chunkId, int totalChunks, int readStartIndex, int chunkMaxSizeInBytes, ByteBuf compressedPayload,
             boolean compressed, int compressedPayloadSize,
-            int uncompressedSize, SendCallback callback) throws IOException, InterruptedException {
+            int uncompressedSize, SendCallback callback, ChunkedMessageCtx chunkedMessageCtx) throws IOException, InterruptedException {
         ByteBuf chunkPayload = compressedPayload;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         if (totalChunks > 1 && TopicName.get(topic).isPersistent()) {
@@ -579,6 +576,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.totalChunks = totalChunks;
                 op.chunkId = chunkId;
             }
+            op.chunkedMessageCtx = chunkedMessageCtx;
             lastSendFuture = callback.getFuture();
             processOpSendMsg(op);
         }
@@ -992,15 +990,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         op.setMessageId(ledgerId, entryId, partitionIndex);
         if (op.totalChunks > 1) {
             if (op.chunkId == 0) {
-                chunkMessageIds.put(op.msg.getMessageBuilder().getUuid(),
-                        new MessageIdImpl(ledgerId, entryId, partitionIndex));
+                op.chunkedMessageCtx.firstChunkMessageId = new MessageIdImpl(ledgerId, entryId, partitionIndex);
             } else if (op.chunkId == op.totalChunks - 1) {
-                MessageIdImpl firstChunkMsgId = chunkMessageIds.get(op.msg.getMessageBuilder().getUuid());
-                MessageIdImpl lastChunkMsgId = new MessageIdImpl(ledgerId, entryId, partitionIndex);
-                if (firstChunkMsgId != null) {
-                    op.setMessageId(new ChunkMessageIdImpl(firstChunkMsgId, lastChunkMsgId));
-                }
-                chunkMessageIds.remove(op.msg.getMessageBuilder().getUuid());
+                op.chunkedMessageCtx.lastChunkMessageId = new MessageIdImpl(ledgerId, entryId, partitionIndex);
+                op.setMessageId(op.chunkedMessageCtx.getChunkMessageId());
             }
         }
 
@@ -1152,12 +1145,42 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
+    static class ChunkedMessageCtx {
+        protected MessageIdImpl firstChunkMessageId;
+        protected MessageIdImpl lastChunkMessageId;
+
+        public ChunkMessageIdImpl getChunkMessageId() {
+            return new ChunkMessageIdImpl(firstChunkMessageId, lastChunkMessageId);
+        }
+
+        private static final Recycler<ProducerImpl.ChunkedMessageCtx> RECYCLER =
+                new Recycler<ProducerImpl.ChunkedMessageCtx>() {
+                    protected ProducerImpl.ChunkedMessageCtx newObject(
+                            Recycler.Handle<ProducerImpl.ChunkedMessageCtx> handle) {
+                        return new ProducerImpl.ChunkedMessageCtx(handle);
+                    }
+                };
+
+        private final Handle<ProducerImpl.ChunkedMessageCtx> recyclerHandle;
+
+        private ChunkedMessageCtx(Handle<ChunkedMessageCtx> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        public void recycle() {
+            this.firstChunkMessageId = null;
+            this.lastChunkMessageId = null;
+            recyclerHandle.recycle(this);
+        }
+    }
+
     protected static final class OpSendMsg {
         MessageImpl<?> msg;
         List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
         SendCallback callback;
         Runnable rePopulate;
+        ChunkedMessageCtx chunkedMessageCtx;
         long uncompressedSize;
         long sequenceId;
         long createdAt;

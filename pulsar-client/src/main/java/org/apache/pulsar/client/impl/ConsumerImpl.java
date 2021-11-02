@@ -198,10 +198,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
-
-    private ConcurrentOpenHashMap<String, MessageIdImpl> chunkMessageIds;
-
-
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -268,7 +264,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.expireTimeOfIncompleteChunkedMessageMillis = conf.getExpireTimeOfIncompleteChunkedMessageMillis();
         this.autoAckOldestChunkedMessageOnQueueFull = conf.isAutoAckOldestChunkedMessageOnQueueFull();
         this.poolMessages = conf.isPoolMessages();
-        chunkMessageIds = new ConcurrentOpenHashMap<>();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -1197,18 +1192,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             // right now, chunked messages are only supported by non-shared subscription
             if (isChunkedMessage) {
-                if(msgMetadata.getChunkId() == 0) {
-                    chunkMessageIds.put(msgMetadata.getUuid(), msgId);
-                }
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
                     return;
                 }
-                MessageIdImpl firstChunkMsgId = chunkMessageIds.get(msgMetadata.getUuid());
-                if(firstChunkMsgId != null) {
-                    msgId = new ChunkMessageIdImpl(firstChunkMsgId, msgId);
-                }
-                chunkMessageIds.remove(msgMetadata.getUuid());
+
+                // remove buffer from the map, set the chunk message id
+                ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.remove(msgMetadata.getUuid());
+                if(chunkedMsgCtx.chunkedMessageIds.length>0)
+                    msgId = new ChunkMessageIdImpl(chunkedMsgCtx.chunkedMessageIds[0],
+                            chunkedMsgCtx.chunkedMessageIds[chunkedMsgCtx.chunkedMessageIds.length - 1]);
+                chunkedMsgCtx.recycle();
             }
 
             if (isSameEntry(msgId) && isPriorEntryIndex(messageId.getEntryId())) {
@@ -1323,13 +1317,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.debug("Chunked message completed chunkId {}, total-chunks {}, msgId {} sequenceId {}",
                     msgMetadata.getChunkId(), msgMetadata.getNumChunksFromMsg(), msgId, msgMetadata.getSequenceId());
         }
-        // remove buffer from the map, add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
-        chunkedMessagesMap.remove(msgMetadata.getUuid());
+        // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
         unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
         pendingChunkedMessageCount--;
         compressedPayload.release();
         compressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
-        chunkedMsgCtx.recycle();
         ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, compressedPayload, cnx, false);
         compressedPayload.release();
         return uncompressedPayload;
