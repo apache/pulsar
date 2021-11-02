@@ -1742,7 +1742,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
 
-    public CompletableFuture<Void> doRedeliverUnacknowledgedMessages(CompletableFuture<Void> completableFuture,
+    public void doRedeliverUnacknowledgedMessages(CompletableFuture<Void> completableFuture,
                                                                      Backoff backoff) {
         internalPinnedExecutor.execute(() -> {
             ClientCnx cnx = cnx();
@@ -1833,8 +1833,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }
         });
-
-        return completableFuture;
     }
 
     public int clearIncomingMessagesAndGetMessageNumber() {

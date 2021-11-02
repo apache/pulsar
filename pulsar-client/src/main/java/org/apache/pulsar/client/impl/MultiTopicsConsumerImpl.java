@@ -269,7 +269,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
                 receiveMessageFromConsumer(consumer);
             }
-        }, internalPinnedExecutor).exceptionally(ex -> {
+        }, externalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
                     || ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                 // ignore the exception that happens when the consumer is closed
@@ -284,11 +284,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // Must be called from the internalPinnedExecutor thread
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
-        // in order to prevent consumer invoke redeliverUnacknowledgedMessages, in this time message append to incomingMessages
+
+        // Mutually exclusive with redeliver to prevent the message
+        //from being cleared after being added to the incomingMessages
         lock.readLock().lock();
 
         try {
-            // message consumer epoch < consumer.getConsumerEpoch().get() represents this message
+            // message consumer epoch < consumer.getConsumerEpoch().get() represents this message have been received
+            // before redeliverUnacknowledgedMessages
             if (((MessageImpl) message).getConsumerEpoch() < consumer.getConsumerEpoch().get()) {
                 return;
             }
@@ -421,7 +424,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
-        internalPinnedExecutor.execute(() -> {
+        externalPinnedExecutor.execute(() -> {
             Message<T> message = incomingMessages.poll();
             if (message == null) {
                 pendingReceives.add(result);

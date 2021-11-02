@@ -107,14 +107,14 @@ public class MessageImpl<T> implements Message<T> {
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
-        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false);
+        this(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, 0, false, DEFAULT_CONSUMER_EPOCH);
     }
 
     MessageImpl(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
                 Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema, int redeliveryCount,
-                boolean pooledMessage) {
+                boolean pooledMessage, long consumerEpoch) {
         this.msgMetadata = new MessageMetadata();
-        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount, pooledMessage, DEFAULT_CONSUMER_EPOCH);
+        init(this, topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema, redeliveryCount, pooledMessage, consumerEpoch);
     }
 
     public static <T> MessageImpl<T> create(String topic, MessageIdImpl messageId, MessageMetadata msgMetadata,
@@ -128,7 +128,7 @@ public class MessageImpl<T> implements Message<T> {
             return msg;
         } else {
             return new MessageImpl<>(topic, messageId, msgMetadata, payload, encryptionCtx, cnx, schema,
-                    redeliveryCount, pooledMessage);
+                    redeliveryCount, pooledMessage, consumerEpoch);
         }
     }
 
@@ -184,6 +184,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.redeliveryCount = redeliveryCount;
         msg.encryptionCtx = encryptionCtx;
         msg.schema = schema;
+        msg.consumerEpoch = consumerEpoch;
 
         msg.poolMessage = poolMessage;
         // If it's not pool message then need to make a copy since the passed payload is 
@@ -708,6 +709,7 @@ public class MessageImpl<T> implements Message<T> {
         this.redeliveryCount = 0;
         this.msgMetadata = new MessageMetadata();
         this.brokerEntryMetadata = new BrokerEntryMetadata();
+        this.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
     }
 
     private Handle<MessageImpl<?>> recyclerHandle;
