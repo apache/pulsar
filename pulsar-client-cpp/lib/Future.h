@@ -36,7 +36,9 @@ class InternalState {
    public:
     using ListenerCallback = std::function<void(Result, const Type&)>;
 
-    InternalState() = default;
+    // There's a bug about the defaulted default constructor for GCC < 4.9.1, so we cannot use
+    // `InternalState() = default` here.
+    InternalState() {}
     InternalState(const InternalState&) = delete;
     InternalState& operator=(const InternalState&) = delete;
 
@@ -122,9 +124,9 @@ class InternalState {
 template <typename Result, typename Type>
 class Future {
    public:
-    using InternalState = InternalState<Result, Type>;
-    using InternalStatePtr = std::shared_ptr<InternalState>;
-    using ListenerCallback = typename InternalState::ListenerCallback;
+    using InternalStateType = InternalState<Result, Type>;
+    using InternalStatePtr = std::shared_ptr<InternalStateType>;
+    using ListenerCallback = typename InternalStateType::ListenerCallback;
 
     Future(const Future&) = default;
     Future& operator=(const Future&) = default;
@@ -148,9 +150,9 @@ class Future {
 template <typename Result, typename Type>
 class Promise {
    public:
-    using Future = Future<Result, Type>;
-    using InternalState = typename Future::InternalState;
-    using InternalStatePtr = typename Future::InternalStatePtr;
+    using FutureType = Future<Result, Type>;
+    using InternalStateType = typename FutureType::InternalStateType;
+    using InternalStatePtr = typename FutureType::InternalStatePtr;
 
     bool setValue(const Type& value) const { return state_->complete(value); }
 
@@ -158,10 +160,10 @@ class Promise {
 
     bool isComplete() const { return state_->completed(); }
 
-    Future getFuture() const { return state_; }
+    FutureType getFuture() const { return state_; }
 
    private:
-    InternalStatePtr state_{std::make_shared<InternalState>()};
+    InternalStatePtr state_{std::make_shared<InternalStateType>()};
 };
 
 class Void {};
