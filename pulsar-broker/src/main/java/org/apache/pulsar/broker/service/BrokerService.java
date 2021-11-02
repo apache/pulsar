@@ -1073,7 +1073,7 @@ public class BrokerService implements Closeable {
         });
 
         future.exceptionally((ex) -> {
-            log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex);
+            log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
             nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
                 pulsar.getExecutor().execute(() -> topics.remove(topic, future));
             });
@@ -1089,7 +1089,7 @@ public class BrokerService implements Closeable {
                 () -> FUTURE_DEADLINE_TIMEOUT_EXCEPTION);
     }
 
-    public PulsarClient getReplicationClient(String cluster) {
+    public PulsarClient getReplicationClient(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarClient client = replicationClients.get(cluster);
         if (client != null) {
             return client;
@@ -1097,7 +1097,7 @@ public class BrokerService implements Closeable {
 
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
-                ClusterData data = pulsar.getPulsarResources().getClusterResources().getCluster(cluster)
+                ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)

@@ -1768,7 +1768,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
         PersistentReplicator replicator = spy(
-                new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService));
+                new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService,
+                        (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster,
+                                brokerService.pulsar().getPulsarResources().getClusterResources()
+                                .getCluster(remoteCluster))));
         replicatorMap.put(remoteReplicatorName, replicator);
 
         // step-1 remove replicator : it will disconnect the producer but it will wait for callback to be completed
@@ -1813,7 +1816,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
-        PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService);
+        PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster,
+                brokerService, (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster,
+                brokerService.pulsar().getPulsarResources().getClusterResources()
+                        .getCluster(remoteCluster)));
 
         // PersistentReplicator constructor calls startProducer()
         verify(clientImpl)

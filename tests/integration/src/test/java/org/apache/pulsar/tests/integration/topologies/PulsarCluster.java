@@ -70,7 +70,14 @@ public class PulsarCluster {
      * @return the built pulsar cluster
      */
     public static PulsarCluster forSpec(PulsarClusterSpec spec) {
-        return new PulsarCluster(spec);
+        CSContainer csContainer = new CSContainer(spec.clusterName)
+                .withNetwork(Network.newNetwork())
+                .withNetworkAliases(CSContainer.NAME);
+        return new PulsarCluster(spec, csContainer, false);
+    }
+
+    public static PulsarCluster forSpec(PulsarClusterSpec spec, CSContainer csContainer) {
+        return new PulsarCluster(spec, csContainer, true);
     }
 
     @Getter
@@ -81,6 +88,7 @@ public class PulsarCluster {
     private final Network network;
     private final ZKContainer zkContainer;
     private final CSContainer csContainer;
+    private final boolean sharedCsContainer;
     private final Map<String, BKContainer> bookieContainers;
     private final Map<String, BrokerContainer> brokerContainers;
     private final Map<String, WorkerContainer> workerContainers;
@@ -91,11 +99,11 @@ public class PulsarCluster {
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
     private final boolean enablePrestoWorker;
 
-    private PulsarCluster(PulsarClusterSpec spec) {
+    private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
         this.spec = spec;
         this.clusterName = spec.clusterName();
-        this.network = Network.newNetwork();
+        this.network = csContainer.getNetwork();
         this.enablePrestoWorker = spec.enablePrestoWorker();
 
         this.sqlFollowWorkerContainers = Maps.newTreeMap();
@@ -117,9 +125,8 @@ public class PulsarCluster {
             .withEnv("forceSync", "no")
             .withEnv("pulsarNode", "pulsar-broker-0");
 
-        this.csContainer = new CSContainer(clusterName)
-            .withNetwork(network)
-            .withNetworkAliases(CSContainer.NAME);
+        this.csContainer = csContainer;
+        this.sharedCsContainer = sharedCsContainer;
 
         this.bookieContainers = Maps.newTreeMap();
         this.brokerContainers = Maps.newTreeMap();
@@ -238,8 +245,10 @@ public class PulsarCluster {
         log.info("Successfully started local zookeeper container.");
 
         // start the configuration store
-        csContainer.start();
-        log.info("Successfully started configuration store container.");
+        if (!sharedCsContainer) {
+            csContainer.start();
+            log.info("Successfully started configuration store container.");
+        }
 
         // init the cluster
         zkContainer.execCmd(
@@ -338,9 +347,11 @@ public class PulsarCluster {
         if (null != proxyContainer) {
             containers.add(proxyContainer);
         }
-        if (null != csContainer) {
+
+        if (!sharedCsContainer && null != csContainer) {
             containers.add(csContainer);
         }
+
         if (null != zkContainer) {
             containers.add(zkContainer);
         }
