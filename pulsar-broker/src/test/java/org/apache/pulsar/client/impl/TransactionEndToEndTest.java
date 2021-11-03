@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
@@ -762,7 +763,26 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
         TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
-        assertEquals(state, TransactionImpl.State.ABORTED);
+        assertEquals(state, TransactionImpl.State.TIMEOUT);
+    }
+
+    @Test
+    public void testTxnTimeoutAtTransactionMetadataStore() throws Exception{
+        TxnID txnID = pulsarServiceList.get(0).getTransactionMetadataStoreService()
+                .newTransaction(new TransactionCoordinatorID(0), 1).get();
+        Awaitility.await().until(() -> {
+            try {
+               getPulsarServiceList().get(0).getTransactionMetadataStoreService().getTxnMeta(txnID).get();
+                return false;
+            } catch (Exception e) {
+                return true;
+            }
+        });
+        Collection<TransactionMetadataStore> transactionMetadataStores =
+                getPulsarServiceList().get(0).getTransactionMetadataStoreService().getStores().values();
+        long timeoutCount = transactionMetadataStores.stream()
+                .mapToLong(store -> store.getMetadataStoreStats().timeoutCount).sum();
+        Assert.assertEquals(timeoutCount, 1);
     }
 
     @Test
@@ -930,8 +950,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void testTxnTimeOutInClient() throws Exception{
         String topic = NAMESPACE1 + "/testTxnTimeOutInClient";
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
                 .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).consumerName("testTxnTimeOut_consumer")
                 .topic(topic).subscriptionName("testTxnTimeOut_sub").subscribe();
 
