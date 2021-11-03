@@ -45,7 +45,6 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     new org.apache.pulsar.common.policies.data.ResourceGroup();
     final String namespaceName = "prop/ns-abc";
     final String persistentTopicString = "persistent://prop/ns-abc/test-topic";
-    final String nonPersistentTopicString = "non-persistent://prop/ns-abc/test-topic";
     final int MESSAGE_SIZE = 10;
 
     @BeforeClass
