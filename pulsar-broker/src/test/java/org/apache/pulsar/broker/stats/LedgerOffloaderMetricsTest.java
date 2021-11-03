@@ -110,6 +110,8 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
             ManagedLedgerConfig config = Mockito.mock(ManagedLedgerConfig.class);
             doReturn(config).when(ledgerM).getConfig();
             doReturn(offloader).when(config).getLedgerOffloader();
+            doReturn(topicName).when(ledgerM).getName();
+
 
             Mockito.when(offloader.getStats()).thenReturn(mbean);
 
@@ -193,6 +195,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
                 topics[i] = topicName;
                 admin.topics().createNonPartitionedTopic(topicName);
                 doReturn(topicFuture).when(brokerService).getTopicIfExists(topicName);
+
                 Assert.assertTrue(topic instanceof PersistentTopic);
 
 
@@ -201,6 +204,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
                 ManagedLedgerConfig config = Mockito.mock(ManagedLedgerConfig.class);
                 doReturn(config).when(ledgerM).getConfig();
                 doReturn(offloader).when(config).getLedgerOffloader();
+                doReturn(topicName).when(ledgerM).getName();
 
                 Mockito.when(offloader.getStats()).thenReturn(mbean);
 
