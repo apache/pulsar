@@ -203,8 +203,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
 
                     try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
-                        readHandle, startEntry, blockSize)) {
-                        blockStream.setOffloadFilter(offloadFilter);
+                        readHandle, startEntry, blockSize, offloadFilter)) {
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long) blockSize);
                         partPayload.getContentMetadata().setContentType("application/octet-stream");

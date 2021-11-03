@@ -68,10 +68,4 @@ public abstract class BlockAwareSegmentInputStream extends InputStream {
      * @return the block entry bytes count
      */
     public abstract int getBlockEntryBytesCount();
-
-    /**
-     * Set an offloadFilter for this inputStream.
-     * @param offloadFilter Filter out redundant entries
-     */
-    public abstract void setOffloadFilter(OffloadFilter offloadFilter);
 }

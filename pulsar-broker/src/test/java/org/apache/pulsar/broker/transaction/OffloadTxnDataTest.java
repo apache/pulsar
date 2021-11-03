@@ -52,6 +52,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -192,6 +194,14 @@ public class OffloadTxnDataTest extends TransactionTestBase{
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topic)
                 .create();
+
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .consumerName("testOffload")
+                .subscriptionName("testOffload")
+                .topic(topic)
+                .subscribe();
+
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(topic, false)
                 .get().get();
@@ -203,12 +213,11 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message").send());
 
         MessageIdImpl messageId1 = messageIdList.get(0);
-        ReadHandle readHandle = waitOffloadAndGetReadHandle(messageId1, persistentTopic, map, ledgerOffloader);
-        LedgerEntries ledgerEntries = readHandle.read(0, 1);
-        Iterator<LedgerEntry> ledgerEntryIterator = ledgerEntries.iterator();
-        Assert.assertEquals(messageIdList.get(0).getEntryId(), ledgerEntryIterator.next().getEntryId());
-        Assert.assertEquals(messageIdList.get(1).getEntryId(), ledgerEntryIterator.next().getEntryId());
-
+        waitOffload(messageId1, persistentTopic);
+        MessageIdImpl messageId = (MessageIdImpl) consumer.receive().getMessageId();
+        Assert.assertEquals(messageIdList.get(0).getEntryId(), messageId.getEntryId());
+        messageId = (MessageIdImpl) consumer.receive().getMessageId();
+        Assert.assertEquals(messageIdList.get(1).getEntryId(), messageId.getEntryId());
 
         //Offload transaction messages. filter aborted messages and txn mark
         Transaction committedTxn= pulsarClient.newTransaction()
@@ -217,41 +226,32 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message").sendAsync().get());
         committedTxn.commit();
         MessageIdImpl messageId2 = messageIdList.get(2);
-
-        ReadHandle readHandle2 = waitOffloadAndGetReadHandle(messageId2, persistentTopic, map, ledgerOffloader);;
-        LedgerEntries ledgerEntries2 = readHandle2.read(0, 1);
-        Iterator<LedgerEntry> ledgerEntryIterator2 = ledgerEntries2.iterator();
-        LedgerEntry ledgerEntry = ledgerEntryIterator2.next();
-        Assert.assertEquals(messageId2.getLedgerId(), ledgerEntry.getLedgerId());
-        Assert.assertEquals(messageId2.getEntryId(), ledgerEntry.getEntryId());
-        Assert.assertFalse(ledgerEntryIterator2.hasNext());
+        waitOffload(messageId1, persistentTopic);
+        messageId = (MessageIdImpl) consumer.receive().getMessageId();
+        Assert.assertEquals(messageId2.getLedgerId(), messageId.getLedgerId());
+        Assert.assertEquals(messageId2.getEntryId(), messageId.getEntryId());
 
         Transaction abortedTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
         messageIdList.add((MessageIdImpl) producer.newMessage(abortedTxn).value("txn message").sendAsync().get());
         abortedTxn.abort();
-        MessageIdImpl messageId3 = messageIdList.get(3);
-        ReadHandle readHandle3 = waitOffloadAndGetReadHandle(messageId3, persistentTopic, map, ledgerOffloader);
-        LedgerEntries ledgerEntries3 = readHandle3.read(0, 1);
-        Iterator<LedgerEntry> ledgerEntryIterator3 = ledgerEntries3.iterator();
-        Assert.assertEquals(0, ledgerEntryIterator3.next().getLength());
-        Assert.assertFalse(ledgerEntryIterator3.hasNext());
+        waitOffload(messageIdList.get(3), persistentTopic);
+        Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
 
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message").send());
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message").send());
-        MessageIdImpl messageId4 = messageIdList.get(4);
-
-        ReadHandle readHandle4 = waitOffloadAndGetReadHandle(messageId4, persistentTopic, map, ledgerOffloader);;
-        LedgerEntries ledgerEntries4 = readHandle4.read(0, 1);
-        Iterator<LedgerEntry> ledgerEntryIterator4 = ledgerEntries4.iterator();
-        Assert.assertEquals(messageIdList.get(4).getEntryId(), ledgerEntryIterator4.next().getEntryId());
-        Assert.assertEquals(messageIdList.get(5).getEntryId(), ledgerEntryIterator4.next().getEntryId());
-
+        waitOffload(messageIdList.get(4), persistentTopic);
+        message = consumer.receive();
+        messageId = (MessageIdImpl) message.getMessageId();
+        Assert.assertTrue(message.getData().length != 0);
+        Assert.assertEquals(messageIdList.get(4).getEntryId(), messageId.getEntryId());
+        messageId = (MessageIdImpl) consumer.receive().getMessageId();
+        Assert.assertEquals(messageIdList.get(5).getEntryId(), messageId.getEntryId());
     }
 
-    private ReadHandle waitOffloadAndGetReadHandle(MessageIdImpl messageId, PersistentTopic persistentTopic,
-                                                   Map<String, String> map, LedgerOffloader ledgerOffloader)
+    private void waitOffload(MessageIdImpl messageId, PersistentTopic persistentTopic)
             throws ExecutionException, InterruptedException {
         //Wait for the automatically triggered offload to be executed completely.
         Awaitility.await().until(() -> {
@@ -259,13 +259,6 @@ public class OffloadTxnDataTest extends TransactionTestBase{
                     persistentTopic.getManagedLedger().getLedgerInfo(messageId.getLedgerId()).get();
             return info.getOffloadContext().getComplete();
         });
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo3 =
-                persistentTopic.getManagedLedger().getLedgerInfo(messageId.getLedgerId()).get();
-        UUID uuid3 = new UUID(ledgerInfo3.getOffloadContext().getUidMsb(), ledgerInfo3.getOffloadContext().getUidLsb());
-        if (ledgerOffloader instanceof BlobStoreManagedLedgerOffloader) {
-            return ledgerOffloader.readOffloaded(messageId.getLedgerId(), uuid3, Collections.emptyMap()).get();
-        }
-        return ledgerOffloader.readOffloaded(messageId.getLedgerId(), uuid3, map).get();
     }
 
     protected TieredStorageConfiguration getConfiguration(String bucket) {

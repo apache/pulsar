@@ -69,7 +69,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
 
     private OffloadFilter offloadFilter;
 
-    public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize) {
+    public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize,
+                                            OffloadFilter offloadFilter) {
         this.ledger = ledger;
         this.startEntryId = startEntryId;
         this.blockSize = blockSize;
@@ -77,6 +78,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         this.blockEntryCount = 0;
         this.dataBlockFullOffset = blockSize;
         this.entriesByteBuf = Lists.newLinkedList();
+        this.offloadFilter = offloadFilter;
     }
 
     // read ledger entries.
@@ -208,11 +210,6 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     @Override
     public int getBlockEntryBytesCount() {
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
-    }
-
-    @Override
-    public void setOffloadFilter(OffloadFilter offloadFilter) {
-        this.offloadFilter = offloadFilter;
     }
 
     public static long getHeaderSize() {

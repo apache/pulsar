@@ -50,7 +50,7 @@ public class OffloadFilterImp implements OffloadFilter {
 
     @Override
     public boolean checkFilterIsReady() {
-        return persistentTopic.getBrokerService().getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                && !"Initializing".equals(persistentTopic.getTransactionBufferStats().state);
+        return "Ready".equals(persistentTopic.getTransactionBufferStats().state)
+                    || "NoSnapshot".equals(persistentTopic.getTransactionBufferStats().state);
     }
 }

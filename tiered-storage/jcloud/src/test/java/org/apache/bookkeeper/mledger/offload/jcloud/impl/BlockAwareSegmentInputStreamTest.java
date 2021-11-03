@@ -216,8 +216,8 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size bigger than to (header + entry) size.
         int blockSize = 3148 + 5;
-        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
-        inputStream.setOffloadFilter(new OffloadFilterDisabled());
+        BlockAwareSegmentInputStreamImpl inputStream =
+                new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize, new OffloadFilterDisabled());
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
@@ -283,8 +283,8 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size equals to (header + entry) size.
         int blockSize = 2148;
-        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
-        inputStream.setOffloadFilter(new OffloadFilterDisabled());
+        BlockAwareSegmentInputStreamImpl inputStream =
+                new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize, new OffloadFilterDisabled());
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset())
             / (entrySize + BlockAwareSegmentInputStreamImpl.ENTRY_HEADER_SIZE);
 
@@ -346,8 +346,8 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size equals to (header + lac_entry) size.
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + (1 + lac) * (entrySize + 4 + 8);
-        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
-        inputStream.setOffloadFilter(new OffloadFilterDisabled());
+        BlockAwareSegmentInputStreamImpl inputStream =
+                new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize, new OffloadFilterDisabled());
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
@@ -409,8 +409,8 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size not able to hold one entry
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize;
-        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
-        inputStream.setOffloadFilter(new OffloadFilterDisabled());
+        BlockAwareSegmentInputStreamImpl inputStream =
+                new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize, new OffloadFilterDisabled());
         int expectedEntryCount = 0;
 
         // verify get methods
@@ -454,8 +454,8 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size not able to hold one entry
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
-        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
-        inputStream.setOffloadFilter(new OffloadFilterDisabled());
+        BlockAwareSegmentInputStreamImpl inputStream =
+                new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize, new OffloadFilterDisabled());
         int expectedEntryCount = 1;
 
         // verify get methods
@@ -522,8 +522,8 @@ public class BlockAwareSegmentInputStreamTest {
         ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte)r.nextInt());
 
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
-        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
-        inputStream.setOffloadFilter(new OffloadFilterDisabled());
+        BlockAwareSegmentInputStreamImpl inputStream =
+                new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize, new OffloadFilterDisabled());
         int bytesRead = 0;
         for (int i = 0; i < blockSize*2; i++) {
             int ret = inputStream.read();
