@@ -97,7 +97,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         rgs.resourceGroupCreate(rgName, rgConfig);
         ResourceGroup rg = rgs.resourceGroupGet("measureRGIncStatTime");
 
-        // Direct op on the reqourece group
+        // Direct op on the resource group
         mSecsStart = System.currentTimeMillis();
         for (int ix = 0; ix < numPerfTestIterations; ix++) {
             for (int monClassIdx = 0; monClassIdx < ResourceGroupMonitoringClass.values().length; monClassIdx++) {
@@ -172,9 +172,8 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertEquals(rgs.getNumResourceGroups(), 1);
 
-        ResourceGroup retRG = null;
-        retRG = rgs.resourceGroupGet(randomRgName);
-        Assert.assertEquals(retRG, null);
+        ResourceGroup retRG = rgs.resourceGroupGet(randomRgName);
+        Assert.assertNull(retRG);
 
         retRG = rgs.resourceGroupGet(rgName);
         Assert.assertNotEquals(retRG, null);
