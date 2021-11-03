@@ -31,8 +31,6 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 
 @Slf4j
 public class Worker {
@@ -41,7 +39,6 @@ public class Worker {
     private final WorkerService workerService;
     private WorkerServer server;
 
-    private ZooKeeperClientFactory zkClientFactory = null;
     private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
@@ -89,14 +86,6 @@ public class Worker {
 
     private AuthenticationService getAuthenticationService() throws PulsarServerException {
         return new AuthenticationService(getServiceConfiguration());
-    }
-
-    public ZooKeeperClientFactory getZooKeeperClientFactory() {
-        if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperBkClientFactoryImpl(orderedExecutor);
-        }
-        // Return default factory
-        return zkClientFactory;
     }
 
     protected void stop() {
