@@ -103,7 +103,8 @@ class Promise {
         state->result = DEFAULT_RESULT;
         state->complete = true;
 
-        const auto listeners = std::move(state->listeners);
+        decltype(state->listeners) listeners;
+        listeners.swap(state->listeners);
 
         lock.unlock();
 
@@ -127,7 +128,8 @@ class Promise {
         state->result = result;
         state->complete = true;
 
-        const auto listeners = std::move(state->listeners);
+        decltype(state->listeners) listeners;
+        listeners.swap(state->listeners);
 
         lock.unlock();
 
