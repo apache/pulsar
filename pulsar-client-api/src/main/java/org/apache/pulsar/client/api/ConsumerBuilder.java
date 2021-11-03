@@ -753,6 +753,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Notice: the negativeAckRedeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
      * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
      */
     ConsumerBuilder<T> negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff);
 }

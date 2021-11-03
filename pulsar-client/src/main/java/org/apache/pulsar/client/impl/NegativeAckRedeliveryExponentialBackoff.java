@@ -18,32 +18,54 @@
  */
 package org.apache.pulsar.client.impl;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.google.common.base.Preconditions;
 import org.apache.pulsar.client.api.NegativeAckRedeliveryBackoff;
 
 /**
  * NegativeAckRedeliveryExponentialBackoff
  */
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class NegativeAckRedeliveryExponentialBackoff implements NegativeAckRedeliveryBackoff {
 
-    private long minNackTimeMs = 1000 * 10;
-    private long maxNackTimeMs = 1000 * 60 * 10;
+    private final long minNackTimeMs;
+    private final long maxNackTimeMs;
+    private final int maxBitShift;
+
+    private NegativeAckRedeliveryExponentialBackoff(long minNackTimeMs, long maxNackTimeMs) {
+        this.minNackTimeMs = minNackTimeMs;
+        this.maxNackTimeMs = maxNackTimeMs;
+
+        for (int i = 0; ; ) {
+            if (this.minNackTimeMs << ++i <= 0) {
+                System.out.println(i);
+                this.maxBitShift = i;
+                break;
+            }
+        }
+    }
 
     public static NegativeAckRedeliveryExponentialBackoff.NegativeAckRedeliveryExponentialBackoffBuilder builder() {
         return new NegativeAckRedeliveryExponentialBackoff.NegativeAckRedeliveryExponentialBackoffBuilder();
     }
 
+    public long getMinNackTimeMs() {
+        return this.minNackTimeMs;
+    }
+
+    public long getMaxNackTimeMs() {
+        return this.maxNackTimeMs;
+    }
+
     @Override
     public long next(int redeliveryCount) {
-        if (redeliveryCount <= 0) {
-            return minNackTimeMs;
+        if (redeliveryCount <= 0 || minNackTimeMs <= 0) {
+            return this.minNackTimeMs;
         }
-        return Math.min(Math.abs(minNackTimeMs << redeliveryCount), maxNackTimeMs);
+
+        if (this.maxBitShift <= redeliveryCount) {
+            return this.maxNackTimeMs;
+        }
+
+        return Math.min(this.minNackTimeMs << redeliveryCount, this.maxNackTimeMs);
     }
 
     /**
@@ -64,6 +86,9 @@ public class NegativeAckRedeliveryExponentialBackoff implements NegativeAckRedel
         }
 
         public NegativeAckRedeliveryExponentialBackoff build() {
+            Preconditions.checkArgument(minNackTimeMs >= 0, "min nack time must be >= 0");
+            Preconditions.checkArgument(maxNackTimeMs >= minNackTimeMs,
+                    "max nack time must be >= minNackTimeMs");
             return new NegativeAckRedeliveryExponentialBackoff(minNackTimeMs, maxNackTimeMs);
         }
     }

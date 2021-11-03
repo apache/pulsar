@@ -37,16 +37,19 @@ public class NegativeAckRedeliveryBackoffTest {
         long maxNackTime = 1000 * 60 * 10;
 
         NegativeAckRedeliveryBackoff nackBackoff = spy(
-                new NegativeAckRedeliveryExponentialBackoff(minNackTime, maxNackTime));
+                NegativeAckRedeliveryExponentialBackoff.builder()
+                        .minNackTimeMs(minNackTime)
+                        .maxNackTimeMs(maxNackTime)
+                        .build());
 
-        assertEquals(minNackTime, nackBackoff.next(-1));
+        assertEquals(nackBackoff.next(-1), minNackTime);
 
-        assertEquals(minNackTime, nackBackoff.next(0));
+        assertEquals(nackBackoff.next(0), minNackTime);
 
-        assertEquals(minNackTime * 2, nackBackoff.next(1));
+        assertEquals(nackBackoff.next(1),minNackTime * 2);
 
-        assertEquals(minNackTime * 16, nackBackoff.next(4));
+        assertEquals(nackBackoff.next(4), minNackTime * 16);
 
-        assertEquals(maxNackTime, nackBackoff.next(100));
+        assertEquals(nackBackoff.next(100), maxNackTime);
     }
 }
