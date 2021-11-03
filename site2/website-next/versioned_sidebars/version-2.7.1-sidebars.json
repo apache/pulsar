@@ -231,6 +231,36 @@
           "id": "version-2.7.1/transactions-api"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-tools"
+        }
+      ]
     }
   ]
 }
