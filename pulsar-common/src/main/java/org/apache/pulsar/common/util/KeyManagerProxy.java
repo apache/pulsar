@@ -73,20 +73,23 @@ public class KeyManagerProxy extends X509ExtendedKeyManager {
                 TimeUnit.SECONDS);
     }
 
-    public void updateKeyManagerSafely() {
+    private void updateKeyManagerSafely() {
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("refreshing key manager for {} {}", certFile.getFileName(), keyFile.getFileName());
+            }
             updateKeyManager();
         } catch (Exception e) {
             log.warn("Failed to update key Manager for {}, {}", certFile.getFileName(), keyFile.getFileName(), e);
         }
     }
 
-    public void updateKeyManager()
+    private void updateKeyManager()
             throws CertificateException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
         if (keyManager != null && !certFile.checkAndRefresh() && !keyFile.checkAndRefresh()) {
             return;
         }
-        log.info("refreshing key manager for {} {}", certFile.getFileName(), keyFile.getFileName());
+
         X509Certificate certificate;
         PrivateKey privateKey = null;
         KeyStore keyStore;
