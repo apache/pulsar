@@ -99,7 +99,7 @@ By default, batch index acknowledgement is disabled (`acknowledgmentAtBatchIndex
 Before you enable chunking, read the following instructions.
 - Batching and chunking cannot be enabled simultaneously. To enable chunking, you must disable batching in advance.
 - Chunking is only supported for persisted topics.
-- Chunking is only supported for the exclusive and failover subscription modes.
+- Chunking is only supported for Exclusive and Failover subscription types.
 
 When chunking is enabled (`chunkingEnabled=true`), if the message size is greater than the allowed maximum publish-payload size, the producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. At the broker side, the chunked messages are stored in the managed-ledger in the same way as that of ordinary messages. The only difference is that the consumer needs to buffer the chunked messages and combines them into the real message when all chunked messages have been collected. The chunked messages in the managed-ledger can be interwoven with ordinary messages. If producer fails to publish all the chunks of a message, the consumer can expire incomplete chunks if consumer fail to receive all chunks in expire time. By default, the expire time is set to one hour.
 
@@ -161,17 +161,17 @@ consumer.acknowledgeCumulative(msg);
 
 
 > **Note**  
-> Cumulative acknowledgement cannot be used in the [shared subscription mode](#subscription-modes), because the shared subscription mode involves multiple consumers who have access to the same subscription. In the shared subscription mode, messages are acknowledged individually.
+> Cumulative acknowledgement cannot be used in [Shared subscription type](#subscription-types), because Shared subscription type involves multiple consumers which have access to the same subscription. In Shared subscription type, messages are acknowledged individually.
 
 ### Negative acknowledgement
 
 When a consumer fails to consume a message and intends to consume it again, this consumer should send a negative acknowledgement to the broker. Then, the broker will redeliver this message to the consumer.
 
-Messages are negatively acknowledged individually or cumulatively, depending on the consumption subscription mode.
+Messages are negatively acknowledged individually or cumulatively, depending on the consumption subscription type.
 
-In the exclusive and failover subscription modes, consumers only negatively acknowledge the last message they receive.
+In Exclusive and Failover subscription types, consumers only negatively acknowledge the last message they receive.
 
-In the shared and Key_Shared subscription modes, consumers can negatively acknowledge messages individually.
+In Shared and Key_Shared subscription types, consumers can negatively acknowledge messages individually.
 
 Be aware that negative acknowledgments on ordered subscription types, such as Exclusive, Failover and Key_Shared, might cause failed messages being sent to consumers out of the original order.
 
@@ -233,7 +233,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 Dead letter topic depends on message redelivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > **Note**    
-> Currently, dead letter topic is enabled in the Shared and Key_Shared subscription modes.
+> Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
 
 ### Retry letter topic
 
@@ -291,32 +291,32 @@ A namespace is a logical nomenclature within a tenant. A tenant creates multiple
 
 ## Subscriptions
 
-A subscription is a named configuration rule that determines how messages are delivered to consumers. Four subscription modes are available in Pulsar: [exclusive](#exclusive), [shared](#shared), [failover](#failover), and [key_shared](#key_shared). These modes are illustrated in the figure below.
+A subscription is a named configuration rule that determines how messages are delivered to consumers. Four subscription types are available in Pulsar: [exclusive](#exclusive), [shared](#shared), [failover](#failover), and [key_shared](#key_shared). These types are illustrated in the figure below.
 
-![Subscription modes](assets/pulsar-subscription-modes.png)
+![Subscription types](assets/pulsar-subscription-types.png)
 
 > **Pub-Sub or Queuing**  
 > In Pulsar, you can use different subscriptions flexibly.
-> * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is exclusive subscription mode.
+> * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is exclusive subscription type.
 > * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
-> * If you want to achieve both effects simultaneously, combine exclusive subscription mode with other subscription modes for consumers.
+> * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
 
-### Consumerless Subscriptions and Their Corresponding Modes
-When a subscription has no consumers, its subscription mode is undefined. A subscription's mode is defined when a consumer connects to the subscription, and the mode can be changed by restarting all consumers with a different configuration.
+### Consumerless Subscriptions and Their Corresponding Types
+When a subscription has no consumers, its subscription type is undefined. The type of a subscription is defined when a consumer connects to it, and the type can be changed by restarting all consumers with a different configuration.
 
 ### Exclusive
 
-In *exclusive* mode, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs.
+In *Exclusive* type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs.
 
 In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
-> Exclusive mode is the default subscription mode.
+> Exclusive is the default subscription type.
 
 ![Exclusive subscriptions](assets/pulsar-exclusive-subscriptions.png)
 
 ### Failover
 
-In *failover* mode, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
+In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
 For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns topics to consumers with the highest priority level.
 
@@ -328,30 +328,30 @@ In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B
 
 ### Shared
 
-In *shared* or *round robin* mode, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
+In *shared* or *round robin* type, multiple consumers can attach to the same subscription. Messages are delivered in a round robin distribution across consumers, and any given message is delivered to only one consumer. When a consumer disconnects, all the messages that were sent to it and not acknowledged will be rescheduled for sending to the remaining consumers.
 
 In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscribe to the topic, but **Consumer-C-3** and others could as well.
 
-> **Limitations of shared mode**  
-> When using shared mode, be aware that:
+> **Limitations of Shared type**  
+> When using Shared type, be aware that:
 > * Message ordering is not guaranteed.
-> * You cannot use cumulative acknowledgment with shared mode.
+> * You cannot use cumulative acknowledgment with Shared type.
 
 ![Shared subscriptions](assets/pulsar-shared-subscriptions.png)
 
 ### Key_Shared
 
-In *Key_Shared* mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
+In *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 
 ![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
 
-Note that when the consumers are using the Key_Shared subscription mode, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based batching is necessary for Key_Shared subscription mode:
+Note that when the consumers are using the Key_Shared subscription type, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based batching is necessary for Key_Shared subscription type:
 1. The broker dispatches messages according to the keys of the messages, but the default batching approach might fail to pack the messages with the same key to the same batch. 
 2. Since it is the consumers instead of the broker who dispatch the messages from the batches, the key of the first message in one batch is considered as the key of all messages in this batch, thereby leading to context errors. 
 
 The key-based batching aims at resolving the above-mentioned issues. This batching method ensures that the producers pack the messages with the same key to the same batch. The messages without a key are packed into one batch and this batch has no key. When the broker dispatches messages from this batch, it uses `NON_KEY` as the key. In addition, each consumer is associated with **only one** key and should receive **only one message batch** for the connected key. By default, you can limit batching by configuring the number of messages that producers are allowed to send. 
 
-Below are examples of enabling the key-based batching under the Key_Shared subscription mode, with `client` being the Pulsar client that you created.
+Below are examples of enabling the key-based batching under the Key_Shared subscription type, with `client` being the Pulsar client that you created.
 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java-->
@@ -376,10 +376,10 @@ producer = client.create_producer(topic='my-topic', batching_type=pulsar.Batchin
 ```
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-> **Limitations of Key_Shared mode**  
-> When you use Key_Shared mode, be aware that:
+> **Limitations of Key_Shared type**  
+> When you use Key_Shared type, be aware that:
 > * You need to specify a key or orderingKey for messages.
-> * You cannot use cumulative acknowledgment with Key_Shared mode.
+> * You cannot use cumulative acknowledgment with Key_Shared type.
 
 ## Multi-topic subscriptions
 
@@ -434,11 +434,11 @@ The diagram below illustrates this:
 
 The **Topic1** topic has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
 
-Messages for this topic are broadcast to two consumers. The [routing mode](#routing-modes) determines each message should be published to which partition, while the [subscription mode](#subscription-modes) determines which messages go to which consumers.
+Messages for this topic are broadcast to two consumers. The [routing mode](#routing-modes) determines each message should be published to which partition, while the [subscription type](#subscription-types) determines which messages go to which consumers.
 
 Decisions about routing and subscription modes can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.
 
-There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.
+There is no difference between partitioned topics and normal topics in terms of how subscription types work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.
 
 Partitioned topics need to be explicitly created via the [admin API](admin-api-overview.md). The number of partitions can be specified when creating the topic.
 
@@ -502,7 +502,7 @@ Non-persistent messaging is usually faster than persistent messaging because bro
 
 ### Client API
 
-Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription modes---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
+Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription types---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
 
 Here's an example [Java consumer](client-libraries-java.md#consumers) for a non-persistent topic:
 
@@ -578,7 +578,7 @@ Message deduplication makes Pulsar an ideal messaging system to be used in conju
 ## Delayed message delivery
 Delayed message delivery enables you to consume a message later rather than immediately. In this mechanism, a message is stored in BookKeeper, `DelayedDeliveryTracker` maintains the time index(time -> messageId) in memory after published to a broker, and it is delivered to a consumer once the specific delayed time is passed.  
 
-Delayed message delivery only works in Shared subscription mode. In Exclusive and Failover subscription modes, the delayed message is dispatched immediately.
+Delayed message delivery only works in Shared subscription type. In Exclusive and Failover subscription types, the delayed message is dispatched immediately.
 
 The diagram below illustrates the concept of delayed message delivery:
 
