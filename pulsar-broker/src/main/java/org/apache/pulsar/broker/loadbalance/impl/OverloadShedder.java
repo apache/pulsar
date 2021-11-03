@@ -121,8 +121,8 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 }).filter(e ->
                         localData.getBundles().contains(e.getLeft())
                 ).sorted((e1, e2) -> {
-                    // Sort by throughput in reverse order
-                    return Double.compare(e2.getRight(), e1.getRight());
+                    // Sort by throughput in ascending order
+                    return Double.compare(e1.getRight(), e2.getRight());
                 }).forEach(e -> {
                     if (trafficMarkedToOffload.doubleValue() < minimumThroughputToOffload
                             || atLeastOneBundleSelected.isFalse()) {
