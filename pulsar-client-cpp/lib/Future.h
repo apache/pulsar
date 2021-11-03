@@ -111,7 +111,6 @@ class Promise {
             callback(DEFAULT_RESULT, value);
         }
 
-        state->listeners.clear();
         state->condition.notify_all();
         return true;
     }
