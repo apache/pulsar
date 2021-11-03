@@ -377,7 +377,6 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     *
      * @return the configured {@link NegativeAckRedeliveryBackoff} for the consumer
      */
     public NegativeAckRedeliveryBackoff getNegativeAckRedeliveryBackoff() {
@@ -385,7 +384,6 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
-     *
      * @param negativeAckRedeliveryBackoff the negative ack redelivery backoff policy.
      * Default value is: NegativeAckRedeliveryExponentialBackoff
      * @return the {@link ConsumerConfiguration}

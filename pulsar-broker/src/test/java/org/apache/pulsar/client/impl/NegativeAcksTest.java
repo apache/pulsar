@@ -159,7 +159,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     @DataProvider(name = "variationsBackoff")
     public static Object[][] variationsBackoff() {
         return new Object[][] {
-                // batching / partitions / subscription-type / redelivery-delay-ms / ack-timeout
+                // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms / ack-timeout
                 { false, false, SubscriptionType.Shared, 100, 1000, 0 },
                 { false, false, SubscriptionType.Failover, 100, 1000, 0 },
                 { false, true, SubscriptionType.Shared, 100, 1000, 0 },
