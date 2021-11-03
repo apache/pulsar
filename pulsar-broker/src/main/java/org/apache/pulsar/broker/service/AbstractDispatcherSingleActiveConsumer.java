@@ -181,7 +181,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 consumer.notifyActiveConsumerChange(currentActiveConsumer);
             }
         }
-        if (!cursor.isDurable()) {
+        if (cursor != null && !cursor.isDurable()) {
             ((NonDurableCursorImpl) cursor).setReadCompacted(ACTIVE_CONSUMER_UPDATER.get(this).readCompacted());
         }
 
