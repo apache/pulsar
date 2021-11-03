@@ -1197,11 +1197,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     return;
                 }
 
+                // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
+                if (log.isDebugEnabled()) {
+                    log.debug("Chunked message completed chunkId {}, total-chunks {}, msgId {} sequenceId {}",
+                            msgMetadata.getChunkId(), msgMetadata.getNumChunksFromMsg(), msgId,
+                            msgMetadata.getSequenceId());
+                }
+
                 // remove buffer from the map, set the chunk message id
                 ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.remove(msgMetadata.getUuid());
-                if(chunkedMsgCtx.chunkedMessageIds.length>0)
+                if (chunkedMsgCtx.chunkedMessageIds.length > 0) {
                     msgId = new ChunkMessageIdImpl(chunkedMsgCtx.chunkedMessageIds[0],
                             chunkedMsgCtx.chunkedMessageIds[chunkedMsgCtx.chunkedMessageIds.length - 1]);
+                }
+                // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
+                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
+                pendingChunkedMessageCount--;
                 chunkedMsgCtx.recycle();
             }
 
@@ -1312,14 +1323,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return null;
         }
 
-        // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
-        if (log.isDebugEnabled()) {
-            log.debug("Chunked message completed chunkId {}, total-chunks {}, msgId {} sequenceId {}",
-                    msgMetadata.getChunkId(), msgMetadata.getNumChunksFromMsg(), msgId, msgMetadata.getSequenceId());
-        }
-        // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
-        unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
-        pendingChunkedMessageCount--;
         compressedPayload.release();
         compressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
         ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, compressedPayload, cnx, false);
