@@ -125,6 +125,7 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
@@ -1161,11 +1162,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
-                MessageMetadata messageMetadata = Commands.parseMessageMetadata(metadataAndPayload);
-                if (messageMetadata.hasPublishTime()) {
-                    future.complete(messageMetadata.getPublishTime());
+                BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(metadataAndPayload);
+                if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+                    future.complete(brokerEntryMetadata.getBrokerTimestamp());
                 } else {
-                    future.complete(0L);
+                    MessageMetadata messageMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+                    if (messageMetadata.hasPublishTime()) {
+                        future.complete(messageMetadata.getPublishTime());
+                    } else {
+                        future.complete(0L);
+                    }
                 }
             }
 
