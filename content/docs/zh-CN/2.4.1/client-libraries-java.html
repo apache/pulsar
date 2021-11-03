@@ -328,10 +328,10 @@ consumerBuilder
             });
 }
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="订阅模型"></a><a href="#订阅模型" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>订阅模型</h3>
-<p>Pulsar has various <a href="concepts-messaging#subscription-modes">subscription modes</a> to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.</p>
-<p>A subscription is identified with the subscription name, and a subscription name can specify only one subscription mode at a time. You can change the subscription mode, yet you have to let all existing consumers of this subscription offline first.</p>
-<p>Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.</p>
+<h3><a class="anchor" aria-hidden="true" id="subscription-types"></a><a href="#subscription-types" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription types</h3>
+<p>Pulsar has various <a href="concepts-messaging#subscription-types">subscription types</a> to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.</p>
+<p>A subscription is identified with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.</p>
+<p>Different subscription types have different message distribution modes. This section describes the differences of subscription types and how to use them.</p>
 <p>In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.</p>
 <pre><code class="hljs css language-java">Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
         .topic(<span class="hljs-string">"my-topic"</span>)
@@ -350,7 +350,7 @@ producer.newMessage().key(<span class="hljs-string">"key-4"</span>).value(<span 
 producer.newMessage().key(<span class="hljs-string">"key-4"</span>).value(<span class="hljs-string">"message-4-2"</span>).send();
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="exclusive"></a><a href="#exclusive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exclusive</h4>
-<p>Create a new consumer and subscribe with the <code>Exclusive</code> subscription mode.</p>
+<p>Create a new consumer and subscribe with the <code>Exclusive</code> subscription type.</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
@@ -359,11 +359,11 @@ producer.newMessage().key(<span class="hljs-string">"key-4"</span>).value(<span 
 </code></pre>
 <p>Only the first consumer is allowed to the subscription, other consumers receive an error. The first consumer receives all 10 messages, and the consuming order is the same as the producing order.</p>
 <blockquote>
-<p>注意：</p>
-<p>If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error.</p>
+<p><strong>Note</strong>  <br>
+If topic is a partitioned topic, the first consumer subscribes to all partitioned topics, other consumers are not assigned with partitions and receive an error.</p>
 </blockquote>
 <h4><a class="anchor" aria-hidden="true" id="failover灾备"></a><a href="#failover灾备" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Failover（灾备）</h4>
-<p>Create new consumers and subscribe with the<code>Failover</code> subscription mode.</p>
+<p>Create new consumers and subscribe with the<code>Failover</code> subscription type.</p>
 <pre><code class="hljs css language-java">Consumer consumer1 = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
@@ -395,11 +395,11 @@ Consumer consumer2 = client.newConsumer()
 (&quot;key-4&quot;, &quot;message-4-2&quot;)
 </code></pre>
 <blockquote>
-<p>注意：</p>
-<p>If a topic is a partitioned topic, each partition only has one active consumer, messages of one partition only distributed to one consumer, messages of multiple partitions are distributed to multiple consumers.</p>
+<p><strong>Note</strong>  <br>
+If a topic is a partitioned topic, each partition only has one active consumer, messages of one partition only distributed to one consumer, messages of multiple partitions are distributed to multiple consumers.</p>
 </blockquote>
 <h4><a class="anchor" aria-hidden="true" id="shared共享"></a><a href="#shared共享" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Shared（共享）</h4>
-<p>Create new consumers and subscribe with <code>Shared</code> subscription mode:</p>
+<p>Create new consumers and subscribe with <code>Shared</code> subscription type.</p>
 <pre><code class="hljs css language-java">Consumer consumer1 = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
@@ -413,7 +413,7 @@ Consumer consumer2 = client.newConsumer()
         .subscribe()
 <span class="hljs-comment">//Both consumer1 and consumer 2 is active consumers.</span>
 </code></pre>
-<p>In shared subscription mode, multiple consumers can attach to the same subscription and message are delivered in a round robin distribution across consumers.</p>
+<p>In shared subscription type, multiple consumers can attach to the same subscription and message are delivered in a round robin distribution across consumers.</p>
 <p>If a broker dispatches only one message at a time, consumer1 will receive:</p>
 <pre><code class="hljs">(&quot;key-1&quot;, &quot;message-1-1&quot;)
 (&quot;key-1&quot;, &quot;message-1-3&quot;)
@@ -428,9 +428,9 @@ Consumer consumer2 = client.newConsumer()
 (&quot;key-3&quot;, &quot;message-3-2&quot;)
 (&quot;key-4&quot;, &quot;message-4-2&quot;)
 </code></pre>
-<p><code>Shared</code> subscription is different from <code>Exclusive</code> and <code>Failover</code> subscription modes. <code>Shared</code> subscription has better flexibility, but cannot provide order guarantee.</p>
+<p><code>Shared</code> subscription is different from <code>Exclusive</code> and <code>Failover</code> subscription types. <code>Shared</code> subscription has better flexibility, but cannot provide order guarantee.</p>
 <h4><a class="anchor" aria-hidden="true" id="key_shared"></a><a href="#key_shared" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Key_Shared</h4>
-<p>This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with <code>Key_Shared</code> subscription mode:</p>
+<p>This is a new subscription type since 2.4.0 release, create new consumers and subscribe with <code>Key_Shared</code> subscription type:</p>
 <pre><code class="hljs css language-java">Consumer consumer1 = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
@@ -460,8 +460,8 @@ Consumer consumer2 = client.newConsumer()
 (&quot;key-4&quot;, &quot;message-4-2&quot;)
 </code></pre>
 <blockquote>
-<p>注意：</p>
-<p>If the message key is not specified, messages without key will be dispatched to one consumer in order by default.</p>
+<p><strong>Note</strong>  <br>
+If the message key is not specified, messages without key will be dispatched to one consumer in order by default.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="reader-接口"></a><a href="#reader-接口" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 接口</h2>
 <p>使用 <a href="/docs/zh-CN/2.4.1/concepts-clients#reader-interface">reader 接口</a>, Pulsar客户可以在主题中“手动定位”自己，从指定的消息开始向前读取所有消息。 The Pulsar API for Java enables you to create <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
@@ -600,7 +600,7 @@ PulsarClient client = PulsarClient.builder()
 <h4><a class="anchor" aria-hidden="true" id="支持的格式"></a><a href="#支持的格式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>支持的格式：</h4>
 <p><code>privateKey</code>参数支持如下三种格式： * <code>file:///path/to/file</code> * <code>file:/path/to/file</code> * <code>data:application/x-pem-file;base64,&lt;base64-encoded value&gt;</code></p>
 </blockquote>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.1/security-extending"><span class="arrow-prev">← </span><span>扩展</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.1/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#客户端配置">客户端配置</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#生产者配置">生产者配置</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#消息配置">消息配置</a></li></ul></li><li><a href="#消费者">消费者</a><ul class="toc-headings"><li><a href="#消费者配置">消费者配置</a></li><li><a href="#异步接收">异步接收</a></li><li><a href="#多主题订阅">多主题订阅</a></li><li><a href="#订阅模型">订阅模型</a></li></ul></li><li><a href="#reader-接口">Reader 接口</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#schema实例">Schema实例</a></li></ul></li><li><a href="#authentication">Authentication</a><ul class="toc-headings"><li><a href="#tls-authentication">TLS Authentication</a></li><li><a href="#athenz">Athenz</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.1/security-extending"><span class="arrow-prev">← </span><span>扩展</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.1/client-libraries-go"><span>Go</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#maven">Maven</a></li><li><a href="#gradle">Gradle</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#客户端配置">客户端配置</a></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#生产者配置">生产者配置</a></li><li><a href="#消息路由">消息路由</a></li><li><a href="#异步发送">异步发送</a></li><li><a href="#消息配置">消息配置</a></li></ul></li><li><a href="#消费者">消费者</a><ul class="toc-headings"><li><a href="#消费者配置">消费者配置</a></li><li><a href="#异步接收">异步接收</a></li><li><a href="#多主题订阅">多主题订阅</a></li><li><a href="#subscription-types">Subscription types</a></li></ul></li><li><a href="#reader-接口">Reader 接口</a></li><li><a href="#schema">Schema</a><ul class="toc-headings"><li><a href="#schema实例">Schema实例</a></li></ul></li><li><a href="#authentication">Authentication</a><ul class="toc-headings"><li><a href="#tls-authentication">TLS Authentication</a></li><li><a href="#athenz">Athenz</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

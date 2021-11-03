@@ -291,9 +291,9 @@ You can configure parameters if you do not want to use the default configuration
 <h2><a class="anchor" aria-hidden="true" id="consumer"></a><a href="#consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer</h2>
 <p>Dans Pulsar, les consommateurs s'abonnent à des topics et traitent les messages que les producteurs publient sur ces topics. Vous pouvez instancier un nouveau <a href="/docs/fr/next/reference-terminology#consumer">consommateur</a> en instanciant d'abord un objet <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  et en lui passant l'URL d'un broker Pulsar (comme <a href="#client-configuration">ci-dessus</a>).</p>
-<p>Une fois que vous avez instancié un objet <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
-, vous pouvez créer un <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
- en précisant un <a href="/docs/fr/next/reference-terminology#topic">topic</a> et un <a href="/docs/fr/next/concepts-messaging#subscription-modes">abonnement</a>.</p>
+<p>Once you've instantiated a <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ object, you can create a <a href="https://pulsar.incubator.apache.org/api/client/2.8.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
+ by specifying a <a href="/docs/fr/next/reference-terminology#topic">topic</a> and a <a href="/docs/fr/next/concepts-messaging#subscription-types">subscription</a>.</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
         .subscriptionName(<span class="hljs-string">"my-subscription"</span>)
@@ -355,9 +355,9 @@ Four subscription types are available:</p>
 <p>A longer ack group time is more efficient at the expense of a slight increase in message re-deliveries after a failure.|TimeUnit.MILLISECONDS.toMicros(100) <code>negativeAckRedeliveryDelayMicros</code>|long|Delay to wait before redelivering messages that failed to be processed.</p>
 <p>When an application uses {@link Consumer#negativeAcknowledge(Message)}, failed messages are redelivered after a fixed timeout. |TimeUnit.MINUTES.toMicros(1) <code>maxTotalReceiverQueueSizeAcrossPartitions</code>|int |The max total receiver queue size across partitions.</p>
 <p>This setting reduces the receiver queue size for individual partitions if the total receiver queue size exceeds this value.|50000 <code>consumerName</code>|String|Consumer name|null <code>ackTimeoutMillis</code>|long|Timeout of unacked messages|0 <code>tickDurationMillis</code>|long|Granularity of the ack-timeout redelivery.</p>
-<p>Using an higher <code>tickDurationMillis</code> reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000 <code>priorityLevel</code>|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode.</p>
+<p>Using an higher <code>tickDurationMillis</code> reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000 <code>priorityLevel</code>|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in Shared subscription type.</p>
 <p>The broker follows descending priorities. For example, 0=max-priority, 1, 2,...</p>
-<p>In shared subscription mode, the broker <strong>first dispatches messages to the max priority level consumers if they have permits</strong>. Otherwise, the broker considers next priority level consumers.</p>
+<p>In Shared subscription type, the broker <strong>first dispatches messages to the max priority level consumers if they have permits</strong>. Otherwise, the broker considers next priority level consumers.</p>
 <p><strong>Example 1</strong>  <br>
 If a subscription has consumerA with <code>priorityLevel</code> 0 and consumerB with <code>priorityLevel</code> 1, then the broker <strong>only dispatches messages to consumerA until it runs out permits</strong> and then starts dispatching messages to consumerB.</p>
 <p><strong>Example 2</strong>  <br>
@@ -525,8 +525,7 @@ pulsarClient.newConsumer()
         .subscribe();
 ```
 
-&gt; #### Note
-&gt; 
+&gt; **Note**  
 &gt; By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
 
 Vous pouvez également vous abonner à une liste explicite de topics (à travers les namespaces si vous le souhaitez) :
@@ -569,13 +568,13 @@ private void receiveMessageFromConsumer(Object consumer) {
 }
 ```
 
-### Subscription modes
+### Subscription types
 
-Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
+Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
 
-A subscription is identical with the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
+A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 
-Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.
+Different subscription types have different message distribution types. This section describes the differences of subscription types and how to use them.
 
 In order to better describe their differences, assuming you have a topic named &quot;my-topic&quot;, and the producer has published 10 messages.
 
@@ -599,7 +598,7 @@ producer.newMessage().key(&quot;key-4&quot;).value(&quot;message-4-2&quot;).send
 
 #### Exclusive
 
-Create a new consumer and subscribe with the `Exclusive` subscription mode.
+Create a new consumer and subscribe with the `Exclusive` subscription type.
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -617,7 +616,7 @@ Only the first consumer is allowed to the subscription, other consumers receive 
 
 #### Failover
 
-Create new consumers and subscribe with the`Failover` subscription mode.
+Create new consumers and subscribe with the`Failover` subscription type.
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -662,7 +661,7 @@ consumer2 will receive:
 
 #### Shared
 
-Create new consumers and subscribe with `Shared` subscription mode:
+Create new consumers and subscribe with `Shared` subscription type.
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -679,7 +678,7 @@ Consumer consumer2 = client.newConsumer()
 //Both consumer1 and consumer 2 is active consumers.
 ```
 
-In shared subscription mode, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
+In Shared subscription type, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
 
 If a broker dispatches only one message at a time, consumer1 receives the following information.
 
@@ -699,11 +698,11 @@ consumer2 receives the following information.
     (&quot;key-4&quot;, &quot;message-4-2&quot;)
     
 
-`Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
+`Shared` subscription is different from `Exclusive` and `Failover` subscription types. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
 #### Key_shared
 
-This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode.
+This is a new subscription type since 2.4.0 release. Create new consumers and subscribe with `Key_Shared` subscription type.
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -720,7 +719,7 @@ Consumer consumer2 = client.newConsumer()
 //Both consumer1 and consumer2 are active consumers.
 ```
 
-Just like in the `Shared` subscription, all consumers in the `Key_Shared` subscription mode can attach to the same subscription. But the `Key_Shared` subscription mode is different from the `Shared` subscription. In the `Key_Shared` subscription mode, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
+Just like in `Shared` subscription, all consumers in `Key_Shared` subscription type can attach to the same subscription. But `Key_Shared` subscription type is different from the `Shared` subscription. In `Key_Shared` subscription type, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
 
 consumer1 receives the following information.
 
