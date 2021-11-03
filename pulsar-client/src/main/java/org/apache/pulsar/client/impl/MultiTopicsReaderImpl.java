@@ -94,6 +94,10 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         if (readerConfiguration.getCryptoKeyReader() != null) {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
+
+        if(readerConfiguration.getMessageCrypto() != null){
+            consumerConfiguration.setMessageCrypto(readerConfiguration.getMessageCrypto());
+        }
         if (readerConfiguration.getKeyHashRanges() != null) {
             consumerConfiguration.setKeySharedPolicy(
                     KeySharedPolicy

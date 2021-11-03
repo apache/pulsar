@@ -211,6 +211,15 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 
     /**
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt message for End to End Encryption.
+     *
+     * @param messageCrypto message Crypto Object
+     * @return ReaderBuilder instance
+     */
+    ReaderBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    /**
      * Sets the size of the consumer receive queue.
      *
      * <p>The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the

@@ -26,6 +26,7 @@ import java.util.Set;
 
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.ReaderListener;
@@ -55,6 +56,9 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
+    @JsonIgnore
+    private transient MessageCrypto messageCrypto = null;
 
     private boolean readCompacted = false;
     private boolean resetIncludeHead = false;
