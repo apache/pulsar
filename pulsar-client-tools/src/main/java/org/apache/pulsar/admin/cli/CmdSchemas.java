@@ -49,17 +49,17 @@ public class CmdSchemas extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--version" }, description = "version", required = false)
+        @Parameter(names = {"-v", "--version"}, description = "version", required = false)
         private Long version;
 
-        @Parameter(names = {"--all"}, description = "all version", required = false)
+        @Parameter(names = {"-a", "--all-version"}, description = "all version", required = false)
         private boolean all = false;
 
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
             if (version != null && all) {
-                throw new ParameterException("Only one or neither of --version and --all can be specified.");
+                throw new ParameterException("Only one or neither of --version and --all-version can be specified.");
             }
             if (version == null && !all) {
                 System.out.println(getAdmin().schemas().getSchemaInfoWithVersion(topic));
@@ -69,7 +69,7 @@ public class CmdSchemas extends CmdBase {
                 }
                 System.out.println(getAdmin().schemas().getSchemaInfo(topic, version));
             } else {
-                System.out.println(getAdmin().schemas().getAllSchemas(topic));
+                print(getAdmin().schemas().getAllSchemas(topic));
             }
         }
     }
