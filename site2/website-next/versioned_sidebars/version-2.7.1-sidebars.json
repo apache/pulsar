@@ -165,6 +165,28 @@
           "id": "version-2.7.1/io-cli"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-getting-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-deployment-configurations"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-rest-api"
+        }
+      ]
     }
   ]
 }
