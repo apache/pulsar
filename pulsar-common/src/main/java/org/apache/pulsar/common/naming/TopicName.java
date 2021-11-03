@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Splitter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
@@ -361,7 +361,7 @@ public class TopicName implements ServiceUnitId {
     public boolean equals(Object obj) {
         if (obj instanceof TopicName) {
             TopicName other = (TopicName) obj;
-            return Objects.equal(completeTopicName, other.completeTopicName);
+            return Objects.equals(completeTopicName, other.completeTopicName);
         }
 
         return false;
