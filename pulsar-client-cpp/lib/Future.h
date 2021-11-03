@@ -19,7 +19,6 @@
 #ifndef LIB_FUTURE_H_
 #define LIB_FUTURE_H_
 
-#include <atomic>
 #include <functional>
 #include <mutex>
 #include <memory>
@@ -32,116 +31,55 @@ typedef std::unique_lock<std::mutex> Lock;
 namespace pulsar {
 
 template <typename Result, typename Type>
-class InternalState {
-   public:
-    using ListenerCallback = std::function<void(Result, const Type&)>;
+struct InternalState {
+    std::mutex mutex;
+    std::condition_variable condition;
+    Result result;
+    Type value;
+    bool complete;
 
-    // There's a bug about the defaulted default constructor for GCC < 4.9.1, so we cannot use
-    // `InternalState() = default` here.
-    InternalState() {}
-    InternalState(const InternalState&) = delete;
-    InternalState& operator=(const InternalState&) = delete;
-
-    static Result defaultResult() {
-        static Result result;
-        return result;
-    }
-
-    static Type defaultValue() {
-        static Type value;
-        return value;
-    }
-
-    bool completed() const noexcept { return completed_; }
-
-    void addListener(const ListenerCallback& callback) {
-        Lock lock(mutex_);
-        if (completed_) {
-            const auto result = result_;
-            const auto value = value_;
-            lock.unlock();
-            callback(result, value);
-        } else {
-            listeners_.emplace_back(callback);
-        }
-    }
-
-    Result wait(Type& value) {
-        Lock lock(mutex_);
-        while (!completed_) {
-            condition_.wait(lock);
-        }
-        value = value_;
-        return result_;
-    }
-
-    bool complete(const Type& value) {
-        if (completed_) {
-            return false;
-        }
-
-        Lock lock(mutex_);
-        value_ = value;
-        completed_ = true;
-        auto listeners = std::move(listeners_);
-        lock.unlock();
-
-        for (auto& callback : listeners) {
-            callback(defaultResult(), value);
-        }
-        condition_.notify_all();
-        return true;
-    }
-
-    bool completeExceptionally(Result result) {
-        if (completed_) {
-            return false;
-        }
-
-        Lock lock(mutex_);
-        result_ = result;
-        completed_ = true;
-        auto listeners = std::move(listeners_);
-        lock.unlock();
-
-        for (auto& callback : listeners) {
-            callback(result, defaultValue());
-        }
-        condition_.notify_all();
-        return true;
-    }
-
-   private:
-    mutable std::mutex mutex_;
-    mutable std::condition_variable condition_;
-    Result result_;
-    Type value_;
-    std::atomic_bool completed_{false};
-
-    std::list<ListenerCallback> listeners_;
+    std::list<typename std::function<void(Result, const Type&)> > listeners;
 };
 
 template <typename Result, typename Type>
 class Future {
    public:
-    using InternalStateType = InternalState<Result, Type>;
-    using InternalStatePtr = std::shared_ptr<InternalStateType>;
-    using ListenerCallback = typename InternalStateType::ListenerCallback;
+    typedef std::function<void(Result, const Type&)> ListenerCallback;
 
-    Future(const Future&) = default;
-    Future& operator=(const Future&) = default;
+    Future& addListener(ListenerCallback callback) {
+        InternalState<Result, Type>* state = state_.get();
+        Lock lock(state->mutex);
 
-    Future& addListener(const ListenerCallback& callback) {
-        state_->addListener(callback);
+        if (state->complete) {
+            lock.unlock();
+            callback(state->result, state->value);
+        } else {
+            state->listeners.push_back(callback);
+        }
+
         return *this;
     }
 
-    Result get(Type& result) { return state_->wait(result); }
+    Result get(Type& result) {
+        InternalState<Result, Type>* state = state_.get();
+        Lock lock(state->mutex);
+
+        if (!state->complete) {
+            // Wait for result
+            while (!state->complete) {
+                state->condition.wait(lock);
+            }
+        }
+
+        result = state->value;
+        return state->result;
+    }
 
    private:
+    typedef std::shared_ptr<InternalState<Result, Type> > InternalStatePtr;
     Future(InternalStatePtr state) : state_(state) {}
 
-    InternalStatePtr state_;
+    std::shared_ptr<InternalState<Result, Type> > state_;
 
     template <typename U, typename V>
     friend class Promise;
@@ -150,20 +88,69 @@ class Future {
 template <typename Result, typename Type>
 class Promise {
    public:
-    using FutureType = Future<Result, Type>;
-    using InternalStateType = typename FutureType::InternalStateType;
-    using InternalStatePtr = typename FutureType::InternalStatePtr;
+    Promise() : state_(std::make_shared<InternalState<Result, Type> >()) {}
 
-    bool setValue(const Type& value) const { return state_->complete(value); }
+    bool setValue(const Type& value) const {
+        static Result DEFAULT_RESULT;
+        InternalState<Result, Type>* state = state_.get();
+        Lock lock(state->mutex);
 
-    bool setFailed(Result result) const { return state_->completeExceptionally(result); }
+        if (state->complete) {
+            return false;
+        }
 
-    bool isComplete() const { return state_->completed(); }
+        state->value = value;
+        state->result = DEFAULT_RESULT;
+        state->complete = true;
 
-    FutureType getFuture() const { return state_; }
+        const auto listeners = std::move(state->listeners);
+
+        lock.unlock();
+
+        for (auto& callback : listeners) {
+            callback(DEFAULT_RESULT, value);
+        }
+
+        state->listeners.clear();
+        state->condition.notify_all();
+        return true;
+    }
+
+    bool setFailed(Result result) const {
+        static Type DEFAULT_VALUE;
+        InternalState<Result, Type>* state = state_.get();
+        Lock lock(state->mutex);
+
+        if (state->complete) {
+            return false;
+        }
+
+        state->result = result;
+        state->complete = true;
+
+        const auto listeners = std::move(state->listeners);
+
+        lock.unlock();
+
+        for (auto& callback : listeners) {
+            callback(result, DEFAULT_VALUE);
+        }
+
+        state->condition.notify_all();
+        return true;
+    }
+
+    bool isComplete() const {
+        InternalState<Result, Type>* state = state_.get();
+        Lock lock(state->mutex);
+        return state->complete;
+    }
+
+    Future<Result, Type> getFuture() const { return Future<Result, Type>(state_); }
 
    private:
-    InternalStatePtr state_{std::make_shared<InternalStateType>()};
+    typedef std::function<void(Result, const Type&)> ListenerCallback;
+    std::shared_ptr<InternalState<Result, Type> > state_;
 };
 
 class Void {};
