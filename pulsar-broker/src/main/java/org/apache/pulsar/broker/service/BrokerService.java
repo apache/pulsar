@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -96,7 +97,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -1022,7 +1022,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
         // Check whether there are auth policies for the topic
         pulsar.getPulsarResources().getNamespaceResources()
-            .getAsync(namespaceName.toString()).thenAccept(optPolicies -> {
+            .getAsync(path(POLICIES, namespaceName.toString())).thenAccept(optPolicies -> {
             if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
                     .containsKey(topic)) {
                 // if there is no auth policy for the topic, just complete and return
@@ -1033,7 +1033,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 return;
             }
             pulsar.getPulsarResources().getNamespaceResources()
-                    .setAsync(TopicName.get(topic).getNamespace(), p -> {
+                    .setAsync(path(POLICIES, TopicName.get(topic).getNamespace()), p -> {
                         p.auth_policies.getTopicAuthentication().remove(topic);
                         return p;
                     }).thenAccept(v -> {
@@ -1106,7 +1106,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         return replicationClients.computeIfAbsent(cluster, key -> {
             try {
-                String path = PulsarWebResource.path("clusters", cluster);
+                String path = path("clusters", cluster);
                 ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
                 ClientBuilder clientBuilder = PulsarClient.builder()
@@ -1181,7 +1181,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         return clusterAdmins.computeIfAbsent(cluster, key -> {
             try {
-                String path = PulsarWebResource.path("clusters", cluster);
+                String path = path("clusters", cluster);
                 ClusterDataImpl data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
 
@@ -1408,7 +1408,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             try {
                 policies = pulsar
-                        .getConfigurationCache().policiesCache().get(AdminResource.path(POLICIES,
+                        .getConfigurationCache().policiesCache().get(path(POLICIES,
                                 namespace.toString()));
                 String path = joinPath(LOCAL_POLICIES_ROOT, topicName.getNamespaceObject().toString());
                 localPolicies = pulsar().getLocalZkCacheService().policiesCache().get(path);
@@ -2629,7 +2629,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
         try {
             Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+                .get(path(POLICIES, topicName.getNamespace()));
 
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
@@ -2663,7 +2663,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
         try {
             Optional<Policies> policies = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()));
+                    .get(path(POLICIES, topicName.getNamespace()));
             // If namespace policies have the field set, it will override the broker-level setting
             if (policies.isPresent() && policies.get().autoSubscriptionCreationOverride != null) {
                 return policies.get().autoSubscriptionCreationOverride;
@@ -2703,7 +2703,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         Integer maxTopicsPerNamespace;
         try {
             maxTopicsPerNamespace = pulsar.getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, topicName.getNamespace()))
+                    .get(path(POLICIES, topicName.getNamespace()))
                     .map(p -> p.max_topics_per_namespace)
                     .orElse(null);
 

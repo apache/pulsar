@@ -369,9 +369,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().delete(topic);
 
         Awaitility.await().untilAsserted(() -> {
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().get(PulsarWebResource.path("policies",
+            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getAsync(PulsarWebResource.path("policies",
                 NamespaceName.get("p1/ns1").toString()))
-                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+                    .get().get().auth_policies.getTopicAuthentication().containsKey(topic));
         });
 
         // test for partitioned topic

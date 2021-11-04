@@ -589,7 +589,7 @@ public class PersistentTopicsBase extends AdminResource {
                 // delete authentication policies of the partitioned topic
                 CompletableFuture<Void> deleteAuthFuture = new CompletableFuture<>();
                 pulsar().getPulsarResources().getNamespaceResources()
-                    .setAsync(topicName.getNamespace(), p -> {
+                    .setAsync(path(POLICIES, topicName.getNamespace()), p -> {
                         for (int i = 0; i < numPartitions; ++i) {
                             p.auth_policies.getTopicAuthentication().remove(topicName.getPartition(i).toString());
                         }
