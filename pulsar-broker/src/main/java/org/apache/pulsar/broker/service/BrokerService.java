@@ -1021,7 +1021,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
         // Check whether there are auth policies for the topic
-        pulsar.getPulsarResources().getNamespaceResources().getAsync(namespaceName.toString()).thenAccept(optPolicies -> {
+        pulsar.getPulsarResources().getNamespaceResources()
+            .getAsync(namespaceName.toString()).thenAccept(optPolicies -> {
             if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
                     .containsKey(topic)) {
                 // if there is no auth policy for the topic, just complete and return
