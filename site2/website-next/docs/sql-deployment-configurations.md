@@ -48,9 +48,11 @@ pulsar.stats-provider=org.apache.bookkeeper.stats.NullStatsProvider
 # config in map format for stats provider e.g. {"key1":"val1","key2":"val2"}
 pulsar.stats-provider-configs={}
 
+# whether to rewrite Pulsar's default topic delimiter '/'
+pulsar.namespace-delimiter-rewrite-enable=false
+
 # delimiter used to rewrite Pulsar's default delimiter '/', use if default is causing incompatibility with other system like Superset
 pulsar.rewrite-namespace-delimiter=“/”
-pulsar.namespace-delimiter-rewrite-enable=false
 
 # maximum number of thread pool size for ledger offloader.
 pulsar.managed-ledger-offload-max-threads=2
@@ -116,8 +118,9 @@ pulsar.zookeeper-uri=localhost1,localhost2:2181
 ```
 
 A frequently asked question is why my latest message not showing up when querying with Pulsar SQL.
-It's not a bug but controlled by a setting, by default bk LAC only advanced when subsequent entries are added.
+It's not a bug but controlled by a setting, by default BookKeeper LAC only advanced when subsequent entries are added.
 If there is no subsequent entries added, the last entry written will not be visible to readers until the ledger is closed.
+This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly read from BookKeeper ledger.
 We can add following setting to change the behavior:
 In Broker config, set
 bookkeeperExplicitLacIntervalInMills > 0
