@@ -27,6 +27,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -95,10 +96,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the bundle name", required = false)
+            @QueryParam("bundle") String bundle) {
         try {
             validateNamespaceName(tenant, namespace);
-            asyncResponse.resume(internalGetList());
+            asyncResponse.resume(internalGetList(Optional.ofNullable(bundle)));
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
