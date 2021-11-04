@@ -299,7 +299,7 @@ public class FunctionMetaDataManagerTest {
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
 
         doReturn(true).when(functionMetaDataManager).processUpdate(any(Function.FunctionMetaData.class));
-        doReturn(true).when(functionMetaDataManager).proccessDeregister(any(Function.FunctionMetaData.class));
+        doReturn(true).when(functionMetaDataManager).processDeregister(any(Function.FunctionMetaData.class));
 
         Request.ServiceRequest serviceRequest
                 = Request.ServiceRequest.newBuilder().setServiceRequestType(
@@ -324,9 +324,9 @@ public class FunctionMetaDataManagerTest {
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);
 
-        verify(functionMetaDataManager, times(1)).proccessDeregister(
+        verify(functionMetaDataManager, times(1)).processDeregister(
                 any(Function.FunctionMetaData.class));
-        verify(functionMetaDataManager).proccessDeregister(serviceRequest.getFunctionMetaData());
+        verify(functionMetaDataManager).processDeregister(serviceRequest.getFunctionMetaData());
     }
 
     @Test
@@ -393,7 +393,7 @@ public class FunctionMetaDataManagerTest {
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).build();
 
-        Assert.assertFalse(functionMetaDataManager.proccessDeregister(m1));
+        Assert.assertFalse(functionMetaDataManager.processDeregister(m1));
         verify(functionMetaDataManager, times(0))
                 .setFunctionMetaData(any(Function.FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
@@ -411,7 +411,7 @@ public class FunctionMetaDataManagerTest {
 
         // outdated delete request
         try {
-            functionMetaDataManager.proccessDeregister(m1);
+            functionMetaDataManager.processDeregister(m1);
             Assert.assertTrue(false);
         } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "Delete request ignored because it is out of date. Please try again.");
@@ -426,7 +426,7 @@ public class FunctionMetaDataManagerTest {
 
         // delete now
         m1 = m1.toBuilder().setVersion(2).build();
-        Assert.assertTrue(functionMetaDataManager.proccessDeregister(m1));
+        Assert.assertTrue(functionMetaDataManager.processDeregister(m1));
         verify(functionMetaDataManager, times(1))
                 .setFunctionMetaData(any(Function.FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
