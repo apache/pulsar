@@ -45,16 +45,16 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
         cleanup();
     }
 
-    @Test(timeOut = 120000, dataProvider = "TopicDomain")
+    @Test(timeOut = 600000, dataProvider = "TopicDomain")
     public void testTopicReplication(String domain) throws Exception {
 
         PulsarAdmin admin = PulsarAdmin.builder()
                 .serviceHttpUrl(getGeoCluster().getClusters()[0].getHttpServiceUrl())
-                .requestTimeout(5, TimeUnit.SECONDS)
+                .requestTimeout(30, TimeUnit.SECONDS)
                 .build();
 
         String[] topics = new String[1];
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(150, TimeUnit.SECONDS).untilAsserted(() -> {
             String topic = domain + "://public/default/testNonPersistentTopicReplication-" + UUID.randomUUID();
             try {
                 admin.topics().createPartitionedTopic(topic, 10);
