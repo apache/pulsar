@@ -290,6 +290,7 @@ public class SinkConfigUtils {
         // Set subscription position
         sinkConfig.setSourceSubscriptionPosition(
                 convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
+        sinkConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
 
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
