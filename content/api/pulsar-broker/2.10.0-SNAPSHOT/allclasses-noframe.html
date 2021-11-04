@@ -119,7 +119,6 @@
 <li><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a></li>
 <li><a href="org/apache/pulsar/broker/service/persistent/DispatchRateLimiter.Type.html" title="enum in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter.Type</a></li>
 <li><a href="org/apache/pulsar/broker/service/DistributedIdGenerator.html" title="class in org.apache.pulsar.broker.service">DistributedIdGenerator</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">EndOfTransactionException</a></li>
 <li><a href="org/apache/pulsar/broker/service/EntryBatchIndexesAcks.html" title="class in org.apache.pulsar.broker.service">EntryBatchIndexesAcks</a></li>
 <li><a href="org/apache/pulsar/broker/service/EntryBatchSizes.html" title="class in org.apache.pulsar.broker.service">EntryBatchSizes</a></li>
 <li><a href="org/apache/pulsar/broker/service/EntryWrapper.html" title="class in org.apache.pulsar.broker.service">EntryWrapper</a></li>
@@ -213,7 +212,6 @@
 <li><a href="org/apache/pulsar/broker/admin/v2/NonPersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">NonPersistentTopics</a></li>
 <li><a href="org/apache/pulsar/broker/loadbalance/NoopLoadManager.html" title="class in org.apache.pulsar.broker.loadbalance">NoopLoadManager</a></li>
 <li><a href="org/apache/pulsar/broker/web/NoSwaggerDocumentation.html" title="annotation in org.apache.pulsar.broker.web">NoSwaggerDocumentation</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/NoTxnsCommittedAtLedgerException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">NoTxnsCommittedAtLedgerException</a></li>
 <li><a href="org/apache/pulsar/broker/stats/prometheus/metrics/ObserverGauge.html" title="class in org.apache.pulsar.broker.stats.prometheus.metrics">ObserverGauge</a></li>
 <li><a href="org/apache/pulsar/broker/stats/prometheus/metrics/ObserverGauge.Builder.html" title="class in org.apache.pulsar.broker.stats.prometheus.metrics">ObserverGauge.Builder</a></li>
 <li><a href="org/apache/pulsar/broker/loadbalance/impl/OverloadShedder.html" title="class in org.apache.pulsar.broker.loadbalance.impl">OverloadShedder</a></li>
@@ -440,33 +438,36 @@
 <li><a href="org/apache/pulsar/broker/transaction/buffer/TransactionBuffer.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="interfaceName">TransactionBuffer</span></a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferClientImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionBufferClientImpl</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferDisable.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionBufferDisable</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionBufferException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException.EndOfTransactionException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException.TransactionNotFoundException</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferHandlerImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionBufferHandlerImpl</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/TransactionBufferProvider.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="interfaceName">TransactionBufferProvider</span></a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferProviderException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionBufferProviderException</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/TransactionBufferReader.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="interfaceName">TransactionBufferReader</span></a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/matadata/TransactionBufferSnapshot.html" title="class in org.apache.pulsar.broker.transaction.buffer.matadata">TransactionBufferSnapshot</a></li>
 <li><a href="org/apache/pulsar/broker/service/TransactionBufferSnapshotService.html" title="interface in org.apache.pulsar.broker.service"><span class="interfaceName">TransactionBufferSnapshotService</span></a></li>
 <li><a href="org/apache/pulsar/broker/systopic/TransactionBufferSystemTopicClient.html" title="class in org.apache.pulsar.broker.systopic">TransactionBufferSystemTopicClient</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator">TransactionCoordinatorException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator">TransactionCoordinatorException.UnsupportedTxnActionException</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/TransactionCursor.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="interfaceName">TransactionCursor</span></a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/TransactionEntry.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="interfaceName">TransactionEntry</span></a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionEntryImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionEntryImpl</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionNotSealedException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionSealedException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionStatusException</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/TransactionMeta.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="interfaceName">TransactionMeta</span></a></li>
 <li><a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html" title="class in org.apache.pulsar.broker">TransactionMetadataStoreService</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionNotFoundException</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionNotSealedException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack">TransactionPendingAckException</a></li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack">TransactionPendingAckException.TransactionPendingAckStoreProviderException</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/pendingack/TransactionPendingAckStoreProvider.html" title="interface in org.apache.pulsar.broker.transaction.pendingack"><span class="interfaceName">TransactionPendingAckStoreProvider</span></a></li>
-<li><a href="org/apache/pulsar/broker/transaction/pendingack/exceptions/TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.pendingack.exceptions">TransactionPendingAckStoreProviderException</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/recover/TransactionRecoverTrackerImpl.html" title="class in org.apache.pulsar.broker.transaction.recover">TransactionRecoverTrackerImpl</a></li>
 <li><a href="org/apache/pulsar/broker/admin/v3/Transactions.html" title="class in org.apache.pulsar.broker.admin.v3">Transactions</a></li>
 <li><a href="org/apache/pulsar/broker/admin/impl/TransactionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">TransactionsBase</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionSealedException</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionStatusException</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/timeout/TransactionTimeoutTrackerFactoryImpl.html" title="class in org.apache.pulsar.broker.transaction.timeout">TransactionTimeoutTrackerFactoryImpl</a></li>
 <li><a href="org/apache/pulsar/broker/transaction/timeout/TransactionTimeoutTrackerImpl.html" title="class in org.apache.pulsar.broker.transaction.timeout">TransactionTimeoutTrackerImpl</a></li>
 <li><a href="org/apache/pulsar/broker/service/TransportCnx.html" title="interface in org.apache.pulsar.broker.service"><span class="interfaceName">TransportCnx</span></a></li>
 <li><a href="org/apache/pulsar/compaction/TwoPhaseCompactor.html" title="class in org.apache.pulsar.compaction">TwoPhaseCompactor</a></li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">UnsupportedTxnActionException</a></li>
 <li><a href="org/apache/pulsar/broker/web/WebService.html" title="class in org.apache.pulsar.broker.web">WebService</a></li>
 <li><a href="org/apache/pulsar/broker/admin/v2/Worker.html" title="class in org.apache.pulsar.broker.admin.v2">Worker</a></li>
 <li><a href="org/apache/pulsar/broker/admin/v2/WorkerStats.html" title="class in org.apache.pulsar.broker.admin.v2">WorkerStats</a></li>

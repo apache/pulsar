@@ -109,9 +109,12 @@
 <li><a href="org/apache/pulsar/broker/systopic/package-tree.html">org.apache.pulsar.broker.systopic</a>, </li>
 <li><a href="org/apache/pulsar/broker/tools/package-tree.html">org.apache.pulsar.broker.tools</a>, </li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/package-tree.html">org.apache.pulsar.broker.transaction.buffer</a>, </li>
-<li><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-tree.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a>, </li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/impl/package-tree.html">org.apache.pulsar.broker.transaction.buffer.impl</a>, </li>
 <li><a href="org/apache/pulsar/broker/transaction/buffer/matadata/package-tree.html">org.apache.pulsar.broker.transaction.buffer.matadata</a>, </li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/package-tree.html">org.apache.pulsar.broker.transaction.exception</a>, </li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/buffer/package-tree.html">org.apache.pulsar.broker.transaction.exception.buffer</a>, </li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/coordinator/package-tree.html">org.apache.pulsar.broker.transaction.exception.coordinator</a>, </li>
+<li><a href="org/apache/pulsar/broker/transaction/exception/pendingack/package-tree.html">org.apache.pulsar.broker.transaction.exception.pendingack</a>, </li>
 <li><a href="org/apache/pulsar/broker/transaction/pendingack/package-tree.html">org.apache.pulsar.broker.transaction.pendingack</a>, </li>
 <li><a href="org/apache/pulsar/broker/transaction/pendingack/exceptions/package-tree.html">org.apache.pulsar.broker.transaction.pendingack.exceptions</a>, </li>
 <li><a href="org/apache/pulsar/broker/transaction/pendingack/impl/package-tree.html">org.apache.pulsar.broker.transaction.pendingack.impl</a>, </li>
@@ -717,17 +720,29 @@
 </li>
 </ul>
 </li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionBufferException</span></a>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException</span></a>
 <ul>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">EndOfTransactionException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/NoTxnsCommittedAtLedgerException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">NoTxnsCommittedAtLedgerException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferProviderException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionBufferProviderException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionNotFoundException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionNotSealedException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.pendingack.exceptions.<a href="org/apache/pulsar/broker/transaction/pendingack/exceptions/TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.pendingack.exceptions"><span class="typeNameLink">TransactionPendingAckStoreProviderException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionSealedException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionStatusException</span></a></li>
-<li type="circle">org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">UnsupportedTxnActionException</span></a></li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException</span></a>
+<ul>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.EndOfTransactionException</span></a></li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.NoTxnsCommittedAtLedgerException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.NoTxnsCommittedAtLedgerException</span></a></li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionBufferProviderException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.TransactionBufferProviderException</span></a></li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.TransactionNotFoundException</span></a></li>
+</ul>
+</li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.coordinator.<a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator"><span class="typeNameLink">TransactionCoordinatorException</span></a>
+<ul>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.coordinator.<a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator"><span class="typeNameLink">TransactionCoordinatorException.UnsupportedTxnActionException</span></a></li>
+</ul>
+</li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException.TransactionNotSealedException</span></a></li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException.TransactionSealedException</span></a></li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException.TransactionStatusException</span></a></li>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.pendingack.<a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack"><span class="typeNameLink">TransactionPendingAckException</span></a>
+<ul>
+<li type="circle">org.apache.pulsar.broker.transaction.exception.pendingack.<a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack"><span class="typeNameLink">TransactionPendingAckException.TransactionPendingAckStoreProviderException</span></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

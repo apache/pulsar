@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":9,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":9,"i16":10,"i17":9,"i18":10,"i19":9,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":9,"i27":10,"i28":10,"i29":9,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10};
+var methods = {"i0":10,"i1":10,"i2":9,"i3":9,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":9,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":9,"i16":10,"i17":9,"i18":10,"i19":9,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":9,"i27":10,"i28":10,"i29":9,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -399,44 +399,51 @@ extends <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Object.html
                                 org.apache.pulsar.common.policies.data.PolicyOperation&nbsp;operation)</code>&nbsp;</td>
 </tr>
 <tr id="i43" class="rowColor">
+<td class="colFirst"><code>protected void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validatePeerClusterConflict-java.lang.String-java.util.Set-">validatePeerClusterConflict</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;clusterName,
+                           <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;replicationClusters)</code>
+<div class="block">It validates that peer-clusters can't coexist in replication-clusters.</div>
+</td>
+</tr>
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validatePoliciesReadOnlyAccess--">validatePoliciesReadOnlyAccess</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validateSuperUserAccess--">validateSuperUserAccess</a></span>()</code>
 <div class="block">Checks whether the user has Pulsar Super-User access to the system.</div>
 </td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validateTenantOperation-java.lang.String-org.apache.pulsar.common.policies.data.TenantOperation-">validateTenantOperation</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;tenant,
                        org.apache.pulsar.common.policies.data.TenantOperation&nbsp;operation)</code>&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validateTopicOperation-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.common.policies.data.TopicOperation-">validateTopicOperation</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation)</code>&nbsp;</td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validateTopicOperation-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.common.policies.data.TopicOperation-java.lang.String-">validateTopicOperation</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       org.apache.pulsar.common.policies.data.TopicOperation&nbsp;operation,
                       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscription)</code>&nbsp;</td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validateTopicOwnership-org.apache.pulsar.common.naming.TopicName-boolean-">validateTopicOwnership</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                       boolean&nbsp;authoritative)</code>
 <div class="block">Checks whether the broker is the owner of the namespace.</div>
 </td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validateTopicOwnershipAsync-org.apache.pulsar.common.naming.TopicName-boolean-">validateTopicOwnershipAsync</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                            boolean&nbsp;authoritative)</code>&nbsp;</td>
 </tr>
-<tr id="i50" class="altColor">
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/web/PulsarWebResource.html#validateTopicPolicyOperation-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.common.policies.data.PolicyName-org.apache.pulsar.common.policies.data.PolicyOperation-">validateTopicPolicyOperation</a></span>(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                             org.apache.pulsar.common.policies.data.PolicyName&nbsp;policy,
@@ -665,6 +672,17 @@ protected&nbsp;javax.ws.rs.core.UriInfo uri</pre>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Exception.html?is-external=true" title="class or interface in java.lang">Exception</a></code></dd>
 </dl>
+</li>
+</ul>
+<a name="validatePeerClusterConflict-java.lang.String-java.util.Set-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>validatePeerClusterConflict</h4>
+<pre>protected&nbsp;void&nbsp;validatePeerClusterConflict(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;clusterName,
+                                           <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Set.html?is-external=true" title="class or interface in java.util">Set</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;&nbsp;replicationClusters)</pre>
+<div class="block">It validates that peer-clusters can't coexist in replication-clusters.</div>
 </li>
 </ul>
 <a name="validateClusterForTenant-java.lang.String-java.lang.String-">

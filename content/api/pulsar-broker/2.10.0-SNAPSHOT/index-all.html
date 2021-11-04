@@ -123,7 +123,7 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">AbstractDispatcherSingleActiveConsumer</span></a> - Class in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#AbstractDispatcherSingleActiveConsumer-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-org.apache.pulsar.broker.service.Subscription-org.apache.pulsar.broker.ServiceConfiguration-">AbstractDispatcherSingleActiveConsumer(CommandSubscribe.SubType, int, String, Subscription, ServiceConfiguration)</a></span> - Constructor for class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service">AbstractDispatcherSingleActiveConsumer</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#AbstractDispatcherSingleActiveConsumer-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-org.apache.pulsar.broker.service.Subscription-org.apache.pulsar.broker.ServiceConfiguration-org.apache.bookkeeper.mledger.ManagedCursor-">AbstractDispatcherSingleActiveConsumer(CommandSubscribe.SubType, int, String, Subscription, ServiceConfiguration, ManagedCursor)</a></span> - Constructor for class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service">AbstractDispatcherSingleActiveConsumer</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/AbstractReplicator.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">AbstractReplicator</span></a> - Class in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>&nbsp;</dd>
@@ -2206,9 +2206,9 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#currentUsageCount--">currentUsageCount()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#cursor">cursor</a></span> - Variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#cursor">cursor</a></span> - Variable in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service">AbstractDispatcherSingleActiveConsumer</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherSingleActiveConsumer.html#cursor">cursor</a></span> - Variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherSingleActiveConsumer.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherSingleActiveConsumer</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#cursor">cursor</a></span> - Variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentReplicator.html#cursor">cursor</a></span> - Variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentReplicator.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentReplicator</a></dt>
 <dd>&nbsp;</dd>
@@ -2751,11 +2751,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/utils/StatsOutputStream.html#endObject--">endObject()</a></span> - Method in class org.apache.pulsar.utils.<a href="org/apache/pulsar/utils/StatsOutputStream.html" title="class in org.apache.pulsar.utils">StatsOutputStream</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">EndOfTransactionException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Exception thrown when reaching end of a transaction.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/EndOfTransactionException.html#EndOfTransactionException-java.lang.String-">EndOfTransactionException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">EndOfTransactionException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.EndOfTransactionException.html#EndOfTransactionException-java.lang.String-">EndOfTransactionException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException.EndOfTransactionException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html#endTransaction-org.apache.pulsar.client.api.transaction.TxnID-int-boolean-">endTransaction(TxnID, int, boolean)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html" title="class in org.apache.pulsar.broker">TransactionMetadataStoreService</a></dt>
 <dd>&nbsp;</dd>
@@ -4899,6 +4895,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getReplicationClients--">getReplicationClients()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#getReplicationClusters-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-">getReplicationClusters(AsyncResponse, String, String, String, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#getReplicationClusters-org.apache.pulsar.common.naming.TopicName-">getReplicationClusters(TopicName)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/Namespaces.html#getReplicatorDispatchRate-java.lang.String-java.lang.String-java.lang.String-">getReplicatorDispatchRate(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v1">Namespaces</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#getReplicatorDispatchRate-java.lang.String-java.lang.String-">getReplicatorDispatchRate(String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
@@ -6793,6 +6793,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemovePublishRate--">internalRemovePublishRate()</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveReplicationClusters--">internalRemoveReplicationClusters()</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html#internalRemoveReplicatorDispatchRate--">internalRemoveReplicatorDispatchRate()</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalRemoveRetention--">internalRemoveRetention()</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
@@ -6906,6 +6908,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetPublishRate-org.apache.pulsar.common.policies.data.PublishRate-">internalSetPublishRate(PublishRate)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetReplicatedSubscriptionStatus-javax.ws.rs.container.AsyncResponse-java.lang.String-boolean-boolean-">internalSetReplicatedSubscriptionStatus(AsyncResponse, String, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalSetReplicationClusters-java.util.List-">internalSetReplicationClusters(List&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html#internalSetReplicatorDispatchRate-org.apache.pulsar.common.policies.data.impl.DispatchRateImpl-">internalSetReplicatorDispatchRate(DispatchRateImpl)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/NamespacesBase.html" title="class in org.apache.pulsar.broker.admin.impl">NamespacesBase</a></dt>
 <dd>&nbsp;</dd>
@@ -8293,11 +8297,7 @@
 <dd>
 <div class="block">Notify dispatcher to inform consumers reached end of topic.</div>
 </dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/NoTxnsCommittedAtLedgerException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">NoTxnsCommittedAtLedgerException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Exception is thrown when no transactions found committed at a given ledger.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/NoTxnsCommittedAtLedgerException.html#NoTxnsCommittedAtLedgerException-java.lang.String-">NoTxnsCommittedAtLedgerException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/NoTxnsCommittedAtLedgerException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">NoTxnsCommittedAtLedgerException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.NoTxnsCommittedAtLedgerException.html#NoTxnsCommittedAtLedgerException-java.lang.String-">NoTxnsCommittedAtLedgerException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.NoTxnsCommittedAtLedgerException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException.NoTxnsCommittedAtLedgerException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html#NUM_LONG_SAMPLES">NUM_LONG_SAMPLES</a></span> - Static variable in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html" title="class in org.apache.pulsar.broker.loadbalance.impl">ModularLoadManagerImpl</a></dt>
 <dd>&nbsp;</dd>
@@ -8597,10 +8597,6 @@
 <dd>
 <div class="block">Implementation of a transaction buffer.</div>
 </dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a> - package org.apache.pulsar.broker.transaction.buffer.exceptions</dt>
-<dd>
-<div class="block">Exceptions thrown when encountering errors in transaction buffer.</div>
-</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/buffer/impl/package-summary.html">org.apache.pulsar.broker.transaction.buffer.impl</a> - package org.apache.pulsar.broker.transaction.buffer.impl</dt>
 <dd>
 <div class="block">The implementation of a transaction buffer.</div>
@@ -8608,6 +8604,22 @@
 <dt><a href="org/apache/pulsar/broker/transaction/buffer/matadata/package-summary.html">org.apache.pulsar.broker.transaction.buffer.matadata</a> - package org.apache.pulsar.broker.transaction.buffer.matadata</dt>
 <dd>
 <div class="block">The transaction buffer snapshot metadata.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/package-summary.html">org.apache.pulsar.broker.transaction.exception</a> - package org.apache.pulsar.broker.transaction.exception</dt>
+<dd>
+<div class="block">Exceptions thrown when encountering errors in transaction buffer.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/buffer/package-summary.html">org.apache.pulsar.broker.transaction.exception.buffer</a> - package org.apache.pulsar.broker.transaction.exception.buffer</dt>
+<dd>
+<div class="block">Exceptions thrown when encountering errors in transaction buffer.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/coordinator/package-summary.html">org.apache.pulsar.broker.transaction.exception.coordinator</a> - package org.apache.pulsar.broker.transaction.exception.coordinator</dt>
+<dd>
+<div class="block">Exceptions thrown when encountering errors in transaction buffer.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/pendingack/package-summary.html">org.apache.pulsar.broker.transaction.exception.pendingack</a> - package org.apache.pulsar.broker.transaction.exception.pendingack</dt>
+<dd>
+<div class="block">Exceptions thrown when encountering errors in transaction buffer.</div>
 </dd>
 <dt><a href="org/apache/pulsar/broker/transaction/pendingack/package-summary.html">org.apache.pulsar.broker.transaction.pendingack</a> - package org.apache.pulsar.broker.transaction.pendingack</dt>
 <dd>
@@ -9982,6 +9994,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/systopic/TransactionBufferSystemTopicClient.html#removeReader-org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient.TransactionBufferSnapshotReader-">removeReader(TransactionBufferSystemTopicClient.TransactionBufferSnapshotReader)</a></span> - Method in class org.apache.pulsar.broker.systopic.<a href="org/apache/pulsar/broker/systopic/TransactionBufferSystemTopicClient.html" title="class in org.apache.pulsar.broker.systopic">TransactionBufferSystemTopicClient</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#removeReplicationClusters-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType-boolean-">removeReplicationClusters(AsyncResponse, String, String, String, BacklogQuota.BacklogQuotaType, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#removeReplicatorDispatchRate-java.lang.String-java.lang.String-">removeReplicatorDispatchRate(String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#removeReplicatorDispatchRate-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-boolean-">removeReplicatorDispatchRate(AsyncResponse, String, String, String, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
@@ -11136,6 +11150,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#setReplicatedSubscriptionStatus-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-boolean-">setReplicatedSubscriptionStatus(AsyncResponse, String, String, String, String, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#setReplicationClusters-javax.ws.rs.container.AsyncResponse-java.lang.String-java.lang.String-java.lang.String-boolean-java.util.List-">setReplicationClusters(AsyncResponse, String, String, String, boolean, List&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/Namespaces.html#setReplicatorDispatchRate-java.lang.String-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.impl.DispatchRateImpl-">setReplicatorDispatchRate(String, String, String, DispatchRateImpl)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v1">Namespaces</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setReplicatorDispatchRate-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.impl.DispatchRateImpl-">setReplicatorDispatchRate(String, String, DispatchRateImpl)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
@@ -12015,16 +12031,32 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferDisable.html#TransactionBufferDisable--">TransactionBufferDisable()</a></span> - Constructor for class org.apache.pulsar.broker.transaction.buffer.impl.<a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferDisable.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionBufferDisable</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionBufferException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/buffer/package-summary.html">org.apache.pulsar.broker.transaction.exception.buffer</a></dt>
 <dd>
 <div class="block">The base exception class for the errors thrown from Transaction Buffer.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html#TransactionBufferException-java.lang.String-">TransactionBufferException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionBufferException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html#TransactionBufferException-java.lang.String-">TransactionBufferException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html#TransactionBufferException-java.lang.String-java.lang.Throwable-">TransactionBufferException(String, Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionBufferException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html#TransactionBufferException-java.lang.String-java.lang.Throwable-">TransactionBufferException(String, Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html#TransactionBufferException-java.lang.Throwable-">TransactionBufferException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionBufferException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html#TransactionBufferException-java.lang.Throwable-">TransactionBufferException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.EndOfTransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.EndOfTransactionException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/buffer/package-summary.html">org.apache.pulsar.broker.transaction.exception.buffer</a></dt>
+<dd>
+<div class="block">Exception thrown when reaching end of a transaction.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.NoTxnsCommittedAtLedgerException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.NoTxnsCommittedAtLedgerException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/buffer/package-summary.html">org.apache.pulsar.broker.transaction.exception.buffer</a></dt>
+<dd>
+<div class="block">Exception is thrown when no transactions found committed at a given ledger.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionBufferProviderException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.TransactionBufferProviderException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/buffer/package-summary.html">org.apache.pulsar.broker.transaction.exception.buffer</a></dt>
+<dd>
+<div class="block">Transaction buffer provider exception.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer"><span class="typeNameLink">TransactionBufferException.TransactionNotFoundException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/buffer/package-summary.html">org.apache.pulsar.broker.transaction.exception.buffer</a></dt>
+<dd>
+<div class="block">Exception is thrown when the transaction is not found in the transaction buffer.</div>
+</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferHandlerImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl"><span class="typeNameLink">TransactionBufferHandlerImpl</span></a> - Class in <a href="org/apache/pulsar/broker/transaction/buffer/impl/package-summary.html">org.apache.pulsar.broker.transaction.buffer.impl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferHandlerImpl.html#TransactionBufferHandlerImpl-org.apache.pulsar.client.api.PulsarClient-io.netty.util.HashedWheelTimer-">TransactionBufferHandlerImpl(PulsarClient, HashedWheelTimer)</a></span> - Constructor for class org.apache.pulsar.broker.transaction.buffer.impl.<a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionBufferHandlerImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionBufferHandlerImpl</a></dt>
@@ -12033,11 +12065,7 @@
 <dd>
 <div class="block">A provider that provides <a href="org/apache/pulsar/broker/transaction/buffer/TransactionBuffer.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><code>TransactionBuffer</code></a>.</div>
 </dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferProviderException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionBufferProviderException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Transaction buffer provider exception.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferProviderException.html#TransactionBufferProviderException-java.lang.String-">TransactionBufferProviderException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionBufferProviderException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionBufferProviderException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionBufferProviderException.html#TransactionBufferProviderException-java.lang.String-">TransactionBufferProviderException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionBufferProviderException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException.TransactionBufferProviderException</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/buffer/TransactionBufferReader.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="typeNameLink">TransactionBufferReader</span></a> - Interface in <a href="org/apache/pulsar/broker/transaction/buffer/package-summary.html">org.apache.pulsar.broker.transaction.buffer</a></dt>
 <dd>
@@ -12055,6 +12083,20 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/systopic/TransactionBufferSystemTopicClient.html#TransactionBufferSystemTopicClient-org.apache.pulsar.client.api.PulsarClient-org.apache.pulsar.common.naming.TopicName-org.apache.pulsar.broker.service.TransactionBufferSnapshotService-">TransactionBufferSystemTopicClient(PulsarClient, TopicName, TransactionBufferSnapshotService)</a></span> - Constructor for class org.apache.pulsar.broker.systopic.<a href="org/apache/pulsar/broker/systopic/TransactionBufferSystemTopicClient.html" title="class in org.apache.pulsar.broker.systopic">TransactionBufferSystemTopicClient</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator"><span class="typeNameLink">TransactionCoordinatorException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/coordinator/package-summary.html">org.apache.pulsar.broker.transaction.exception.coordinator</a></dt>
+<dd>
+<div class="block">The base exception class for the errors thrown from Transaction Coordinator.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html#TransactionCoordinatorException-java.lang.String-">TransactionCoordinatorException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.coordinator.<a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator">TransactionCoordinatorException</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html#TransactionCoordinatorException-java.lang.String-java.lang.Throwable-">TransactionCoordinatorException(String, Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.coordinator.<a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator">TransactionCoordinatorException</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html#TransactionCoordinatorException-java.lang.Throwable-">TransactionCoordinatorException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.coordinator.<a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator">TransactionCoordinatorException</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator"><span class="typeNameLink">TransactionCoordinatorException.UnsupportedTxnActionException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/coordinator/package-summary.html">org.apache.pulsar.broker.transaction.exception.coordinator</a></dt>
+<dd>
+<div class="block">Exceptions are thrown when txnAction is unsupported.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.html#transactionCumulativeAcknowledge-org.apache.pulsar.client.api.transaction.TxnID-java.util.List-">transactionCumulativeAcknowledge(TxnID, List&lt;PositionImpl&gt;)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentSubscription</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/buffer/TransactionCursor.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="typeNameLink">TransactionCursor</span></a> - Interface in <a href="org/apache/pulsar/broker/transaction/buffer/package-summary.html">org.apache.pulsar.broker.transaction.buffer</a></dt>
@@ -12071,6 +12113,28 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionEntryImpl.html#TransactionEntryImpl-org.apache.pulsar.client.api.transaction.TxnID-long-org.apache.bookkeeper.mledger.Entry-long-long-int-">TransactionEntryImpl(TxnID, long, Entry, long, long, int)</a></span> - Constructor for class org.apache.pulsar.broker.transaction.buffer.impl.<a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionEntryImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionEntryImpl</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/package-summary.html">org.apache.pulsar.broker.transaction.exception</a></dt>
+<dd>
+<div class="block">The base exception class for the errors thrown from Transaction.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html#TransactionException-java.lang.String-">TransactionException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html#TransactionException-java.lang.String-java.lang.Throwable-">TransactionException(String, Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html#TransactionException-java.lang.Throwable-">TransactionException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException.TransactionNotSealedException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/package-summary.html">org.apache.pulsar.broker.transaction.exception</a></dt>
+<dd>
+<div class="block">Exception is thrown when opening a reader on a transaction that is not sealed yet.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException.TransactionSealedException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/package-summary.html">org.apache.pulsar.broker.transaction.exception</a></dt>
+<dd>
+<div class="block">Exception thrown if a transaction is already sealed.</div>
+</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.exception"><span class="typeNameLink">TransactionException.TransactionStatusException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/package-summary.html">org.apache.pulsar.broker.transaction.exception</a></dt>
+<dd>
+<div class="block">Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.html#transactionIndividualAcknowledge-org.apache.pulsar.client.api.transaction.TxnID-java.util.List-">transactionIndividualAcknowledge(TxnID, List&lt;MutablePair&lt;PositionImpl, Integer&gt;&gt;)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentSubscription.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentSubscription</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/buffer/TransactionMeta.html" title="interface in org.apache.pulsar.broker.transaction.buffer"><span class="typeNameLink">TransactionMeta</span></a> - Interface in <a href="org/apache/pulsar/broker/transaction/buffer/package-summary.html">org.apache.pulsar.broker.transaction.buffer</a></dt>
@@ -12081,27 +12145,29 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html#TransactionMetadataStoreService-org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider-org.apache.pulsar.broker.PulsarService-org.apache.pulsar.client.api.transaction.TransactionBufferClient-io.netty.util.HashedWheelTimer-">TransactionMetadataStoreService(TransactionMetadataStoreProvider, PulsarService, TransactionBufferClient, HashedWheelTimer)</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TransactionMetadataStoreService.html" title="class in org.apache.pulsar.broker">TransactionMetadataStoreService</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionNotFoundException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Exception is thrown when the transaction is not found in the transaction buffer.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotFoundException.html#TransactionNotFoundException-java.lang.String-">TransactionNotFoundException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionNotFoundException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionNotFoundException.html#TransactionNotFoundException-java.lang.String-">TransactionNotFoundException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.buffer.<a href="org/apache/pulsar/broker/transaction/exception/buffer/TransactionBufferException.TransactionNotFoundException.html" title="class in org.apache.pulsar.broker.transaction.exception.buffer">TransactionBufferException.TransactionNotFoundException</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionNotSealedException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Exception is thrown when opening a reader on a transaction that is not sealed yet.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotSealedException.html#TransactionNotSealedException-java.lang.String-">TransactionNotSealedException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionNotSealedException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionNotSealedException.html#TransactionNotSealedException-java.lang.String-">TransactionNotSealedException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionNotSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionNotSealedException</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack"><span class="typeNameLink">TransactionPendingAckException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/pendingack/package-summary.html">org.apache.pulsar.broker.transaction.exception.pendingack</a></dt>
+<dd>
+<div class="block">The base exception class for the errors thrown from Transaction Pending ACk.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html#TransactionPendingAckException-java.lang.String-">TransactionPendingAckException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.pendingack.<a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack">TransactionPendingAckException</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html#TransactionPendingAckException-java.lang.String-java.lang.Throwable-">TransactionPendingAckException(String, Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.pendingack.<a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack">TransactionPendingAckException</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html#TransactionPendingAckException-java.lang.Throwable-">TransactionPendingAckException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.pendingack.<a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack">TransactionPendingAckException</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack"><span class="typeNameLink">TransactionPendingAckException.TransactionPendingAckStoreProviderException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/exception/pendingack/package-summary.html">org.apache.pulsar.broker.transaction.exception.pendingack</a></dt>
+<dd>
+<div class="block">Transaction pending ack store provider exception.</div>
+</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/pendingack/TransactionPendingAckStoreProvider.html" title="interface in org.apache.pulsar.broker.transaction.pendingack"><span class="typeNameLink">TransactionPendingAckStoreProvider</span></a> - Interface in <a href="org/apache/pulsar/broker/transaction/pendingack/package-summary.html">org.apache.pulsar.broker.transaction.pendingack</a></dt>
 <dd>
 <div class="block">Provider of transaction pending ack store.</div>
 </dd>
-<dt><a href="org/apache/pulsar/broker/transaction/pendingack/exceptions/TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.pendingack.exceptions"><span class="typeNameLink">TransactionPendingAckStoreProviderException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/pendingack/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.pendingack.exceptions</a></dt>
-<dd>
-<div class="block">Transaction pending ack store provider exception.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/pendingack/exceptions/TransactionPendingAckStoreProviderException.html#TransactionPendingAckStoreProviderException-java.lang.String-">TransactionPendingAckStoreProviderException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.pendingack.exceptions.<a href="org/apache/pulsar/broker/transaction/pendingack/exceptions/TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.pendingack.exceptions">TransactionPendingAckStoreProviderException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.TransactionPendingAckStoreProviderException.html#TransactionPendingAckStoreProviderException-java.lang.String-">TransactionPendingAckStoreProviderException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.pendingack.<a href="org/apache/pulsar/broker/transaction/exception/pendingack/TransactionPendingAckException.TransactionPendingAckStoreProviderException.html" title="class in org.apache.pulsar.broker.transaction.exception.pendingack">TransactionPendingAckException.TransactionPendingAckStoreProviderException</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/recover/TransactionRecoverTrackerImpl.html" title="class in org.apache.pulsar.broker.transaction.recover"><span class="typeNameLink">TransactionRecoverTrackerImpl</span></a> - Class in <a href="org/apache/pulsar/broker/transaction/recover/package-summary.html">org.apache.pulsar.broker.transaction.recover</a></dt>
 <dd>
@@ -12117,17 +12183,9 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/TransactionsBase.html#TransactionsBase--">TransactionsBase()</a></span> - Constructor for class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/TransactionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">TransactionsBase</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionSealedException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Exception thrown if a transaction is already sealed.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionSealedException.html#TransactionSealedException-java.lang.String-">TransactionSealedException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionSealedException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionSealedException.html#TransactionSealedException-java.lang.String-">TransactionSealedException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionSealedException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionSealedException</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">TransactionStatusException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionStatusException.html#TransactionStatusException-org.apache.pulsar.client.api.transaction.TxnID-org.apache.pulsar.transaction.coordinator.proto.TxnStatus-org.apache.pulsar.transaction.coordinator.proto.TxnStatus-">TransactionStatusException(TxnID, TxnStatus, TxnStatus)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionStatusException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionStatusException.html#TransactionStatusException-org.apache.pulsar.client.api.transaction.TxnID-org.apache.pulsar.transaction.coordinator.proto.TxnStatus-org.apache.pulsar.transaction.coordinator.proto.TxnStatus-">TransactionStatusException(TxnID, TxnStatus, TxnStatus)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.<a href="org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionStatusException</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/transaction/timeout/TransactionTimeoutTrackerFactoryImpl.html" title="class in org.apache.pulsar.broker.transaction.timeout"><span class="typeNameLink">TransactionTimeoutTrackerFactoryImpl</span></a> - Class in <a href="org/apache/pulsar/broker/transaction/timeout/package-summary.html">org.apache.pulsar.broker.transaction.timeout</a></dt>
 <dd>
@@ -12315,11 +12373,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#unsubscribeNamespaceBundle-java.lang.String-java.lang.String-java.lang.String-java.lang.String-boolean-">unsubscribeNamespaceBundle(String, String, String, String, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions"><span class="typeNameLink">UnsupportedTxnActionException</span></a> - Exception in <a href="org/apache/pulsar/broker/transaction/buffer/exceptions/package-summary.html">org.apache.pulsar.broker.transaction.buffer.exceptions</a></dt>
-<dd>
-<div class="block">Exceptions are thrown when txnAction is unsupported.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/exceptions/UnsupportedTxnActionException.html#UnsupportedTxnActionException-org.apache.pulsar.client.api.transaction.TxnID-int-">UnsupportedTxnActionException(TxnID, int)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.buffer.exceptions.<a href="org/apache/pulsar/broker/transaction/buffer/exceptions/UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">UnsupportedTxnActionException</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.UnsupportedTxnActionException.html#UnsupportedTxnActionException-org.apache.pulsar.client.api.transaction.TxnID-int-">UnsupportedTxnActionException(TxnID, int)</a></span> - Constructor for exception org.apache.pulsar.broker.transaction.exception.coordinator.<a href="org/apache/pulsar/broker/transaction/exception/coordinator/TransactionCoordinatorException.UnsupportedTxnActionException.html" title="class in org.apache.pulsar.broker.transaction.exception.coordinator">TransactionCoordinatorException.UnsupportedTxnActionException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerServiceException.UnsupportedVersionException.html#UnsupportedVersionException-java.lang.String-">UnsupportedVersionException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerServiceException.UnsupportedVersionException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.UnsupportedVersionException</a></dt>
 <dd>&nbsp;</dd>
@@ -12577,6 +12631,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#validatePartitionedTopicName-java.lang.String-java.lang.String-java.lang.String-">validatePartitionedTopicName(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/web/PulsarWebResource.html#validatePeerClusterConflict-java.lang.String-java.util.Set-">validatePeerClusterConflict(String, Set&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.broker.web.<a href="org/apache/pulsar/broker/web/PulsarWebResource.html" title="class in org.apache.pulsar.broker.web">PulsarWebResource</a></dt>
+<dd>
+<div class="block">It validates that peer-clusters can't coexist in replication-clusters.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#validatePersistencePolicies-org.apache.pulsar.common.policies.data.PersistencePolicies-">validatePersistencePolicies(PersistencePolicies)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#validatePersistentTopicName-java.lang.String-java.lang.String-java.lang.String-">validatePersistentTopicName(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>

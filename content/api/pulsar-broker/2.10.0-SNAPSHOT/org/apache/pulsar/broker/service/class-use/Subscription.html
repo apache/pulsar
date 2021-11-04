@@ -269,11 +269,12 @@
                                    org.apache.pulsar.broker.ServiceConfiguration&nbsp;serviceConfig)</code>&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#AbstractDispatcherSingleActiveConsumer-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-org.apache.pulsar.broker.service.Subscription-org.apache.pulsar.broker.ServiceConfiguration-">AbstractDispatcherSingleActiveConsumer</a></span>(org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subscriptionType,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractDispatcherSingleActiveConsumer.html#AbstractDispatcherSingleActiveConsumer-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-int-java.lang.String-org.apache.pulsar.broker.service.Subscription-org.apache.pulsar.broker.ServiceConfiguration-org.apache.bookkeeper.mledger.ManagedCursor-">AbstractDispatcherSingleActiveConsumer</a></span>(org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subscriptionType,
                                       int&nbsp;partitionIndex,
                                       <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topicName,
                                       <a href="../../../../../../org/apache/pulsar/broker/service/Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
-                                      org.apache.pulsar.broker.ServiceConfiguration&nbsp;serviceConfig)</code>&nbsp;</td>
+                                      org.apache.pulsar.broker.ServiceConfiguration&nbsp;serviceConfig,
+                                      org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/Consumer.html#Consumer-org.apache.pulsar.broker.service.Subscription-org.apache.pulsar.common.api.proto.CommandSubscribe.SubType-java.lang.String-long-int-java.lang.String-int-org.apache.pulsar.broker.service.TransportCnx-java.lang.String-java.util.Map-boolean-org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition-org.apache.pulsar.common.api.proto.KeySharedMeta-org.apache.pulsar.client.api.MessageId-">Consumer</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,

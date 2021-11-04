@@ -262,13 +262,14 @@ public interface <span class="typeNameLabel">TransactionMeta</span></pre>
 <li class="blockList">
 <h4>numMessageInTxn</h4>
 <pre>int&nbsp;numMessageInTxn()
-             throws <a href="../../../../../../org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionStatusException</a></pre>
+             throws <a href="../../../../../../org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionStatusException</a></pre>
 <div class="block">Return messages number in one transaction.</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the number of transaction messages</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="../../../../../../org/apache/pulsar/broker/transaction/buffer/exceptions/TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.buffer.exceptions">TransactionStatusException</a></code></dd>
+<dd><code>TransactionBufferException.TransactionStatusException</code></dd>
+<dd><code><a href="../../../../../../org/apache/pulsar/broker/transaction/exception/TransactionException.TransactionStatusException.html" title="class in org.apache.pulsar.broker.transaction.exception">TransactionException.TransactionStatusException</a></code></dd>
 </dl>
 </li>
 </ul>
