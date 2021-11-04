@@ -370,33 +370,36 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="example-of-oracle"></a><a href="#example-of-oracle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example of Oracle</h2>
 <h3><a class="anchor" aria-hidden="true" id="packaging"></a><a href="#packaging" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Packaging</h3>
-<p>Oracle connector does not include Oracle JDBC driver and you need to package it with the connector. Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended to use the driver provided with your Oracle DB installation, or you can <a href="https://www.oracle.com/database/technologies/appdev/jdbc.html">download</a> one. Integration test have an <a href="https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122">example</a> of packaging the driver into the connector nar file.</p>
+<p>Oracle连接器没有包括Oracle Jdbc驱动程序，你需要将其与连接器一起打包。 不包括驱动程序的主要原因是版本多样性和Oracle的许可证书。 建议使用与你的Oracle Db安装一起提供的驱动程序，或者你可以<a href="https://www.oracle.com/database/technologies/appdev/jdbc.html">下载</a> 一个。 集成测试中有一个将驱动打包成连接器nar文件的例子。</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration-3"></a><a href="#configuration-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
-<p>Debezium <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview">requires</a> Oracle DB with LogMiner or XStream API enabled. Supported options and steps for enabling them vary from version to version of Oracle DB. Steps outlined in the <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview">documentation</a> and used in the <a href="https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java">integration test</a> may or may not work for the version and edition of Oracle DB you are using. Please refer to the <a href="https://docs.oracle.com/en/database/oracle/oracle-database/">documentation for Oracle DB</a> as needed.</p>
-<p>Similarly to other connectors, you can use JSON or YAMl to configure the connector. Using yaml as an example, you can create a debezium-oracle-source-config.yaml file like:</p>
+<p>Debezium <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview">需要</a> 启用LogMiner或XStream API功能的Oracle DB。 支持的选项和启用它们的步骤因Oracle DB的不同版本而不同。 <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview">文档</a> 中概述的步骤和<a href="https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java">集成测试</a> 中使用的步骤可能对你所使用的Oracle DB版本和版本不起作用。 请根据需要参考<a href="https://docs.oracle.com/en/database/oracle/oracle-database/">Oracle DB</a>的文档。</p>
+<p>与其他连接器类似，你可以使用JSON或YAML来配置连接器。 以yaml为例，你可以创建一个debezium-oracle-source-config.yaml文件，例如:</p>
 <ul>
 <li>JSON</li>
 </ul>
 <pre><code class="hljs css language-json">{
-  <span class="hljs-attr">"database.hostname"</span>: <span class="hljs-string">"localhost"</span>,
-  <span class="hljs-attr">"database.port"</span>: <span class="hljs-string">"1521"</span>,
-  <span class="hljs-attr">"database.user"</span>: <span class="hljs-string">"dbzuser"</span>,
-  <span class="hljs-attr">"database.password"</span>: <span class="hljs-string">"dbz"</span>,
-  <span class="hljs-attr">"database.dbname"</span>: <span class="hljs-string">"XE"</span>,
-  <span class="hljs-attr">"database.server.name"</span>: <span class="hljs-string">"XE"</span>,
-  <span class="hljs-attr">"schema.exclude.list"</span>: <span class="hljs-string">"system,dbzuser"</span>,
-  <span class="hljs-attr">"snapshot.mode"</span>: <span class="hljs-string">"initial"</span>,
-  <span class="hljs-attr">"topic.namespace"</span>: <span class="hljs-string">"public/default"</span>,
-  <span class="hljs-attr">"task.class"</span>: <span class="hljs-string">"io.debezium.connector.oracle.OracleConnectorTask"</span>,
-  <span class="hljs-attr">"value.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-  <span class="hljs-attr">"key.converter"</span>: <span class="hljs-string">"org.apache.kafka.connect.json.JsonConverter"</span>,
-  <span class="hljs-attr">"typeClassName"</span>: <span class="hljs-string">"org.apache.pulsar.common.schema.KeyValue"</span>,
-  <span class="hljs-attr">"database.history"</span>: <span class="hljs-string">"org.apache.pulsar.io.debezium.PulsarDatabaseHistory"</span>,
-  <span class="hljs-attr">"database.tcpKeepAlive"</span>: <span class="hljs-string">"true"</span>,
-  <span class="hljs-attr">"decimal.handling.mode"</span>: <span class="hljs-string">"double"</span>,
-  <span class="hljs-attr">"database.history.pulsar.topic"</span>: <span class="hljs-string">"debezium-oracle-source-history-topic"</span>,
-  <span class="hljs-attr">"database.history.pulsar.service.url"</span>: <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
+  "database.hostname": "localhost",
+  "database.port": "1521",
+  "database.user": "dbzuser",
+  "database.password": "dbz",
+  "database.dbname": "XE",
+  "database.server.name": "XE",
+  "schema.exclude.list": "system,dbzuser",
+  "snapshot.mode": "initial",
+  "topic.namespace": "public/default",
+  "task.class": "io.debezium.connector.oracle.OracleConnectorTask",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "typeClassName": "org.apache.pulsar.common.schema.KeyValue",
+  "database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory",
+  "database.tcpKeepAlive": "true",
+  "decimal.handling.mode": "double",
+  "database.history.pulsar.topic": "debezium-oracle-source-history-topic",
+  "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
 }
+ 
+Text
+XPath: /pre/code
 </code></pre>
 <ul>
 <li>YAML</li>
@@ -430,11 +433,11 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
     <span class="hljs-attr">database.history.pulsar.topic:</span> <span class="hljs-string">"debezium-oracle-source-history-topic"</span>
     <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre>
-<p>For the full list of configuration properties supported by Debezium, see <a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties">Debezium Connector for Oracle</a>.</p>
-<h2><a class="anchor" aria-hidden="true" id="example-of-microsoft-sql"></a><a href="#example-of-microsoft-sql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example of Microsoft SQL</h2>
+<p>关于Debezium支持的配置属性的完整列表，请参考<a href="https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties">Debezium Connector for Oracle</a>。</p>
+<h2><a class="anchor" aria-hidden="true" id="microsoft-sql-示例"></a><a href="#microsoft-sql-示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Microsoft SQL 示例</h2>
 <h3><a class="anchor" aria-hidden="true" id="configuration-4"></a><a href="#configuration-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
-<p>Debezium <a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview">requires</a> SQL Server with CDC enabled. Steps outlined in the <a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver">documentation</a> and used in the <a href="https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java">integration test</a>. For more information, see <a href="https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server">Enable and disable change data capture in Microsoft SQL Server</a>.</p>
-<p>Similarly to other connectors, you can use JSON or YAMl to configure the connector.</p>
+<p>Debezium<a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview">需要</a> SQL服务器开启CDC。 <a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver">文档</a>中概述的步骤，在<a href="https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java">集成测试</a>中均有使用。 了解更多信息，请参阅在<a href="https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server">Microsoft SQL Server</a>中启用和关闭更改数据采集功能的说明</p>
+<p>与其他连接器类似，你可以使用JSON或YAML来配置连接器。</p>
 <ul>
 <li>JSON</li>
 </ul>
@@ -489,7 +492,7 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
     <span class="hljs-attr">database.history.pulsar.topic:</span> <span class="hljs-string">"debezium-mssql-source-history-topic"</span>
     <span class="hljs-attr">database.history.pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre>
-<p>For the full list of configuration properties supported by Debezium, see <a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-connector-properties">Debezium Connector for MS SQL</a>.</p>
+<p>关于Debezium支持的配置属性的完整列表，请参见<a href="https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-connector-properties">Debezium Connector for MS SQL</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="faq"></a><a href="#faq" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>FAQ</h2>
 <h3><a class="anchor" aria-hidden="true" id="debezium-postgres-connector-will-hang-when-create-snap"></a><a href="#debezium-postgres-connector-will-hang-when-create-snap" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Debezium postgres connector will hang when create snap</h3>
 <pre><code class="hljs css language-$xslt">#<span class="hljs-number">18</span> prio=<span class="hljs-number">5</span> os_prio=<span class="hljs-number">31</span> tid=<span class="hljs-number">0</span>x00007fd83096f800 nid=<span class="hljs-number">0</span>xa403 waiting on condition [<span class="hljs-number">0</span>x000070000f534000]
@@ -526,7 +529,7 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
 <p>如果你在同步数据时遇到上述问题，请参考<a href="https://github.com/apache/pulsar/issues/4075">这里</a>，在配置文件中添加如下配置：</p>
 <pre><code class="hljs css language-$xslt"><span class="hljs-built_in">max</span>.<span class="hljs-built_in">queue</span>.<span class="hljs-built_in">size</span>=
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#转换器的选项">转换器的选项</a></li><li><a href="#mongodb-configuration">MongoDB Configuration</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li><li><a href="#postgresql-示例">PostgreSQL 示例</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#用法-1">用法</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#用法-2">用法</a></li></ul></li><li><a href="#example-of-oracle">Example of Oracle</a><ul class="toc-headings"><li><a href="#packaging">Packaging</a></li><li><a href="#configuration-3">Configuration</a></li></ul></li><li><a href="#example-of-microsoft-sql">Example of Microsoft SQL</a><ul class="toc-headings"><li><a href="#configuration-4">Configuration</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#转换器的选项">转换器的选项</a></li><li><a href="#mongodb-configuration">MongoDB Configuration</a></li></ul></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li><li><a href="#postgresql-示例">PostgreSQL 示例</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#用法-1">用法</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#用法-2">用法</a></li></ul></li><li><a href="#example-of-oracle">Example of Oracle</a><ul class="toc-headings"><li><a href="#packaging">Packaging</a></li><li><a href="#configuration-3">Configuration</a></li></ul></li><li><a href="#microsoft-sql-示例">Microsoft SQL 示例</a><ul class="toc-headings"><li><a href="#configuration-4">Configuration</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

@@ -402,9 +402,9 @@
 <p>You can also download it from <a href="https://pypi.python.org/pypi/websocket-client">PyPI</a>.</p>
 <h4><a class="anchor" aria-hidden="true" id="python-producer"></a><a href="#python-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python producer</h4>
 <p>Here's an example Python producer that sends a simple message to a Pulsar <a href="/docs/zh-CN/reference-terminology#topic">topic</a>:</p>
-<pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> websocket, base64, json
+<pre><code class="hljs css language-python">const WebSocket = require(<span class="hljs-string">'ws'</span>);
 
-<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。
 enable_TLS = <span class="hljs-literal">False</span>
 scheme = <span class="hljs-string">'ws'</span>
 <span class="hljs-keyword">if</span> enable_TLS:
@@ -433,9 +433,9 @@ ws.close()
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="python-consumer"></a><a href="#python-consumer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python consumer</h4>
 <p>Here's an example Python consumer that listens on a Pulsar topic and prints the message ID whenever a message arrives:</p>
-<pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> websocket, base64, json
+<pre><code class="hljs css language-python">const WebSocket = require(<span class="hljs-string">'ws'</span>);
 
-<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。
 enable_TLS = <span class="hljs-literal">False</span>
 scheme = <span class="hljs-string">'ws'</span>
 <span class="hljs-keyword">if</span> enable_TLS:
@@ -458,9 +458,9 @@ ws.close()
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="python-reader"></a><a href="#python-reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python reader</h4>
 <p>Here's an example Python reader that listens on a Pulsar topic and prints the message ID whenever a message arrives:</p>
-<pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> websocket, base64, json
+<pre><code class="hljs css language-python">const WebSocket = require(<span class="hljs-string">'ws'</span>);
 
-<span class="hljs-comment"># If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。
 enable_TLS = <span class="hljs-literal">False</span>
 scheme = <span class="hljs-string">'ws'</span>
 <span class="hljs-keyword">if</span> enable_TLS:
@@ -488,7 +488,7 @@ ws.close()
 <p>Here's an example Node.js producer that sends a simple message to a Pulsar topic:</p>
 <pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
 
-<span class="hljs-comment">// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+<span class="hljs-comment">// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。</span>
 <span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
 <span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/producer/persistent/public/default/my-topic`</span>;
 <span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
@@ -515,7 +515,7 @@ ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><s
 <p>Here's an example Node.js consumer that listens on the same topic used by the producer above:</p>
 <pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
 
-<span class="hljs-comment">// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+<span class="hljs-comment">// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。</span>
 <span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
 <span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/consumer/persistent/public/default/my-topic/my-sub`</span>;
 <span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
@@ -530,7 +530,7 @@ ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><s
 <h4><a class="anchor" aria-hidden="true" id="nodejs-reader"></a><a href="#nodejs-reader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NodeJS reader</h4>
 <pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> WebSocket = <span class="hljs-built_in">require</span>(<span class="hljs-string">'ws'</span>);
 
-<span class="hljs-comment">// If set enableTLS to true, your have to set tlsEnabled to true in conf/websocket.conf.</span>
+<span class="hljs-comment">// 如果设置启用TLS 为 true，您必须设置 tls 启用为 conf/websocket.conf。</span>
 <span class="hljs-keyword">const</span> enableTLS = <span class="hljs-literal">false</span>;
 <span class="hljs-keyword">const</span> topic = <span class="hljs-string">`<span class="hljs-subst">${enableTLS ? <span class="hljs-string">'wss'</span> : <span class="hljs-string">'ws'</span>}</span>://localhost:8080/ws/v2/reader/persistent/public/default/my-topic`</span>;
 <span class="hljs-keyword">const</span> ws = <span class="hljs-keyword">new</span> WebSocket(topic);
