@@ -170,7 +170,7 @@ public abstract class BookKeeperClusterTestCase {
 
         // Create Bookie Servers (B1, B2, B3)
         for (int i = 0; i < numBookies; i++) {
-            if (ledgerPath != "") {
+            if (!"".equals(ledgerPath)) {
                 ServerConfiguration configuration = newServerConfiguration(ledgerPath + "/ledgers");
                 startBookie(configuration, ledgerPath + "/ledgers");
             }else {
@@ -226,9 +226,9 @@ public abstract class BookKeeperClusterTestCase {
             File[] ledgerDirs, String ledgerRootPath) {
         ServerConfiguration conf = new ServerConfiguration(baseConf);
         conf.setBookiePort(port);
-        if (ledgerRootPath != "") {
+        if (!"".equals(ledgerRootPath)) {
             conf.setMetadataServiceUri("zk://" + zkUtil.getZooKeeperConnectString() + ledgerRootPath);
-        }else {
+        } else {
             conf.setZkServers(zkServers);
         }
         conf.setJournalDirName(journalDir.getPath());
