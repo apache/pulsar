@@ -305,7 +305,6 @@ public class PulsarWorkerService implements WorkerService {
         String tenant = a[0];
         String cluster = workerConfig.getPulsarFunctionsCluster();
 
-        int[] ar = null;
         /*
         multiple brokers may be trying to create the property, cluster, and namespace
         for function worker service this in parallel. The function worker service uses the namespace
@@ -500,7 +499,7 @@ public class PulsarWorkerService implements WorkerService {
             leaderService.start();
 
             // initialize function metadata manager
-            log.info("/** Initializing Metdata Manager **/");
+            log.info("/** Initializing Metadata Manager **/");
             functionMetaDataManager.initialize();
 
             // initialize function runtime manager
@@ -524,7 +523,7 @@ public class PulsarWorkerService implements WorkerService {
             functionAssignmentTailer.startFromMessage(lastAssignmentMessageId);
 
             // start function metadata manager
-            log.info("/** Starting Metdata Manager **/");
+            log.info("/** Starting Metadata Manager **/");
             functionMetaDataManager.start();
 
             // Starting cluster services

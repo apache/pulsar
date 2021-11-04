@@ -165,6 +165,102 @@
           "id": "version-2.7.1/io-cli"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Pulsar SQL",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-getting-started"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-deployment-configurations"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/sql-rest-api"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/tiered-storage-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/tiered-storage-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/tiered-storage-gcs"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/tiered-storage-filesystem"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/tiered-storage-azure"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Transactions",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/transactions"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/transactions-guarantee"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/transactions-api"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/helm-tools"
+        }
+      ]
     }
   ]
 }
