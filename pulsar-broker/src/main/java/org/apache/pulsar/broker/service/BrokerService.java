@@ -166,6 +166,7 @@ import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
@@ -1020,7 +1021,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         NamespaceName namespaceName = TopicName.get(topic).getNamespaceObject();
         // Check whether there are auth policies for the topic
-        pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespaceName).thenAccept(optPolicies -> {
+        pulsar.getPulsarResources().getNamespaceResources().getAsync(namespaceName.toString()).thenAccept(optPolicies -> {
             if (!optPolicies.isPresent() || !optPolicies.get().auth_policies.getTopicAuthentication()
                     .containsKey(topic)) {
                 // if there is no auth policy for the topic, just complete and return
@@ -1031,7 +1032,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 return;
             }
             pulsar.getPulsarResources().getNamespaceResources()
-                    .setPoliciesAsync(TopicName.get(topic).getNamespaceObject(), p -> {
+                    .setAsync(TopicName.get(topic).getNamespace(), p -> {
                         p.auth_policies.getTopicAuthentication().remove(topic);
                         return p;
                     }).thenAccept(v -> {

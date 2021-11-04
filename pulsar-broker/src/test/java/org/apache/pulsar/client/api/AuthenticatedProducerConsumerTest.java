@@ -359,14 +359,14 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().grantPermission(topic, "test-user", EnumSet.of(AuthAction.consume));
 
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
-                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().get(NamespaceName.get("p1/ns1").toString())
+                .get().auth_policies.getTopicAuthentication().containsKey(topic));
         });
 
         admin.topics().delete(topic);
 
         Awaitility.await().untilAsserted(() -> {
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+            assertFalse(pulsar.getPulsarResources().getNamespaceResources().get(NamespaceName.get("p1/ns1").toString())
                     .get().auth_policies.getTopicAuthentication().containsKey(topic));
         });
 
@@ -379,10 +379,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 .grantPermission(partitionedTopic, "test-user", EnumSet.of(AuthAction.consume));
 
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().get(NamespaceName.get("p1/ns1").toString())
                     .get().auth_policies.getTopicAuthentication().containsKey(partitionedTopic));
             for (int i = 0; i < numPartitions; i++) {
-                assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+                assertTrue(pulsar.getPulsarResources().getNamespaceResources().get(NamespaceName.get("p1/ns1").toString())
                         .get().auth_policies.getTopicAuthentication()
                         .containsKey(TopicName.get(partitionedTopic).getPartition(i).toString()));
             }
@@ -390,10 +390,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         admin.topics().deletePartitionedTopic("persistent://p1/ns1/partitioned-topic");
         Awaitility.await().untilAsserted(() -> {
-            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+            assertFalse(pulsar.getPulsarResources().getNamespaceResources().get(NamespaceName.get("p1/ns1").toString())
                     .get().auth_policies.getTopicAuthentication().containsKey(partitionedTopic));
             for (int i = 0; i < numPartitions; i++) {
-                assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+                assertFalse(pulsar.getPulsarResources().getNamespaceResources().get(NamespaceName.get("p1/ns1").toString())
                         .get().auth_policies.getTopicAuthentication()
                         .containsKey(TopicName.get(partitionedTopic).getPartition(i).toString()));
             }

@@ -590,26 +590,26 @@ public class PersistentTopicsBase extends AdminResource {
                 // delete authentication policies of the partitioned topic
                 CompletableFuture<Void> deleteAuthFuture = new CompletableFuture<>();
                 pulsar().getPulsarResources().getNamespaceResources()
-                        .setPoliciesAsync(topicName.getNamespaceObject(), p -> {
-                            for (int i = 0; i < numPartitions; i++) {
-                                p.auth_policies.getTopicAuthentication().remove(topicName.getPartition(i).toString());
-                            }
-                            p.auth_policies.getTopicAuthentication().remove(topicName.toString());
-                            return p;
-                        }).thenAccept(v -> {
-                            log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
+                    .setAsync(topicName.getNamespace(), p -> {
+                        for (int i = 0; i < numPartitions; ++i) {
+                            p.auth_policies.getTopicAuthentication().remove(topicName.getPartition(i).toString());
+                        }
+                        p.auth_policies.getTopicAuthentication().remove(topicName.toString());
+                        return p;
+                    }).thenAccept(v -> {
+                        log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
+                        deleteAuthFuture.complete(null);
+                    }).exceptionally(ex -> {
+                        if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                            log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
                             deleteAuthFuture.complete(null);
-                        }).exceptionally(ex -> {
-                            if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                                log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
-                                deleteAuthFuture.complete(null);
-                            } else {
-                                log.error("Failed to delete authentication policies for partitioned topic {}",
+                        } else {
+                            log.error("Failed to delete authentication policies for partitioned topic {}",
                                         topicName, ex);
-                                deleteAuthFuture.completeExceptionally(ex);
-                            }
-                            return null;
-                        });
+                            deleteAuthFuture.completeExceptionally(ex);
+                        }
+                        return null;
+                    });
 
                 deleteAuthFuture.whenComplete((r, ex) -> {
                     if (ex != null) {
@@ -2609,13 +2609,8 @@ public class PersistentTopicsBase extends AdminResource {
         // Validate that namespace exists, throw 404 if it doesn't exist
         // note that we do not want to load the topic and hence skip authorization check
         try {
-<<<<<<< HEAD
             namespaceResources().get(path(POLICIES, namespaceName.toString()));
-        } catch (org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException e) {
-=======
-            namespaceResources().getPolicies(namespaceName);
         } catch (MetadataStoreException.NotFoundException e) {
->>>>>>> 3e578280539 (fix delete authentication policies when delete topic. (#12215))
             log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (Exception e) {
