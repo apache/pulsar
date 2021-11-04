@@ -36,7 +36,6 @@ public class NegativeAckRedeliveryExponentialBackoff implements NegativeAckRedel
 
         for (int i = 0; ; ) {
             if (this.minNackTimeMs << ++i <= 0) {
-                System.out.println(i);
                 this.maxBitShift = i;
                 break;
             }
