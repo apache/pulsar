@@ -1164,14 +1164,14 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public PulsarAdmin getClusterPulsarAdmin(String cluster) {
+    public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarAdmin admin = clusterAdmins.get(cluster);
         if (admin != null) {
             return admin;
         }
         return clusterAdmins.computeIfAbsent(cluster, key -> {
             try {
-                ClusterData data = pulsar.getPulsarResources().getClusterResources().getCluster(cluster)
+                ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
 
                 ServiceConfiguration conf = pulsar.getConfig();
