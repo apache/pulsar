@@ -34,6 +34,13 @@ public class NamespaceEventsSystemTopicFactory {
         this.client = client;
     }
 
+    public TopicPoliciesSystemTopicClient createTopicPoliciesSystemTopicClient(NamespaceName namespaceName) {
+        TopicName topicName = TopicName.get("persistent", namespaceName,
+                EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+        log.info("Create topic policies system topic client {}", topicName.toString());
+        return new TopicPoliciesSystemTopicClient(client, topicName);
+    }
+
     public SystemTopicClient createSystemTopic(NamespaceName namespaceName, EventType eventType) {
         TopicName topicName = getSystemTopicName(namespaceName, eventType);
         if (topicName != null) {
