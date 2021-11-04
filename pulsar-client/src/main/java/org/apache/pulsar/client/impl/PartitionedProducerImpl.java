@@ -356,22 +356,26 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
         @Override
         public void run(Timeout timeout) throws Exception {
-            if (timeout.isCancelled() || getState() != State.Ready) {
-                return;
-            }
+            try {
+                if (timeout.isCancelled() || getState() != State.Ready) {
+                    return;
+                }
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] run partitionsAutoUpdateTimerTask for partitioned producer", topic);
-            }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] run partitionsAutoUpdateTimerTask for partitioned producer", topic);
+                }
 
-            // if last auto update not completed yet, do nothing.
-            if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
-                partitionsAutoUpdateFuture = topicsPartitionChangedListener.onTopicsExtended(ImmutableList.of(topic));
+                // if last auto update not completed yet, do nothing.
+                if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
+                    partitionsAutoUpdateFuture = topicsPartitionChangedListener.onTopicsExtended(ImmutableList.of(topic));
+                }
+            } catch (Throwable th) {
+                log.warn("Encountered error in partition auto update timer task for partition producer. Another task will be scheduled.", th);
+            } finally {
+                // schedule the next re-check task
+                partitionsAutoUpdateTimeout = client.timer()
+                        .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
             }
-
-            // schedule the next re-check task
-            partitionsAutoUpdateTimeout = client.timer()
-                .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
         }
     };
 
