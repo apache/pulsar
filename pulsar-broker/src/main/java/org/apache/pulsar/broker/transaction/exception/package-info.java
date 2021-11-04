@@ -16,16 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.exceptions;
-
 /**
- * Exception is thrown when the transaction is not found in the transaction buffer.
+ * Exceptions thrown when encountering errors in transaction buffer.
  */
-public class TransactionNotFoundException extends TransactionBufferException {
-
-    private static final long serialVersionUID = 0L;
-
-    public TransactionNotFoundException(String message) {
-        super(message);
-    }
-}
+package org.apache.pulsar.broker.transaction.exception;

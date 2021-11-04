@@ -33,11 +33,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -86,7 +84,7 @@ public class TransactionBufferTest {
             buffer.openTransactionBufferReader(txnId, 0L).get();
             fail("Should fail to open reader if a transaction doesn't exist");
         } catch (ExecutionException ee) {
-            assertTrue(ee.getCause() instanceof TransactionNotFoundException);
+            assertTrue(ee.getCause() instanceof TransactionBufferException.TransactionNotFoundException);
         }
     }
 
@@ -102,7 +100,7 @@ public class TransactionBufferTest {
             buffer.openTransactionBufferReader(txnId, 0L).get();
             fail("Should fail to open a reader on an OPEN transaction");
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionNotSealedException);
+            assertTrue(e.getCause() instanceof TransactionBufferException.TransactionNotSealedException);
         }
     }
 
@@ -136,7 +134,7 @@ public class TransactionBufferTest {
             buffer.commitTxn(txnId, Long.MIN_VALUE).get();
             fail("Should fail to commit a transaction if it doesn't exist");
         } catch (ExecutionException ee) {
-            assertTrue(ee.getCause() instanceof TransactionNotFoundException);
+            assertTrue(ee.getCause() instanceof TransactionBufferException.TransactionNotFoundException);
         }
     }
 
@@ -160,7 +158,7 @@ public class TransactionBufferTest {
             buffer.abortTxn(txnId, Long.MIN_VALUE).get();
             fail("Should fail to abort a transaction if it doesn't exist");
         } catch (ExecutionException ee) {
-            assertTrue(ee.getCause() instanceof TransactionNotFoundException);
+            assertTrue(ee.getCause() instanceof TransactionBufferException.TransactionNotFoundException);
         }
     }
 
@@ -181,7 +179,7 @@ public class TransactionBufferTest {
             buffer.abortTxn(txnId, Long.MIN_VALUE).get();
             fail("Should fail to abort a committed transaction");
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionStatusException);
+            assertTrue(e.getCause() instanceof TransactionBufferException.TransactionStatusException);
         }
         txnMeta = buffer.getTransactionMeta(txnId).get();
         assertEquals(txnId, txnMeta.id());
@@ -277,7 +275,7 @@ public class TransactionBufferTest {
             buffer.getTransactionMeta(txnID).get();
             fail("Should fail to get transaction metadata if it doesn't exist");
         } catch (ExecutionException ee) {
-            assertTrue(ee.getCause() instanceof TransactionNotFoundException);
+            assertTrue(ee.getCause() instanceof TransactionBufferException.TransactionNotFoundException);
         }
     }
 }

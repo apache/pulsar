@@ -16,17 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack.exceptions;
-
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferException;
-
 /**
- * Transaction pending ack store provider exception.
+ * Exceptions thrown when encountering errors in transaction buffer.
  */
-public class TransactionPendingAckStoreProviderException extends TransactionBufferException {
-
-    public TransactionPendingAckStoreProviderException(String message) {
-        super(message);
-    }
-
-}
+package org.apache.pulsar.broker.transaction.exception.buffer;
