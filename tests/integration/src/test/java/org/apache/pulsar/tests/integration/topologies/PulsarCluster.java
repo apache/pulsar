@@ -118,12 +118,12 @@ public class PulsarCluster {
         this.zkContainer = new ZKContainer(clusterName);
         this.zkContainer
             .withNetwork(network)
-            .withNetworkAliases(ZKContainer.NAME)
+            .withNetworkAliases(appendClusterName(ZKContainer.NAME))
             .withEnv("clusterName", clusterName)
-            .withEnv("zkServers", ZKContainer.NAME)
+            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
             .withEnv("configurationStore", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("forceSync", "no")
-            .withEnv("pulsarNode", "pulsar-broker-0");
+            .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
 
         this.csContainer = csContainer;
         this.sharedCsContainer = sharedCsContainer;
@@ -132,11 +132,11 @@ public class PulsarCluster {
         this.brokerContainers = Maps.newTreeMap();
         this.workerContainers = Maps.newTreeMap();
 
-        this.proxyContainer = new ProxyContainer(clusterName, ProxyContainer.NAME)
+        this.proxyContainer = new ProxyContainer(appendClusterName("pulsar-proxy"), ProxyContainer.NAME)
             .withNetwork(network)
-            .withNetworkAliases("pulsar-proxy")
-            .withEnv("zkServers", ZKContainer.NAME)
-            .withEnv("zookeeperServers", ZKContainer.NAME)
+            .withNetworkAliases(appendClusterName("pulsar-proxy"))
+            .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+            .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
         if (spec.proxyEnvs != null) {
@@ -150,8 +150,8 @@ public class PulsarCluster {
         bookieContainers.putAll(
                 runNumContainers("bookie", spec.numBookies(), (name) -> new BKContainer(clusterName, name)
                         .withNetwork(network)
-                        .withNetworkAliases(name)
-                        .withEnv("zkServers", ZKContainer.NAME)
+                        .withNetworkAliases(appendClusterName(name))
+                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("useHostNameAsBookieID", "true")
                         // Disable fsyncs for tests since they're slow within the containers
                         .withEnv("journalSyncData", "false")
@@ -165,11 +165,11 @@ public class PulsarCluster {
         // create brokers
         brokerContainers.putAll(
             runNumContainers("broker", spec.numBrokers(), (name) -> {
-                    BrokerContainer brokerContainer = new BrokerContainer(clusterName, name)
+                    BrokerContainer brokerContainer = new BrokerContainer(clusterName, appendClusterName(name))
                         .withNetwork(network)
-                        .withNetworkAliases(name)
-                        .withEnv("zkServers", ZKContainer.NAME)
-                        .withEnv("zookeeperServers", ZKContainer.NAME)
+                        .withNetworkAliases(appendClusterName(name))
+                        .withEnv("zkServers", appendClusterName(ZKContainer.NAME))
+                        .withEnv("zookeeperServers", appendClusterName(ZKContainer.NAME))
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
@@ -682,5 +682,9 @@ public class PulsarCluster {
                 log.info("Cannot download {} logs from {}", name, container.getContainerName(), err);
             }
         }
+    }
+
+    private String appendClusterName(String name) {
+        return clusterName + "-" + name;
     }
 }
