@@ -387,6 +387,16 @@
           "id": "version-2.7.1/security-bouncy-castle"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/performance-pulsar-perf"
+        }
+      ]
     }
   ]
 }
