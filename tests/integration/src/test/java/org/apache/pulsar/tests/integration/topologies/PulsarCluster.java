@@ -102,6 +102,7 @@ public class PulsarCluster {
     private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
 
         this.spec = spec;
+        this.sharedCsContainer = sharedCsContainer;
         this.clusterName = spec.clusterName();
         this.network = csContainer.getNetwork();
         this.enablePrestoWorker = spec.enablePrestoWorker();
@@ -126,7 +127,6 @@ public class PulsarCluster {
             .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
 
         this.csContainer = csContainer;
-        this.sharedCsContainer = sharedCsContainer;
 
         this.bookieContainers = Maps.newTreeMap();
         this.brokerContainers = Maps.newTreeMap();
@@ -685,6 +685,6 @@ public class PulsarCluster {
     }
 
     private String appendClusterName(String name) {
-        return clusterName + "-" + name;
+        return sharedCsContainer ? clusterName + "-" + name : name;
     }
 }
