@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -85,6 +86,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, AsyncResponse response) {
+        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
         String schemaId = getSchemaId();
         pulsar().getSchemaRegistryService().getSchema(schemaId).handle((schema, error) -> {
@@ -94,6 +96,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, String version, AsyncResponse response) {
+        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
         String schemaId = getSchemaId();
         ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
@@ -106,6 +109,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getAllSchemas(boolean authoritative, AsyncResponse response) {
+        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -116,6 +120,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void deleteSchema(boolean authoritative, AsyncResponse response) {
+        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -134,6 +139,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void postSchema(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
+        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
@@ -196,6 +202,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void testCompatibility(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
+        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -228,6 +235,7 @@ public class SchemasResourceBase extends AdminResource {
     public void getVersionBySchema(
 
             PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
+        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -306,13 +314,36 @@ public class SchemasResourceBase extends AdminResource {
         }
     }
 
+    private void checkTopicExists(AsyncResponse response) {
+        pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
+                CommandGetTopicsOfNamespace.Mode.ALL).handle((topics, error) -> {
+            if (isNull(error)) {
+                boolean exists = false;
+                for (String topic : topics) {
+                    if (topicName.getPartitionedTopicName().equals(TopicName.get(topic).getPartitionedTopicName())) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists) {
+                    response.resume(Response.status(
+                            Response.Status.NOT_FOUND.getStatusCode(), "Topic not found").build());
+                }
+            } else {
+                log.error("Failed to find topic", error);
+                response.resume(new RestException(error));
+            }
+            return null;
+        });
+    }
+
     private void validateDestinationAndAdminOperation(boolean authoritative) {
         try {
             validateAdminAccessForTenant(topicName.getTenant());
             validateTopicOwnership(topicName, authoritative);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
+                throw new RestException(Response.Status.NOT_FOUND, e.getMessage());
             } else {
                 throw e;
             }
