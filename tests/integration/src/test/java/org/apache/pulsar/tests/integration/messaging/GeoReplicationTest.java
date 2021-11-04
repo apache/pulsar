@@ -23,12 +23,15 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.tests.integration.topologies.PulsarGeoClusterTestBase;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public class GeoReplicationTest extends PulsarGeoClusterTestBase {
 
@@ -42,14 +45,26 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
         cleanup();
     }
 
-    @Test(timeOut = 60000, dataProvider = "TopicDomain")
-    public void testNonPersistentTopicReplication(String domain) throws Exception {
-        final String topic = domain + "://public/default/testNonPersistentTopicReplication-" + UUID.randomUUID();
+    @Test(timeOut = 120000, dataProvider = "TopicDomain")
+    public void testTopicReplication(String domain) throws Exception {
 
         PulsarAdmin admin = PulsarAdmin.builder()
                 .serviceHttpUrl(getGeoCluster().getClusters()[0].getHttpServiceUrl())
+                .requestTimeout(5, TimeUnit.SECONDS)
                 .build();
-        admin.topics().createPartitionedTopic(topic, 10);
+
+        String[] topics = new String[1];
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+            String topic = domain + "://public/default/testNonPersistentTopicReplication-" + UUID.randomUUID();
+            try {
+                admin.topics().createPartitionedTopic(topic, 10);
+            } catch (Exception ignore) {
+            }
+            Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topic).partitions, 10);
+            topics[0] = topic;
+        });
+
+        final String topic = topics[0];
 
         PulsarClient client1 = PulsarClient.builder()
                 .serviceUrl(getGeoCluster().getClusters()[0].getPlainTextServiceUrl())
