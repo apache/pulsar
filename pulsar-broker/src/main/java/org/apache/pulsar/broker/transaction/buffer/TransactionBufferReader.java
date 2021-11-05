@@ -21,7 +21,8 @@ package org.apache.pulsar.broker.transaction.buffer;
 import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
+
 
 /**
  * A reader to read entries of a given transaction from transaction buffer.
@@ -38,7 +39,7 @@ public interface TransactionBufferReader extends AutoCloseable {
      *
      * @param numEntries the number of entries to read from transaction buffer.
      * @return a future represents the result of the read operations.
-     * @throws EndOfTransactionException if reaching end of the transaction and no
+     * @throws TransactionBufferException.EndOfTransactionException if reaching end of the transaction and no
      *         more entries to return.
      */
     CompletableFuture<List<TransactionEntry>> readNext(int numEntries);

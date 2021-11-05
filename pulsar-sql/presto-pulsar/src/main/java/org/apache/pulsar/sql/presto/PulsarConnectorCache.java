@@ -42,6 +42,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -109,7 +110,8 @@ public class PulsarConnectorCache {
             .setReadEntryTimeout(60)
             .setThrottleValue(pulsarConnectorConfig.getBookkeeperThrottleValue())
             .setNumIOThreads(pulsarConnectorConfig.getBookkeeperNumIOThreads())
-            .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads());
+            .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads())
+            .setNettyMaxFrameSizeBytes(pulsarConnectorConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
 
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(pulsarConnectorConfig.getManagedLedgerCacheSizeMB());

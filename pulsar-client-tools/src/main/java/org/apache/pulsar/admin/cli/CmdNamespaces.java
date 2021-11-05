@@ -210,7 +210,8 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume)", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks," +
+                "functions,packages)", required = true)
         private List<String> actions;
 
         @Override
@@ -317,15 +318,24 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--types",
-                "-t" }, description = "Subscription types enabled list (comma separated values)", required = true)
-        private String subTypes;
+        @Parameter(names = {"--types", "-t"}, description = "Subscription types enabled list (comma separated values)."
+                + " Possible values: (Exclusive, Shared, Failover, Key_Shared).", required = true)
+        private List<String> subTypes;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             Set<SubscriptionType> types = new HashSet<>();
-            Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
+            subTypes.forEach(s -> {
+                SubscriptionType subType;
+                try {
+                    subType = SubscriptionType.valueOf(s);
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(String.format("Illegal subscription type %s. Possible values: %s.", s,
+                            Arrays.toString(SubscriptionType.values())));
+                }
+                types.add(subType);
+            });
             getAdmin().namespaces().setSubscriptionTypesEnabled(namespace, types);
         }
     }
@@ -1098,13 +1108,15 @@ public class CmdNamespaces extends CmdBase {
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
         private String policyStr;
 
-        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set")
-        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: " +
+                "destination_storage, message_age")
+        private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
             long limit;
+            BacklogQuota.BacklogQuotaType backlogQuotaType;
 
             try {
                 policy = BacklogQuota.RetentionPolicy.valueOf(policyStr);
@@ -1113,7 +1125,19 @@ public class CmdNamespaces extends CmdBase {
                         policyStr, Arrays.toString(BacklogQuota.RetentionPolicy.values())));
             }
 
-            limit = validateSizeString(limitStr);
+            try {
+                limit = validateSizeString(limitStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid formats are: %s",
+                        limitStr, "(4096, 100K, 10M, 16G, 2T)"));
+            }
+
+            try {
+                backlogQuotaType = BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid backlog quota type '%s'. Valid options are: %s",
+                        backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
+            }
 
             String namespace = validateNamespace(params);
             getAdmin().namespaces().setBacklogQuota(namespace,
@@ -1121,7 +1145,7 @@ public class CmdNamespaces extends CmdBase {
                             .limitTime(limitTime)
                             .retentionPolicy(policy)
                             .build(),
-                            BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+                    backlogQuotaType);
         }
     }
 
@@ -1130,13 +1154,21 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to remove")
-        private String backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage.name();
+        @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to remove. Valid options are: " +
+                "destination_storage, message_age")
+        private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().removeBacklogQuota(namespace, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+            BacklogQuota.BacklogQuotaType backlogQuotaType;
+            try {
+                backlogQuotaType = BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid backlog quota type '%s'. Valid options are: %s",
+                        backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
+            }
+            getAdmin().namespaces().removeBacklogQuota(namespace, backlogQuotaType);
         }
     }
 
@@ -1845,7 +1877,14 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
 
             String strategyStr = strategyParam != null ? strategyParam.toUpperCase() : "";
-            getAdmin().namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.valueOf(strategyStr));
+            SchemaCompatibilityStrategy strategy;
+            try {
+                strategy = SchemaCompatibilityStrategy.valueOf(strategyStr);
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(String.format("Illegal schema compatibility strategy %s. " +
+                        "Possible values: %s", strategyStr, Arrays.toString(SchemaCompatibilityStrategy.values())));
+            }
+            getAdmin().namespaces().setSchemaCompatibilityStrategy(namespace, strategy);
         }
     }
 
@@ -2210,15 +2249,18 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             Map<String, String> map = new HashMap<>();
             if (properties.size() == 0) {
-                throw new IllegalArgumentException("Required at least one property for the namespace.");
+                throw new ParameterException(String.format("Required at least one property for the namespace, " +
+                        "but found %d.", properties.size()));
             }
             for (String property : properties) {
                 if (!property.contains("=")) {
-                    throw new IllegalArgumentException("Invalid key value pair format.");
+                    throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                            "valid format like 'a=a,b=b,c=c'.", property));
                 } else {
                     String[] keyValue = property.split("=");
                     if (keyValue.length != 2) {
-                        throw new IllegalArgumentException("Invalid key value pair format.");
+                        throw new ParameterException(String.format("Invalid key value pair '%s', " +
+                                "valid format like 'a=a,b=b,c=c'.", property));
                     }
                     map.put(keyValue[0], keyValue[1]);
                 }
