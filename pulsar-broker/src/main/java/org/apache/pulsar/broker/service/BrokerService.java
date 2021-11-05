@@ -1052,6 +1052,7 @@ public class BrokerService implements Closeable {
     }
 
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
+        CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
             if (log.isDebugEnabled()) {
                 log.debug("Broker is unable to load non-persistent topic {}", topic);
@@ -1061,27 +1062,37 @@ public class BrokerService implements Closeable {
         }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         NonPersistentTopic nonPersistentTopic = new NonPersistentTopic(topic, this);
-
-        CompletableFuture<Optional<Topic>> future = nonPersistentTopic.initialize()
-                .thenCompose(__ -> nonPersistentTopic.checkReplication())
-                .thenApply(__ -> {
-            log.info("Created topic {}", nonPersistentTopic);
-            long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - topicCreateTimeMs;
-            pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-            addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
-            return Optional.of(nonPersistentTopic);
-        });
-
-        future.exceptionally((ex) -> {
-            log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
-            nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                pulsar.getExecutor().execute(() -> topics.remove(topic, future));
+        CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
+        isOwner.thenRun(() -> {
+            nonPersistentTopic.initialize()
+                    .thenCompose(__ -> nonPersistentTopic.checkReplication())
+                    .thenRun(() -> {
+                        log.info("Created topic {}", nonPersistentTopic);
+                        long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()) - topicCreateTimeMs;
+                        pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
+                        addTopicToStatsMaps(TopicName.get(topic), nonPersistentTopic);
+                        topicFuture.complete(Optional.of(nonPersistentTopic));
+                    }).exceptionally(ex -> {
+                log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex.getCause());
+                nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                    topicFuture.completeExceptionally(ex);
+                });
+                return null;
             });
-
+        }).exceptionally(e -> {
+            log.warn("CheckTopicNsOwnership fail when createNonPersistentTopic! {}", topic, e.getCause());
+            // CheckTopicNsOwnership fail dont create nonPersistentTopic, when topic do lookup will find the correct
+            // broker. When get non-persistent-partitioned topic metadata will create. if it dont owner this broker,
+            // we should return success otherwise it will keep retrying getPartitionedTopicMetadata
+            topicFuture.complete(Optional.of(nonPersistentTopic));
+            // after get metadata return success, we should delete this topic from this broker, because this topic not
+            // owner by this broker and it don't initialize and checkReplication
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });
 
-        return future;
+        return topicFuture;
     }
 
     private <T> CompletableFuture<T> futureWithDeadline() {
