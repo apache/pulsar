@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -134,7 +134,7 @@ public final class KeyValueSchemaInfo {
                                                       SchemaInfo keySchemaInfo,
                                                       SchemaInfo valueSchemaInfo,
                                                       KeyValueEncodingType keyValueEncodingType) {
-        checkNotNull(keyValueEncodingType, "Null encoding type is provided");
+        requireNonNull(keyValueEncodingType, "Null encoding type is provided");
 
         if (keySchemaInfo == null || valueSchemaInfo == null) {
             // schema is not ready
