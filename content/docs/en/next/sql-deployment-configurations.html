@@ -94,11 +94,98 @@
 <span class="hljs-comment">
 # max size of one batch message (default value is 5MB)</span>
 <span class="hljs-meta">pulsar.max-message-size</span>=<span class="hljs-string">5242880</span>
+<span class="hljs-comment">
+# number of split used when querying data from pulsar</span>
+<span class="hljs-meta">pulsar.target-num-splits</span>=<span class="hljs-string">2</span>
+<span class="hljs-comment">
+# size of queue to buffer entry read from pulsar</span>
+<span class="hljs-meta">pulsar.max-split-entry-queue-size</span>=<span class="hljs-string">1000</span>
+<span class="hljs-comment">
+# size of queue to buffer message extract from entries</span>
+<span class="hljs-meta">pulsar.max-split-message-queue-size</span>=<span class="hljs-string">10000</span>
+<span class="hljs-comment">
+# status provider to record connector metrics</span>
+<span class="hljs-meta">pulsar.stats-provider</span>=<span class="hljs-string">org.apache.bookkeeper.stats.NullStatsProvider</span>
+<span class="hljs-comment">
+# config in map format for stats provider e.g. {"key1":"val1","key2":"val2"}</span>
+<span class="hljs-meta">pulsar.stats-provider-configs</span>=<span class="hljs-string">{}</span>
+<span class="hljs-comment">
+# whether to rewrite Pulsar's default topic delimiter '/'</span>
+<span class="hljs-meta">pulsar.namespace-delimiter-rewrite-enable</span>=<span class="hljs-string">false</span>
+<span class="hljs-comment">
+# delimiter used to rewrite Pulsar's default delimiter '/', use if default is causing incompatibility with other system like Superset</span>
+<span class="hljs-meta">pulsar.rewrite-namespace-delimiter</span>=<span class="hljs-string">“/”</span>
+<span class="hljs-comment">
+# maximum number of thread pool size for ledger offloader.</span>
+<span class="hljs-meta">pulsar.managed-ledger-offload-max-threads</span>=<span class="hljs-string">2</span>
+<span class="hljs-comment">
+# driver used to offload or read cold data to or from long-term storage</span>
+<span class="hljs-meta">pulsar.managed-ledger-offload-driver</span>=<span class="hljs-string">null</span>
+<span class="hljs-comment">
+# directory to load offloaders nar file.</span>
+<span class="hljs-meta">pulsar.offloaders-directory</span>=<span class="hljs-string">"./offloaders"</span>
+<span class="hljs-comment">
+# properties and configurations related to specific offloader implementation as map e.g. {"key1":"val1","key2":"val2"}</span>
+<span class="hljs-meta">pulsar.offloader-properties</span>=<span class="hljs-string">{}</span>
+<span class="hljs-comment">
+# authentication plugin used to authenticate to Pulsar cluster</span>
+<span class="hljs-meta">pulsar.auth-plugin</span>=<span class="hljs-string">null</span>
+<span class="hljs-comment">
+# authentication parameter used to authenticate to the Pulsar cluster as a string e.g. "key1:val1,key2:val2".</span>
+<span class="hljs-meta">pulsar.auth-params</span>=<span class="hljs-string">null</span>
+<span class="hljs-comment">
+# whether the Pulsar client accept an untrusted TLS certificate from broker</span>
+<span class="hljs-meta">pulsar.tls-allow-insecure-connection</span>=<span class="hljs-string">null</span>
+<span class="hljs-comment">
+# whether to allow hostname verification when a client connects to broker over TLS.</span>
+<span class="hljs-meta">pulsar.tls-hostname-verification-enable</span>=<span class="hljs-string">null</span>
+<span class="hljs-comment">
+# path for the trusted TLS certificate file of Pulsar broker</span>
+<span class="hljs-meta">pulsar.tls-trust-cert-file-path</span>=<span class="hljs-string">null</span>
+<span class="hljs-comment">
+# set the threshold for BookKeeper request throttle, default is disabled</span>
+<span class="hljs-meta">pulsar.bookkeeper-throttle-value</span>=<span class="hljs-string">0</span>
+<span class="hljs-comment">
+# set the number of IO thread</span>
+<span class="hljs-meta">pulsar.bookkeeper-num-io-threads</span>=<span class="hljs-string">2 * Runtime.getRuntime().availableProcessors()</span>
+<span class="hljs-comment">
+# set the number of worker thread</span>
+<span class="hljs-meta">pulsar.bookkeeper-num-worker-threads</span>=<span class="hljs-string">Runtime.getRuntime().availableProcessors()</span>
+<span class="hljs-comment">
+# whether to use BookKeeper V2 wire protocol</span>
+<span class="hljs-meta">pulsar.bookkeeper-use-v2-protocol</span>=<span class="hljs-string">true</span>
+<span class="hljs-comment">
+# interval to check the need for sending an explicit LAC, default is disabled</span>
+<span class="hljs-meta">pulsar.bookkeeper-explicit-interval</span>=<span class="hljs-string">0</span>
+<span class="hljs-comment">
+# size for managed ledger entry cache (in MB).</span>
+<span class="hljs-meta">pulsar.managed-ledger-cache-size-MB</span>=<span class="hljs-string">0</span>
+<span class="hljs-comment">
+# number of threads to be used for managed ledger tasks dispatching</span>
+<span class="hljs-meta">pulsar.managed-ledger-num-worker-threads</span>=<span class="hljs-string">Runtime.getRuntime().availableProcessors()</span>
+<span class="hljs-comment">
+# number of threads to be used for managed ledger scheduled tasks</span>
+<span class="hljs-meta">pulsar.managed-ledger-num-scheduler-threads</span>=<span class="hljs-string">Runtime.getRuntime().availableProcessors()</span>
+<span class="hljs-comment">
+# directory used to store extraction NAR file</span>
+<span class="hljs-meta">pulsar.nar-extraction-directory</span>=<span class="hljs-string">System.getProperty("java.io.tmpdir")</span>
 </code></pre>
 <p>You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers, add multiple URLs to <code>pulsar.web-service-url</code>. To configure multiple hosts for ZooKeeper, add multiple URIs to <code>pulsar.zookeeper-uri</code>. The following is an example.</p>
 <pre><code class="hljs"><span class="hljs-attr">pulsar.web-service-url</span>=http://localhost:<span class="hljs-number">8080</span>,localhost:<span class="hljs-number">8081</span>,localhost:<span class="hljs-number">8082</span>
 <span class="hljs-attr">pulsar.zookeeper-uri</span>=localhost1,localhost2:<span class="hljs-number">2181</span>
 </code></pre>
+<p>A frequently asked question is why my latest message not showing up when querying with Pulsar SQL.
+It's not a bug but controlled by a setting, by default BookKeeper LAC only advanced when subsequent entries are added.
+If there is no subsequent entries added, the last entry written will not be visible to readers until the ledger is closed.
+This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly read from BookKeeper ledger.
+We can add following setting to change the behavior:
+In Broker config, set
+bookkeeperExplicitLacIntervalInMills &gt; 0
+bookkeeperUseV2WireProtocol=false</p>
+<p>And in Presto config, set
+pulsar.bookkeeper-explicit-interval &gt; 0
+pulsar.bookkeeper-use-v2-protocol=false</p>
+<p>However,keep in mind that using bk V3 protocol will introduce additional GC overhead to BK as it uses Protobuf.</p>
 <h2><a class="anchor" aria-hidden="true" id="query-data-from-existing-presto-clusters"></a><a href="#query-data-from-existing-presto-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Query data from existing Presto clusters</h2>
 <p>If you already have a Presto cluster, you can copy the Presto Pulsar connector plugin to your existing cluster. Download the archived plugin package with the following command.</p>
 <pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz
