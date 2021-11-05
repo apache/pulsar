@@ -22,7 +22,7 @@ import com.google.common.annotations.Beta;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
@@ -57,9 +57,9 @@ public interface TransactionMeta {
      * Return messages number in one transaction.
      *
      * @return the number of transaction messages
-     * @throws TransactionStatusException
+     * @throws TransactionBufferException.TransactionStatusException
      */
-    int numMessageInTxn() throws TransactionStatusException;
+    int numMessageInTxn() throws TransactionBufferException.TransactionStatusException;
 
     /**
      * Return the committed ledger id at data ledger.

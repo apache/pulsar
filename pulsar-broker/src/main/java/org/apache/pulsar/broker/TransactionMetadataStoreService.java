@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
+import org.apache.pulsar.broker.transaction.exception.coordinator.TransactionCoordinatorException;
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
@@ -331,8 +331,8 @@ public class TransactionMetadataStoreService {
                 newStatus = ABORTING;
                 break;
             default:
-                UnsupportedTxnActionException exception =
-                        new UnsupportedTxnActionException(txnID, txnAction);
+                TransactionCoordinatorException.UnsupportedTxnActionException exception =
+                        new TransactionCoordinatorException.UnsupportedTxnActionException(txnID, txnAction);
                 LOG.error(exception.getMessage());
                 completableFuture.completeExceptionally(exception);
                 return completableFuture;

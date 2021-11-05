@@ -16,22 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.exceptions;
-
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
-
 /**
- * Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.
+ * Exceptions thrown when encountering errors in transaction buffer.
  */
-public class TransactionStatusException extends TransactionBufferException {
-
-    private static final long serialVersionUID = 0L;
-
-    public TransactionStatusException(TxnID txnId,
-                                      TxnStatus expectedStatus,
-                                      TxnStatus actualStatus) {
-        super("Transaction `" + txnId + "` is not in an expected status `" + expectedStatus
-            + "`, but is in status `" + actualStatus + "`");
-    }
-}
+package org.apache.pulsar.broker.transaction.exception.pendingack;

@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
+    private volatile boolean readCompacted;
+
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
                          PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition) {
         super(bookkeeper, config, ledger, cursorName);
@@ -114,6 +116,14 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     public void asyncDeleteCursor(final String consumerName, final DeleteCursorCallback callback, final Object ctx) {
         /// No-Op
         callback.deleteCursorComplete(ctx);
+    }
+
+    public void setReadCompacted(boolean readCompacted) {
+        this.readCompacted = readCompacted;
+    }
+
+    public boolean isReadCompacted() {
+        return readCompacted;
     }
 
     @Override

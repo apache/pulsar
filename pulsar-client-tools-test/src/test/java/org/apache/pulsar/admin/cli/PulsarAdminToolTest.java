@@ -1295,6 +1295,15 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("get-max-consumers persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getMaxConsumers("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("get-replication-clusters persistent://myprop/clust/ns1/ds1 --applied"));
+        verify(mockTopics).getReplicationClusters("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("set-replication-clusters persistent://myprop/clust/ns1/ds1 -c test"));
+        verify(mockTopics).setReplicationClusters("persistent://myprop/clust/ns1/ds1", Lists.newArrayList("test"));
+
+        cmdTopics.run(split("remove-replication-clusters persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeReplicationClusters("persistent://myprop/clust/ns1/ds1");
     }
 
     private static LedgerInfo newLedger(long id, long entries, long size) {
