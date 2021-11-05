@@ -86,7 +86,6 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, AsyncResponse response) {
-        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
         String schemaId = getSchemaId();
         pulsar().getSchemaRegistryService().getSchema(schemaId).handle((schema, error) -> {
@@ -96,7 +95,6 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, String version, AsyncResponse response) {
-        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
         String schemaId = getSchemaId();
         ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
@@ -109,7 +107,6 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getAllSchemas(boolean authoritative, AsyncResponse response) {
-        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -120,7 +117,6 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void deleteSchema(boolean authoritative, AsyncResponse response) {
-        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -202,7 +198,6 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void testCompatibility(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
-        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -235,7 +230,6 @@ public class SchemasResourceBase extends AdminResource {
     public void getVersionBySchema(
 
             PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
-        checkTopicExists(response);
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -343,7 +337,7 @@ public class SchemasResourceBase extends AdminResource {
             validateTopicOwnership(topicName, authoritative);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-                throw new RestException(Response.Status.NOT_FOUND, e.getMessage());
+                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
             } else {
                 throw e;
             }

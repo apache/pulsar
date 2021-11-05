@@ -577,6 +577,7 @@ public class PulsarFunctionLocalRunTest {
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.topics().createNonPartitionedTopic(sourceTopic);
 
 
         Schema schema = Schema.AVRO(SchemaDefinition.builder()
