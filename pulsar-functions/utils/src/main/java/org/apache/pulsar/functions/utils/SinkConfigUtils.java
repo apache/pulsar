@@ -45,12 +45,7 @@ import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -93,6 +88,8 @@ public class SinkConfigUtils {
         if (sinkConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
                     convertProcessingGuarantee(sinkConfig.getProcessingGuarantees()));
+        } else {
+            functionDetailsBuilder.setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE);
         }
 
         // set source spec
@@ -278,13 +275,18 @@ public class SinkConfigUtils {
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             sinkConfig.setSourceSubscriptionName(functionDetails.getSource().getSubscriptionName());
         }
-        if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
-            sinkConfig.setRetainOrdering(true);
-            sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
-        } else {
-            sinkConfig.setRetainOrdering(false);
-            sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        switch (functionDetails.getSource().getSubscriptionType()) {
+            case SHARED:
+                sinkConfig.setRetainOrdering(false);
+                break;
+            case FAILOVER:
+                sinkConfig.setRetainOrdering(true);
+                break;
         }
+
+        sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
+
         sinkConfig.setAutoAck(functionDetails.getAutoAck());
 
         // Set subscription position

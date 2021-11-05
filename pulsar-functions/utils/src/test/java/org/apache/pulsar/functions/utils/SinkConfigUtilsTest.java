@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,15 +47,13 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.*;
 
 /**
  * Unit test of {@link Reflections}.
@@ -110,6 +109,49 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
                 new Gson().toJson(sinkConfig),
                 new Gson().toJson(convertedConfig)
         );
+    }
+
+    @Test
+    private void testParseRetainOrderingField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setRetainOrdering(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getRetainOrdering(), testcase != null ? testcase : Boolean.valueOf(false));
+        }
+    }
+
+    @Test
+    private void testParseProcessingGuaranteesField() throws IOException {
+        List<FunctionConfig.ProcessingGuarantees> testcases = Lists.newArrayList(
+                EFFECTIVELY_ONCE,
+                ATMOST_ONCE,
+                ATLEAST_ONCE,
+                null
+        );
+
+        for (FunctionConfig.ProcessingGuarantees testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setProcessingGuarantees(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getProcessingGuarantees(), testcase == null ? ATLEAST_ONCE : testcase);
+        }
+    }
+
+    @Test
+    private void testCleanSubscriptionField() throws IOException {
+        List<Boolean> testcases = Lists.newArrayList(true, false, null);
+
+        for (Boolean testcase : testcases) {
+            SinkConfig sinkConfig = createSinkConfig();
+            sinkConfig.setCleanupSubscription(testcase);
+            Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            SinkConfig result = SinkConfigUtils.convertFromDetails(functionDetails);
+            assertEquals(result.getCleanupSubscription(), testcase == null ? Boolean.valueOf(true) : testcase);
+        }
     }
 
     @Test
