@@ -160,10 +160,10 @@ You can check topic-specific statistics for geo-replication topics using one of 
 <!--DOCUSAURUS_CODE_TABS-->
 <!--pulsar-admin-->
 
-Use the [`pulsar-admin persistent stats`](https://pulsar.apache.org/tools/pulsar-admin/) command.
+Use the [`pulsar-admin topics stats`](https://pulsar.apache.org/tools/pulsar-admin/) command.
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://my-tenant/my-namespace/my-topic
+$ bin/pulsar-admin topics stats persistent://my-tenant/my-namespace/my-topic
 ```
 
 <!--REST API-->
