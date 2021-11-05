@@ -74,6 +74,7 @@ public class ProtocolHandlerWithClassLoaderTest {
         verify(h, times(1)).getProtocolDataToAdvertise();
     }
 
+    @Test
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader loader = mock(NarClassLoader.class);
 
