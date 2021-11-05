@@ -210,6 +210,11 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     }
 
     @Override
+    public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        return authorize(authenticationData, r -> super.allowConsumeOpsAsync(namespaceName, r, authenticationData));
+    }
+
+    @Override
     public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName,
                                                                 String role,
                                                                 TenantOperation operation,

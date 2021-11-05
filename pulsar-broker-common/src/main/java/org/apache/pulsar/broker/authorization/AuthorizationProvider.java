@@ -164,6 +164,16 @@ public interface AuthorizationProvider extends Closeable {
                                                  AuthenticationDataSource authenticationData);
 
     /**
+     * Allow consume operations with in this namespace
+     * @param namespaceName The namespace that the consume operations can be executed in
+     * @param role The role to check
+     * @param authenticationData authentication data related to the role
+     * @return a boolean to determine whether authorized or not
+     */
+    CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role,
+                                                 AuthenticationDataSource authenticationData);
+
+    /**
      *
      * Grant authorization-action permission on a namespace to the given client
      *
