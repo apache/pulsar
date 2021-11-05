@@ -31,7 +31,7 @@ public class TestRunMain {
     public void runMainNoArguments() throws Exception {
         PulsarAdminTool.setAllowSystemExit(false);
         PulsarAdminTool.main(new String[0]);
-        assertEquals(PulsarAdminTool.getLastExitCode(), 0);
+        assertEquals(PulsarAdminTool.getLastExitCode(), 1);
     }
 
     @Test
