@@ -261,6 +261,40 @@
           "id": "version-2.7.1/helm-tools"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/deploy-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/deploy-kubernetes"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/deploy-bare-metal"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/deploy-bare-metal-multi-cluster"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/deploy-dcos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/deploy-docker"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/deploy-monitoring"
+        }
+      ]
     }
   ]
 }
