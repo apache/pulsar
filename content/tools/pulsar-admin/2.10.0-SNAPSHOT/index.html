@@ -2522,7 +2522,7 @@
 <tbody>
 <tr>
 <td><code>--actions</code></td>
-<td>Actions to be granted (produce,consume)</td>
+<td>Actions to be granted (produce,consume,sources,sinks,functions,packages)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -2697,6 +2697,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>-t, --type</code></td>
+<td>Backlog quota type to set. Valid options are: destination_storage, message_age</td>
+<td>destination_storage</td>
+</tr>
+<tr>
 <td><code>-lt, --limitTime</code></td>
 <td>Time limit in second, non-positive number for disabling time limit.</td>
 <td>-1</td>
@@ -2705,11 +2710,6 @@
 <td><code>-p, --policy</code></td>
 <td>Retention policy to enforce when the limit is reached. Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]</td>
 <td>null</td>
-</tr>
-<tr>
-<td><code>-t, --type</code></td>
-<td>Backlog quota type to set</td>
-<td>destination_storage</td>
 </tr>
 </tbody>
 </table>
@@ -2731,7 +2731,7 @@
 <tbody>
 <tr>
 <td><code>-t, --type</code></td>
-<td>Backlog quota type to remove</td>
+<td>Backlog quota type to remove. Valid options are: destination_storage, message_age</td>
 <td>destination_storage</td>
 </tr>
 </tbody>
@@ -6443,7 +6443,7 @@
 </tr>
 <tr>
 <td><code>--actions</code></td>
-<td>Actions to be granted (produce,consume)</td>
+<td>Actions to be granted (produce,consume,sources,sinks,functions,packages)</td>
 <td>null</td>
 </tr>
 </tbody>
