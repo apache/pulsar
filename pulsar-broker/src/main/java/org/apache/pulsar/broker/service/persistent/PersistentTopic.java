@@ -1394,7 +1394,7 @@ public class PersistentTopic extends AbstractTopic
     public CompletableFuture<List<String>> getReplicationClusters(TopicName topicName) {
         return brokerService.pulsar()
                 .getTopicPoliciesService()
-                .getTopicPoliciesAsyncWithRetry(topicName, null, brokerService.pulsar().getExecutor())
+                .getTopicPoliciesAsyncWithRetry(topicName, null, brokerService.pulsar().getExecutor(), false)
                 .thenCompose(topicPolicies -> {
                     if (!topicPolicies.isPresent() || topicPolicies.get().getReplicationClusters() == null) {
                         return brokerService.pulsar().getPulsarResources()
