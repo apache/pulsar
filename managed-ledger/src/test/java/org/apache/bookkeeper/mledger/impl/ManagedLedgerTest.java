@@ -3308,4 +3308,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         managedLedgerB.close();
 
     }
+
+    @Test(timeOut = 20000)
+    public void testReadNonExistentLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test-non-existent-ledger", config);
+        ManagedCursor cursor = ledger.openCursor("test-non-existent-cursor");
+
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        PositionImpl pos = PositionImpl.latest;
+        cursor.seek(pos);
+        cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                future.complete(true);
+            }
+        }, null, pos);
+
+        cursor.close();
+        ledger.close();
+        assert(future.get());
+    }
 }
