@@ -1138,7 +1138,7 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 ```
 
 <!--REST API-->
-When topic auto-creation is enabled by broker, you can set param `checkAllowAutoCreation = true` to auto create topic.
+When enabling topic auto-creation, you can set the parameter `checkAllowAutoCreation = true` to automatically create a topic.
 
 {@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=[[pulsar:version_number]]}
 
