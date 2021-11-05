@@ -915,7 +915,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
-            updateLoadBalancingBundlesMetrics(getBundleStats());
+            if (conf.isExposeBunlesMetricsInPrometheus()) {
+                updateLoadBalancingBundlesMetrics(getBundleStats());
+            }
         } catch (Exception e) {
             log.warn("Error when attempting to update local broker data", e);
             if (e instanceof ConcurrentModificationException) {
