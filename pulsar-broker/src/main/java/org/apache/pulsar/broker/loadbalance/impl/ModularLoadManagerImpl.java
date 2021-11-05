@@ -940,7 +940,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             final String bundle = entry.getKey();
             final NamespaceBundleStats stats = entry.getValue();
             Map<String, String> dimensions = new HashMap<>();
-            dimensions.put("broker", ServiceConfigurationUtils.getAppliedAdvertisedAddress(conf, true));
+            dimensions.put("broker", pulsar.getAdvertisedAddress());
             dimensions.put("bundle", bundle);
             dimensions.put("metric", "loadBalancing");
             Metrics m = Metrics.create(dimensions);
