@@ -127,7 +127,7 @@ $ bin/pulsar-admin topics set-replication-clusters --clusters us-west,us-east,us
 > 
 > - You can change the replication clusters for a namespace at any time, without disruption to ongoing traffic. Replication channels are immediately set up or stopped in all clusters as soon as the configuration changes.
 >
-> - Once you create a geo-replication namespace, any topics that producers or consumers create within that namespace is replicated across clusters. Typically, each application uses the `serviceUrl` for the local cluster.
+> - Once you create a geo-replication namespace, any topics that producers or consumers create within that namespace are replicated across clusters. Typically, each application uses the `serviceUrl` for the local cluster.
 
 ### Use topics with geo-replication
 
