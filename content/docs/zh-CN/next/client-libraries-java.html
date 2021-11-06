@@ -230,8 +230,8 @@ client.close();
 If it is set to <code>false</code>当发出消息队列满时, <code>Send</code> and <code>SendAsync</code> 生产者方法会失败和 <code>ProducerQueueIsFullError</code> 异常出现</p>
 <p>这个 <code>MaxPendingMessages</code> 参数决定发送消息队列的大小。|falseint <code>maxPendingMessages</code>| int|待处理消息队列的最大大小。</p>
 <p>例如，正等待 broker 确认的消息 <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
-<p>By default, when the queue is full, all calls to the <code>Send</code> and <code>SendAsync</code> methods fail <strong>unless</strong> you set <code>BlockIfQueueFull</code> to <code>true</code>.|1000 <code>maxPendingMessagesAcrossPartitions</code>|int|The maximum number of pending messages across partitions.</p>
-<p>Use the setting to lower the max pending messages for each partition ({@link #setMaxPendingMessages(int)}) if the total number exceeds the configured value.|50000 <code>messageRoutingMode</code>| MessageRoutingMode|Message routing logic for producers on <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.<br>
+<p>默认情况下，当队列已满时，调用所有 <code>Send</code> and <code>SendAsync</code> 方法会失败 <strong>除非</strong> 你设置 <code>BlockIfQueueFull</code> 为 <code>true</code>.|1000 <code>maxPendingMessagesAcrossPartitions</code>|跨分区的最大待处理消息数量。</p>
+<p>如果总的数量超过了所配置的值，则使用该设置降低每个分区的最大等待消息数 ({@link #setMaxPendingMessages(int)}) |50000MessageRoutingMode <code>messageRoutingMode</code>| MessageRoutingMode|Message routing logic for producers on <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.<br>
 Apply the logic only when setting no key on messages.<br>
 Available options are as follows:</p>
 <ul>
