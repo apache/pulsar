@@ -34,8 +34,17 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 
 public abstract class PulsarTestBase extends TestRetrySupport {
+
+    @DataProvider(name = "TopicDomain")
+    public Object[][] topicDomain() {
+        return new Object[][] {
+                {"persistent"},
+                {"non-persistent"}
+        };
+    }
 
     public static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();

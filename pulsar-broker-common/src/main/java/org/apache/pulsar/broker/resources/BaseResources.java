@@ -167,6 +167,10 @@ public class BaseResources<T> {
         }
     }
 
+    protected CompletableFuture<Boolean> existsAsync(String path) {
+        return cache.exists(path);
+    }
+
     public int getOperationTimeoutSec() {
         return operationTimeoutSec;
     }
