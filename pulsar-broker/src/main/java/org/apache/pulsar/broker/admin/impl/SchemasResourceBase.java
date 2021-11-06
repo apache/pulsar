@@ -260,9 +260,11 @@ public class SchemasResourceBase extends AdminResource {
     private static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
         if (isNull(error)) {
             if (isNull(schema)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema not found").build());
             } else if (schema.schema.isDeleted()) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schema is deleted").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(convertSchemaAndMetadataToGetSchemaResponse(schema)).build());
@@ -278,7 +280,8 @@ public class SchemasResourceBase extends AdminResource {
             Throwable error) {
         if (isNull(error)) {
             if (isNull(schemas)) {
-                response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                response.resume(Response.status(
+                        Response.Status.NOT_FOUND.getStatusCode(), "Schemas not found").build());
             } else {
                 response.resume(Response.ok().encoding(MediaType.APPLICATION_JSON)
                         .entity(GetAllVersionsSchemaResponse.builder()
@@ -300,7 +303,7 @@ public class SchemasResourceBase extends AdminResource {
             validateTopicOwnership(topicName, authoritative);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
-                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
+                throw new RestException(Response.Status.UNAUTHORIZED, e.getMessage());
             } else {
                 throw e;
             }
