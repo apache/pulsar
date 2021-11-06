@@ -341,7 +341,7 @@ public class TestCmdSinks {
         );
     }
 
-    public void testCmdSinkCliMissingArgs(
+    private void testCmdSinkCliMissingArgs(
             String tenant,
             String namespace,
             String name,
@@ -492,7 +492,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    public void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
+    private void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
 
@@ -572,7 +572,7 @@ public class TestCmdSinks {
         );
     }
 
-    public void testMixCliAndConfigFile(
+    private void testMixCliAndConfigFile(
             String tenant,
             String namespace,
             String name,

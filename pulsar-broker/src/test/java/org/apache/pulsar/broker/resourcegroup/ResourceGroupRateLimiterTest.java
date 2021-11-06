@@ -80,7 +80,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
             .untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
     }
 
-    public void testRateLimit() throws PulsarAdminException, PulsarClientException,
+    private void testRateLimit() throws PulsarAdminException, PulsarClientException,
       InterruptedException, ExecutionException, TimeoutException {
         createResourceGroup(rgName, testAddRg);
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
