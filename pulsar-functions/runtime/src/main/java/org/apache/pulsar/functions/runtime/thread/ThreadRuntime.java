@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import io.prometheus.client.CollectorRegistry;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -68,6 +67,7 @@ public class ThreadRuntime implements Runtime {
     private ClientBuilder clientBuilder;
     private PulsarClient pulsarClient;
     private PulsarAdmin pulsarAdmin;
+    private String stateStorageImplClass;
     private String stateStorageServiceUrl;
     private SecretsProvider secretsProvider;
     private FunctionCollectorRegistry collectorRegistry;
@@ -81,6 +81,7 @@ public class ThreadRuntime implements Runtime {
                   PulsarClient client,
                   ClientBuilder clientBuilder,
                   PulsarAdmin pulsarAdmin,
+                  String stateStorageImplClass,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
                   FunctionCollectorRegistry collectorRegistry,
@@ -97,6 +98,7 @@ public class ThreadRuntime implements Runtime {
         this.clientBuilder = clientBuilder;
         this.pulsarClient = client;
         this.pulsarAdmin = pulsarAdmin;
+        this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
@@ -186,6 +188,7 @@ public class ThreadRuntime implements Runtime {
                 clientBuilder,
                 pulsarClient,
                 pulsarAdmin,
+                stateStorageImplClass,
                 stateStorageServiceUrl,
                 secretsProvider,
                 collectorRegistry,
