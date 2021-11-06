@@ -949,8 +949,9 @@ class SchemaTest(TestCase):
             nc2 = NestedObj1()
 
         class NestedObj3(Record):
-            na3 = Integer()
+            _sorted_fields = True
             color = CustomEnum(Color)
+            na3 = Integer()
 
         class NestedObj4(Record):
             _avro_namespace = 'xxx4'
@@ -994,8 +995,8 @@ class SchemaTest(TestCase):
                 {'name': 'color3', 'default': 'red', 'type': 'Color'},
                 {'name': 'mapNested', 'type': ['null', {'type': 'map', 'values':
                     {'name': 'NestedObj3', 'type': 'record', 'fields': [
-                        {'name': 'na3', 'type': ['null', 'int']},
-                        {'name': 'color', 'type': ['null', 'Color']}
+                        {'name': 'color', 'type': ['null', 'Color']},
+                        {'name': 'na3', 'type': ['null', 'int']}
                     ]}}
                 ]},
                 {'name': 'mapNested2', 'type': ['null', {'type': 'map', 'values': 'NestedObj3'}]},
@@ -1265,5 +1266,7 @@ class SchemaTest(TestCase):
 
         client.close()
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
+test = SchemaTest()
+test.test_serialize_schema_complex()
