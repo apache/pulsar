@@ -344,7 +344,8 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Closeable.
 </tr>
 <tr id="i33" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.client.admin.PulsarAdmin</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BrokerService.html#getClusterPulsarAdmin-java.lang.String-">getClusterPulsarAdmin</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BrokerService.html#getClusterPulsarAdmin-java.lang.String-java.util.Optional-">getClusterPulsarAdmin</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
+                     <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.pulsar.common.policies.data.ClusterData&gt;&nbsp;clusterDataOp)</code>&nbsp;</td>
 </tr>
 <tr id="i34" class="altColor">
 <td class="colFirst"><code>int</code></td>
@@ -404,7 +405,8 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Closeable.
 </tr>
 <tr id="i48" class="altColor">
 <td class="colFirst"><code>org.apache.pulsar.client.api.PulsarClient</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BrokerService.html#getReplicationClient-java.lang.String-">getReplicationClient</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/BrokerService.html#getReplicationClient-java.lang.String-java.util.Optional-">getReplicationClient</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
+                    <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.pulsar.common.policies.data.ClusterData&gt;&nbsp;clusterDataOp)</code>&nbsp;</td>
 </tr>
 <tr id="i49" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,org.apache.pulsar.client.api.PulsarClient&gt;</code></td>
@@ -986,22 +988,24 @@ implements <a href="https://docs.oracle.com/javase/8/docs/api/java/io/Closeable.
                                                int&nbsp;count)</pre>
 </li>
 </ul>
-<a name="getReplicationClient-java.lang.String-">
+<a name="getReplicationClient-java.lang.String-java.util.Optional-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getReplicationClient</h4>
-<pre>public&nbsp;org.apache.pulsar.client.api.PulsarClient&nbsp;getReplicationClient(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster)</pre>
+<pre>public&nbsp;org.apache.pulsar.client.api.PulsarClient&nbsp;getReplicationClient(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
+                                                                      <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.pulsar.common.policies.data.ClusterData&gt;&nbsp;clusterDataOp)</pre>
 </li>
 </ul>
-<a name="getClusterPulsarAdmin-java.lang.String-">
+<a name="getClusterPulsarAdmin-java.lang.String-java.util.Optional-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getClusterPulsarAdmin</h4>
-<pre>public&nbsp;org.apache.pulsar.client.admin.PulsarAdmin&nbsp;getClusterPulsarAdmin(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster)</pre>
+<pre>public&nbsp;org.apache.pulsar.client.admin.PulsarAdmin&nbsp;getClusterPulsarAdmin(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;cluster,
+                                                                        <a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.pulsar.common.policies.data.ClusterData&gt;&nbsp;clusterDataOp)</pre>
 </li>
 </ul>
 <a name="loadOrCreatePersistentTopic-java.lang.String-boolean-">

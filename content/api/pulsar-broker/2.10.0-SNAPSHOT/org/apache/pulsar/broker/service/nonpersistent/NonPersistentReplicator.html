@@ -169,10 +169,11 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Replicato
 <th class="colOne" scope="col">Constructor and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentReplicator.html#NonPersistentReplicator-org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">NonPersistentReplicator</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a>&nbsp;topic,
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentReplicator.html#NonPersistentReplicator-org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-org.apache.pulsar.client.impl.PulsarClientImpl-">NonPersistentReplicator</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a>&nbsp;topic,
                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster,
                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
-                       <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService)</code>&nbsp;</td>
+                       <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService,
+                       org.apache.pulsar.client.impl.PulsarClientImpl&nbsp;replicationClient)</code>&nbsp;</td>
 </tr>
 </table>
 </li>
@@ -227,7 +228,7 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Replicato
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;org.apache.pulsar.broker.service.<a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html" title="class in org.apache.pulsar.broker.service">AbstractReplicator</a></h3>
-<code><a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#closeProducerAsync--">closeProducerAsync</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#disconnect--">disconnect</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#disconnect-boolean-">disconnect</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#getRemoteCluster--">getRemoteCluster</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#getRemoteCluster-java.lang.String-">getRemoteCluster</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#getReplicatorName-java.lang.String-java.lang.String-">getReplicatorName</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#isWritable--">isWritable</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#remove--">remove</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#startProducer--">startProducer</a></code></li>
+<code><a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#closeProducerAsync--">closeProducerAsync</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#disconnect--">disconnect</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#disconnect-boolean-">disconnect</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#getRemoteCluster--">getRemoteCluster</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#getRemoteCluster-java.lang.String-">getRemoteCluster</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#getReplicatorName-java.lang.String-java.lang.String-">getReplicatorName</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#isWritable--">isWritable</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#remove--">remove</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#startProducer--">startProducer</a>, <a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#validatePartitionedTopicAsync-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">validatePartitionedTopicAsync</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a name="methods.inherited.from.class.java.lang.Object">
@@ -257,7 +258,7 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Replicato
 <!--   -->
 </a>
 <h3>Constructor Detail</h3>
-<a name="NonPersistentReplicator-org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">
+<a name="NonPersistentReplicator-org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-org.apache.pulsar.client.impl.PulsarClientImpl-">
 <!--   -->
 </a>
 <ul class="blockListLast">
@@ -266,12 +267,11 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Replicato
 <pre>public&nbsp;NonPersistentReplicator(<a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a>&nbsp;topic,
                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster,
                                <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
-                               <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService)
-                        throws <a href="../../../../../../org/apache/pulsar/broker/service/BrokerServiceException.NamingException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.NamingException</a>,
-                               org.apache.pulsar.broker.PulsarServerException</pre>
+                               <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService,
+                               org.apache.pulsar.client.impl.PulsarClientImpl&nbsp;replicationClient)
+                        throws org.apache.pulsar.broker.PulsarServerException</pre>
 <dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="../../../../../../org/apache/pulsar/broker/service/BrokerServiceException.NamingException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.NamingException</a></code></dd>
 <dd><code>org.apache.pulsar.broker.PulsarServerException</code></dd>
 </dl>
 </li>

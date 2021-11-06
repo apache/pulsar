@@ -225,6 +225,13 @@
                                  <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
                                  int&nbsp;consumerSize)</code>&nbsp;</td>
 </tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
+<td class="colLast"><span class="typeNameLabel">AbstractReplicator.</span><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#validatePartitionedTopicAsync-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">validatePartitionedTopicAsync</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
+                             <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService)</code>
+<div class="block">Replication can't be started on root-partitioned-topic to avoid producer startup conflict.</div>
+</td>
+</tr>
 </tbody>
 </table>
 <table class="useSummary" border="0" cellpadding="3" cellspacing="0" summary="Use table, listing constructors, and an explanation">
@@ -234,11 +241,12 @@
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#AbstractReplicator-java.lang.String-java.lang.String-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">AbstractReplicator</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topicName,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractReplicator.html#AbstractReplicator-java.lang.String-java.lang.String-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-org.apache.pulsar.client.impl.PulsarClientImpl-">AbstractReplicator</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topicName,
                   <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;replicatorPrefix,
                   <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster,
                   <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
-                  <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService)</code>&nbsp;</td>
+                  <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService,
+                  org.apache.pulsar.client.impl.PulsarClientImpl&nbsp;replicationClient)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#AbstractTopic-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">AbstractTopic</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
@@ -258,10 +266,11 @@
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentReplicator.html#NonPersistentReplicator-org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">NonPersistentReplicator</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a>&nbsp;topic,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentReplicator.html#NonPersistentReplicator-org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-org.apache.pulsar.client.impl.PulsarClientImpl-">NonPersistentReplicator</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a>&nbsp;topic,
                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster,
                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
-                       <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService)</code>&nbsp;</td>
+                       <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService,
+                       org.apache.pulsar.client.impl.PulsarClientImpl&nbsp;replicationClient)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html#NonPersistentTopic-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">NonPersistentTopic</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,
@@ -330,11 +339,12 @@
 </tr>
 <tbody>
 <tr class="altColor">
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentReplicator.html#PersistentReplicator-org.apache.pulsar.broker.service.persistent.PersistentTopic-org.apache.bookkeeper.mledger.ManagedCursor-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-">PersistentReplicator</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentReplicator.html#PersistentReplicator-org.apache.pulsar.broker.service.persistent.PersistentTopic-org.apache.bookkeeper.mledger.ManagedCursor-java.lang.String-java.lang.String-org.apache.pulsar.broker.service.BrokerService-org.apache.pulsar.client.impl.PulsarClientImpl-">PersistentReplicator</a></span>(<a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                     org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster,
                     <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
-                    <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService)</code>&nbsp;</td>
+                    <a href="../../../../../../org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a>&nbsp;brokerService,
+                    org.apache.pulsar.client.impl.PulsarClientImpl&nbsp;replicationClient)</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html#PersistentTopic-java.lang.String-org.apache.bookkeeper.mledger.ManagedLedger-org.apache.pulsar.broker.service.BrokerService-">PersistentTopic</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;topic,

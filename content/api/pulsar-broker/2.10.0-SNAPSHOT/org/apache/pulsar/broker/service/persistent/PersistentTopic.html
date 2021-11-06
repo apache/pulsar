@@ -246,7 +246,7 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Topic.htm
 </td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code>protected boolean</code></td>
+<td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/broker/service/persistent/PersistentTopic.html#addReplicationCluster-java.lang.String-org.apache.bookkeeper.mledger.ManagedCursor-java.lang.String-">addReplicationCluster</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
                      org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                      <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster)</code>&nbsp;</td>
@@ -1229,9 +1229,9 @@ implements <a href="../../../../../../org/apache/pulsar/broker/service/Topic.htm
 <ul class="blockList">
 <li class="blockList">
 <h4>addReplicationCluster</h4>
-<pre>protected&nbsp;boolean&nbsp;addReplicationCluster(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
-                                        org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
-                                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster)</pre>
+<pre>protected&nbsp;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;addReplicationCluster(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;remoteCluster,
+                                                        org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
+                                                        <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;localCluster)</pre>
 </li>
 </ul>
 <a name="isDeduplicationEnabled--">
