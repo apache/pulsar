@@ -157,7 +157,7 @@ public class ElasticSearchClientSslTests {
     }
 
 
-    public void testIndexExists(ElasticSearchClient client) throws IOException {
+    private void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));
         assertTrue(client.createIndexIfNeeded("mynewindex"));
         assertTrue(client.indexExists("mynewindex"));
