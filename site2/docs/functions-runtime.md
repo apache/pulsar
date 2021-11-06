@@ -132,6 +132,10 @@ functionRuntimeFactoryConfigs:
   extraFunctionDependenciesDir:
   # Additional memory padding added on top of the memory requested by the function per on a per instance basis
   percentMemoryPadding: 10
+  # The duration (in seconds) before the StatefulSet is deleted after a function stops or restarts.
+  # Value must be a non-negative integer. 0 indicates the StatefulSet is deleted immediately.
+  # Default is 5 seconds.
+  gracePeriodSeconds: 5
 ```
 
 If you run functions worker embedded in a broker on Kubernetes, you can use the default settings. 
