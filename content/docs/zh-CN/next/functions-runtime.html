@@ -179,21 +179,25 @@
   <span class="hljs-comment">#  cpu 请求的公式是 cpuRequest = userRequestCpu / cpuOverCommitRatio</span>
   <span class="hljs-attr">cpuOverCommitRatio:</span> <span class="hljs-number">1.0</span>
   <span class="hljs-comment"># 为 function/source/sink 设置的内存请求率和内存大小限制</span>
-  <span class="hljs-comment"># 内存请求的公式是 memoryRequest = userRequestMemory / memoryOverCommitRatio</span>
+  <span class="hljs-comment"># The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio</span>
   <span class="hljs-attr">memoryOverCommitRatio:</span> <span class="hljs-number">1.0</span>
-  <span class="hljs-comment"># 函数 pod 内部的端口，worker 使用它与 pod 进行通信</span>
+  <span class="hljs-comment"># The port inside the function pod which is used by the worker to communicate with the pod</span>
   <span class="hljs-attr">grpcPort:</span> <span class="hljs-number">9093</span>
-  <span class="hljs-comment"># 函数 pod 内的端口，在其上暴露 prometheus 指标</span>
+  <span class="hljs-comment"># The port inside the function pod on which prometheus metrics are exposed</span>
   <span class="hljs-attr">metricsPort:</span> <span class="hljs-number">9094</span>
-  <span class="hljs-comment"># 函数 pod 中的 nar 包将被提取的目录</span>
+  <span class="hljs-comment"># The directory inside the function pod where nar packages will be extracted</span>
   <span class="hljs-attr">narExtractionDirectory:</span>
-  <span class="hljs-comment"># 存储函数实例文件的 classpath</span>
+  <span class="hljs-comment"># The classpath where function instance files stored</span>
   <span class="hljs-attr">functionInstanceClassPath:</span>
-  <span class="hljs-comment"># 用于删除额外的函数依赖项的目录</span>
-  <span class="hljs-comment"># 如果不是绝对路径，那就是相对于 `pulsarRootDir` 的路径</span>
+  <span class="hljs-comment"># the directory for dropping extra function dependencies</span>
+  <span class="hljs-comment"># if it is not an absolute path, it is relative to `pulsarRootDir`</span>
   <span class="hljs-attr">extraFunctionDependenciesDir:</span>
-  <span class="hljs-comment"># 在每个实例的函数请求的内存之上，添加了额外的内存补充</span>
+  <span class="hljs-comment"># Additional memory padding added on top of the memory requested by the function per on a per instance basis</span>
   <span class="hljs-attr">percentMemoryPadding:</span> <span class="hljs-number">10</span>
+  <span class="hljs-comment"># The duration (in seconds) before the StatefulSet is deleted after a function stops or restarts.</span>
+  <span class="hljs-comment"># Value must be a non-negative integer. 0 indicates the StatefulSet is deleted immediately.</span>
+  <span class="hljs-comment"># Default is 5 seconds.</span>
+  <span class="hljs-attr">gracePeriodSeconds:</span> <span class="hljs-number">5</span>
 </code></pre>
 <p>如果函数 worker 运行在 Kubernetes 环境的 broker 中，你可以使用默认配置。</p>
 <h3><a class="anchor" aria-hidden="true" id="kubernetes-运行独立的函数-worker"></a><a href="#kubernetes-运行独立的函数-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Kubernetes 运行独立的函数 worker</h3>
