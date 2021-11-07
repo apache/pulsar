@@ -16,18 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.exceptions;
-
 /**
- * Exception thrown if a transaction is already sealed.
- *
- * <p>If a transaction is sealed, no more entries should be appended to this transaction.
+ * Exceptions thrown when encountering errors in transaction buffer.
  */
-public class TransactionSealedException extends TransactionBufferException {
-
-    private static final long serialVersionUID = 5366602873819540477L;
-
-    public TransactionSealedException(String message) {
-        super(message);
-    }
-}
+package org.apache.pulsar.broker.transaction.exception.coordinator;

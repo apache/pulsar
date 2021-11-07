@@ -370,7 +370,6 @@ public class SchedulerManager implements AutoCloseable {
         return currentMembership;
     }
 
-    @VisibleForTesting
     void invokeScheduler() {
         long startTime = System.nanoTime();
 
@@ -560,7 +559,6 @@ public class SchedulerManager implements AutoCloseable {
         assignmentsMovedInLastDrain = null;
     }
 
-    @VisibleForTesting
     List<Assignment> invokeDrain(String workerId) {
 
         long startTime = System.nanoTime();

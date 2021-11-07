@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.broker.resources;
 
-import static org.apache.pulsar.common.policies.path.PolicyPath.path;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -39,7 +36,6 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -122,7 +118,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public static boolean pathIsFromNamespace(String path) {
-        return path.startsWith(BASE_POLICIES_PATH);
+        return path.startsWith(BASE_POLICIES_PATH) && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
     }
 
     public static NamespaceName namespaceFromPath(String path) {
@@ -205,6 +201,11 @@ public class NamespaceResources extends BaseResources<Policies> {
 
         public boolean partitionedTopicExists(TopicName tn) throws MetadataStoreException {
             return exists(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                    tn.getEncodedLocalName()));
+        }
+
+        public CompletableFuture<Boolean> partitionedTopicExistsAsync(TopicName tn) {
+            return existsAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
                     tn.getEncodedLocalName()));
         }
 

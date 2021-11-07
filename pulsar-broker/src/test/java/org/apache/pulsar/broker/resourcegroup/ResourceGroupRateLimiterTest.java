@@ -45,7 +45,6 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
     new org.apache.pulsar.common.policies.data.ResourceGroup();
     final String namespaceName = "prop/ns-abc";
     final String persistentTopicString = "persistent://prop/ns-abc/test-topic";
-    final String nonPersistentTopicString = "non-persistent://prop/ns-abc/test-topic";
     final int MESSAGE_SIZE = 10;
 
     @BeforeClass
@@ -81,7 +80,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
             .untilAsserted(() -> assertNull(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)));
     }
 
-    public void testRateLimit() throws PulsarAdminException, PulsarClientException,
+    private void testRateLimit() throws PulsarAdminException, PulsarClientException,
       InterruptedException, ExecutionException, TimeoutException {
         createResourceGroup(rgName, testAddRg);
         admin.namespaces().setNamespaceResourceGroup(namespaceName, rgName);
