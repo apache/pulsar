@@ -44,8 +44,7 @@ class RecordMeta(type):
         fields = OrderedDict()
         for name, value in dct.items():
             if issubclass(type(value), EnumMeta):
-                # Wrap Python enums
-                value = _Enum(value)
+                value = CustomEnum(value)
             elif type(value) == RecordMeta:
                 # We expect an instance of a record rather than the class itself
                 value = value()
@@ -125,6 +124,12 @@ class Record(with_metaclass(RecordMeta, object)):
             schema['namespace'] = cls._avro_namespace
         schema['fields'] = []
 
+        def get_filed_default_value(value):
+            if isinstance(value, Enum):
+                return value.name
+            else:
+                return value
+
         if cls._sorted_fields:
             fields = sorted(cls._fields.keys())
         else:
@@ -135,7 +140,7 @@ class Record(with_metaclass(RecordMeta, object)):
                 if field._required else ['null', field.schema_info(defined_names)]
             schema['fields'].append({
                 'name': name,
-                'default': field.default(),
+                'default': get_filed_default_value(field.default()),
                 'type': field_type
             }) if field.required_default() else schema['fields'].append({
                 'name': name,
@@ -360,15 +365,16 @@ class String(Field):
 
 # Complex types
 
-class _Enum(Field):
-    def __init__(self, enum_type):
+
+class CustomEnum(Field):
+    def __init__(self, enum_type, default=None, required=False, required_default=False):
         if not issubclass(enum_type, Enum):
             raise Exception(enum_type + " is not a valid Enum type")
         self.enum_type = enum_type
         self.values = {}
         for x in enum_type.__members__.values():
             self.values[x.value] = x
-        super(_Enum, self).__init__()
+        super(CustomEnum, self).__init__(default, required, required_default)
 
     def type(self):
         return 'enum'
