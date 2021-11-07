@@ -564,14 +564,12 @@ public class BrokerService implements Closeable {
             if (this.topicPublishRateLimiterMonitor == null) {
                 this.topicPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
                         new DefaultThreadFactory("pulsar-topic-publish-rate-limiter-monitor"));
-                if (topicTickTimeMs > 0) {
-                    // schedule task that sums up publish-rate across all cnx on a topic
-                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
-                            topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limiting bucket
-                    topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
-                            TimeUnit.SECONDS);
-                }
+                // schedule task that sums up publish-rate across all cnx on a topic
+                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> checkTopicPublishThrottlingRate()),
+                        topicTickTimeMs, topicTickTimeMs, TimeUnit.MILLISECONDS);
+                // schedule task that refreshes rate-limiting bucket
+                topicPublishRateLimiterMonitor.scheduleAtFixedRate(safeRun(() -> refreshTopicPublishRate()), 1, 1,
+                        TimeUnit.SECONDS);
             }
         } else {
             // disable publish-throttling for all topics
@@ -599,21 +597,19 @@ public class BrokerService implements Closeable {
             if (this.brokerPublishRateLimiterMonitor == null) {
                 this.brokerPublishRateLimiterMonitor = Executors.newSingleThreadScheduledExecutor(
                     new DefaultThreadFactory("pulsar-broker-publish-rate-limiter-monitor"));
-                if (brokerTickTimeMs > 0) {
-                    // schedule task that sums up publish-rate across all cnx on a topic,
-                    // and check the rate limit exceeded or not.
-                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                        safeRun(() -> checkBrokerPublishThrottlingRate()),
-                        brokerTickTimeMs,
-                        brokerTickTimeMs,
-                        TimeUnit.MILLISECONDS);
-                    // schedule task that refreshes rate-limiting bucket
-                    brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
-                        safeRun(() -> refreshBrokerPublishRate()),
-                        1,
-                        1,
-                        TimeUnit.SECONDS);
-                }
+                // schedule task that sums up publish-rate across all cnx on a topic,
+                // and check the rate limit exceeded or not.
+                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                    safeRun(() -> checkBrokerPublishThrottlingRate()),
+                    brokerTickTimeMs,
+                    brokerTickTimeMs,
+                    TimeUnit.MILLISECONDS);
+                // schedule task that refreshes rate-limiting bucket
+                brokerPublishRateLimiterMonitor.scheduleAtFixedRate(
+                    safeRun(() -> refreshBrokerPublishRate()),
+                    1,
+                    1,
+                    TimeUnit.SECONDS);
             }
         } else {
             // disable publish-throttling for broker.
