@@ -262,7 +262,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .getOrCreateTopic(topicName.toString()).get();
 
         PulsarClientImpl pulsarClient = spy((PulsarClientImpl) pulsar1.getBrokerService()
-                .getReplicationClient("r3"));
+                .getReplicationClient("r3",
+                        pulsar1.getBrokerService().pulsar().getPulsarResources().getClusterResources()
+                        .getCluster("r3")));
         final Method startRepl = PersistentTopic.class.getDeclaredMethod("startReplicator", String.class);
         startRepl.setAccessible(true);
 

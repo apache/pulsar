@@ -335,6 +335,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
     public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";

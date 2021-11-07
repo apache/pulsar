@@ -3580,4 +3580,62 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> setReplicatedSubscriptionStatusAsync(String topic, String subName, boolean enabled);
+
+    /**
+     * Get the replication clusters for a topic.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the replication clusters for a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Set<String>> getReplicationClustersAsync(String topic, boolean applied);
+
+    /**
+     * Set the replication clusters for the topic.
+     *
+     * @param topic
+     * @param clusterIds
+     * @return
+     * @throws PulsarAdminException
+     */
+    void setReplicationClusters(String topic, List<String> clusterIds) throws PulsarAdminException;
+
+    /**
+     * Set the replication clusters for the topic asynchronously.
+     *
+     * @param topic
+     * @param clusterIds
+     * @return
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Void> setReplicationClustersAsync(String topic, List<String> clusterIds);
+
+    /**
+     * Remove the replication clusters for the topic.
+     *
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    void removeReplicationClusters(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the replication clusters for the topic asynchronously.
+     *
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    CompletableFuture<Void> removeReplicationClustersAsync(String topic);
 }

@@ -1228,7 +1228,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         "%s : createdAt %s ns ago, firstSentAt %s ns ago, lastSentAt %s ns ago, retryCount %s",
                         te.getMessage(),
                         ns - this.createdAt,
-                        ns - this.firstSentAt,
+                        this.firstSentAt <= 0 ? ns - this.lastSentAt : ns - this.firstSentAt,
                         ns - this.lastSentAt,
                         retryCount
                     );
@@ -1799,7 +1799,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     processOpSendMsg(opSendMsg);
                 }
             } catch (PulsarClientException e) {
-                Thread.currentThread().interrupt();
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
             } catch (Throwable t) {
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());

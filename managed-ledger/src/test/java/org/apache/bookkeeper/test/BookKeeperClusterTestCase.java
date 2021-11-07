@@ -228,7 +228,7 @@ public abstract class BookKeeperClusterTestCase {
         conf.setBookiePort(port);
         if (!"".equals(ledgerRootPath)) {
             conf.setMetadataServiceUri("zk://" + zkUtil.getZooKeeperConnectString() + ledgerRootPath);
-        }else {
+        } else {
             conf.setZkServers(zkServers);
         }
         conf.setJournalDirName(journalDir.getPath());

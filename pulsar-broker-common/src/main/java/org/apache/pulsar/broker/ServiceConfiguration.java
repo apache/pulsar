@@ -1042,6 +1042,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean systemTopicEnabled = false;
 
     @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy to use for system topics"
+    )
+    private SchemaCompatibilityStrategy systemTopicSchemaCompatibilityStrategy =
+            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, " +
                 "please enable the system topic first.")

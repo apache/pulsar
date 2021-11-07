@@ -227,6 +227,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
 
+        jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
+        jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
+        jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
+
         initDeprecatedCommands();
     }
 
@@ -287,7 +291,8 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume)", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks," +
+                "functions,packages)", required = true)
         private List<String> actions;
 
         @Override
@@ -1249,6 +1254,50 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().removeBacklogQuota(persistentTopic, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the replication clusters for a topic")
+    private class GetReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopics().getReplicationClusters(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the replication clusters for a topic")
+    private class SetReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            getTopics().setReplicationClusters(persistentTopic, clusters);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the replication clusters for a topic")
+    private class RemoveReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopics().removeReplicationClusters(persistentTopic);
         }
     }
 

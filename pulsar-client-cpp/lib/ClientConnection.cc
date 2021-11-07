@@ -1620,7 +1620,12 @@ Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consume
 
     pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));
     lock.unlock();
-    sendRequestWithId(Commands::newGetLastMessageId(consumerId, requestId), requestId);
+    sendRequestWithId(Commands::newGetLastMessageId(consumerId, requestId), requestId)
+        .addListener([promise](Result result, const ResponseData& data) {
+            if (result != ResultOk) {
+                promise.setFailed(result);
+            }
+        });
     return promise.getFuture();
 }
 

@@ -151,6 +151,8 @@ public class LocalRunner implements AutoCloseable {
     protected SourceConfig sourceConfig;
     @Parameter(names = "--sinkConfig", description = "The json representation of SinkConfig", hidden = true, converter = SinkConfigConverter.class)
     protected SinkConfig sinkConfig;
+    @Parameter(names = "--stateStorageImplClass", description = "The implemenatation class state storage service (by default Apache BookKeeper)", hidden = true, required = false)
+    protected String stateStorageImplClass;
     @Parameter(names = "--stateStorageServiceUrl", description = "The URL for the state storage service (by default Apache BookKeeper)", hidden = true)
     protected String stateStorageServiceUrl;
     @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
@@ -201,8 +203,9 @@ public class LocalRunner implements AutoCloseable {
     }
 
     @Builder
-    public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig, String
-            stateStorageServiceUrl, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParams,
+    public LocalRunner(FunctionConfig functionConfig, SourceConfig sourceConfig, SinkConfig sinkConfig,
+                       String stateStorageImplClass, String stateStorageServiceUrl, String brokerServiceUrl,
+                       String clientAuthPlugin, String clientAuthParams,
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
                        String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
                        String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory,
@@ -210,6 +213,7 @@ public class LocalRunner implements AutoCloseable {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
+        this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.brokerServiceUrl = brokerServiceUrl;
         this.clientAuthPlugin = clientAuthPlugin;
@@ -614,6 +618,7 @@ public class LocalRunner implements AutoCloseable {
             }
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
+                    stateStorageImplClass,
                     stateStorageServiceUrl,
                     authConfig,
                     secretsProvider,

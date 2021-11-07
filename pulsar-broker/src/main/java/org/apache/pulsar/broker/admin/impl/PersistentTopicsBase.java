@@ -509,9 +509,14 @@ public class PersistentTopicsBase extends AdminResource {
             if (cluster.equals(pulsar().getConfig().getClusterName())) {
                 return;
             }
-            results.add(pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics()
-                    .updatePartitionedTopicAsync(topicName.toString(),
-                            numPartitions, true, false));
+            CompletableFuture<Void> updatePartitionTopicFuture =
+                pulsar().getPulsarResources().getClusterResources().getClusterAsync(cluster)
+                    .thenApply(clusterDataOp ->
+                            pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterDataOp))
+                    .thenCompose(pulsarAdmin ->
+                            pulsarAdmin.topics().updatePartitionedTopicAsync(
+                                    topicName.toString(), numPartitions, true, false));
+            results.add(updatePartitionTopicFuture);
         });
         return FutureUtil.waitForAll(results);
     }
@@ -2814,6 +2819,60 @@ public class PersistentTopicsBase extends AdminResource {
                         } catch (JsonProcessingException ignore) { }
                 });
             });
+    }
+
+    protected CompletableFuture<Void> internalSetReplicationClusters(List<String> clusterIds) {
+        validateTopicPolicyOperation(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        Set<String> replicationClusters = Sets.newHashSet(clusterIds);
+        if (replicationClusters.contains("global")) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "Cannot specify global in the list of replication clusters");
+        }
+        Set<String> clusters = clusters();
+        for (String clusterId : replicationClusters) {
+            if (!clusters.contains(clusterId)) {
+                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
+            }
+            validatePeerClusterConflict(clusterId, replicationClusters);
+            validateClusterForTenant(namespaceName.getTenant(), clusterId);
+        }
+
+        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setReplicationClusters(Lists.newArrayList(replicationClusters));
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                            .thenRun(() -> {
+                                log.info("[{}] Successfully set replication clusters for namespace={}, "
+                                                + "topic={}, clusters={}",
+                                        clientAppId(),
+                                        namespaceName,
+                                        topicName.getLocalName(),
+                                        topicPolicies.getReplicationClusters());
+                            });
+                }
+        );
+    }
+
+    protected CompletableFuture<Void> internalRemoveReplicationClusters() {
+        validateTopicPolicyOperation(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        return getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setReplicationClusters(null);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                            .thenRun(() -> {
+                                log.info("[{}] Successfully set replication clusters for namespace={}, "
+                                                + "topic={}, clusters={}",
+                                        clientAppId(),
+                                        namespaceName,
+                                        topicName.getLocalName(),
+                                        topicPolicies.getReplicationClusters());
+                            });
+                }
+        );
     }
 
     protected CompletableFuture<Boolean> internalGetDeduplication(boolean applied) {

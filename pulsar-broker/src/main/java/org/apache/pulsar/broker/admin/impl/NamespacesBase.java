@@ -24,7 +24,6 @@ import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.collect.Sets.SetView;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -1958,34 +1957,6 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
             }
             throw new RestException(e.getCause());
-        }
-    }
-
-    /**
-     * It validates that peer-clusters can't coexist in replication-clusters.
-     *
-     * @param clusterName:         given cluster whose peer-clusters can't be present into replication-cluster list
-     * @param replicationClusters: replication-cluster list
-     */
-    private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
-        try {
-            ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
-                    () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
-            Set<String> peerClusters = clusterData.getPeerClusterNames();
-            if (peerClusters != null && !peerClusters.isEmpty()) {
-                SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, replicationClusters);
-                if (!conflictPeerClusters.isEmpty()) {
-                    log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
-                            clusterName, conflictPeerClusters);
-                    throw new RestException(Status.CONFLICT,
-                            String.format("%s's peer-clusters %s can't be part of replication-clusters %s", clusterName,
-                                    conflictPeerClusters, replicationClusters));
-                }
-            }
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.warn("[{}] Failed to get cluster-data for {}", clientAppId(), clusterName, e);
         }
     }
 
