@@ -2407,7 +2407,7 @@ public class PersistentTopic extends AbstractTopic
         schemaValidationEnforced = data.schema_validation_enforced;
         updateUnackedMessagesAppliedOnSubscription(data);
         updateUnackedMessagesExceededOnConsumer(data);
-        maxSubscriptionsPerTopic = data.max_subscriptions_per_topic;
+        maxSubscriptionsPerTopic.updateNamespaceValue(data.max_subscriptions_per_topic);
 
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
@@ -3096,6 +3096,8 @@ public class PersistentTopic extends AbstractTopic
             updateMaxPublishRate(namespacePolicies.orElse(null));
         }
 
+        maxSubscriptionsPerTopic.updateTopicValue(policies.getMaxSubscriptionsPerTopic());
+
         if (policies.isInactiveTopicPoliciesSet()) {
             inactiveTopicPolicies = policies.getInactiveTopicPolicies();
         } else if (namespacePolicies.isPresent() && namespacePolicies.get().inactive_topic_policies != null) {
@@ -3181,20 +3183,11 @@ public class PersistentTopic extends AbstractTopic
         if (StringUtils.isNotEmpty(subscriptionName) && getSubscription(subscriptionName) != null) {
             return false;
         }
-        Integer maxSubsPerTopic = getTopicPolicies()
-                .map(TopicPolicies::getMaxSubscriptionsPerTopic)
-                .orElseGet(() -> {
-                    if (maxSubscriptionsPerTopic != null) {
-                        return maxSubscriptionsPerTopic;
-                    } else {
-                        return brokerService.pulsar().getConfig().getMaxSubscriptionsPerTopic();
-                    }
-                });
 
-        if (maxSubsPerTopic > 0) {
-            if (subscriptions != null && subscriptions.size() >= maxSubsPerTopic) {
-                return true;
-            }
+        Integer maxSubsPerTopic  = maxSubscriptionsPerTopic.get();
+
+        if (maxSubsPerTopic != null && maxSubsPerTopic > 0) {
+            return subscriptions != null && subscriptions.size() >= maxSubsPerTopic;
         }
 
         return false;
