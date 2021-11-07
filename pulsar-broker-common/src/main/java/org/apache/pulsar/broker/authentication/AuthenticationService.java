@@ -44,7 +44,7 @@ public class AuthenticationService implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationService.class);
     private final String anonymousUserRole;
 
-    private final Map<String, AuthenticationProvider> providers = Maps.newHashMap();
+    private final Map<String, AuthenticationProvider> providers = new HashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
