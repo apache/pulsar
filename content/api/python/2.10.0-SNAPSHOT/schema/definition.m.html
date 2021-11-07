@@ -1029,6 +1029,22 @@ table {
 
         </li>
         <li class="mono">
+        <span class="class_name"><a href="#pulsar.schema.definition.CustomEnum">CustomEnum</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.__init__">__init__</a></li>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.default">default</a></li>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.python_type">python_type</a></li>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.required_default">required_default</a></li>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.schema">schema</a></li>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.schema_info">schema_info</a></li>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.type">type</a></li>
+    <li class="mono"><a href="#pulsar.schema.definition.CustomEnum.validate_type">validate_type</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
         <span class="class_name"><a href="#pulsar.schema.definition.Double">Double</a></span>
         
           
@@ -1241,8 +1257,7 @@ class RecordMeta(type):
         fields = OrderedDict()
         for name, value in dct.items():
             if issubclass(type(value), EnumMeta):
-                # Wrap Python enums
-                value = _Enum(value)
+                value = CustomEnum(value)
             elif type(value) == RecordMeta:
                 # We expect an instance of a record rather than the class itself
                 value = value()
@@ -1322,6 +1337,12 @@ class Record(with_metaclass(RecordMeta, object)):
             schema['namespace'] = cls._avro_namespace
         schema['fields'] = []
 
+        def get_filed_default_value(value):
+            if isinstance(value, Enum):
+                return value.name
+            else:
+                return value
+
         if cls._sorted_fields:
             fields = sorted(cls._fields.keys())
         else:
@@ -1332,7 +1353,7 @@ class Record(with_metaclass(RecordMeta, object)):
                 if field._required else ['null', field.schema_info(defined_names)]
             schema['fields'].append({
                 'name': name,
-                'default': field.default(),
+                'default': get_filed_default_value(field.default()),
                 'type': field_type
             }) if field.required_default() else schema['fields'].append({
                 'name': name,
@@ -1557,15 +1578,16 @@ class String(Field):
 
 # Complex types
 
-class _Enum(Field):
-    def __init__(self, enum_type):
+
+class CustomEnum(Field):
+    def __init__(self, enum_type, default=None, required=False, required_default=False):
         if not issubclass(enum_type, Enum):
             raise Exception(enum_type + " is not a valid Enum type")
         self.enum_type = enum_type
         self.values = {}
         for x in enum_type.__members__.values():
             self.values[x.value] = x
-        super(_Enum, self).__init__()
+        super(CustomEnum, self).__init__(default, required, required_default)
 
     def type(self):
         return 'enum'
@@ -2486,6 +2508,334 @@ def is_unicode(x):
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
     return val
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.schema.definition.CustomEnum" class="name">class <span class="ident">CustomEnum</span></p>
+      
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum" class="source">
+    <pre><code>class CustomEnum(Field):
+    def __init__(self, enum_type, default=None, required=False, required_default=False):
+        if not issubclass(enum_type, Enum):
+            raise Exception(enum_type + " is not a valid Enum type")
+        self.enum_type = enum_type
+        self.values = {}
+        for x in enum_type.__members__.values():
+            self.values[x.value] = x
+        super(CustomEnum, self).__init__(default, required, required_default)
+
+    def type(self):
+        return 'enum'
+
+    def python_type(self):
+        return self.enum_type
+
+    def validate_type(self, name, val):
+        if val is None:
+            return None
+
+        if type(val) is str:
+            # The enum was passed as a string, we need to check it against the possible values
+            if val in self.enum_type.__members__:
+                return self.enum_type.__members__[val]
+            else:
+                raise TypeError(
+                    "Invalid enum value '%s' for field '%s'. Expected: %s" % (val, name, self.enum_type.__members__.keys()))
+        elif type(val) is int:
+            # The enum was passed as an int, we need to check it against the possible values
+            if val in self.values:
+                return self.values[val]
+            else:
+                raise TypeError(
+                    "Invalid enum value '%s' for field '%s'. Expected: %s" % (val, name, self.values.keys()))
+        elif type(val) != self.python_type():
+            raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
+        else:
+            return val
+
+    def schema(self):
+        return self.schema_info(set())
+
+    def schema_info(self, defined_names):
+        if self.enum_type.__name__ in defined_names:
+            return self.enum_type.__name__
+        defined_names.add(self.enum_type.__name__)
+        return {
+            'type': self.type(),
+            'name': self.enum_type.__name__,
+            'symbols': [x.name for x in self.enum_type]
+        }
+
+    def default(self):
+        if self._default is not None:
+            return self._default
+        else:
+            return None
+</code></pre>
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.schema.definition.CustomEnum">CustomEnum</a></li>
+          <li><a href="#pulsar.schema.definition.Field">Field</a></li>
+          <li>__builtin__.object</li>
+          </ul>
+          <h3>Instance variables</h3>
+            <div class="item">
+            <p id="pulsar.schema.definition.CustomEnum.enum_type" class="name">var <span class="ident">enum_type</span></p>
+            
+
+            
+  
+  <div class="source_cont">
+</div>
+
+            </div>
+            <div class="item">
+            <p id="pulsar.schema.definition.CustomEnum.values" class="name">var <span class="ident">values</span></p>
+            
+
+            
+  
+  <div class="source_cont">
+</div>
+
+            </div>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self, enum_type, default=None, required=False, required_default=False)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.__init__">__init__</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.__init__" class="source">
+    <pre><code>def __init__(self, enum_type, default=None, required=False, required_default=False):
+    if not issubclass(enum_type, Enum):
+        raise Exception(enum_type + " is not a valid Enum type")
+    self.enum_type = enum_type
+    self.values = {}
+    for x in enum_type.__members__.values():
+        self.values[x.value] = x
+    super(CustomEnum, self).__init__(default, required, required_default)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.default">
+    <p>def <span class="ident">default</span>(</p><p>self)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.default">default</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.default', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.default" class="source">
+    <pre><code>def default(self):
+    if self._default is not None:
+        return self._default
+    else:
+        return None
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.python_type">
+    <p>def <span class="ident">python_type</span>(</p><p>self)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.python_type">python_type</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.python_type', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.python_type" class="source">
+    <pre><code>def python_type(self):
+    return self.enum_type
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.required_default">
+    <p>def <span class="ident">required_default</span>(</p><p>self)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.required_default">required_default</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.required_default', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.required_default" class="source">
+    <pre><code>def required_default(self):
+    return self._required_default
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.schema">
+    <p>def <span class="ident">schema</span>(</p><p>self)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.schema">schema</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.schema', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.schema" class="source">
+    <pre><code>def schema(self):
+    return self.schema_info(set())
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.schema_info">
+    <p>def <span class="ident">schema_info</span>(</p><p>self, defined_names)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.schema_info">schema_info</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.schema_info', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.schema_info" class="source">
+    <pre><code>def schema_info(self, defined_names):
+    if self.enum_type.__name__ in defined_names:
+        return self.enum_type.__name__
+    defined_names.add(self.enum_type.__name__)
+    return {
+        'type': self.type(),
+        'name': self.enum_type.__name__,
+        'symbols': [x.name for x in self.enum_type]
+    }
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.type">
+    <p>def <span class="ident">type</span>(</p><p>self)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.type">type</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.type', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.type" class="source">
+    <pre><code>def type(self):
+    return 'enum'
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.schema.definition.CustomEnum.validate_type">
+    <p>def <span class="ident">validate_type</span>(</p><p>self, name, val)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.schema.definition.Field">Field</a></code>.<code><a href="#pulsar.schema.definition.Field.validate_type">validate_type</a></code>
+    </p>
+
+    
+  
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.CustomEnum.validate_type', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.schema.definition.CustomEnum.validate_type" class="source">
+    <pre><code>def validate_type(self, name, val):
+    if val is None:
+        return None
+    if type(val) is str:
+        # The enum was passed as a string, we need to check it against the possible values
+        if val in self.enum_type.__members__:
+            return self.enum_type.__members__[val]
+        else:
+            raise TypeError(
+                "Invalid enum value '%s' for field '%s'. Expected: %s" % (val, name, self.enum_type.__members__.keys()))
+    elif type(val) is int:
+        # The enum was passed as an int, we need to check it against the possible values
+        if val in self.values:
+            return self.values[val]
+        else:
+            raise TypeError(
+                "Invalid enum value '%s' for field '%s'. Expected: %s" % (val, name, self.values.keys()))
+    elif type(val) != self.python_type():
+        raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
+    else:
+        return val
 </code></pre>
   </div>
 </div>
@@ -4276,6 +4626,12 @@ def type(self):
             schema['namespace'] = cls._avro_namespace
         schema['fields'] = []
 
+        def get_filed_default_value(value):
+            if isinstance(value, Enum):
+                return value.name
+            else:
+                return value
+
         if cls._sorted_fields:
             fields = sorted(cls._fields.keys())
         else:
@@ -4286,7 +4642,7 @@ def type(self):
                 if field._required else ['null', field.schema_info(defined_names)]
             schema['fields'].append({
                 'name': name,
-                'default': field.default(),
+                'default': get_filed_default_value(field.default()),
                 'type': field_type
             }) if field.required_default() else schema['fields'].append({
                 'name': name,
@@ -4524,6 +4880,11 @@ def schema_info(cls, defined_names):
     if cls._avro_namespace is not None:
         schema['namespace'] = cls._avro_namespace
     schema['fields'] = []
+    def get_filed_default_value(value):
+        if isinstance(value, Enum):
+            return value.name
+        else:
+            return value
     if cls._sorted_fields:
         fields = sorted(cls._fields.keys())
     else:
@@ -4534,7 +4895,7 @@ def schema_info(cls, defined_names):
             if field._required else ['null', field.schema_info(defined_names)]
         schema['fields'].append({
             'name': name,
-            'default': field.default(),
+            'default': get_filed_default_value(field.default()),
             'type': field_type
         }) if field.required_default() else schema['fields'].append({
             'name': name,
@@ -4616,8 +4977,7 @@ def schema_info(cls, defined_names):
         fields = OrderedDict()
         for name, value in dct.items():
             if issubclass(type(value), EnumMeta):
-                # Wrap Python enums
-                value = _Enum(value)
+                value = CustomEnum(value)
             elif type(value) == RecordMeta:
                 # We expect an instance of a record rather than the class itself
                 value = value()
