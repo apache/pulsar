@@ -1665,6 +1665,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.gaul</groupId>
           <artifactId>modernizer-maven-plugin</artifactId>
+          <version>${maven-modernizer-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
