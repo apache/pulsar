@@ -3146,10 +3146,6 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    private PersistentTopic getPersistentTopic() {
-        return this;
-    }
-
     private void registerTopicPolicyListener() {
         if (brokerService.pulsar().getConfig().isSystemTopicEnabled()
                 && brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
