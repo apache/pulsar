@@ -1266,7 +1266,5 @@ class SchemaTest(TestCase):
 
         client.close()
 
-# if __name__ == '__main__':
-#     main()
-test = SchemaTest()
-test.test_serialize_schema_complex()
+if __name__ == '__main__':
+    main()
