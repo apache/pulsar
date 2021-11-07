@@ -118,7 +118,8 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public static boolean pathIsFromNamespace(String path) {
-        return path.startsWith(BASE_POLICIES_PATH) && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
+        return path.startsWith(BASE_POLICIES_PATH + "/")
+                && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
     }
 
     public static NamespaceName namespaceFromPath(String path) {
