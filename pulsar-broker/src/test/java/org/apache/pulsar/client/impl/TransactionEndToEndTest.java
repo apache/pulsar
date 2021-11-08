@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Optional;
@@ -754,16 +755,24 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
         });
 
+        Class<TransactionImpl> transactionClass = TransactionImpl.class;
+        Constructor<TransactionImpl> constructor = transactionClass
+                .getDeclaredConstructor(PulsarClientImpl.class, long.class, long.class, long.class);
+        constructor.setAccessible(true);
+
+        TransactionImpl timeoutTxnSkipClientTimeout = constructor.newInstance(pulsarClient, 5,
+                        timeoutTxn.getTxnID().getLeastSigBits(), timeoutTxn.getTxnID().getMostSigBits());
+
         try {
-            timeoutTxn.commit().get();
+            timeoutTxnSkipClientTimeout.commit().get();
             fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            assertTrue(e.getCause() instanceof TransactionNotFoundException);
         }
         Field field = TransactionImpl.class.getDeclaredField("state");
         field.setAccessible(true);
-        TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxn);
-        assertEquals(state, TransactionImpl.State.TIMEOUT);
+        TransactionImpl.State state = (TransactionImpl.State) field.get(timeoutTxnSkipClientTimeout);
+        assertEquals(state, TransactionImpl.State.ERROR);
     }
 
     @Test
