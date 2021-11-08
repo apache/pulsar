@@ -447,6 +447,7 @@ public class TransactionTest extends TransactionTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topic)
                 .create();
+        producer.newMessage().send();
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(topic, false).get().get();
         persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
