@@ -192,6 +192,21 @@ public class Namespaces extends NamespacesBase {
         return policies.auth_policies.getNamespaceAuthentication();
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/permissions/subscription")
+    @ApiOperation(value = "Retrieve the permissions for a subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Namespace is not empty")})
+    public Map<String, Set<String>> getPermissionOnSubscription(@PathParam("tenant") String tenant,
+                                                                @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_PERMISSION);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.auth_policies.getSubscriptionAuthentication();
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/permissions/{role}")
     @ApiOperation(value = "Grant a new permission to a role on a namespace.")
@@ -382,6 +397,17 @@ public class Namespaces extends NamespacesBase {
         internalModifyDeduplication(null);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/autoTopicCreation")
+    @ApiOperation(value = "Get autoTopicCreation info in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
+    public AutoTopicCreationOverride getAutoTopicCreation(@PathParam("tenant") String tenant,
+                                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetAutoTopicCreation();
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/autoTopicCreation")
     @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
@@ -441,6 +467,17 @@ public class Namespaces extends NamespacesBase {
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/autoSubscriptionCreation")
+    @ApiOperation(value = "Get autoSubscriptionCreation info in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
+    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(@PathParam("tenant") String tenant,
+                                                                        @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetAutoSubscriptionCreation();
     }
 
     @DELETE
@@ -977,6 +1014,17 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscriptionAuthMode(subscriptionAuthMode);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/subscriptionAuthMode")
+    @ApiOperation(value = "Get subscription auth mode in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
+    public SubscriptionAuthMode getSubscriptionAuthMode(@PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetSubscriptionAuthMode();
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/encryptionRequired")
     @ApiOperation(value = "Message encryption is required or not for all topics in a namespace")
@@ -990,6 +1038,17 @@ public class Namespaces extends NamespacesBase {
                     boolean encryptionRequired) {
         validateNamespaceName(tenant, namespace);
         internalModifyEncryptionRequired(encryptionRequired);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/encryptionRequired")
+    @ApiOperation(value = "Get message encryption required status in a namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
+    public Boolean getEncryptionRequired(@PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetEncryptionRequired();
     }
 
     @GET

@@ -509,12 +509,18 @@ public class PulsarAdminToolTest {
                         .topicType(TopicType.NON_PARTITIONED.toString())
                         .build());
 
+        namespaces.run(split("get-auto-topic-creation myprop/clust/ns1"));
+        verify(mockNamespaces).getAutoTopicCreation("myprop/clust/ns1");
+
         namespaces.run(split("remove-auto-topic-creation myprop/clust/ns1"));
         verify(mockNamespaces).removeAutoTopicCreation("myprop/clust/ns1");
 
         namespaces.run(split("set-auto-subscription-creation myprop/clust/ns1 -e"));
         verify(mockNamespaces).setAutoSubscriptionCreation("myprop/clust/ns1",
                 AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build());
+
+        namespaces.run(split("get-auto-subscription-creation myprop/clust/ns1"));
+        verify(mockNamespaces).getAutoSubscriptionCreation("myprop/clust/ns1");
 
         namespaces.run(split("remove-auto-subscription-creation myprop/clust/ns1"));
         verify(mockNamespaces).removeAutoSubscriptionCreation("myprop/clust/ns1");
