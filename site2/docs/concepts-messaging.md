@@ -189,7 +189,7 @@ consumer.negativeAcknowledge(msg);
 
 In general, the consumer is not able to process the message successfully, what we can use [Negative acknowledgement](concepts-messaging.md#Negative acknowledgement) and redeliver the message after processing the message failure so that the message can be redelivered to other consumers(for the Shared subscription).
 
-But this is not flexible enough, so the proposal is to introduce a redelivery backoff mechanism which we can achieve redelivery with different delays according to the number of times the message is retried.
+But this is not flexible enough, so we introduce a redelivery backoff mechanism which we can achieve redelivery with different delays according to the number of times the message is retried.
 
 If you want to use `Negative Redelivery Backoff`, you can use the following API.
 
