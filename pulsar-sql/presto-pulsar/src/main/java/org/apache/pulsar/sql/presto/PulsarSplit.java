@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -102,7 +101,7 @@ public class PulsarSplit implements ConnectorSplit {
         this.offloadPolicies = offloadPolicies;
 
         ObjectMapper objectMapper = new ObjectMapper();
-        this.schemaInfo = SchemaInfoImpl.builder()
+        this.schemaInfo = SchemaInfo.builder()
                 .name(originSchemaName)
                 .type(schemaType)
                 .schema(schema.getBytes("ISO8859-1"))
