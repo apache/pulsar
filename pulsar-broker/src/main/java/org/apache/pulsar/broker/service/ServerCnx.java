@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import lombok.val;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -1737,6 +1738,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
                 if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
+                    if (e.getCause().getCause() != null
+                            && e.getCause().getCause() instanceof BKException.BKNoSuchEntryException
+                            && lastPosition.getEntryId() > 0) {
+                        getLargestBatchIndexWhenPossible(topic, new PositionImpl(lastPosition.getLedgerId(),
+                                lastPosition.getEntryId()), markDeletePosition,
+                                partitionIndex, requestId, subscriptionName);
+                        return;
+                    }
                     handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
                             markDeletePosition);
                 } else {

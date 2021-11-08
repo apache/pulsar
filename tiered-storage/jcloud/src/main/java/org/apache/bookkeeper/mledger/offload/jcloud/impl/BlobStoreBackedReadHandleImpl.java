@@ -183,7 +183,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 }
                 if (entries.isEmpty()) {
                     log.warn("Debug: The ledger {} does not exist", ledgerId);
-                    promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                    promise.completeExceptionally(new BKException.BKNoSuchEntryException());
                     return;
                 }
                 promise.complete(LedgerEntriesImpl.create(entries));

@@ -121,7 +121,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                     entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                 } while (entryId < lastEntry && reader.next(key, value));
                 if (entries.size() == 1 && entries.get(0).getLength() == 0) {
-                    promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                    promise.completeExceptionally(new BKException.BKNoSuchEntryException());
                     return;
                 }
                 promise.complete(LedgerEntriesImpl.create(entries));

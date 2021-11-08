@@ -2933,6 +2933,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         return nextExistingLedger != null ? PositionImpl.get(nextExistingLedger, 0) : null;
     }
 
+    public Position getNextValidPosition(PositionImpl position) {
+        Position nextPosition = ledger.getNextValidPosition(position);
+        return nextPosition;
+    }
+
     public boolean isIndividuallyDeletedEntriesEmpty() {
         lock.readLock().lock();
         try {

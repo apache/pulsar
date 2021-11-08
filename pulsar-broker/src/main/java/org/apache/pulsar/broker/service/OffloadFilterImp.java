@@ -34,7 +34,9 @@ public class OffloadFilterImp implements OffloadFilter {
 
     @Override
     public boolean checkIfNeedOffload(LedgerEntry ledgerEntry) {
+        int index = ledgerEntry.getEntryBuffer().readerIndex();
         MessageMetadata messageMetadata = Commands.parseMessageMetadata(ledgerEntry.getEntryBuffer());
+        ledgerEntry.getEntryBuffer().readerIndex(index);
 
         if (messageMetadata.hasTxnidLeastBits() && messageMetadata.hasTxnidMostBits()){
             return !persistentTopic.isTxnAborted(new TxnID(messageMetadata.getTxnidMostBits(),
