@@ -121,7 +121,7 @@
       <plugin>
         <groupId>org.gaul</groupId>
         <artifactId>modernizer-maven-plugin</artifactId>
-        <version>${modernizer-maven-plugin.version}</version>
+        <version>${maven-modernizer-plugin.version}</version>
         <configuration>
           <failOnViolations>true</failOnViolations>
           <javaVersion>8</javaVersion>
