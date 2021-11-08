@@ -513,6 +513,39 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public Map<String, Set<String>> getPermissionOnSubscription(String namespace) throws PulsarAdminException {
+        try {
+            return getPermissionOnSubscriptionAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Set<String>>> getPermissionOnSubscriptionAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "permissions", "subscription");
+        final CompletableFuture<Map<String, Set<String>>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, Set<String>>>() {
+                    @Override
+                    public void completed(Map<String, Set<String>> permissions) {
+                        future.complete(permissions);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
 
     @Override
     public void grantPermissionOnSubscription(String namespace, String subscription, Set<String> roles)
@@ -996,6 +1029,40 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public AutoTopicCreationOverride getAutoTopicCreation(String namespace) throws PulsarAdminException {
+        try {
+            return getAutoTopicCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<AutoTopicCreationOverride> getAutoTopicCreationAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "autoTopicCreation");
+        final CompletableFuture<AutoTopicCreationOverride> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<AutoTopicCreationOverride>() {
+                    @Override
+                    public void completed(AutoTopicCreationOverride autoTopicCreationOverride) {
+                        future.complete(autoTopicCreationOverride);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void removeAutoTopicCreation(String namespace) throws PulsarAdminException {
         try {
             removeAutoTopicCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -1039,6 +1106,41 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, "autoSubscriptionCreation");
         return asyncPostRequest(path, Entity.entity(autoSubscriptionCreationOverride, MediaType.APPLICATION_JSON));
     }
+
+    @Override
+    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String namespace) throws PulsarAdminException {
+        try {
+            return getAutoSubscriptionCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "autoSubscriptionCreation");
+        final CompletableFuture<AutoSubscriptionCreationOverride> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<AutoSubscriptionCreationOverride>() {
+                    @Override
+                    public void completed(AutoSubscriptionCreationOverride autoSubscriptionCreation) {
+                        future.complete(autoSubscriptionCreation);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
 
     @Override
     public void setSubscriptionTypesEnabled(
@@ -2106,6 +2208,40 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public SubscriptionAuthMode getSubscriptionAuthMode(String namespace) throws PulsarAdminException {
+        try {
+            return getSubscriptionAuthModeAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<SubscriptionAuthMode> getSubscriptionAuthModeAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionAuthMode");
+        final CompletableFuture<SubscriptionAuthMode> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<SubscriptionAuthMode>() {
+                    @Override
+                    public void completed(SubscriptionAuthMode subscriptionAuthMode) {
+                        future.complete(subscriptionAuthMode);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException {
         try {
             setEncryptionRequiredStatusAsync(namespace, encryptionRequired)
@@ -2125,6 +2261,40 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "encryptionRequired");
         return asyncPostRequest(path, Entity.entity(encryptionRequired, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Boolean getEncryptionRequiredStatus(String namespace) throws PulsarAdminException {
+        try {
+            return getEncryptionRequiredStatusAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getEncryptionRequiredStatusAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "encryptionRequired");
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enabled) {
+                        future.complete(enabled);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override

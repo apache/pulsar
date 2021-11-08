@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -98,10 +99,13 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = AutoSubscriptionCreationOverride.builder()
+                .allowAutoSubscriptionCreation(true)
+                .build();
         pulsar.getAdminClient().namespaces().setAutoSubscriptionCreation(topicName.getNamespace(),
-                AutoSubscriptionCreationOverride.builder()
-                        .allowAutoSubscriptionCreation(true)
-                        .build());
+                autoSubscriptionCreationOverride);
+        Assert.assertEquals(pulsar.getAdminClient().namespaces().getAutoSubscriptionCreation(topicName.getNamespace()),
+                autoSubscriptionCreationOverride);
 
         // Subscribe operation should be successful
         pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName(subscriptionName).subscribe();
@@ -117,10 +121,13 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = AutoSubscriptionCreationOverride.builder()
+                .allowAutoSubscriptionCreation(false)
+                .build();
         pulsar.getAdminClient().namespaces().setAutoSubscriptionCreation(topicName.getNamespace(),
-                AutoSubscriptionCreationOverride.builder()
-                        .allowAutoSubscriptionCreation(false)
-                        .build());
+                autoSubscriptionCreationOverride);
+        Assert.assertEquals(pulsar.getAdminClient().namespaces().getAutoSubscriptionCreation(topicName.getNamespace()),
+                autoSubscriptionCreationOverride);
 
         try {
             pulsarClient.newConsumer().topic(topicName.toString()).subscriptionName(subscriptionName).subscribe();
