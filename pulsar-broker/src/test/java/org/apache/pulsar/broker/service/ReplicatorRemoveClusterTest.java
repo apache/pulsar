@@ -75,7 +75,9 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace("pulsar1/ns1", Sets.newHashSet("r1", "r2", "r3"));
 
-        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient("r3");
+        PulsarClient repClient1 = pulsar1.getBrokerService().getReplicationClient("r3",
+                pulsar1.getBrokerService().pulsar().getPulsarResources().getClusterResources()
+                .getCluster("r3"));
         Assert.assertNotNull(repClient1);
         Assert.assertFalse(repClient1.isClosed());
 

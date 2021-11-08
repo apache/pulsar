@@ -1799,7 +1799,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     processOpSendMsg(opSendMsg);
                 }
             } catch (PulsarClientException e) {
-                Thread.currentThread().interrupt();
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
             } catch (Throwable t) {
                 semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());

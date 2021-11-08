@@ -16,29 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.admin.cli;
 
+package org.apache.pulsar.broker.resources;
+
+import org.junit.Assert;
 import org.testng.annotations.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 
-import static org.testng.Assert.assertEquals;
-
-public class TestRunMain {
-
+public class NamespaceResourcesTest {
     @Test
-    public void runMainNoArguments() throws Exception {
-        PulsarAdminTool.setAllowSystemExit(false);
-        PulsarAdminTool.main(new String[0]);
-        assertEquals(PulsarAdminTool.getLastExitCode(), 1);
-    }
-
-    @Test
-    public void runMainDummyConfigFile() throws Exception {
-        PulsarAdminTool.setAllowSystemExit(false);
-        Path dummyEmptyFile = Files.createTempFile("test", ".conf");
-        PulsarAdminTool.main(new String[] {dummyEmptyFile.toAbsolutePath().toString()});
-        assertEquals(PulsarAdminTool.getLastExitCode(), 1);
+    public void test_pathIsFromNamespace() {
+        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/clusters"));
+        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies"));
+        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant"));
+        Assert.assertTrue(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant/my-ns"));
     }
 }

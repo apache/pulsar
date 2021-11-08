@@ -100,6 +100,7 @@ public class TestZKServer implements AutoCloseable {
     public void stop() throws Exception {
         if (zks != null) {
             zks.shutdown();
+            zks.getZKDatabase().close();
             zks = null;
         }
 
