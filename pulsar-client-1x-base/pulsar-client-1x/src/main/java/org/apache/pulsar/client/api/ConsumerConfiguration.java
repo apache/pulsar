@@ -375,4 +375,21 @@ public class ConsumerConfiguration implements Serializable {
     public SubscriptionInitialPosition getSubscriptionInitialPosition(){
         return conf.getSubscriptionInitialPosition();
     }
+
+    /**
+     * @return the configured {@link NegativeAckRedeliveryBackoff} for the consumer
+     */
+    public NegativeAckRedeliveryBackoff getNegativeAckRedeliveryBackoff() {
+        return conf.getNegativeAckRedeliveryBackoff();
+    }
+
+    /**
+     * @param negativeAckRedeliveryBackoff the negative ack redelivery backoff policy.
+     * Default value is: NegativeAckRedeliveryExponentialBackoff
+     * @return the {@link ConsumerConfiguration}
+     */
+    public ConsumerConfiguration setNegativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff) {
+        conf.setNegativeAckRedeliveryBackoff(negativeAckRedeliveryBackoff);
+        return this;
+    }
 }

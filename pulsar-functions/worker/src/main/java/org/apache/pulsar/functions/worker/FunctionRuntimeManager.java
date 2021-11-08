@@ -79,12 +79,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     // all assignments
     // WorkerId -> Function Fully Qualified InstanceId -> List<Assignments>
-    @VisibleForTesting
     Map<String, Map<String, Assignment>> workerIdToAssignments = new ConcurrentHashMap<>();
 
     // All the runtime info related to functions executed by this worker
     // Fully Qualified InstanceId - > FunctionRuntimeInfo
-    @VisibleForTesting
     class FunctionRuntimeInfos {
 
         private Map<String, FunctionRuntimeInfo> functionRuntimeInfoMap = new ConcurrentHashMap<>();
@@ -114,10 +112,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    @VisibleForTesting
     final FunctionRuntimeInfos functionRuntimeInfos = new FunctionRuntimeInfos();
 
-    @VisibleForTesting
     @Getter
     final WorkerConfig workerConfig;
 
@@ -265,10 +261,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
             throw new RuntimeException(e);
         }
     }
-
-    /**
-     * Starts the function runtime manager
-     */
 
     /**
      * Get current assignments
@@ -827,7 +819,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    @VisibleForTesting
     void deleteAssignment(Assignment assignment) {
         String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
         Map<String, Assignment> assignmentMap = this.workerIdToAssignments.get(assignment.getWorkerId());

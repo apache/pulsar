@@ -334,7 +334,7 @@ public class PulsarAdminTool {
     }
 
     private static void exit(int code) {
-        lastExitCode = lastExitCode;
+        lastExitCode = code;
         if (allowSystemExit) {
             // we are using halt and not System.exit, we do not mind about shutdown hooks
             // they are only slowing down the tool

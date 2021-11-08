@@ -103,6 +103,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private LogAppender logAppender;
 
     // provide tables for storing states
+    private final String stateStorageImplClass;
     private final String stateStorageServiceUrl;
     private StateStoreProvider stateStoreProvider;
     private StateManager stateManager;
@@ -144,6 +145,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 ClientBuilder clientBuilder,
                                 PulsarClient pulsarClient,
                                 PulsarAdmin pulsarAdmin,
+                                String stateStorageImplClass,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry,
@@ -152,6 +154,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.clientBuilder = clientBuilder;
         this.client = (PulsarClientImpl) pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
+        this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.functionClassLoader = functionClassLoader;
@@ -322,8 +325,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (null == stateStorageServiceUrl) {
             stateStoreProvider = StateStoreProvider.NULL;
         } else {
-            stateStoreProvider = new BKStateStoreProviderImpl();
-            Map<String, Object> stateStoreProviderConfig = new HashMap();
+            stateStoreProvider = getStateStoreProvider();
+            Map<String, Object> stateStoreProviderConfig = new HashMap<>();
             stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_SERVICE_URL, stateStorageServiceUrl);
             stateStoreProvider.init(stateStoreProviderConfig, instanceConfig.getFunctionDetails());
 
@@ -336,6 +339,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             store.init(context);
 
             stateManager.registerStore(store);
+        }
+    }
+
+    private StateStoreProvider getStateStoreProvider() throws Exception {
+        if (stateStorageImplClass == null) {
+            return new BKStateStoreProviderImpl();
+        } else {
+            return (StateStoreProvider) Class.forName(stateStorageImplClass).getConstructor().newInstance();
         }
     }
 
