@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Replicator;
 
 public class TopicPoliciesSystemTopic extends SystemTopic {
     public static final String IS_GLOBAL = "isGlobal";
@@ -36,13 +38,17 @@ public class TopicPoliciesSystemTopic extends SystemTopic {
     }
 
     @Override
-    protected boolean addReplicationCluster(String remoteCluster, ManagedCursor cursor, String localCluster) {
-        boolean isReplicatorStarted = super.addReplicationCluster(remoteCluster, cursor, localCluster);
-        if (isReplicatorStarted) {
-            getReplicators().get(remoteCluster).setFilterFunction((messageImpl)
-                    -> !messageImpl.getProperties().containsKey(IS_GLOBAL));
-        }
-        return isReplicatorStarted;
+    protected CompletableFuture<Void> addReplicationCluster(String remoteCluster, ManagedCursor cursor,
+                                                            String localCluster) {
+        return super.addReplicationCluster(remoteCluster, cursor, localCluster)
+                .thenApply((res) -> {
+                    Replicator replicator = getReplicators().get(remoteCluster);
+                    if (replicator != null) {
+                        replicator.setFilterFunction((messageImpl)
+                                -> !messageImpl.getProperties().containsKey(IS_GLOBAL));
+                    }
+                    return res;
+                });
     }
 
 
