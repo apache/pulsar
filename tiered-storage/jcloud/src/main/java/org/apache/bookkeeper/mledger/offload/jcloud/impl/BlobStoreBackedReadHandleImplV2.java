@@ -210,8 +210,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                         }
                     }
                     if (entries.isEmpty()) {
-                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(0, 0);
-                        entries.add(LedgerEntryImpl.create(ledgerId, 0, 0, buf));
+                        promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
                     }
                 } catch (Throwable t) {
                     promise.completeExceptionally(t);

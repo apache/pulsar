@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -143,6 +144,10 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             }
             return entries;
         } catch (InterruptedException | ExecutionException e) {
+            if (e.getCause() instanceof BKException.BKNoSuchLedgerExistsException) {
+                log.warn("The ledger {} does not exist {}", ledger.getId(), e.getCause());
+                return Lists.newLinkedList();
+            }
             log.error("Exception when get CompletableFuture<LedgerEntries>. ", e);
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();

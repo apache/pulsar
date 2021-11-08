@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerO
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -56,9 +57,12 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -195,60 +199,69 @@ public class OffloadTxnDataTest extends TransactionTestBase{
                 .topic(topic)
                 .create();
 
-        Consumer<String> consumer = pulsarClient
-                .newConsumer(Schema.STRING)
-                .consumerName("testOffload")
-                .subscriptionName("testOffload")
-                .topic(topic)
-                .subscribe();
+        Consumer<String> consumer = buildConsumer(topic);
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(topic, false)
                 .get().get();
+        persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
         List<MessageIdImpl> messageIdList = new ArrayList<>();
         map.put("ManagedLedgerName", persistentTopic.getManagedLedger().getName());
 
         //Offload ordinary messages when transactionBuffer is NoSnapshot.
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message").send());
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 1").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 2").send());
 
         MessageIdImpl messageId1 = messageIdList.get(0);
         waitOffload(messageId1, persistentTopic);
-        MessageIdImpl messageId = (MessageIdImpl) consumer.receive().getMessageId();
-        Assert.assertEquals(messageIdList.get(0).getEntryId(), messageId.getEntryId());
-        messageId = (MessageIdImpl) consumer.receive().getMessageId();
-        Assert.assertEquals(messageIdList.get(1).getEntryId(), messageId.getEntryId());
+        consumer = buildConsumer(topic);
+        for (int i = 0; i < 2; i++) {
+            Message message = consumer.receive(2, TimeUnit.SECONDS);
+            log.info("message: {}", message.getValue());
+        }
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 3").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 4").send());
+        consumer = buildConsumer(topic);
+        for (int i = 0; i < 2; i++) {
+            Message message = consumer.receive(2, TimeUnit.SECONDS);
+            log.info("message: {}", message.getValue());
+        }
 
         //Offload transaction messages. filter aborted messages and txn mark
         Transaction committedTxn= pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
-        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message").sendAsync().get());
+        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit").sendAsync().get());
         committedTxn.commit();
+        consumer = buildConsumer(topic);
+        for (int i = 0; i < 3; i++) {
+            Message message = consumer.receive(2, TimeUnit.SECONDS);
+            log.info("message: {}", message.getValue());
+        }
+
         MessageIdImpl messageId2 = messageIdList.get(2);
-        waitOffload(messageId1, persistentTopic);
-        messageId = (MessageIdImpl) consumer.receive().getMessageId();
-        Assert.assertEquals(messageId2.getLedgerId(), messageId.getLedgerId());
-        Assert.assertEquals(messageId2.getEntryId(), messageId.getEntryId());
+        waitOffload(messageId2, persistentTopic);
+        consumer = buildConsumer(topic);
+        for (int i = 0; i < 2; i++) {
+            Message message = consumer.receive(2, TimeUnit.SECONDS);
+            log.info("message: {}, MessageId {}", message.getValue(), message.getMessageId());
+        }
 
         Transaction abortedTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
-        messageIdList.add((MessageIdImpl) producer.newMessage(abortedTxn).value("txn message").sendAsync().get());
+        messageIdList.add((MessageIdImpl) producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get());
         abortedTxn.abort();
         waitOffload(messageIdList.get(3), persistentTopic);
-        Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
-        Assert.assertNull(message);
 
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message").send());
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 3").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 4").send());
         waitOffload(messageIdList.get(4), persistentTopic);
-        message = consumer.receive();
-        messageId = (MessageIdImpl) message.getMessageId();
-        Assert.assertTrue(message.getData().length != 0);
-        Assert.assertEquals(messageIdList.get(4).getEntryId(), messageId.getEntryId());
-        messageId = (MessageIdImpl) consumer.receive().getMessageId();
-        Assert.assertEquals(messageIdList.get(5).getEntryId(), messageId.getEntryId());
+        consumer = buildConsumer(topic);
+        for (int i = 0; i < 5; i++) {
+            Message message = consumer.receive(2, TimeUnit.SECONDS);
+            log.info("message: {}", message.getValue());
+        }
     }
 
     private void waitOffload(MessageIdImpl messageId, PersistentTopic persistentTopic)
@@ -308,5 +321,14 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         } else {
             return null;
         }
+    }
+    private Consumer<String> buildConsumer(String topic) throws PulsarClientException {
+        return pulsarClient
+                .newConsumer(Schema.STRING)
+                .subscriptionName("testOffload" + RandomUtils.nextLong())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .receiverQueueSize(1)
+                .topic(topic)
+                .subscribe();
     }
 }

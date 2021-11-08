@@ -182,8 +182,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     }
                 }
                 if (entries.isEmpty()) {
-                    ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(0, 0);
-                    entries.add(LedgerEntryImpl.create(ledgerId, 0, 0, buf));
+                    log.warn("Debug: The ledger {} does not exist", ledgerId);
+                    promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
                 }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
