@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.authorization;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.base.Function;
 import java.io.IOException;
@@ -72,8 +73,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        checkNotNull(conf, "ServiceConfiguration can't be null");
-        checkNotNull(pulsarResources, "PulsarResources can't be null");
+        requireNonNull(conf, "ServiceConfiguration can't be null");
+        requireNonNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
         this.pulsarResources = pulsarResources;
         
