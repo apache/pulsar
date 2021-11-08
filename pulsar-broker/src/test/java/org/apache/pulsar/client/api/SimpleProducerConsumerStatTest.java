@@ -424,4 +424,22 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         producer.close();
         log.info("-- Exiting {} test --", methodName);
     }
+
+    @Test
+    public void testProducerPendingQueueSizeStats() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/tp1/my-ns/my-topic1");
+
+        Producer<byte[]> producer = producerBuilder.enableBatching(false).create();
+
+        stopBroker();
+
+        int numMessages = 120;
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+        assertEquals(producer.getStats().getPendingQueueSize(), numMessages);
+    }
 }
