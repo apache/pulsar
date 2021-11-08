@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
@@ -1000,7 +1001,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of broker interceptor to load, which is a list of broker interceptor names"
     )
-    private Set<String> brokerInterceptors = Sets.newTreeSet();
+    private Set<String> brokerInterceptors = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1034,12 +1035,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_PROTOCOLS,
         doc = "List of messaging protocols to load, which is a list of protocol names"
     )
-    private Set<String> messagingProtocols = Sets.newTreeSet();
+    private Set<String> messagingProtocols = new TreeSet<>();
 
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
     private boolean systemTopicEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy to use for system topics"
+    )
+    private SchemaCompatibilityStrategy systemTopicSchemaCompatibilityStrategy =
+            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1101,13 +1109,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
             + "Example:- [TLSv1.3, TLSv1.2]"
     )
-    private Set<String> tlsProtocols = Sets.newTreeSet();
+    private Set<String> tlsProtocols = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls cipher the broker will use to negotiate during TLS Handshake.\n\n"
             + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
-    private Set<String> tlsCiphers = Sets.newTreeSet();
+    private Set<String> tlsCiphers = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify whether Client certificates are required for TLS Reject.\n"
@@ -1124,7 +1132,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_AUTHENTICATION,
         doc = "Authentication provider name list, which is a list of class names"
     )
-    private Set<String> authenticationProviders = Sets.newTreeSet();
+    private Set<String> authenticationProviders = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
@@ -1149,14 +1157,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Role names that are treated as `super-user`, meaning they will be able to"
             + " do all admin operations and publish/consume from all topics"
     )
-    private Set<String> superUserRoles = Sets.newTreeSet();
+    private Set<String> superUserRoles = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Role names that are treated as `proxy roles`. \n\nIf the broker sees"
             + " a request with role as proxyRoles - it will demand to see the original"
             + " client role or certificate.")
-    private Set<String> proxyRoles = Sets.newTreeSet();
+    private Set<String> proxyRoles = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
@@ -2293,7 +2301,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + "Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].\n"
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
-    private Set<String> brokerClientTlsCiphers = Sets.newTreeSet();
+    private Set<String> brokerClientTlsCiphers = new TreeSet<>();
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
@@ -2301,7 +2309,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + "Examples:- [TLSv1.3, TLSv1.2] \n"
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
-    private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
+    private Set<String> brokerClientTlsProtocols = new TreeSet<>();
 
     /* packages management service configurations (begin) */
 
@@ -2342,7 +2350,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_PLUGIN,
             doc = "List of broker additional servlet to load, which is a list of broker additional servlet names"
     )
-    private Set<String> additionalServlets = Sets.newTreeSet();
+    private Set<String> additionalServlets = new TreeSet<>();
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}

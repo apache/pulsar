@@ -375,12 +375,12 @@ You need to create a configuration file before using the Pulsar Debezium connect
     configs:
 
         ## config for pg, docker image: debezium/example-mongodb:0.10
-        mongodb.hosts: "rs0/mongodb:27017",
-        mongodb.name: "dbserver1",
-        mongodb.user: "debezium",
-        mongodb.password: "dbz",
-        mongodb.task.id: "1",
-        database.whitelist: "inventory",
+        mongodb.hosts: "rs0/mongodb:27017"
+        mongodb.name: "dbserver1"
+        mongodb.user: "debezium"
+        mongodb.password: "dbz"
+        mongodb.task.id: "1"
+        database.whitelist: "inventory"
         database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
     ```
 

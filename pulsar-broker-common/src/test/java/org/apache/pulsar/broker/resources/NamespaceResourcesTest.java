@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.pendingack.exceptions;
 
-import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionBufferException;
+package org.apache.pulsar.broker.resources;
 
-/**
- * Transaction pending ack store provider exception.
- */
-public class TransactionPendingAckStoreProviderException extends TransactionBufferException {
+import org.junit.Assert;
+import org.testng.annotations.Test;
 
-    public TransactionPendingAckStoreProviderException(String message) {
-        super(message);
+
+public class NamespaceResourcesTest {
+    @Test
+    public void test_pathIsFromNamespace() {
+        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/clusters"));
+        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies"));
+        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant"));
+        Assert.assertTrue(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant/my-ns"));
     }
-
 }

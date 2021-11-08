@@ -19,4 +19,4 @@
 /**
  * Exceptions thrown when encountering errors in transaction buffer.
  */
-package org.apache.pulsar.broker.transaction.buffer.exceptions;
+package org.apache.pulsar.broker.transaction.exception.coordinator;

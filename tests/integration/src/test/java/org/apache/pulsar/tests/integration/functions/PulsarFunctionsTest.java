@@ -120,7 +120,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    public void testFunctionLocalRun(Runtime runtime) throws  Exception {
+    protected void testFunctionLocalRun(Runtime runtime) throws  Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
         }
@@ -243,7 +243,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     }
 
-    public void testWindowFunction(String type, String[] expectedResults) throws Exception {
+    protected void testWindowFunction(String type, String[] expectedResults) throws Exception {
         int NUM_OF_MESSAGES = 100;
         int windowLengthCount = 10;
         int slidingIntervalCount = 5;

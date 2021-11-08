@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -62,7 +61,6 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 public class FunctionMetaDataManager implements AutoCloseable {
     // Represents the global state
     // tenant -> namespace -> (function name, FunctionRuntimeInfo)
-    @VisibleForTesting
     final Map<String, Map<String, Map<String, FunctionMetaData>>> functionMetaDataMap = new ConcurrentHashMap<>();
 
     private final SchedulerManager schedulerManager;
@@ -240,7 +238,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             }
             lastMessageSeen = builder.send();
             if (delete) {
-                needsScheduling = proccessDeregister(functionMetaData);
+                needsScheduling = processDeregister(functionMetaData);
             } else {
                 needsScheduling = processUpdate(functionMetaData);
             }
@@ -359,7 +357,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 this.processUpdate(serviceRequest.getFunctionMetaData());
                 break;
             case DELETE:
-                this.proccessDeregister(serviceRequest.getFunctionMetaData());
+                this.processDeregister(serviceRequest.getFunctionMetaData());
                 break;
             default:
                 log.warn("Received request with unrecognized type: {}", serviceRequest);
@@ -373,7 +371,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         String functionName = FunctionCommon.extractNameFromFullyQualifiedName(message.getKey());
         if (message.getData() == null || message.getData().length == 0) {
             // this is a delete message
-            this.proccessDeregister(tenant, namespace, functionName, version);
+            this.processDeregister(tenant, namespace, functionName, version);
         } else {
             FunctionMetaData functionMetaData = FunctionMetaData.parseFrom(message.getData());
             this.processUpdate(functionMetaData);
@@ -404,16 +402,15 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return false;
     }
 
-    @VisibleForTesting
-    synchronized boolean proccessDeregister(FunctionMetaData deregisterRequestFs) throws IllegalArgumentException {
+    synchronized boolean processDeregister(FunctionMetaData deregisterRequestFs) throws IllegalArgumentException {
         String functionName = deregisterRequestFs.getFunctionDetails().getName();
         String tenant = deregisterRequestFs.getFunctionDetails().getTenant();
         String namespace = deregisterRequestFs.getFunctionDetails().getNamespace();
-        return proccessDeregister(tenant, namespace, functionName, deregisterRequestFs.getVersion());
+        return processDeregister(tenant, namespace, functionName, deregisterRequestFs.getVersion());
     }
 
-    synchronized boolean proccessDeregister(String tenant, String namespace,
-                                            String functionName, long version) throws IllegalArgumentException {
+    synchronized boolean processDeregister(String tenant, String namespace,
+                                           String functionName, long version) throws IllegalArgumentException {
 
         boolean needsScheduling = false;
 
@@ -437,7 +434,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return needsScheduling;
     }
 
-    @VisibleForTesting
     synchronized boolean processUpdate(FunctionMetaData updateRequestFs) throws IllegalArgumentException {
 
         log.debug("Process update request: {}", updateRequestFs);
@@ -481,7 +477,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return currentFunctionMetaData.getVersion() >= version;
     }
 
-    @VisibleForTesting
     void setFunctionMetaData(FunctionMetaData functionMetaData) {
         Function.FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
         if (!this.functionMetaDataMap.containsKey(functionDetails.getTenant())) {
