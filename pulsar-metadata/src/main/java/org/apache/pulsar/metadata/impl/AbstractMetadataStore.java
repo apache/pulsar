@@ -328,4 +328,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 && path.startsWith("/")
                 && !path.endsWith("/");
     }
+
+    protected void notifyParentChildrenChanged(String path) {
+        String parent = parent(path);
+        while (parent != null) {
+            receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
+            parent = parent(parent);
+        }
+    }
 }

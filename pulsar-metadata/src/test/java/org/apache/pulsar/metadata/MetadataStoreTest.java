@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -380,4 +381,21 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertFalse(store.exists(prefix).join());
     }
 
+    @Test(dataProvider = "impl")
+    public void testPersistent(String provider, Supplier<String> urlSupplier) throws Exception {
+        if (provider.equals("Memory")) {
+            // Memory is not persistent.
+            return;
+        }
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        byte[] data = "testPersistent".getBytes(StandardCharsets.UTF_8);
+        store.put("/a/b/c", data, Optional.of(-1L)).join();
+        store.close();
+
+        store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        Optional<GetResult> result = store.get("/a/b/c").get();
+        assertTrue(result.isPresent());
+        assertEquals(result.get().getValue(), data);
+        store.close();
+    }
 }
