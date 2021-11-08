@@ -304,7 +304,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    private WorkerConfig createWorkerConfig(ServiceConfiguration config) {
+    protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -560,7 +560,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    private void testE2EPulsarFunctionLocalRun(String jarFilePathUrl) throws Exception {
+    protected void testE2EPulsarFunctionLocalRun(String jarFilePathUrl) throws Exception {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl, 1);
     }
 
@@ -1133,7 +1133,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    private void runWithPulsarFunctionsClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {
+    protected void runWithPulsarFunctionsClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
         try {
             Thread.currentThread().setContextClassLoader(pulsarApiExamplesClassLoader);

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.authorization;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.base.Function;
 import java.io.IOException;
@@ -72,8 +73,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        checkNotNull(conf, "ServiceConfiguration can't be null");
-        checkNotNull(pulsarResources, "PulsarResources can't be null");
+        requireNonNull(conf, "ServiceConfiguration can't be null");
+        requireNonNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
         this.pulsarResources = pulsarResources;
         
@@ -225,6 +226,11 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
         return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.consume);
     }
 
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
@@ -525,6 +531,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             case PACKAGES:
                 isAuthorizedFuture = allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.packages);
                 break;
+            case GET_TOPICS:
+                isAuthorizedFuture = allowConsumeOpsAsync(namespaceName, role, authData);
+                break;
             default:
                 isAuthorizedFuture = CompletableFuture.completedFuture(false);
         }
@@ -559,6 +568,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         switch (operation) {
             case LOOKUP:
             case GET_STATS:
+            case GET_METADATA:
                 isAuthorizedFuture = canLookupAsync(topicName, role, authData);
                 break;
             case PRODUCE:

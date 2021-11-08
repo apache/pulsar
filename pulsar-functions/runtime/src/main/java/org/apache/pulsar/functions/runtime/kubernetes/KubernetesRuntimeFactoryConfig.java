@@ -161,5 +161,11 @@ public class KubernetesRuntimeFactoryConfig {
             doc = "The classpath where function instance files stored"
     )
     private String functionInstanceClassPath = "";
+    @FieldContext(
+            doc = "The duration in seconds before the StatefulSet deleted on function stop/restart. " +
+                    "Value must be non-negative integer. The value zero indicates delete immediately. " +
+                    "Default is 5 seconds."
+    )
+    protected int gracePeriodSeconds = 5;
 
 }

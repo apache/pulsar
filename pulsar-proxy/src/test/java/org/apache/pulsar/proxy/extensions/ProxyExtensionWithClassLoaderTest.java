@@ -70,6 +70,7 @@ public class ProxyExtensionWithClassLoaderTest {
         verify(h, times(1)).start(service);
     }
 
+    @Test
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader loader = mock(NarClassLoader.class);
 
