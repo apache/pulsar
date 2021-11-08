@@ -47,7 +47,7 @@ public class OffloadFilterImp implements OffloadFilter {
 
     @Override
     public boolean checkIfLedgerIdCanOffload(long ledgerId) {
-        return ledgerId <= persistentTopic.getMaxReadPosition().getLedgerId();
+        return ledgerId < persistentTopic.getMaxReadPosition().getLedgerId();
     }
 
     @Override

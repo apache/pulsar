@@ -69,6 +69,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.domain.Credentials;
 import org.junit.Assert;
@@ -208,14 +209,15 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         List<MessageIdImpl> messageIdList = new ArrayList<>();
         map.put("ManagedLedgerName", persistentTopic.getManagedLedger().getName());
 
+        //ledger 1
         //Offload ordinary messages when transactionBuffer is NoSnapshot.
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 1").send());
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 2").send());
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 3").send());
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 4").send());
-        waitOffload(messageIdList.get(messageIdList.size() - 1), persistentTopic);
 
         //Offload transaction messages. filter aborted messages and txn mark
+        //ledger 2
         Transaction committedTxn= pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -223,31 +225,47 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit").sendAsync().get());
         messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit").sendAsync().get());
         committedTxn.commit();
-        waitOffload(messageIdList.get(messageIdList.size() - 1), persistentTopic);
 
+        //ledger 3, This ledger does not need to be offloaded
         Transaction abortedTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
+        producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
+        producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
+        abortedTxn.abort();
+
+        //ledger 4
+        abortedTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
         producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
         abortedTxn.abort();
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 5").send());
         messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 6").send());
-        waitOffload(messageIdList.get(messageIdList.size() - 1), persistentTopic);
 
+        //ledger 5, LedgerId = maxReadPosition can not be offload
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 7").send());
         abortedTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
         producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
         producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
         producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
-        abortedTxn.abort();
+        //Waiting until offloading completely.
+        waitOffload(messageIdList.get(0), persistentTopic);
+        waitOffload(messageIdList.get(4), persistentTopic);
+        waitOffload(messageIdList.get(7), persistentTopic);
 
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 7").send());
-        waitOffload(messageIdList.get(messageIdList.size() - 1), persistentTopic);
         consumer = buildConsumer(topic);
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < messageIdList.size(); i++) {
             Message message = consumer.receive(2, TimeUnit.SECONDS);
             log.info("message: {}", message.getValue());
+        }
+        try {
+            waitOffload(messageIdList.get(messageIdList.size() - 1), persistentTopic);
+            Assert.fail();
+        } catch (ConditionTimeoutException conditionTimeoutException) {
         }
     }
 
