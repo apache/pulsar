@@ -1444,6 +1444,31 @@ public interface Namespaces {
     CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace);
 
     /**
+     * Removes the subscriptionTypesEnabled policy for a given namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     * @return
+     */
+    void removeSubscriptionTypesEnabled(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the subscriptionTypesEnabled policy for a given namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return
+     */
+    CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String namespace);
+
+    /**
      * Removes the autoSubscriptionCreation policy for a given namespace.
      * <p/>
      * Allowing the broker to dictate the subscription auto-creation policy.

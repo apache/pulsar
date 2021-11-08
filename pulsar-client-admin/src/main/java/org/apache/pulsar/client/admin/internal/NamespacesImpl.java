@@ -1201,6 +1201,27 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeSubscriptionTypesEnabled(String namespace) throws PulsarAdminException {
+        try {
+            removeSubscriptionTypesEnabledAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public void removeAutoSubscriptionCreation(String namespace) throws PulsarAdminException {
         try {
             removeAutoSubscriptionCreationAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
