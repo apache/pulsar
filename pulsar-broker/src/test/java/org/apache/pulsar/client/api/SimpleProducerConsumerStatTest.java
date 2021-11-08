@@ -49,6 +49,8 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import lombok.Cleanup;
+
 @Test(groups = "broker-api")
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
@@ -431,6 +433,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic1");
 
+        @Cleanup
         Producer<byte[]> producer = producerBuilder.enableBatching(false).create();
 
         stopBroker();
