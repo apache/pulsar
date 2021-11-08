@@ -114,6 +114,7 @@ import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -153,6 +154,7 @@ import org.slf4j.LoggerFactory;
 public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
+    private final String listenerName;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private State state;
@@ -224,9 +226,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     public ServerCnx(PulsarService pulsar) {
+        this(pulsar, null);
+    }
+
+    public ServerCnx(PulsarService pulsar, String listenerName) {
         super(pulsar.getBrokerService().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
+        this.listenerName = listenerName;
         this.state = State.Start;
         ServiceConfiguration conf = pulsar.getConfiguration();
 
@@ -399,8 +406,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.isAuthoritative();
+
+        // use the connection-specific listener name by default.
         final String advertisedListenerName = lookup.hasAdvertisedListenerName() ? lookup.getAdvertisedListenerName()
-                : null;
+                : this.listenerName;
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
@@ -1115,6 +1124,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final ProducerAccessMode producerAccessMode = cmdProducer.getProducerAccessMode();
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
                 ? Optional.of(cmdProducer.getTopicEpoch()) : Optional.empty();
+        final boolean isTxnEnabled = cmdProducer.isTxnEnabled();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -1152,12 +1162,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                                 return null;
                             } else {
-                                // There was an early request to create a producer with
-                                // same producerId. This can happen when
-                                // client
-                                // timeout is lower the broker timeouts. We need to wait
-                                // until the previous producer creation
-                                // request
+                                // There was an early request to create a producer with same producerId.
+                                // This can happen when client timeout is lower than the broker timeouts.
+                                // We need to wait until the previous producer creation request
                                 // either complete or fails.
                                 ServerError error = null;
                                 if (!existingProducerFuture.isDone()) {
@@ -1229,67 +1236,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             });
 
                             schemaVersionFuture.thenAccept(schemaVersion -> {
-                                CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
-                                Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
-                                        getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                                        userProvidedProducerName, producerAccessMode, topicEpoch);
-
-                                topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
-                                    if (isActive()) {
-                                        if (producerFuture.complete(producer)) {
-                                            log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                                            commandSender.sendProducerSuccessResponse(requestId, producerName,
-                                                    producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                    newTopicEpoch, true /* producer is ready now */);
-                                            return;
-                                        } else {
-                                            // The producer's future was completed before by
-                                            // a close command
-                                            producer.closeNow(true);
-                                            log.info("[{}] Cleared producer created after"
-                                                            + " timeout on client side {}",
-                                                    remoteAddress, producer);
-                                        }
-                                        } else {
-                                            producer.closeNow(true);
-                                        log.info("[{}] Cleared producer created after connection was closed: {}",
-                                                remoteAddress, producer);
-                                        producerFuture.completeExceptionally(
-                                                new IllegalStateException(
-                                                        "Producer created after connection was closed"));
-                                        }
-
-                                        producers.remove(producerId, producerFuture);
-                                }).exceptionally(ex -> {
-                                    log.error("[{}] Failed to add producer to topic {}: producerId={}, {}",
-                                              remoteAddress, topicName, producerId, ex.getMessage());
-
-                                    producer.closeNow(true);
-                                    if (producerFuture.completeExceptionally(ex)) {
-                                        commandSender.sendErrorResponse(requestId,
-                                                BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
-                                    }
+                                topic.checkIfTransactionBufferRecoverCompletely(isTxnEnabled).thenAccept(future -> {
+                                    buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
+                                            metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
+                                            producerAccessMode, topicEpoch, producerFuture);
+                                }).exceptionally(exception -> {
+                                    Throwable cause = exception.getCause();
+                                    log.error("producerId {}, requestId {} : TransactionBuffer recover failed",
+                                            producerId, requestId, exception);
+                                    commandSender.sendErrorResponse(requestId,
+                                            ServiceUnitNotReadyException.getClientErrorCode(cause),
+                                            cause.getMessage());
                                     return null;
-                                });
-
-                                producerQueuedFuture.thenRun(() -> {
-                                    // If the producer is queued waiting, we will get an immediate notification
-                                    // that we need to pass to client
-                                    if (isActive()) {
-                                        log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
-                                        commandSender.sendProducerSuccessResponse(requestId, producerName,
-                                                producer.getLastSequenceId(), producer.getSchemaVersion(),
-                                                Optional.empty(), false/* producer is not ready now */);
-                                    }
                                 });
                             });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
-
                             if (cause instanceof NoSuchElementException) {
                                 cause = new TopicNotFoundException("Topic Not Found.");
                             }
-
                             if (!Exceptions.areExceptionsPresentInChain(cause,
                                     ServiceUnitNotReadyException.class, ManagedLedgerException.class)) {
                                 // Do not print stack traces for expected exceptions
@@ -1321,6 +1286,65 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
+    private void buildProducerAndAddTopic(Topic topic, long producerId, String producerName, long requestId,
+                             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+                             boolean userProvidedProducerName, TopicName topicName,
+                             ProducerAccessMode producerAccessMode,
+                             Optional<Long> topicEpoch, CompletableFuture<Producer> producerFuture){
+        CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
+        Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
+                getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
+                userProvidedProducerName, producerAccessMode, topicEpoch);
+
+        topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
+            if (isActive()) {
+                if (producerFuture.complete(producer)) {
+                    log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                    commandSender.sendProducerSuccessResponse(requestId, producerName,
+                            producer.getLastSequenceId(), producer.getSchemaVersion(),
+                            newTopicEpoch, true /* producer is ready now */);
+                    return;
+                } else {
+                    // The producer's future was completed before by
+                    // a close command
+                    producer.closeNow(true);
+                    log.info("[{}] Cleared producer created after"
+                                    + " timeout on client side {}",
+                            remoteAddress, producer);
+                }
+            } else {
+                producer.closeNow(true);
+                log.info("[{}] Cleared producer created after connection was closed: {}",
+                        remoteAddress, producer);
+                producerFuture.completeExceptionally(
+                        new IllegalStateException(
+                                "Producer created after connection was closed"));
+            }
+
+            producers.remove(producerId, producerFuture);
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to add producer to topic {}: producerId={}, {}",
+                    remoteAddress, topicName, producerId, ex.getMessage());
+
+            producer.closeNow(true);
+            if (producerFuture.completeExceptionally(ex)) {
+                commandSender.sendErrorResponse(requestId,
+                        BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            }
+            return null;
+        });
+
+        producerQueuedFuture.thenRun(() -> {
+            // If the producer is queued waiting, we will get an immediate notification
+            // that we need to pass to client
+            if (isActive()) {
+                log.info("[{}] Producer is waiting in queue: {}", remoteAddress, producer);
+                commandSender.sendProducerSuccessResponse(requestId, producerName,
+                        producer.getLastSequenceId(), producer.getSchemaVersion(),
+                        Optional.empty(), false/* producer is not ready now */);
+            }
+        });
+    }
     @Override
     protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
         checkArgument(state == State.Connected);
@@ -1555,9 +1579,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         CompletableFuture<Producer> producerFuture = producers.get(producerId);
         if (producerFuture == null) {
-            log.warn("[{}] Producer was not registered on the connection. producerId={}", remoteAddress, producerId);
-            commandSender.sendErrorResponse(requestId, ServerError.UnknownError,
-                    "Producer was not registered on the connection");
+            log.info("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1602,8 +1625,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
         if (consumerFuture == null) {
-            log.warn("[{}] Consumer was not registered on the connection: consumerId={}", remoteAddress, consumerId);
-            commandSender.sendErrorResponse(requestId, ServerError.MetadataError, "Consumer not found");
+            log.info("[{}] Consumer was not registered on the connection: {}", consumerId, remoteAddress);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1685,10 +1708,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
         if (lastPosition.getEntryId() == -1) {
-            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                    lastPosition.getLedgerId(), lastPosition.getEntryId(), partitionIndex, -1,
-                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+            handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
+                    markDeletePosition);
             return;
         }
 
@@ -1716,33 +1737,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
                 if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
-                    persistentTopic.getCompactedTopic().readLastEntryOfCompactedLedger().thenAccept(entry -> {
-                        if (entry != null) {
-                            // in this case, all the data has been compacted, so return the last position
-                            // in the compacted ledger to the client
-                            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                            int bs = metadata.getNumMessagesInBatch();
-                            int largestBatchIndex = bs > 0 ? bs - 1 : -1;
-                            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                                    entry.getLedgerId(), entry.getLedgerId(), partitionIndex, largestBatchIndex,
-                                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
-                            entry.release();
-                        } else {
-                            // in this case, the ledgers been removed except the current ledger
-                            // and current ledger without any data
-                            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                                    -1, -1, partitionIndex, -1,
-                                    markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                                    markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
-                        }
-                    }).exceptionally(ex -> {
-                        ctx.writeAndFlush(Commands.newError(
-                                requestId, ServerError.MetadataError,
-                                "Failed to read last entry of the compacted Ledger "
-                                        + ex.getCause().getMessage()));
-                        return null;
-                    });
+                    handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
+                            markDeletePosition);
                 } else {
                     ctx.writeAndFlush(Commands.newError(
                             requestId, ServerError.MetadataError,
@@ -1761,6 +1757,37 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
                         markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
             }
+        });
+    }
+
+    private void handleLastMessageIdFromCompactedLedger(PersistentTopic persistentTopic, long requestId,
+            int partitionIndex, PositionImpl markDeletePosition) {
+        persistentTopic.getCompactedTopic().readLastEntryOfCompactedLedger().thenAccept(entry -> {
+            if (entry != null) {
+                // in this case, all the data has been compacted, so return the last position
+                // in the compacted ledger to the client
+                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                int bs = metadata.getNumMessagesInBatch();
+                int largestBatchIndex = bs > 0 ? bs - 1 : -1;
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                        entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
+                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                entry.release();
+            } else {
+                // in this case, the ledgers been removed except the current ledger
+                // and current ledger without any data
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                        -1, -1, partitionIndex, -1,
+                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+            }
+        }).exceptionally(ex -> {
+            ctx.writeAndFlush(Commands.newError(
+                    requestId, ServerError.MetadataError,
+                    "Failed to read last entry of the compacted Ledger "
+                            + ex.getCause().getMessage()));
+            return null;
         });
     }
 
@@ -1932,6 +1959,49 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
+    protected void handleTcClientConnectRequest(CommandTcClientConnectRequest command) {
+        final long requestId = command.getRequestId();
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
+        if (log.isDebugEnabled()) {
+            log.debug("Receive tc client connect request {} to transaction meta store {} from {}.",
+                    requestId, tcId, remoteAddress);
+        }
+
+        if (!checkTransactionEnableAndSenError(requestId)) {
+            return;
+        }
+
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
+
+        transactionMetadataStoreService.handleTcClientConnect(tcId).thenAccept(connection -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Handle tc client connect request {} to transaction meta store {} from {} success.",
+                        requestId, tcId, remoteAddress);
+            }
+            commandSender.sendTcClientConnectResponse(requestId);
+        }).exceptionally(e -> {
+            log.error("Handle tc client connect request {} to transaction meta store {} from {} fail.",
+                    requestId, tcId, remoteAddress, e.getCause());
+            commandSender.sendTcClientConnectResponse(requestId,
+                    BrokerServiceException.getClientErrorCode(e), e.getMessage());
+            return null;
+        });
+    }
+
+    private boolean checkTransactionEnableAndSenError(long requestId) {
+        if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            BrokerServiceException.NotAllowedException ex =
+                    new BrokerServiceException.NotAllowedException(
+                            "Transaction manager is not not enabled");
+            commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    @Override
     protected void handleNewTxn(CommandNewTxn command) {
         final long requestId = command.getRequestId();
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
@@ -1939,16 +2009,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.",
                     requestId, tcId, remoteAddress);
         }
-        TransactionMetadataStoreService transactionMetadataStoreService =
-                service.pulsar().getTransactionMetadataStoreService();
-        if (transactionMetadataStoreService == null) {
-            CoordinatorException.CoordinatorNotFoundException ex =
-                    new CoordinatorException.CoordinatorNotFoundException(
-                                               "Transaction manager is not started or not enabled");
-            ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
-                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+
+        if (!checkTransactionEnableAndSenError(requestId)) {
             return;
         }
+
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
         transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlSeconds())
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
@@ -1961,8 +2028,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response error for new txn request {}", requestId, ex);
                     }
+
                     ctx.writeAndFlush(Commands.newTxnResponse(requestId, tcId.getId(),
                             BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                    transactionMetadataStoreService.handleOpFail(ex, tcId);
                 }
             }));
     }
@@ -1970,12 +2039,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     protected void handleAddPartitionToTxn(CommandAddPartitionToTxn command) {
         final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
         final long requestId = command.getRequestId();
         if (log.isDebugEnabled()) {
             command.getPartitionsList().forEach(partion ->
                     log.debug("Receive add published partition to txn request {} "
                             + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partion));
         }
+
+        if (!checkTransactionEnableAndSenError(requestId)) {
+            return;
+        }
+
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
         service.pulsar().getTransactionMetadataStoreService().addProducedPartitionToTxn(txnID,
                 command.getPartitionsList())
                 .whenComplete(((v, ex) -> {
@@ -1989,10 +2066,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (log.isDebugEnabled()) {
                             log.debug("Send response error for add published partition to txn request {}", requestId,
                                     ex);
+                        }
+
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                            ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
+                                    ex.getCause().getMessage()));
+                        }
+                        transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
-                    ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
-                }
             }));
     }
 
@@ -2001,16 +2086,35 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long requestId = command.getRequestId();
         final int txnAction = command.getTxnAction().getValue();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
 
-        service.pulsar().getTransactionMetadataStoreService()
+        if (!checkTransactionEnableAndSenError(requestId)) {
+            return;
+        }
+
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
+
+        transactionMetadataStoreService
                 .endTransaction(txnID, txnAction, false)
-                .thenRun(() -> ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                        txnID.getLeastSigBits(), txnID.getMostSigBits())))
-                .exceptionally(throwable -> {
-                    log.error("Send response error for end txn request.", throwable);
-                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
-                            BrokerServiceException.getClientErrorCode(throwable.getCause()), throwable.getMessage()));
-                    return null; });
+                .whenComplete((v, ex) -> {
+                    if (ex == null) {
+                        ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                                txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                    } else {
+                        log.error("Send response error for end txn request.", ex);
+
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                            ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
+                                    BrokerServiceException.getClientErrorCode(ex.getCause()),
+                                    ex.getCause().getMessage()));
+                        }
+                        transactionMetadataStoreService.handleOpFail(ex, tcId);
+                    }
+                });
     }
 
     @Override
@@ -2197,7 +2301,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     requestId, remoteAddress, txnID);
         }
 
-        service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID,
+        final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
+
+        if (!checkTransactionEnableAndSenError(requestId)) {
+            return;
+        }
+
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                service.pulsar().getTransactionMetadataStoreService();
+
+        transactionMetadataStoreService.addAckedPartitionToTxn(txnID,
                 MLTransactionMetadataStore.subscriptionToTxnSubscription(command.getSubscriptionsList()))
                 .whenComplete(((v, ex) -> {
                     if (ex == null) {
@@ -2213,9 +2326,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             log.debug("Send response error for add published partition to txn request {}",
                                     requestId, ex);
                         }
-                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
-                                txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
-                                ex.getMessage()));
+
+                        if (ex instanceof CoordinatorException.CoordinatorNotFoundException) {
+                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                                    txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
+                                    ex.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                                    txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex.getCause()),
+                                    ex.getCause().getMessage()));
+                        }
+                        transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
                 }));
     }

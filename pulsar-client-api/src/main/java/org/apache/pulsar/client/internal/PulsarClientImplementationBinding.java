@@ -21,6 +21,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -228,6 +229,8 @@ public interface PulsarClientImplementationBinding {
     BatcherBuilder newDefaultBatcherBuilder();
 
     BatcherBuilder newKeyBasedBatcherBuilder();
+
+    MessagePayloadFactory newDefaultMessagePayloadFactory();
 
     /**
      * Retrieves ByteBuffer data into byte[].

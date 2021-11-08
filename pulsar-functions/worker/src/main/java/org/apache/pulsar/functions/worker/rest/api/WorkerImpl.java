@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
@@ -74,10 +75,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         if (workerService == null) {
             return false;
         }
-        if (!workerService.isInitialized()) {
-            return false;
-        }
-        return true;
+        return workerService.isInitialized();
     }
 
     @Override
@@ -211,13 +209,14 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         return this.worker().getConnectorsManager().getConnectorDefinitions();
     }
 
+    @Override
     public void rebalance(final URI uri, final String clientRole) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized rebalance cluster", clientRole);
+            log.error("Client [{}] is not authorized to rebalance cluster", clientRole);
             throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
@@ -226,10 +225,94 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
                 worker().getSchedulerManager().rebalanceIfNotInprogress();
             } catch (SchedulerManager.RebalanceInProgressException e) {
                 throw new RestException(Status.BAD_REQUEST, "Rebalance already in progress");
+            } catch (SchedulerManager.TooFewWorkersException e) {
+                throw new RestException(Status.BAD_REQUEST, "Too few workers (need at least 2)");
             }
         } else {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
             URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
+    }
+
+    @Override
+    public void drain(final URI uri, final String inWorkerId, final String clientRole, boolean calledOnLeaderUri) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        final String actualWorkerId = worker().getWorkerConfig().getWorkerId();
+        final String workerId = (inWorkerId == null || inWorkerId.isEmpty()) ? actualWorkerId : inWorkerId;
+
+        if (log.isDebugEnabled()) {
+            log.debug("drain called with URI={}, inWorkerId={}, workerId={}, clientRole={}, calledOnLeaderUri={}, "
+                    + "on actual worker-id={}",
+                    uri, inWorkerId, workerId, clientRole, calledOnLeaderUri, actualWorkerId);
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+            log.error("Client [{}] is not authorized to drain worker {}", clientRole, workerId);
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform drain operation");
+        }
+
+        // Depending on which operations we decide to allow, we may add checks here to error/exception if
+        //      calledOnLeaderUri is true on a non-leader
+        //      calledOnLeaderUri is false on a leader
+        // For now, deal with everything.
+
+        if (worker().getLeaderService().isLeader()) {
+            try {
+                worker().getSchedulerManager().drainIfNotInProgress(workerId);
+            } catch (SchedulerManager.DrainInProgressException e) {
+                throw new RestException(Status.CONFLICT, "Another drain is in progress");
+            } catch (SchedulerManager.TooFewWorkersException e) {
+                throw new RestException(Status.BAD_REQUEST, "Too few workers (need at least 2)");
+            } catch (SchedulerManager.WorkerNotRemovedAfterPriorDrainException e) {
+                String errString = "Worker " + workerId + " was not yet removed after a prior drain op; try later";
+                throw new RestException(Status.PRECONDITION_FAILED, errString);
+            } catch (SchedulerManager.UnknownWorkerException e) {
+                String errString = "Worker " + workerId + " is not among the current workers in the system";
+                throw new RestException(Status.BAD_REQUEST, errString);
+            }
+        } else {
+            URI redirect = buildRedirectUriForDrainRelatedOp(uri, workerId);
+            log.info("Not leader; redirect URI={}", redirect);
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
+    }
+
+    @Override
+    public LongRunningProcessStatus getDrainStatus(final URI uri, final String inWorkerId, final String clientRole,
+                                                                                        boolean calledOnLeaderUri) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        final String actualWorkerId = worker().getWorkerConfig().getWorkerId();
+        final String workerId = (inWorkerId == null || inWorkerId.isEmpty()) ? actualWorkerId : inWorkerId;
+
+        if (log.isDebugEnabled()) {
+            log.debug("getDrainStatus called with uri={}, inWorkerId={}, workerId={}, clientRole={}, "
+                    + " calledOnLeaderUri={}, on actual workerId={}",
+                    uri, inWorkerId, workerId, clientRole, calledOnLeaderUri, actualWorkerId);
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+            log.error("Client [{}] is not authorized to get drain status of worker {}", clientRole, workerId);
+            throw new RestException(Status.UNAUTHORIZED,
+                    "Client is not authorized to get the status of a drain operation");
+        }
+
+        // Depending on which operations we decide to allow, we may add checks here to error/exception if
+        //      calledOnLeaderUri is true on a non-leader
+        //      calledOnLeaderUri is false on a leader
+        // For now, deal with everything.
+
+        if (worker().getLeaderService().isLeader()) {
+            return worker().getSchedulerManager().getDrainStatus(workerId);
+        } else {
+            URI redirect = buildRedirectUriForDrainRelatedOp(uri, workerId);
+            log.info("Not leader; redirect URI={}", redirect);
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
     }
@@ -245,5 +328,22 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             throwUnavailableException();
             return false; // make compiler happy
         }
+    }
+
+    private URI buildRedirectUriForDrainRelatedOp(final URI uri, String workerId) {
+        // The incoming URI could be a leader URI (sent to a non-leader), or a non-leader URI.
+        // Leader URI example: “/admin/v2/worker/leader/drain?workerId=<WORKER_ID>”
+        // Non-leader URI example: “/admin/v2/worker/drain”
+        // Use the leader-URI path in both cases for the redirect to the leader.
+        String leaderPath = "admin/v2/worker/leader/drain";
+        WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
+        URI redirect = UriBuilder.fromUri(uri)
+                .host(workerInfo.getWorkerHostname())
+                .port(workerInfo.getPort())
+                .replacePath(leaderPath)
+                .replaceQueryParam("workerId", workerId)
+                .build();
+
+        return redirect;
     }
 }

@@ -3,11 +3,7 @@
     {
       "type": "category",
       "label": "Get Started",
-      "items": [
-        "standalone",
-        "standalone-docker",
-        "kubernetes-helm"
-      ]
+      "items": ["standalone", "standalone-docker", "kubernetes-helm"]
     },
     {
       "type": "category",
@@ -89,13 +85,7 @@
     {
       "type": "category",
       "label": "Transactions",
-      "items": [
-        "txn-why",
-        "txn-what",
-        "txn-how",
-        "txn-use",
-        "txn-monitor"
-      ]
+      "items": ["txn-why", "txn-what", "txn-how", "txn-use", "txn-monitor"]
     },
     {
       "type": "category",
@@ -107,6 +97,123 @@
         "helm-deploy",
         "helm-upgrade",
         "helm-tools"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Deployment",
+      "items": [
+        "deploy-aws",
+        "deploy-kubernetes",
+        "deploy-bare-metal",
+        "deploy-bare-metal-multi-cluster",
+        "deploy-dcos",
+        "deploy-docker",
+        "deploy-monitoring"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        "administration-zk-bk",
+        "administration-geo",
+        "administration-pulsar-manager",
+        "administration-stats",
+        "administration-load-balance",
+        "administration-proxy",
+        "administration-upgrade",
+        "administration-isolation"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        "security-overview",
+        "security-tls-transport",
+        "security-tls-authentication",
+        "security-tls-keystore",
+        "security-jwt",
+        "security-athenz",
+        "security-kerberos",
+        "security-oauth2",
+        "security-authorization",
+        "security-encryption",
+        "security-extending",
+        "security-bouncy-castle"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": ["performance-pulsar-perf"]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        "client-libraries",
+        "client-libraries-java",
+        "client-libraries-go",
+        "client-libraries-python",
+        "client-libraries-cpp",
+        "client-libraries-node",
+        "client-libraries-websocket",
+        "client-libraries-dotnet"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Admin API",
+      "items": [
+        "admin-api-overview",
+        "admin-api-clusters",
+        "admin-api-tenants",
+        "admin-api-brokers",
+        "admin-api-namespaces",
+        "admin-api-permissions",
+        "admin-api-topics",
+        "admin-api-functions",
+        "admin-api-packages"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Adaptors",
+      "items": ["adaptors-kafka", "adaptors-spark", "adaptors-storm"]
+    },
+    {
+      "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        "cookbooks-compaction",
+        "cookbooks-deduplication",
+        "cookbooks-non-persistent",
+        "cookbooks-retention-expiry",
+        "cookbooks-encryption",
+        "cookbooks-message-queue",
+        "cookbooks-bookkeepermetadata"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        "develop-tools",
+        "develop-binary-protocol",
+        "develop-schema",
+        "develop-load-manager"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Reference",
+      "items": [
+        "reference-terminology",
+        "reference-cli-tools",
+        "reference-configuration",
+        "reference-metrics"
       ]
     }
   ]

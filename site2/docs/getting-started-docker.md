@@ -178,6 +178,7 @@ The output is something like this:
             ],
             "isDurable": true,
             "isReplicated": false,
+            "allowOutOfOrderDelivery": false,
             "consumersAfterMarkDeletePosition": {},
             "nonContiguousDeletedMessagesRanges": 0,
             "nonContiguousDeletedMessagesRangesSerializedSize": 0,

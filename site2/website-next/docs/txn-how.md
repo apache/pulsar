@@ -1,7 +1,7 @@
 ---
 id: txn-how
 title: How transactions work?
-sidebar_label: How transactions work?
+sidebar_label: "How transactions work?"
 ---
 
 import Tabs from '@theme/Tabs';

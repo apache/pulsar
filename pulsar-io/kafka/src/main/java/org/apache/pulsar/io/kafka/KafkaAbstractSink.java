@@ -116,7 +116,7 @@ public abstract class KafkaAbstractSink<K, V> implements Sink<byte[]> {
             props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, kafkaSinkConfig.getSslTruststoreLocation());
         }
         if (StringUtils.isNotEmpty(kafkaSinkConfig.getSslTruststorePassword())) {
-            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, kafkaSinkConfig.getSslTruststorePassword());
+            props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, kafkaSinkConfig.getSslTruststorePassword());
         }
         props.put(ProducerConfig.ACKS_CONFIG, kafkaSinkConfig.getAcks());
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, String.valueOf(kafkaSinkConfig.getBatchSize()));

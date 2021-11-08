@@ -51,4 +51,40 @@ public class CounterTest extends BaseMetadataStoreTest {
         long l4 = cs1.getNextCounterValue("/my/path").join();
         assertNotEquals(l3, l4);
     }
+
+    @Test(dataProvider = "impl")
+    public void testCounterDoesNotAutoReset(String provider, Supplier<String> urlSupplier) throws Exception {
+        if (provider.equals("Memory")) {
+            // Test doesn't make sense for local memory since we're testing across different instances
+            return;
+        }
+
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        CoordinationService cs1 = new CoordinationServiceImpl(store1);
+
+        long l1 = cs1.getNextCounterValue("/my/path").join();
+        long l2 = cs1.getNextCounterValue("/my/path").join();
+        long l3 = cs1.getNextCounterValue("/my/path").join();
+
+        assertNotEquals(l1, l2);
+        assertNotEquals(l2, l3);
+
+        cs1.close();
+        store1.close();;
+
+        // Delete all the empty container nodes
+        zks.checkContainers();
+
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+        @Cleanup
+        CoordinationService cs2 = new CoordinationServiceImpl(store2);
+
+        long l4 = cs2.getNextCounterValue("/my/path").join();
+        assertNotEquals(l1, l4);
+        assertNotEquals(l2, l4);
+        assertNotEquals(l3, l4);
+    }
 }

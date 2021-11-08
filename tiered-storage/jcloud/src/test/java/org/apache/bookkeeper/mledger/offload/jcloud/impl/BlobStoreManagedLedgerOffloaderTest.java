@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -139,6 +140,22 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
             Assert.assertFalse(toWriteIter.hasNext());
             Assert.assertFalse(toTestIter.hasNext());
         }
+    }
+
+    @Test(timeOut = 60000)
+    public void testReadHandlerState() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        LedgerOffloader offloader = getOffloader();
+
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        BlobStoreBackedReadHandleImpl toTest = (BlobStoreBackedReadHandleImpl) offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        Assert.assertEquals(toTest.getState(), BlobStoreBackedReadHandleImpl.State.Opened);
+        toTest.read(0, 1);
+        toTest.close();
+        Assert.assertEquals(toTest.getState(), BlobStoreBackedReadHandleImpl.State.Closed);
     }
 
     @Test
@@ -459,6 +476,24 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         } catch (ExecutionException e) {
             Assert.assertEquals(e.getCause().getClass(), IOException.class);
             Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
+        }
+    }
+
+    @Test
+    public void testReadEOFException() throws Throwable {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = getOffloader();
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        toTest.readAsync(0, toTest.getLastAddConfirmed()).get();
+
+        try {
+            toTest.readAsync(0, 0).get();
+        } catch (Exception e) {
+            fail("Get unexpected exception when reading entries", e);
         }
     }
 }

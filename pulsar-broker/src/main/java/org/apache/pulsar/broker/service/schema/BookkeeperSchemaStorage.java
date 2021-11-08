@@ -60,6 +60,7 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,12 +90,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         this.config = pulsar.getConfiguration();
         this.locatorEntryCache = store.getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
             @Override
-            public byte[] serialize(SchemaStorageFormat.SchemaLocator value) {
+            public byte[] serialize(String path, SchemaStorageFormat.SchemaLocator value) {
                 return value.toByteArray();
             }
 
             @Override
-            public SchemaStorageFormat.SchemaLocator deserialize(byte[] content) throws IOException {
+            public SchemaStorageFormat.SchemaLocator deserialize(String path, byte[] content, Stat stat)
+                    throws IOException {
                 return SchemaStorageFormat.SchemaLocator.parseFrom(content);
             }
         });

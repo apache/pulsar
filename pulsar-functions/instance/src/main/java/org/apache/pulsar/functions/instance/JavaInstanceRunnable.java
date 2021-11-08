@@ -28,9 +28,12 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -100,6 +103,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private LogAppender logAppender;
 
     // provide tables for storing states
+    private final String stateStorageImplClass;
     private final String stateStorageServiceUrl;
     private StateStoreProvider stateStoreProvider;
     private StateManager stateManager;
@@ -141,6 +145,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 ClientBuilder clientBuilder,
                                 PulsarClient pulsarClient,
                                 PulsarAdmin pulsarAdmin,
+                                String stateStorageImplClass,
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry,
@@ -149,6 +154,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.clientBuilder = clientBuilder;
         this.client = (PulsarClientImpl) pulsarClient;
         this.pulsarAdmin = pulsarAdmin;
+        this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.functionClassLoader = functionClassLoader;
@@ -240,6 +246,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarAdmin, clientBuilder);
     }
 
+    public interface AsyncResultConsumer  {
+        void accept(Record record, JavaExecutionResult javaExecutionResult) throws Exception;
+    }
+
     /**
      * The core logic that initialize the instance thread and executes the function.
      */
@@ -249,6 +259,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             setup();
 
             Thread currentThread = Thread.currentThread();
+            Consumer<Throwable> asyncErrorHandler = throwable -> currentThread.interrupt();
+            AsyncResultConsumer asyncResultConsumer = (record, javaExecutionResult) -> handleResult(record, javaExecutionResult);
 
             while (true) {
                 currentRecord = readInput();
@@ -275,8 +287,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
                 result = javaInstance.handleMessage(
-                    currentRecord, currentRecord.getValue(), this::handleResult,
-                    cause -> currentThread.interrupt());
+                        currentRecord,
+                        currentRecord.getValue(),
+                        asyncResultConsumer,
+                        asyncErrorHandler);
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
 
                 // register end time
@@ -311,8 +325,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (null == stateStorageServiceUrl) {
             stateStoreProvider = StateStoreProvider.NULL;
         } else {
-            stateStoreProvider = new BKStateStoreProviderImpl();
-            Map<String, Object> stateStoreProviderConfig = new HashMap();
+            stateStoreProvider = getStateStoreProvider();
+            Map<String, Object> stateStoreProviderConfig = new HashMap<>();
             stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_SERVICE_URL, stateStorageServiceUrl);
             stateStoreProvider.init(stateStoreProviderConfig, instanceConfig.getFunctionDetails());
 
@@ -328,11 +342,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processAsyncResults() throws InterruptedException {
-
+    private StateStoreProvider getStateStoreProvider() throws Exception {
+        if (stateStorageImplClass == null) {
+            return new BKStateStoreProviderImpl();
+        } else {
+            return (StateStoreProvider) Class.forName(stateStorageImplClass).getConstructor().newInstance();
+        }
     }
 
-    private void handleResult(Record srcRecord, JavaExecutionResult result) {
+    private void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             Exception t = result.getUserException();
             log.warn("Encountered exception when processing message {}",
@@ -353,7 +371,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void sendOutputMessage(Record srcRecord, Object output) {
+    private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
@@ -364,6 +382,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stats.incrSinkExceptions(e);
             // fail the source record
             srcRecord.fail();
+            throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }

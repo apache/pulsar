@@ -84,9 +84,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(namespace, 10);
         admin.topics().createPartitionedTopic(partitionedTopicName.getPartitionedTopicName(), partitions);
-        pulsarClient.newConsumer()
-                .topic(partitionedTopicName.getPartitionedTopicName())
-                .subscriptionName("test").subscribe();
         tbClient = TransactionBufferClientImpl.create(pulsarClient,
                 new HashedWheelTimer(new DefaultThreadFactory("transaction-buffer")));
     }
@@ -241,9 +238,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(commitTopic);
         admin.topics().createSubscription(commitTopic, subName, MessageId.earliest);
 
-        waitPendingAckInit(abortTopic, subName);
-        waitPendingAckInit(commitTopic, subName);
-
         tbClient.abortTxnOnSubscription(abortTopic, "test", 1L, 1L, -1L).get();
 
         tbClient.commitTxnOnSubscription(commitTopic, "test", 1L, 1L, -1L).get();
@@ -276,8 +270,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         admin.topics().createNonPartitionedTopic(commitTopic);
         admin.topics().createSubscription(commitTopic, subName, MessageId.earliest);
 
-        waitPendingAckInit(abortTopic, subName);
-        waitPendingAckInit(commitTopic, subName);
         tbClient.abortTxnOnSubscription(abortTopic, "test", 1L, 1L, -1L).get();
 
         tbClient.commitTxnOnSubscription(commitTopic, "test", 1L, 1L, -1L).get();

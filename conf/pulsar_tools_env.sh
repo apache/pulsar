@@ -56,5 +56,5 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_L
 #Folder where the Bookie server PID file should be stored
 #PULSAR_PID_DIR=
 
-#Wait time before forcefully kill the pulser server instance, if the stop is not successful
+#Wait time before forcefully kill the pulsar server instance, if the stop is not successful
 #PULSAR_STOP_TIMEOUT=

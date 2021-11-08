@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -130,7 +131,7 @@ public class UnAckedMessageTracker implements Closeable {
                     if (!headPartition.isEmpty()) {
                         log.warn("[{}] {} messages have timed-out", consumerBase, headPartition.size());
                         headPartition.forEach(messageId -> {
-                            addChunkedMessageIdsAndRemoveFromSequnceMap(messageId, messageIds, consumerBase);
+                            addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
                             messageIds.add(messageId);
                             messageIdPartitionMap.remove(messageId);
                         });
@@ -150,14 +151,12 @@ public class UnAckedMessageTracker implements Closeable {
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
     }
 
-    public static void addChunkedMessageIdsAndRemoveFromSequnceMap(MessageId messageId, Set<MessageId> messageIds,
-            ConsumerBase<?> consumerBase) {
+    public static void addChunkedMessageIdsAndRemoveFromSequenceMap(MessageId messageId, Set<MessageId> messageIds,
+                                                                    ConsumerBase<?> consumerBase) {
         if (messageId instanceof MessageIdImpl) {
             MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap.get((MessageIdImpl) messageId);
             if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
-                for (MessageIdImpl msgId : chunkedMsgIds) {
-                    messageIds.add(msgId);
-                }
+                Collections.addAll(messageIds, chunkedMsgIds);
             }
             consumerBase.unAckedChunkedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
         }

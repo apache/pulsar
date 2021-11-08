@@ -19,16 +19,16 @@
 package org.apache.pulsar.common.policies.data;
 
 import com.google.common.collect.Maps;
-
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -41,15 +41,13 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
 public class TopicPolicies {
 
     @Builder.Default
-    private Map<String, BacklogQuotaImpl> backLogQuotaMap = Maps.newHashMap();
+    private Map<String, BacklogQuotaImpl> backLogQuotaMap = new HashMap<>();
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
-
+    private List<String> replicationClusters;
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;
     private Boolean deduplicationEnabled;
@@ -163,5 +161,9 @@ public class TopicPolicies {
 
     public boolean isSubscribeRateSet() {
         return subscribeRate != null;
+    }
+
+    public Set<String> getReplicationClustersSet() {
+        return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
 }

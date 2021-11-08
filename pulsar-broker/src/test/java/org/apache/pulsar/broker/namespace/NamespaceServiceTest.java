@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -62,7 +63,10 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl.BundlesDataImplBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -150,7 +154,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -437,7 +441,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
                 NamespaceEphemeralData node = ObjectMapperFactory.getThreadLocal().readValue(data,
                         NamespaceEphemeralData.class);
-                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getSafeBrokerServiceUrl());
+                Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
                 fail("failed to setup ownership", e);
             }
@@ -485,6 +489,53 @@ public class NamespaceServiceTest extends BrokerTestBase {
         } catch (Exception e) {
             // make sure: NPE does not occur
             fail("split bundle failed", e);
+        }
+    }
+
+    @Test
+    public void testSplitLargestBundle() throws Exception {
+        String namespace = "prop/test/ns-abc2";
+        String topic = "persistent://" + namespace + "/t1-";
+        int totalTopics = 100;
+
+        BundlesData bundleData = BundlesData.builder().numBundles(10).build();
+        admin.namespaces().createNamespace(namespace, bundleData);
+        Consumer<byte[]>[] consumers = new Consumer[totalTopics];
+        for (int i = 0; i < totalTopics; i++) {
+            consumers[i] = pulsarClient.newConsumer().topic(topic + i).subscriptionName("my-subscriber-name")
+                    .subscribe();
+        }
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get(namespace);
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+
+        Map<String, Integer> topicCount = Maps.newHashMap();
+        int maxTopics = 0;
+        String maxBundle = null;
+        for (int i = 0; i < totalTopics; i++) {
+            String bundle = bundles.findBundle(TopicName.get(topic + i)).getBundleRange();
+            int count = topicCount.getOrDefault(bundle, 0) + 1;
+            topicCount.put(bundle, count);
+            if (count > maxTopics) {
+                maxTopics = count;
+                maxBundle = bundle;
+            }
+        }
+
+        String largestBundle = namespaceService.getNamespaceBundleFactory().getBundlesWithHighestTopics(nsname)
+                .getBundleRange();
+
+        assertEquals(maxBundle, largestBundle);
+
+        for (int i = 0; i < totalTopics; i++) {
+            consumers[i].close();
+        }
+
+        admin.namespaces().splitNamespaceBundle(namespace, Policies.LARGEST_BUNDLE, false, null);
+
+        for (NamespaceBundle bundle : namespaceService.getNamespaceBundleFactory().getBundles(nsname).getBundles()) {
+            assertNotEquals(bundle.getBundleRange(), maxBundle);
         }
     }
 

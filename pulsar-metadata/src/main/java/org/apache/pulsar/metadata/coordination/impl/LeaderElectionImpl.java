@@ -117,7 +117,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
         T existingValue;
         try {
-            existingValue = serde.deserialize(res.getValue());
+            existingValue = serde.deserialize(path, res.getValue(), res.getStat());
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -160,7 +160,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private synchronized CompletableFuture<LeaderElectionState> tryToBecomeLeader() {
         byte[] payload;
         try {
-            payload = serde.serialize(proposedValue.get());
+            payload = serde.serialize(path, proposedValue.get());
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
