@@ -558,6 +558,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |brokerClientAuthenticationParameters|  The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.  | |
 |athenzDomainNames| Supported Athenz authentication provider domain names as a comma-separated list.  | |
 | anonymousUserRole | When this parameter is not empty, unauthenticated users perform as anonymousUserRole. | |
+|tokenSettingPrefix| Configure the prefix of the token related setting like `tokenSecretKey`, `tokenPublicKey`, `tokenAuthClaim`, `tokenPublicAlg`, `tokenAudienceClaim`, and `tokenAudience`. ||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:;base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:;base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
 |tokenAuthClaim| Specify the token claim that will be used as the authentication "principal" or "role". The "subject" field will be used if this is left blank ||
@@ -745,6 +746,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 | httpReverseProxyConfigs | HTTP directs to redirect to non-pulsar services | |
 | httpOutputBufferSize | HTTP output buffer size. The amount of data that will be buffered for HTTP requests before it is flushed to the channel. A larger buffer size may result in higher HTTP throughput though it may take longer for the client to see data. If using HTTP streaming via the reverse proxy, this should be set to the minimum value (1) so that clients see the data as soon as possible. | 32768 |
 | httpNumThreads | Number of threads to use for HTTP requests processing|  2 * Runtime.getRuntime().availableProcessors() |
+|tokenSettingPrefix| Configure the prefix of the token related setting like `tokenSecretKey`, `tokenPublicKey`, `tokenAuthClaim`, `tokenPublicAlg`, `tokenAudienceClaim`, and `tokenAudience`. ||
 |tokenSecretKey| Configure the secret key to be used to validate auth tokens. The key can be specified like: `tokenSecretKey=data:;base64,xxxxxxxxx` or `tokenSecretKey=file:///my/secret.key`.  Note: key file must be DER-encoded.||
 |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: `tokenPublicKey=data:;base64,xxxxxxxxx` or `tokenPublicKey=file:///my/secret.key`. Note: key file must be DER-encoded.||
 |tokenAuthClaim| Specify the token claim that will be used as the authentication "principal" or "role". The "subject" field will be used if this is left blank ||
