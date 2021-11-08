@@ -219,13 +219,6 @@ public class OffloadTxnDataTest extends TransactionTestBase{
             Message message = consumer.receive(2, TimeUnit.SECONDS);
             log.info("message: {}", message.getValue());
         }
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 3").send());
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 4").send());
-        consumer = buildConsumer(topic);
-        for (int i = 0; i < 2; i++) {
-            Message message = consumer.receive(2, TimeUnit.SECONDS);
-            log.info("message: {}", message.getValue());
-        }
 
         //Offload transaction messages. filter aborted messages and txn mark
         Transaction committedTxn= pulsarClient.newTransaction()

@@ -455,9 +455,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         // when ongoing transaction is empty, proved that lastAddConfirm is can read max position, because callback
         // thread is the same tread, in this time the lastAddConfirm don't content transaction message.
         synchronized (TopicTransactionBuffer.this) {
-            if (ongoingTxns.isEmpty()) {
+            if (checkIfNoSnapshot()) {
                 maxReadPosition = position;
                 changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
+            } else if (checkIfReady()) {
+                if (ongoingTxns.isEmpty()) {
+                    maxReadPosition = position;
+                    changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
+                }
             }
         }
     }

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -35,6 +36,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.events.PulsarEvent;
@@ -205,12 +208,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
                 result.complete(null);
             } else {
-                SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
-                        .createTopicPoliciesSystemTopicClient(namespace);
                 ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                 policyCacheInitMap.put(namespace, false);
                 CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                        systemTopicClient.newReaderAsync();
+                        creatSystemTopicClientWithRetry(namespace);
                 readerCaches.put(namespace, readerCompletableFuture);
                 readerCompletableFuture.whenComplete((reader, ex) -> {
                     if (ex != null) {
@@ -223,6 +224,22 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 });
             }
         }
+        return result;
+    }
+
+    protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> creatSystemTopicClientWithRetry(
+            NamespaceName namespace) {
+        SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
+                .createTopicPoliciesSystemTopicClient(namespace);
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> result = new CompletableFuture<>();
+        Backoff backoff = new Backoff(1, TimeUnit.SECONDS, 3, TimeUnit.SECONDS, 10, TimeUnit.SECONDS);
+        RetryUtil.retryAsynchronously(() -> {
+            try {
+                return systemTopicClient.newReader();
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        }, backoff, pulsarService.getExecutor(), result);
         return result;
     }
 

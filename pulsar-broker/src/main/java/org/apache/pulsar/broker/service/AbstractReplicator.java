@@ -32,6 +32,7 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,14 +65,14 @@ public abstract class AbstractReplicator {
     }
 
     public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
-                              BrokerService brokerService) throws NamingException, PulsarServerException {
-        validatePartitionedTopic(topicName, brokerService);
+                              BrokerService brokerService, PulsarClientImpl replicationClient)
+            throws PulsarServerException {
         this.brokerService = brokerService;
         this.topicName = topicName;
         this.replicatorPrefix = replicatorPrefix;
         this.localCluster = localCluster.intern();
         this.remoteCluster = remoteCluster.intern();
-        this.replicationClient = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
+        this.replicationClient = replicationClient;
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
@@ -242,20 +243,18 @@ public abstract class AbstractReplicator {
      * @param topic
      * @param brokerService
      */
-    private void validatePartitionedTopic(String topic, BrokerService brokerService) throws NamingException {
+    public static CompletableFuture<Void> validatePartitionedTopicAsync(String topic, BrokerService brokerService) {
         TopicName topicName = TopicName.get(topic);
-        boolean isPartitionedTopic = false;
-        try {
-            isPartitionedTopic =
-                    brokerService.pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                            .partitionedTopicExists(topicName);
-        } catch (Exception e) {
-            log.warn("Failed to verify partitioned topic {}-{}", topicName, e.getMessage());
-        }
-        if (isPartitionedTopic) {
-            throw new NamingException(
-                    topicName + " is a partitioned-topic and replication can't be started for partitioned-producer ");
-        }
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+            .partitionedTopicExistsAsync(topicName).thenCompose(isPartitionedTopic -> {
+                if (isPartitionedTopic) {
+                    String s = topicName
+                            + " is a partitioned-topic and replication can't be started for partitioned-producer ";
+                    log.error(s);
+                    return FutureUtil.failedFuture(new NamingException(s));
+                }
+                return CompletableFuture.completedFuture(null);
+            });
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);

@@ -94,6 +94,9 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     public String tlsTrustCertFilePath;
 
+    @Parameter(names = "--state_storage_impl_class", description = "State Storage Service Implementation class\n", required= false)
+    public String stateStorageImplClass;
+
     @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required= false)
     public String stateStorageServiceUrl;
 
@@ -196,6 +199,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         RuntimeUtils.registerDefaultCollectors(collectorRegistry);
 
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
+                stateStorageImplClass,
                 stateStorageServiceUrl,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))

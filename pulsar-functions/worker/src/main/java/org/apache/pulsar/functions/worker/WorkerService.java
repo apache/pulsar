@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -57,7 +56,7 @@ public interface WorkerService {
      *
      * @param brokerConfig broker config
      * @param workerConfig worker config
-     * @param PulsarResources configuration metadata-store
+     * @param pulsarResources configuration metadata-store
      * @param internalConf pulsar internal configuration data
      * @throws Exception when failed to initialize the worker service in broker.
      */

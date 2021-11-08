@@ -358,7 +358,8 @@ public class KubernetesRuntimeTest {
     	testResources(1.0 / 1.5, 1000, 1.3, 1.0);
     }
 
-    public void testResources(double userCpuRequest, long userMemoryRequest, double cpuOverCommitRatio, double memoryOverCommitRatio) throws Exception {
+    private void testResources(double userCpuRequest, long userMemoryRequest, double cpuOverCommitRatio,
+            double memoryOverCommitRatio) throws Exception {
 
         Function.Resources resources = Function.Resources.newBuilder()
                 .setRam(userMemoryRequest).setCpu(userCpuRequest).setDisk(10000L).build();

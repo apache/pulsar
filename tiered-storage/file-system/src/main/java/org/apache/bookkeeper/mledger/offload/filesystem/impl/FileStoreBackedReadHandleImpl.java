@@ -122,6 +122,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 } while (entryId < lastEntry && reader.next(key, value));
                 if (entries.size() == 1 && entries.get(0).getLength() == 0) {
                     promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                    return;
                 }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {

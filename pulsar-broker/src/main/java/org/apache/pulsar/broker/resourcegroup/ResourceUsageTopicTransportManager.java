@@ -144,7 +144,6 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             2 * pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs())) {
                 LOG.error("Stale resource usage msg from broker {} publish time {} current time{}",
                 recdUsageInfo.getBroker(), publishTime, currentTime);
-                staleMessageCount++;
                 return;
             }
             try {
@@ -174,7 +173,6 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             publisherMap = new ConcurrentHashMap<String, ResourceUsagePublisher>();
     private final Map<String, ResourceUsageConsumer>
             consumerMap = new ConcurrentHashMap<String, ResourceUsageConsumer>();
-    private long staleMessageCount = 0;
 
     private void createTenantAndNamespace() throws PulsarServerException, PulsarAdminException {
         // Create a public tenant and default namespace

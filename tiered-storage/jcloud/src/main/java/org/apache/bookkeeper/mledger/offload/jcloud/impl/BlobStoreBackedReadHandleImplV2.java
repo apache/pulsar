@@ -211,6 +211,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                     }
                     if (entries.isEmpty()) {
                         promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                        return;
                     }
                 } catch (Throwable t) {
                     promise.completeExceptionally(t);

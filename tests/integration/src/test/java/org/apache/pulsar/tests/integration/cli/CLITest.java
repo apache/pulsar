@@ -334,7 +334,7 @@ public class CLITest extends PulsarTestSuite {
                               );
             fail("Command should have exited with non-zero");
         } catch (ContainerExecException e) {
-            assertTrue(e.getResult().getStderr().contains("Reason: HTTP 404 Not Found"));
+            assertTrue(e.getResult().getStderr().contains("Schema not found"));
         }
     }
 

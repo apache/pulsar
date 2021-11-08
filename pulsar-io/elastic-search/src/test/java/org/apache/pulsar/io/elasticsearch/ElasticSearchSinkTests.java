@@ -292,7 +292,7 @@ public class ElasticSearchSinkTests {
         testNullValue(ElasticSearchConfig.NullValueAction.DELETE);
     }
 
-    public void testNullValue(ElasticSearchConfig.NullValueAction action) throws Exception {
+    private void testNullValue(ElasticSearchConfig.NullValueAction action) throws Exception {
         String index = "testnullvalue" + action.toString().toLowerCase(Locale.ROOT);
         map.put("indexName", index);
         map.put("keyIgnore", "false");
