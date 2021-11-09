@@ -127,4 +127,9 @@ public class ProducerStatsDisabled implements ProducerStatsRecorder {
     public double getSendLatencyMillisMax() {
         return 0;
     }
+
+    @Override
+    public int getPendingQueueSize() {
+        return 0;
+    }
 }
