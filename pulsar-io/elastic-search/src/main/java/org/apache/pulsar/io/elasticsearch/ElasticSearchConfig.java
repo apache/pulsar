@@ -79,14 +79,14 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "true",
+            defaultValue = "false",
             help = "Create the index if it does not exist"
     )
     private boolean createIndexIfNeeded = false;
 
     @FieldDoc(
         required = false,
-        defaultValue = "1",
+        defaultValue = "0",
         help = "The number of replicas of the index"
     )
     private int indexNumberOfReplicas = 0;
@@ -109,7 +109,7 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "-1",
+            defaultValue = "1",
             help = "The maximum number of retries for elasticsearch requests. Use -1 to disable it."
     )
     private int maxRetries = 1;
@@ -216,7 +216,7 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "id",
+            defaultValue = "",
             help = "The comma separated ordered list of field names used to build the Elasticsearch document _id from the record value. If this list is a singleton, the field is converted as a string. If this list has 2 or more fields, the generated _id is a string representation of a JSON array of the field values."
     )
     private String primaryFields = "";
