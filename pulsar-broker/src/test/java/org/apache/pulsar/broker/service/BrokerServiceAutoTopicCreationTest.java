@@ -351,6 +351,21 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
+    public void testAutoCreationNamespaceOverridesSubscriptionTopicCreation() throws Exception {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+        String topicString = "persistent://prop/ns-abc/non-partitioned-topic" + System.currentTimeMillis();
+        String subscriptionName = "non-partitioned-topic-sub";
+        final TopicName topicName = TopicName.get(topicString);
+        pulsar.getAdminClient().namespaces().setAutoTopicCreation(topicName.getNamespace(),
+                AutoTopicCreationOverride.builder()
+                        .allowAutoTopicCreation(true)
+                        .topicType(TopicType.NON_PARTITIONED.toString())
+                        .build());
+
+        admin.topics().createSubscription(topicString, subscriptionName, MessageId.earliest);
+    }
+
+    @Test
     public void testMaxNumPartitionsPerPartitionedTopicTopicCreation() {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
