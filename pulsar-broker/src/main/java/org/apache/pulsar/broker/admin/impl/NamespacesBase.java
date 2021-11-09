@@ -781,9 +781,7 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
         checkNotNull(clusterIds, "ClusterIds should not be null");
 
-        Set<String> replicationClusterSet = clusterIds.isEmpty()
-                ? Sets.newHashSet(namespaceName.isV2() ? config().getClusterName() : namespaceName.getCluster())
-                : Sets.newHashSet(clusterIds);
+        Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
         if (!namespaceName.isGlobal()) {
             throw new RestException(Status.PRECONDITION_FAILED, "Cannot set replication on a non-global namespace");
         }
@@ -802,6 +800,20 @@ public abstract class NamespacesBase extends AdminResource {
             validateClusterForTenant(namespaceName.getTenant(), clusterId);
         }
         updatePolicies(namespaceName, policies ->{
+            policies.replication_clusters = replicationClusterSet;
+            return policies;
+        });
+    }
+
+    protected void internalRemoveNamespaceReplicationClusters() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        Set<String> replicationClusterSet = namespaceName.isV2()
+                ? Sets.newHashSet(config().getClusterName())
+                : Sets.newHashSet();
+
+        updatePolicies(namespaceName, policies -> {
             policies.replication_clusters = replicationClusterSet;
             return policies;
         });
