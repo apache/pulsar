@@ -185,6 +185,21 @@ consumer.negativeAcknowledge(msg);
 > **Note**  
 > If batching is enabled, all messages in one batch are redelivered to the consumer.
 
+### Negative redelivery backoff
+
+In general, consumers are not able to process messages successfully. In this case, you can use [negative acknowledgement](concepts-messaging.md#negative-acknowledgement) and redeliver the messages after processing message failures, so that the messages can be redelivered to other consumers (for the Shared subscription).
+
+But this is not flexible enough. A better way is to use the **redelivery backoff mechanism**.  You can redeliver messages with different delays by setting the number of times the messages is retried.
+
+If you want to use `Negative Redelivery Backoff`, you can use the following API.
+
+```java
+consumer.negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+        .minNackTimeMs(1000)
+        .maxNackTimeMs(60 * 1000)
+        .build())
+```
+
 ### Acknowledgement timeout
 
 If a message is not consumed successfully, and you want the broker to redeliver this message automatically, then you can enable automatic redelivery mechanism for  unacknowledged messages. With automatic redelivery enabled, the client tracks the unacknowledged messages within the entire `acktimeout` time range, and sends a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
