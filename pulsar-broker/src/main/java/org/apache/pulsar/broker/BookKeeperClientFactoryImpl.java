@@ -79,12 +79,14 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(rackawarePolicyZkCache, clientIsolationZkCache, bkConf, conf, zkClient);
         }
         try {
-            return BookKeeper.forConfig(bkConf)
+            BookKeeper bookKeeper = BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
                     .setZookeeper(zkClient)
                     .eventLoopGroup(eventLoopGroup)
                     .statsLogger(statsLogger)
                     .build();
+            bookKeeper.setUpgrading(conf.getUpgrading());
+            return bookKeeper;
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }

@@ -30,6 +30,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -285,6 +287,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Mark whether to upgrade."
+    )
+    private AtomicBoolean upgrading = new AtomicBoolean(false);
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
