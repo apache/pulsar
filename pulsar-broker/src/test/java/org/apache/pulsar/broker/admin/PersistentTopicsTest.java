@@ -668,25 +668,19 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPeekWithSubscriptionNameNotExist() throws Exception {
-        final String topicName = "testTopic";
-        final TopicName topic = TopicName.get(
-                TopicDomain.persistent.value(),
-                testTenant,
-                testNamespace,
-                topicName);
-        final String subscriptionName = "sub";
-
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Sets.newHashSet("test"));
         RetentionPolicies retention = new RetentionPolicies(10,10);
-        admin.namespaces().setRetention(topic.getNamespace(), retention);
-        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic.toString(), 3, true).get();
+        admin.namespaces().setRetention("tenant-xyz/ns-abc", retention);
+        final String topic = "persistent://tenant-xyz/ns-abc/topic-testPeekWithSubscriptionNameNotExist";
+        final String subscriptionName = "sub";
+        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, 3, true).get();
 
         final String partitionedTopic = topic + "-partition-0";
 
-        Producer<String> producer = pulsarClient
-                .newProducer(Schema.STRING)
-                .enableBatching(false)
-                .topic(topic.toString())
-                .create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topic).create();
+
         for (int i = 0; i < 10; ++i) {
             producer.send("test" + i);
         }
