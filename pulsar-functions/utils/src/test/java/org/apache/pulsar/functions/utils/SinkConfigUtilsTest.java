@@ -103,11 +103,13 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setAutoAck(true);
         sinkConfig.setTimeoutMs(2000l);
         sinkConfig.setRuntimeFlags("-DKerberos");
+        sinkConfig.setCleanupSubscription(true);
+
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertEquals(
-                new Gson().toJson(sinkConfig),
-                new Gson().toJson(convertedConfig)
+                new Gson().toJson(convertedConfig),
+                new Gson().toJson(sinkConfig)
         );
     }
 
