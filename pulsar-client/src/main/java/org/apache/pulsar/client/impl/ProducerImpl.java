@@ -462,7 +462,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     sequenceId = msgMetadata.getSequenceId();
                 }
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
-                ChunkedMessageCtx chunkedMessageCtx = ChunkedMessageCtx.RECYCLER.get();
+                ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get() : null;
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
@@ -988,7 +988,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         OpSendMsg finalOp = op;
         LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, getHighestSequenceId(finalOp)));
         op.setMessageId(ledgerId, entryId, partitionIndex);
-        if (op.totalChunks > 1) {
+        if (op.totalChunks > 1 && op.chunkedMessageCtx != null) {
             if (op.chunkId == 0) {
                 op.chunkedMessageCtx.firstChunkMessageId = new MessageIdImpl(ledgerId, entryId, partitionIndex);
             } else if (op.chunkId == op.totalChunks - 1) {
@@ -1160,6 +1160,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         return new ProducerImpl.ChunkedMessageCtx(handle);
                     }
                 };
+
+        public static ChunkedMessageCtx get() {
+            return RECYCLER.get();
+        }
 
         private final Handle<ProducerImpl.ChunkedMessageCtx> recyclerHandle;
 
