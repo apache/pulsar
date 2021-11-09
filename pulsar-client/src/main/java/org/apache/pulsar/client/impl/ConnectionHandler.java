@@ -103,12 +103,16 @@ public class ConnectionHandler {
         long delayMs = backoff.next();
         log.warn("[{}] [{}] Could not get connection to broker: {} -- Will try again in {} s", state.topic, state.getHandlerName(),
                 exception.getMessage(), delayMs / 1000.0);
-        state.setState(State.Connecting);
-        state.client.timer().newTimeout(timeout -> {
-            log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
-            incrementEpoch();
-            grabCnx();
-        }, delayMs, TimeUnit.MILLISECONDS);
+        if (state.changeToConnecting()) {
+            state.client.timer().newTimeout(timeout -> {
+                log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
+                incrementEpoch();
+                grabCnx();
+            }, delayMs, TimeUnit.MILLISECONDS);
+        } else {
+            log.info("[{}] [{}] Ignoring reconnection request (state: {})",
+                    state.topic, state.getHandlerName(), state.getState());
+        }
     }
 
     protected long incrementEpoch() {
