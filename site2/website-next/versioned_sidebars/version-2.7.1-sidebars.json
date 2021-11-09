@@ -333,6 +333,108 @@
           "id": "version-2.7.1/administration-isolation"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Security",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-tls-transport"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-tls-authentication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-tls-keystore"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-jwt"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-athenz"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-kerberos"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-oauth2"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-authorization"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-extending"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/security-bouncy-castle"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Performance",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/performance-pulsar-perf"
+        }
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Client Libraries",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries-java"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries-go"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries-python"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries-cpp"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries-node"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries-websocket"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/client-libraries-dotnet"
+        }
+      ]
     }
   ]
 }

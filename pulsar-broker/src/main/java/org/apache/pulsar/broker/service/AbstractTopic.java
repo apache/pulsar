@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -104,7 +106,9 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile int maxUnackedMessagesOnConsumerAppilied = 0;
 
-    protected volatile Integer maxSubscriptionsPerTopic = null;
+    @VisibleForTesting
+    @Getter
+    protected volatile PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
@@ -148,6 +152,11 @@ public abstract class AbstractTopic implements Topic {
                 .getBrokerDeleteInactiveTopicsMode());
         this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(brokerService.pulsar().getConfiguration()
                 .getMaxMessageSizeCheckIntervalInSeconds());
+
+        maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
+        maxSubscriptionsPerTopic.updateBrokerValue(brokerService.pulsar().getConfiguration()
+                .getMaxSubscriptionsPerTopic());
+
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable =
                 brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
