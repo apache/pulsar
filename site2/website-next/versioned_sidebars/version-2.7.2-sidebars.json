@@ -123,6 +123,32 @@
           "id": "version-2.7.2/io-cli"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Tiered Storage",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/tiered-storage-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/tiered-storage-aws"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/tiered-storage-gcs"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/tiered-storage-filesystem"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/tiered-storage-azure"
+        }
+      ]
     }
   ]
 }
