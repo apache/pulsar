@@ -231,18 +231,18 @@ If it is set to <code>false</code>当发出消息队列满时, <code>Send</code>
 <p>这个 <code>MaxPendingMessages</code> 参数决定发送消息队列的大小。|falseint <code>maxPendingMessages</code>| int|待处理消息队列的最大大小。</p>
 <p>例如，正等待 broker 确认的消息 <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>.</p>
 <p>默认情况下，当队列已满时，调用所有 <code>Send</code> and <code>SendAsync</code> 方法会失败 <strong>除非</strong> 你设置 <code>BlockIfQueueFull</code> 为 <code>true</code>.|1000 <code>maxPendingMessagesAcrossPartitions</code>|跨分区的最大待处理消息数量。</p>
-<p>如果总的数量超过了所配置的值，则使用该设置降低每个分区的最大等待消息数 ({@link #setMaxPendingMessages(int)}) |50000MessageRoutingMode <code>messageRoutingMode</code>| MessageRoutingMode|Message routing logic for producers on <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">partitioned topics</a>.<br>
-Apply the logic only when setting no key on messages.<br>
-Available options are as follows:</p>
+<p>如果总的数量超过了所配置的值，则使用该设置降低每个分区的最大等待消息数 ({@link #setMaxPendingMessages(int)}) |50000MessageRoutingMode <code>messageRoutingMode</code>| MessageRoutingMode|消息路由逻辑为生产者的 <a href="/docs/zh-CN/next/concepts-architecture-overview#partitioned-topics">分区主题</a>.<br>
+仅在消息没有设置键值时才应用这个逻辑。<br>
+可用选项如下所示:</p>
 <ul>
 <li><code>pulsar.RoundRobinDistribution</code>: round robin</li>
 <li><code>pulsar.UseSinglePartition</code>: publish all messages to a single partition</li>
-<li><code>pulsar.CustomPartition</code>: a custom partitioning scheme|<code>pulsar.RoundRobinDistribution</code>
-<code>hashingScheme</code>| HashingScheme|Hashing function determining the partition where you publish a particular message (<strong>partitioned topics only</strong>).<br>
-Available options are as follows:</li>
+<li><code>pulsar.CustomPartition</code>: 自定义的分区 scheme|<code>pulsar.RoundRobinDistribution</code>
+<code>hashingScheme</code>|HashingScheme|哈希函数决定您发布特定消息分区(<strong>仅支持分区主题</strong>).<br>
+可用选项如下所示:</li>
 </ul>
 <ul>
-<li><code>pulsar.JavastringHash</code>: the equivalent of <code>string.hashCode()</code> in Java</li>
+<li><code>pulsar.JavastringHash</code>: 等于 <code>string.hashCode()</code> Java里</li>
 <li><code>pulsar.Murmur3_32Hash</code>: applies the <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> hashing function</li>
 <li><code>pulsar.BoostHash</code>: applies the hashing function from C++'s <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> library |
 <code>HashingScheme.JavastringHash</code> <code>cryptoFailureAction</code>| ProducerCryptoFailureAction|Producer should take action when encryption fails.</li>
