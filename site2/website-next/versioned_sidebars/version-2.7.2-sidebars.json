@@ -171,6 +171,36 @@
           "id": "version-2.7.2/tiered-storage-azure"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Kubernetes (Helm)",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-overview"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-prepare"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-install"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-deploy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/helm-tools"
+        }
+      ]
     }
   ]
 }
