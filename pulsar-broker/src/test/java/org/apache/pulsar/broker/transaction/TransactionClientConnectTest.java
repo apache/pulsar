@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -39,6 +40,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +49,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.FileAssert.fail;
 
-public class TransactionClientReconnectTest extends TransactionTestBase {
+public class TransactionClientConnectTest extends TransactionTestBase {
 
     private static final String RECONNECT_TOPIC = "persistent://public/txn/txn-client-reconnect-test";
     private static final int NUM_PARTITIONS = 1;
@@ -221,6 +223,31 @@ public class TransactionClientReconnectTest extends TransactionTestBase {
             }
         }
         reconnect();
+    }
+
+    @Test
+    public void testPulsarClientCloseThenCloseTcClient() throws Exception {
+        TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
+        Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");
+        field.setAccessible(true);
+        TransactionMetaStoreHandler[] handlers =
+                (TransactionMetaStoreHandler[]) field.get(transactionCoordinatorClient);
+
+        for (TransactionMetaStoreHandler handler : handlers) {
+            handler.newTransactionAsync(10, TimeUnit.SECONDS).get();
+        }
+        pulsarClient.close();
+        for (TransactionMetaStoreHandler handler : handlers) {
+            Method method = TransactionMetaStoreHandler.class.getMethod("getConnectHandleState");
+            method.setAccessible(true);
+            assertEquals(method.invoke(handler).toString(), "Closed");
+            try {
+                handler.newTransactionAsync(10, TimeUnit.SECONDS).get();
+            } catch (ExecutionException | InterruptedException e) {
+                assertTrue(e.getCause()
+                        instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);
+            }
+        }
     }
 
     public void start() throws Exception {
