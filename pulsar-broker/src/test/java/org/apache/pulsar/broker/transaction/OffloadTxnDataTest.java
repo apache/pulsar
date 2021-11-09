@@ -175,7 +175,7 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         setMaxEntriesPerLedger(4);
         setProperties(properties);
         setup();
-        sendAndOffloadMessages(fileSystemManagedLedgerOffloader);
+        sendAndOffloadMessages();
     }
 
     @Test
@@ -185,10 +185,10 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         setLedgerOffloader(blobStoreManagedLedgerOffloader);
         setProperties(properties);
         setup();
-        sendAndOffloadMessages(blobStoreManagedLedgerOffloader);
+        sendAndOffloadMessages();
     }
 
-    private void sendAndOffloadMessages(LedgerOffloader ledgerOffloader) throws Exception {
+    private void sendAndOffloadMessages() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testOffloadTxnData";
         admin.topics().createNonPartitionedTopic(topic);
         Map<String, String> map = new HashMap<>();
@@ -221,9 +221,9 @@ public class OffloadTxnDataTest extends TransactionTestBase{
         Transaction committedTxn= pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
-        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit").sendAsync().get());
-        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit").sendAsync().get());
-        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit").sendAsync().get());
+        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit 5").sendAsync().get());
+        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit 6").sendAsync().get());
+        messageIdList.add((MessageIdImpl) producer.newMessage(committedTxn).value("txn message commit 7").sendAsync().get());
         committedTxn.commit();
 
         //ledger 3, This ledger does not need to be offloaded
@@ -241,11 +241,11 @@ public class OffloadTxnDataTest extends TransactionTestBase{
                 .build().get();
         producer.newMessage(abortedTxn).value("txn message abort").sendAsync().get();
         abortedTxn.abort();
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 5").send());
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 6").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 8").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 9").send());
 
         //ledger 5, LedgerId = maxReadPosition can not be offload
-        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 7").send());
+        messageIdList.add((MessageIdImpl) producer.newMessage(Schema.STRING).value("ordinary message 10").send());
         abortedTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -259,8 +259,13 @@ public class OffloadTxnDataTest extends TransactionTestBase{
 
         consumer = buildConsumer(topic);
         for (int i = 0; i < messageIdList.size(); i++) {
+            log.info("messageIdList: {}, entryId: {}", messageIdList.get(i).getLedgerId(), messageIdList.get(i).getEntryId());
+        }
+        for (int i = 0; i < messageIdList.size() - 1; i++) {
             Message message = consumer.receive(2, TimeUnit.SECONDS);
-            log.info("message: {}", message.getValue());
+            String[] msgs = message.getValue().toString().split(" ");
+            log.info("message: {}, messageId: {}", message.getValue(), message.getMessageId());
+            Assert.assertEquals(String.valueOf(i+1), msgs[msgs.length - 1]);
         }
         try {
             waitOffload(messageIdList.get(messageIdList.size() - 1), persistentTopic);

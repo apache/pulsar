@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.List;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -90,7 +91,7 @@ class OpReadEntry implements ReadEntriesCallback {
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
         cursor.readOperationCompleted();
-
+        log.info("ReadPosition : {}", cursor.readPosition.toString());
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
             cursor.ledger.getExecutor().execute(safeRun(() -> {
@@ -101,7 +102,12 @@ class OpReadEntry implements ReadEntriesCallback {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
             // try to find and move to next valid ledger
-            final Position nexReadPosition = cursor.getNextValidPosition(readPosition);
+            final Position nexReadPosition;
+            if (exception.getCause() != null && exception.getCause() instanceof BKException.BKNoSuchEntryException) {
+                nexReadPosition = cursor.getNextValidPosition(readPosition);
+            } else {
+                nexReadPosition = cursor.getNextLedgerPosition(readPosition.ledgerId);
+            }
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);
@@ -110,6 +116,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 return;
             }
             updateReadPosition(nexReadPosition);
+            log.info("nexReadPosition : {}", nexReadPosition.toString());
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
@@ -153,6 +160,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
             } finally {
                 cursor.ledger.getExecutor().executeOrdered(cursor.ledger.getName(), safeRun(() -> {
+                    log.info("callBack : {}", callback);
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
                 }));

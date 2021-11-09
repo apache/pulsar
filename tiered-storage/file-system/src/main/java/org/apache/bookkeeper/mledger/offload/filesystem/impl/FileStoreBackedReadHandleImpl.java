@@ -94,6 +94,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
+        log.info("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         if (log.isDebugEnabled()) {
             log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         }
@@ -120,7 +121,11 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                     buf.writeBytes(value.copyBytes());
                     entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                 } while (entryId < lastEntry && reader.next(key, value));
+                log.info("entries size : {}, entry length {}, entryId {}:{}",
+                        entries.size(), entries.get(0).getLength(),
+                        entries.get(0).getLedgerId(), entries.get(0).getEntryId());
                 if (entries.size() == 1 && entries.get(0).getLength() == 0) {
+                    entries.clear();
                     promise.completeExceptionally(new BKException.BKNoSuchEntryException());
                     return;
                 }
