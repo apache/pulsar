@@ -303,13 +303,12 @@ public class MLPendingAckStore implements PendingAckStore {
         @Override
         public void run() {
             try {
-                while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
-                    if (((ManagedCursorImpl) cursor).isClosed()) {
-                        log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
-                                cursor.getManagedLedger().getName());
-                        return;
-                    }
-                    fillEntryQueueCallback.fillQueue();
+                if (((ManagedCursorImpl) cursor).isClosed()) {
+                    log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
+                            cursor.getManagedLedger().getName());
+                    return;
+                }
+                while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0 && fillEntryQueueCallback.fillQueue()) {
                     Entry entry = entryQueue.poll();
                     if (entry != null) {
                         ByteBuf buffer = entry.getDataBuffer();
@@ -361,15 +360,17 @@ public class MLPendingAckStore implements PendingAckStore {
 
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
+        private boolean isReadable = true;
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
 
-        void fillQueue() {
+        boolean fillQueue() {
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(100, this);
                 }
             }
+            return isReadable;
         }
 
         @Override
@@ -389,6 +390,11 @@ public class MLPendingAckStore implements PendingAckStore {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            if (managedLedger.getConfig().isAutoSkipNonRecoverableData()
+                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                isReadable = false;
+            }
             log.error("MLPendingAckStore stat reply fail!", exception);
             outstandingReadsRequests.decrementAndGet();
         }
