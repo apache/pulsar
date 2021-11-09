@@ -320,10 +320,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
      * valid path in metadata store should be
      * 1. not blank
      * 2. starts with '/'
-     * 3. not ends with '/', (excludes single "/")
+     * 3. not ends with '/', except root path "/"
      */
     public static boolean isValidPath(String path) {
-        return StringUtils.isNotBlank(path)
+        return StringUtils.equals(path, "/")
+                || StringUtils.isNotBlank(path)
                 && path.startsWith("/")
                 && !path.endsWith("/");
     }

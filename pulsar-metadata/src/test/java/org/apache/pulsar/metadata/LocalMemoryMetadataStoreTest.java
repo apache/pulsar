@@ -81,7 +81,7 @@ public class LocalMemoryMetadataStoreTest {
         assertFalse(AbstractMetadataStore.isValidPath(null));
         assertFalse(AbstractMetadataStore.isValidPath(""));
         assertFalse(AbstractMetadataStore.isValidPath(" "));
-        assertFalse(AbstractMetadataStore.isValidPath("/"));
+        assertTrue(AbstractMetadataStore.isValidPath("/"));
         assertTrue(AbstractMetadataStore.isValidPath("/test"));
         assertFalse(AbstractMetadataStore.isValidPath("/test/"));
         assertTrue(AbstractMetadataStore.isValidPath("/test/ABC"));
