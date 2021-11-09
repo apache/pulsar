@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.elasticsearch.testcontainers;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.awaitility.Awaitility;
 import org.testcontainers.containers.BindMode;
