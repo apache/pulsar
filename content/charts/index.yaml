@@ -3,6 +3,22 @@ entries:
   pulsar:
   - apiVersion: v1
     appVersion: 2.7.2
+    created: "2021-11-09T17:18:50.085604886Z"
+    description: Apache Pulsar Helm chart for Kubernetes
+    digest: 5f743a808c617103ea51466d19b101059c4a07ba33760f535aac5cf4f9c2a34b
+    home: https://pulsar.apache.org
+    icon: http://pulsar.apache.org/img/pulsar.svg
+    maintainers:
+    - email: dev@pulsar.apache.org
+      name: The Apache Pulsar Team
+    name: pulsar
+    sources:
+    - https://github.com/apache/pulsar
+    urls:
+    - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.7.4/pulsar-2.7.4.tgz
+    version: 2.7.4
+  - apiVersion: v1
+    appVersion: 2.7.2
     created: "2021-09-10T00:56:39.780324095Z"
     description: Apache Pulsar Helm chart for Kubernetes
     digest: 52db0bb156d7bf7e89b0a2cd9db7bfa24cb0f33a7bcbe8270d694c0c02dcb476
@@ -67,22 +83,6 @@ entries:
     version: 2.7.0
   - apiVersion: v1
     appVersion: 2.7.0
-    created: "2021-01-30T17:27:44.643156571Z"
-    description: Apache Pulsar Helm chart for Kubernetes
-    digest: 94d7b360544ffe9a85c8d595cad1d56daeb9aa98873c98242c5e8ace99468c91
-    home: https://pulsar.apache.org
-    icon: http://pulsar.apache.org/img/pulsar.svg
-    maintainers:
-    - email: dev@pulsar.apache.org
-      name: The Apache Pulsar Team
-    name: pulsar
-    sources:
-    - https://github.com/apache/pulsar
-    urls:
-    - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.7.0-1/pulsar-2.7.0-1.tgz
-    version: 2.7.0-1
-  - apiVersion: v1
-    appVersion: 2.7.0
     created: "2021-01-08T05:27:15.548211942Z"
     description: Apache Pulsar Helm chart for Kubernetes
     digest: bdbb841e75b5ed1fc9e65986def399690270c00c9282e0d616ddfa66faf2c558
@@ -130,6 +130,22 @@ entries:
     - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.7.0-1/pulsar-2.7.0-1.tgz
     version: 2.7.0-1
   - apiVersion: v1
+    appVersion: 2.7.0
+    created: "2021-01-30T17:27:44.643156571Z"
+    description: Apache Pulsar Helm chart for Kubernetes
+    digest: 94d7b360544ffe9a85c8d595cad1d56daeb9aa98873c98242c5e8ace99468c91
+    home: https://pulsar.apache.org
+    icon: http://pulsar.apache.org/img/pulsar.svg
+    maintainers:
+    - email: dev@pulsar.apache.org
+      name: The Apache Pulsar Team
+    name: pulsar
+    sources:
+    - https://github.com/apache/pulsar
+    urls:
+    - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.7.0-1/pulsar-2.7.0-1.tgz
+    version: 2.7.0-1
+  - apiVersion: v1
     appVersion: 2.6.2
     created: "2020-12-04T03:32:37.181119982Z"
     description: Apache Pulsar Helm chart for Kubernetes
@@ -163,22 +179,6 @@ entries:
     version: 2.6.2-1
   - apiVersion: v1
     appVersion: 2.6.1
-    created: "2020-10-15T10:42:47.984904328Z"
-    description: Apache Pulsar Helm chart for Kubernetes
-    digest: 4b67c2a1dae05e6f164a6ceff923b59927f84ea301cddeaf086a7728f1729eaf
-    home: https://pulsar.apache.org
-    icon: http://pulsar.apache.org/img/pulsar.svg
-    maintainers:
-    - email: dev@pulsar.apache.org
-      name: The Apache Pulsar Team
-    name: pulsar
-    sources:
-    - https://github.com/apache/pulsar
-    urls:
-    - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.6.1-2/pulsar-2.6.1-2.tgz
-    version: 2.6.1-2
-  - apiVersion: v1
-    appVersion: 2.6.1
     created: "2020-09-08T02:06:54.135556929Z"
     description: Apache Pulsar Helm chart for Kubernetes
     digest: 3fe9f49a6c715ef36fad4c5d8ad2786e78f0cf693ac5db319171641b693248ed
@@ -195,9 +195,9 @@ entries:
     version: 2.6.1-2
   - apiVersion: v1
     appVersion: 2.6.1
-    created: "2020-11-13T02:52:12.413925671Z"
+    created: "2020-09-21T18:16:54.544838106Z"
     description: Apache Pulsar Helm chart for Kubernetes
-    digest: 4aa2770403855380fadb8310653731bd459c98e9124064ac03029597a8305b34
+    digest: 4122ed592729aa33a0cd816223c648d9f36263f5a8f15037cad381d6bcbe7efe
     home: https://pulsar.apache.org
     icon: http://pulsar.apache.org/img/pulsar.svg
     maintainers:
@@ -243,9 +243,9 @@ entries:
     version: 2.6.1-2
   - apiVersion: v1
     appVersion: 2.6.1
-    created: "2020-09-21T18:16:54.544838106Z"
+    created: "2020-11-13T02:52:12.413925671Z"
     description: Apache Pulsar Helm chart for Kubernetes
-    digest: 4122ed592729aa33a0cd816223c648d9f36263f5a8f15037cad381d6bcbe7efe
+    digest: 4aa2770403855380fadb8310653731bd459c98e9124064ac03029597a8305b34
     home: https://pulsar.apache.org
     icon: http://pulsar.apache.org/img/pulsar.svg
     maintainers:
@@ -259,9 +259,25 @@ entries:
     version: 2.6.1-2
   - apiVersion: v1
     appVersion: 2.6.1
-    created: "2020-08-21T14:50:51.874906537Z"
+    created: "2020-10-15T10:42:47.984904328Z"
     description: Apache Pulsar Helm chart for Kubernetes
-    digest: f0ee3c0165fe9388a11dcc4b325083a1546c8a0fc9080e8ed94e9f43563d1ce7
+    digest: 4b67c2a1dae05e6f164a6ceff923b59927f84ea301cddeaf086a7728f1729eaf
+    home: https://pulsar.apache.org
+    icon: http://pulsar.apache.org/img/pulsar.svg
+    maintainers:
+    - email: dev@pulsar.apache.org
+      name: The Apache Pulsar Team
+    name: pulsar
+    sources:
+    - https://github.com/apache/pulsar
+    urls:
+    - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.6.1-2/pulsar-2.6.1-2.tgz
+    version: 2.6.1-2
+  - apiVersion: v1
+    appVersion: 2.6.1
+    created: "2020-08-31T05:06:22.671294102Z"
+    description: Apache Pulsar Helm chart for Kubernetes
+    digest: 4a8343100a25942faef6e8db64169f19e3568be5d63e95b38c3f684843db2b3e
     home: https://pulsar.apache.org
     icon: http://pulsar.apache.org/img/pulsar.svg
     maintainers:
@@ -275,9 +291,9 @@ entries:
     version: 2.6.1-1
   - apiVersion: v1
     appVersion: 2.6.1
-    created: "2020-08-31T05:06:22.671294102Z"
+    created: "2020-08-21T14:50:51.874906537Z"
     description: Apache Pulsar Helm chart for Kubernetes
-    digest: 4a8343100a25942faef6e8db64169f19e3568be5d63e95b38c3f684843db2b3e
+    digest: f0ee3c0165fe9388a11dcc4b325083a1546c8a0fc9080e8ed94e9f43563d1ce7
     home: https://pulsar.apache.org
     icon: http://pulsar.apache.org/img/pulsar.svg
     maintainers:
