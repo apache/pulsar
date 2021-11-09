@@ -502,10 +502,10 @@ public class PersistentTopic extends AbstractTopic
             lastDataMessagePublishedTimestamp = Clock.systemUTC().millis();
         }
 
-        publishContext.setMetadataFromEntryData(entryData);
-        publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         // in order to sync the max position when cursor read entries
         transactionBuffer.syncMaxReadPositionForNormalPublish((PositionImpl) ledger.getLastConfirmedEntry());
+        publishContext.setMetadataFromEntryData(entryData);
+        publishContext.completed(null, position.getLedgerId(), position.getEntryId());
         decrementPendingWriteOpsAndCheck();
     }
 
