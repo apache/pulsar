@@ -682,15 +682,18 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         final String partitionedTopic = topic + "-partition-0";
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic.toString()).create();
-        for (int i = 0; i < 100; ++i) {
+        Producer<String> producer = pulsarClient
+                .newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic.toString())
+                .create();
+        for (int i = 0; i < 10; ++i) {
             producer.send("test" + i);
         }
 
-        List<Message<byte[]>> messages = admin.topics()
-                .peekMessages(partitionedTopic, subscriptionName, 5);
+        List<Message<byte[]>> messages = admin.topics().peekMessages(partitionedTopic, subscriptionName, 3);
 
-        Assert.assertEquals(messages.size(), 5);
+        Assert.assertEquals(messages.size(), 3);
 
         producer.close();
     }
