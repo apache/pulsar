@@ -291,7 +291,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = "Mark whether to upgrade."
+            doc = "Mark whether the bookkeeper cluster is being upgraded."
     )
     private AtomicBoolean upgrading = new AtomicBoolean(false);
 
