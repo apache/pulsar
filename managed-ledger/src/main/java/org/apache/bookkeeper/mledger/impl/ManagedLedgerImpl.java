@@ -35,6 +35,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
+import java.io.IOException;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,6 +68,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -125,21 +127,19 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final long MegaByte = 1024 * 1024;
@@ -1145,50 +1145,40 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public long getEarliestMessagePublishTimeInBacklog() {
+    public CompletableFuture<Long> getEarliestMessagePublishTimeInBacklog() {
         PositionImpl pos = getMarkDeletePositionOfSlowestConsumer();
 
         return getEarliestMessagePublishTimeOfPos(pos);
     }
 
-    public long getEarliestMessagePublishTimeOfPos(PositionImpl pos) {
+    public CompletableFuture<Long> getEarliestMessagePublishTimeOfPos(PositionImpl pos) {
+        CompletableFuture<Long> future = new CompletableFuture<>();
         if (pos == null) {
-            return 0L;
+            future.complete(0L);
+            return future;
         }
         PositionImpl nextPos = getNextValidPosition(pos);
 
-        CompletableFuture<Long> future = new CompletableFuture<>();
         asyncReadEntry(nextPos, new ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                ByteBuf metadataAndPayload = entry.getDataBuffer();
-                BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(metadataAndPayload);
-                if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
-                    future.complete(brokerEntryMetadata.getBrokerTimestamp());
-                } else {
-                    MessageMetadata messageMetadata = Commands.parseMessageMetadata(metadataAndPayload);
-                    if (messageMetadata.hasPublishTime()) {
-                        future.complete(messageMetadata.getPublishTime());
-                    } else {
-                        future.complete(0L);
-                    }
+                try {
+                    long entryTimestamp = MessageImpl.getEntryTimestamp(entry.getDataBuffer());
+                    future.complete(entryTimestamp);
+                } catch (IOException e) {
+                    log.error("Error deserializing message for message position {}", nextPos, e);
+                    future.completeExceptionally(e);
                 }
             }
 
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("Error read entry for position {}", nextPos, exception);
                 future.completeExceptionally(exception);
             }
         }, null);
 
-        long result;
-        try {
-            result = future.get();
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to get oldest message publish time", e);
-            result = 0;
-        }
-        return result;
+        return future;
     }
 
     /**

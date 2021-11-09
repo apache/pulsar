@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -1069,8 +1070,13 @@ public class PersistentSubscription implements Subscription {
         if (getEarliestTimeInBacklog && subStats.msgBacklog > 0) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
             PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
-            long result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition);
-            subStats.timeBacklogInMills = result == 0 ? 0 : System.currentTimeMillis() - result;
+            long result = 0;
+            try {
+                result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).get();
+            } catch (InterruptedException | ExecutionException e) {
+                result = -1;
+            }
+            subStats.timeBacklogInMills = (result == 0 || result == -1) ? result : System.currentTimeMillis() - result;
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();

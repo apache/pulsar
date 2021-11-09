@@ -1866,7 +1866,19 @@ public class PersistentTopic extends AbstractTopic
     @Override
     public TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                                    boolean getEarliestTimeInBacklog) {
+        try {
+            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog).get();
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("[{}] Fail to get stats", topic, e);
+            return null;
+        }
+    }
 
+    @Override
+    public CompletableFuture<TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                                           boolean getEarliestTimeInBacklog) {
+
+        CompletableFuture<TopicStatsImpl> statsFuture = new CompletableFuture<>();
         TopicStatsImpl stats = new TopicStatsImpl();
 
         ObjectObjectHashMap<String, PublisherStatsImpl> remotePublishersStats = new ObjectObjectHashMap<>();
@@ -1925,10 +1937,6 @@ public class PersistentTopic extends AbstractTopic
 
         stats.storageSize = ledger.getTotalSize();
         stats.backlogSize = ledger.getEstimatedBacklogSize();
-        long earliestTime =
-                (getEarliestTimeInBacklog && stats.backlogSize != 0) ? ledger.getEarliestMessagePublishTimeInBacklog() :
-                        0;
-        stats.timeBacklogInMills = earliestTime == 0 ? 0 : System.currentTimeMillis() - earliestTime;
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
         stats.offloadedStorageSize = ledger.getOffloadedSize();
@@ -1946,7 +1954,22 @@ public class PersistentTopic extends AbstractTopic
                     compactionRecord.getLastCompactionDurationTimeInMills();
             return compactionRecord;
         });
-        return stats;
+
+        if (getEarliestTimeInBacklog && stats.backlogSize != 0) {
+            ledger.getEarliestMessagePublishTimeInBacklog().whenComplete((earliestTime, e) -> {
+                if (e != null) {
+                    log.error("[{}] Failed to get earliest message publish time in backlog", topic, e);
+                    statsFuture.completeExceptionally(e);
+                } else {
+                    stats.timeBacklogInMills = earliestTime == 0 ? 0 : System.currentTimeMillis() - earliestTime;
+                    statsFuture.complete(stats);
+                }
+            });
+        } else {
+            statsFuture.complete(stats);
+        }
+
+        return statsFuture;
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {

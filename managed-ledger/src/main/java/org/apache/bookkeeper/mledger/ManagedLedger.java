@@ -393,7 +393,7 @@ public interface ManagedLedger {
      *
      * @return the publishing time of the oldest message
      */
-    long getEarliestMessagePublishTimeInBacklog();
+    CompletableFuture<Long> getEarliestMessagePublishTimeInBacklog();
 
     /**
      * Return the size of all ledgers offloaded to 2nd tier storage
