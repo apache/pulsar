@@ -2262,13 +2262,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Replicator dispatch rate of the topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetReplicatorDispatchRate(resetMode, dispatchRate))
+            .thenCompose(__ -> internalSetReplicatorDispatchRate(updateMode, dispatchRate))
             .thenRun(() -> {
                 log.info("[{}] Successfully updated replicatorDispatchRate: namespace={}, topic={}"
                                 + ", replicatorDispatchRate={}",
@@ -2297,7 +2297,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetReplicatorDispatchRate(true, null))
+            .thenCompose(__ -> internalSetReplicatorDispatchRate(false, null))
             .thenRun(() -> {
                 log.info("[{}] Successfully remove replicatorDispatchRate limit: namespace={}, topic={}",
                         clientAppId(), namespaceName, topicName.getLocalName());
@@ -2822,14 +2822,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Dispatch rate for the specified topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetDispatchRate(resetMode, dispatchRate, isGlobal))
+            .thenCompose(__ -> internalSetDispatchRate(updateMode, dispatchRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic dispatch rate:"
@@ -2919,7 +2919,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
@@ -2927,7 +2927,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetSubscriptionDispatchRate(resetMode, dispatchRate, isGlobal))
+            .thenCompose(__ -> internalSetSubscriptionDispatchRate(updateMode, dispatchRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic subscription dispatch rate:"
@@ -3206,13 +3206,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Publish rate for the specified topic") PublishRate publishRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetPublishRate(resetMode, publishRate, isGlobal))
+            .thenCompose(__ -> internalSetPublishRate(updateMode, publishRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic publish rate:"
@@ -3401,13 +3401,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
-            .thenCompose(__ -> internalSetSubscribeRate(resetMode, subscribeRate, isGlobal))
+            .thenCompose(__ -> internalSetSubscribeRate(updateMode, subscribeRate, isGlobal))
             .thenRun(() -> {
                 try {
                     log.info("[{}] Successfully set topic subscribe rate:"

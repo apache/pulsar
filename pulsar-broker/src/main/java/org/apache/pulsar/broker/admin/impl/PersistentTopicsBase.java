@@ -3134,13 +3134,13 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(boolean resetMode,
+    protected CompletableFuture<Void> internalSetReplicatorDispatchRate(boolean updateMode,
                                                                         DispatchRateImpl dispatchRate) {
         return getTopicPoliciesAsyncWithRetry(topicName)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 DispatchRateImpl maxDispatchRate = dispatchRate;
-                if (!resetMode) {
+                if (updateMode) {
                     maxDispatchRate = mergeDispatchRate(topicPolicies.getReplicatorDispatchRate(), dispatchRate);
                 }
                 topicPolicies.setReplicatorDispatchRate(maxDispatchRate);
@@ -4131,7 +4131,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetDispatchRate(boolean resetMode,
+    protected CompletableFuture<Void> internalSetDispatchRate(boolean updateMode,
                                                               DispatchRateImpl dispatchRate,
                                                               boolean isGlobal) {
         if (dispatchRate == null) {
@@ -4141,7 +4141,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 DispatchRateImpl maxDispatchRate = dispatchRate;
-                if (!resetMode) {
+                if (updateMode) {
                     maxDispatchRate = mergeDispatchRate(topicPolicies.getDispatchRate(), dispatchRate);
                 }
                 topicPolicies.setDispatchRate(maxDispatchRate);
@@ -4163,9 +4163,6 @@ public class PersistentTopicsBase extends AdminResource {
             newDispatchRate.setDispatchThrottlingRateInByte(newDispatchRate.getDispatchThrottlingRateInByte() == -1
                     ? originalDispatchRate.getDispatchThrottlingRateInByte()
                     : newDispatchRate.getDispatchThrottlingRateInByte());
-            newDispatchRate.setRatePeriodInSecond(newDispatchRate.getRatePeriodInSecond() == 1
-                    ? originalDispatchRate.getRatePeriodInSecond()
-                    : newDispatchRate.getRatePeriodInSecond());
             return newDispatchRate;
         }
 
@@ -4198,7 +4195,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(boolean resetMode,
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRate(boolean updateMode,
                                                                           DispatchRateImpl dispatchRate,
                                                                           boolean isGlobal) {
         if (dispatchRate == null) {
@@ -4208,7 +4205,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 DispatchRateImpl maxdispatchRate = dispatchRate;
-                if (!resetMode) {
+                if (updateMode) {
                     maxdispatchRate = mergeDispatchRate(topicPolicies.getSubscriptionDispatchRate(), dispatchRate);
                 }
                 topicPolicies.setSubscriptionDispatchRate(maxdispatchRate);
@@ -4306,7 +4303,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenApply(op -> op.map(TopicPolicies::getPublishRate));
     }
 
-    protected CompletableFuture<Void> internalSetPublishRate(boolean resetMode,
+    protected CompletableFuture<Void> internalSetPublishRate(boolean updateMode,
                                                              PublishRate publishRate,
                                                              boolean isGlobal) {
         if (publishRate == null) {
@@ -4316,7 +4313,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 PublishRate maxPublishRate = publishRate;
-                if (!resetMode) {
+                if (updateMode) {
                     maxPublishRate = mergePublishRate(topicPolicies.getPublishRate(), publishRate);
                 }
                 topicPolicies.setPublishRate(maxPublishRate);
@@ -4399,7 +4396,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
-    protected CompletableFuture<Void> internalSetSubscribeRate(boolean resetMode,
+    protected CompletableFuture<Void> internalSetSubscribeRate(boolean updateMode,
                                                                SubscribeRate subscribeRate,
                                                                boolean isGlobal) {
         if (subscribeRate == null) {
@@ -4409,7 +4406,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                 SubscribeRate maxSubscribeRate = subscribeRate;
-                if (!resetMode) {
+                if (updateMode) {
                     maxSubscribeRate = mergeSubscribeRate(topicPolicies.getSubscribeRate(), subscribeRate);
                 }
                 topicPolicies.setSubscribeRate(maxSubscribeRate);
@@ -4429,9 +4426,6 @@ public class PersistentTopicsBase extends AdminResource {
                     newSubscribeRate.subscribeThrottlingRatePerConsumer == -1
                             ? originalSubscribeRate.subscribeThrottlingRatePerConsumer
                             : newSubscribeRate.subscribeThrottlingRatePerConsumer;
-            newSubscribeRate.ratePeriodInSecond = newSubscribeRate.ratePeriodInSecond == 30
-                    ? originalSubscribeRate.ratePeriodInSecond
-                    : newSubscribeRate.ratePeriodInSecond;
             return newSubscribeRate;
         }
 

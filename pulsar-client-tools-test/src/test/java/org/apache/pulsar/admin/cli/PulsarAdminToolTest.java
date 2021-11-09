@@ -1282,7 +1282,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getSubscribeRate("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("set-subscribe-rate persistent://myprop/clust/ns1/ds1 -sr 2 -st 60"));
-        verify(mockTopics).setSubscribeRate("persistent://myprop/clust/ns1/ds1", true, new SubscribeRate(2, 60));
+        verify(mockTopics).setSubscribeRate("persistent://myprop/clust/ns1/ds1", false, new SubscribeRate(2, 60));
 
         cmdTopics.run(split("remove-subscribe-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeSubscribeRate("persistent://myprop/clust/ns1/ds1");
@@ -1342,7 +1342,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setDeduplicationStatus("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("set-subscription-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
-        verify(mockTopics).setSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1", true,
+        verify(mockTopics).setSubscriptionDispatchRate("persistent://myprop/clust/ns1/ds1", false,
                 DispatchRate.builder()
                         .dispatchThrottlingRateInMsg(-1)
                         .dispatchThrottlingRateInByte(-1)
@@ -1370,7 +1370,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).removeSubscriptionTypesEnabled("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-replicator-dispatch-rate persistent://myprop/clust/ns1/ds1 -md 10 -bd 11 -dt 12"));
-        verify(mockTopics).setReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1", true,
+        verify(mockTopics).setReplicatorDispatchRate("persistent://myprop/clust/ns1/ds1", false,
                 DispatchRate.builder()
                         .dispatchThrottlingRateInMsg(10)
                         .dispatchThrottlingRateInByte(11)
@@ -1430,7 +1430,7 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("get-publish-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPublishRate("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-publish-rate persistent://myprop/clust/ns1/ds1 -m 100 -b 10240"));
-        verify(mockTopics).setPublishRate("persistent://myprop/clust/ns1/ds1", true, new PublishRate(100, 10240L));
+        verify(mockTopics).setPublishRate("persistent://myprop/clust/ns1/ds1", false, new PublishRate(100, 10240L));
         cmdTopics.run(split("remove-publish-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removePublishRate("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
@@ -1471,7 +1471,7 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-dispatch-rate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDispatchRate("persistent://myprop/clust/ns1/ds1");
         cmdTopics.run(split("set-dispatch-rate persistent://myprop/clust/ns1/ds1 -md -1 -bd -1 -dt 2"));
-        verify(mockTopics).setDispatchRate("persistent://myprop/clust/ns1/ds1", true, DispatchRate.builder()
+        verify(mockTopics).setDispatchRate("persistent://myprop/clust/ns1/ds1", false, DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
                 .dispatchThrottlingRateInByte(-1)
                 .ratePeriodInSecond(2)
