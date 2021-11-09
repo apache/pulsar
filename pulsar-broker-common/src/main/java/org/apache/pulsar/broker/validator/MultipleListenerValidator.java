@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.broker.validator;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;

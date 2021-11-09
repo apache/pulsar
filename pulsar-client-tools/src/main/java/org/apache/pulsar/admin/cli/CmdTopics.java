@@ -24,7 +24,6 @@ import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

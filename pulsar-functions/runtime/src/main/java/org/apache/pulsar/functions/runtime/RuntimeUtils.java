@@ -32,7 +32,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.hotspot.BufferPoolsExports;
 import io.prometheus.client.hotspot.ClassLoadingExports;
 import io.prometheus.client.hotspot.GarbageCollectorExports;
