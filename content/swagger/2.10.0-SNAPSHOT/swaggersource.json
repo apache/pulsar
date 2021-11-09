@@ -813,11 +813,11 @@
             "$ref" : "#/definitions/X509Certificate"
           }
         },
-        "peerAddress" : {
-          "$ref" : "#/definitions/SocketAddress"
-        },
         "httpAuthType" : {
           "type" : "string"
+        },
+        "peerAddress" : {
+          "$ref" : "#/definitions/SocketAddress"
         },
         "commandData" : {
           "type" : "string"
@@ -830,16 +830,16 @@
         "name" : {
           "type" : "string"
         },
-        "maxLineLength" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "paddingChar" : {
           "type" : "string"
         },
         "paddingByte" : {
           "type" : "string",
           "format" : "byte"
+        },
+        "maxLineLength" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -907,12 +907,12 @@
         "done" : {
           "type" : "boolean"
         },
+        "cancelled" : {
+          "type" : "boolean"
+        },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "cancelled" : {
-          "type" : "boolean"
         },
         "completedExceptionally" : {
           "type" : "boolean"
@@ -925,12 +925,12 @@
         "done" : {
           "type" : "boolean"
         },
+        "cancelled" : {
+          "type" : "boolean"
+        },
         "numberOfDependents" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "cancelled" : {
-          "type" : "boolean"
         },
         "completedExceptionally" : {
           "type" : "boolean"
@@ -1085,11 +1085,11 @@
         "defaultVisibilityChecker" : {
           "$ref" : "#/definitions/VisibilityCheckerObject"
         },
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
         "locale" : {
           "$ref" : "#/definitions/Locale"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
         },
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
@@ -1117,14 +1117,14 @@
     "DeserializationContext" : {
       "type" : "object",
       "properties" : {
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
         "locale" : {
           "$ref" : "#/definitions/Locale"
         },
         "factory" : {
           "$ref" : "#/definitions/DeserializerFactory"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
         },
         "config" : {
           "$ref" : "#/definitions/DeserializationConfig"
@@ -1203,9 +1203,6 @@
     "JavaType" : {
       "type" : "object",
       "properties" : {
-        "contentType" : {
-          "$ref" : "#/definitions/JavaType"
-        },
         "interface" : {
           "type" : "boolean"
         },
@@ -1227,6 +1224,9 @@
         "abstract" : {
           "type" : "boolean"
         },
+        "contentType" : {
+          "$ref" : "#/definitions/JavaType"
+        },
         "bindings" : {
           "$ref" : "#/definitions/TypeBindings"
         },
@@ -1243,9 +1243,6 @@
           "type" : "boolean"
         },
         "javaLangObject" : {
-          "type" : "boolean"
-        },
-        "enumType" : {
           "type" : "boolean"
         },
         "containerType" : {
@@ -1276,6 +1273,9 @@
           "type" : "boolean"
         },
         "mapLikeType" : {
+          "type" : "boolean"
+        },
+        "enumType" : {
           "type" : "boolean"
         },
         "typeName" : {
@@ -1327,6 +1327,17 @@
         "characterEscapes" : {
           "$ref" : "#/definitions/CharacterEscapes"
         },
+        "currentValue" : {
+          "type" : "object"
+        },
+        "featureMask" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "formatFeatures" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "highestEscapedChar" : {
           "type" : "integer",
           "format" : "int32"
@@ -1340,17 +1351,6 @@
         },
         "outputContext" : {
           "$ref" : "#/definitions/JsonStreamContext"
-        },
-        "featureMask" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "formatFeatures" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "currentValue" : {
-          "type" : "object"
         }
       }
     },
@@ -1388,9 +1388,6 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "closed" : {
-          "type" : "boolean"
-        },
         "textCharacters" : {
           "type" : "array",
           "items" : {
@@ -1404,9 +1401,6 @@
           "type" : "string",
           "format" : "byte"
         },
-        "booleanValue" : {
-          "type" : "boolean"
-        },
         "doubleValue" : {
           "type" : "number",
           "format" : "double"
@@ -1414,6 +1408,9 @@
         "floatValue" : {
           "type" : "number",
           "format" : "float"
+        },
+        "booleanValue" : {
+          "type" : "boolean"
         },
         "longValue" : {
           "type" : "integer",
@@ -1423,15 +1420,15 @@
           "type" : "integer",
           "format" : "int32"
         },
-        "objectId" : {
+        "closed" : {
+          "type" : "boolean"
+        },
+        "typeId" : {
           "type" : "object"
         },
         "intValue" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "typeId" : {
-          "type" : "object"
         },
         "schema" : {
           "$ref" : "#/definitions/FormatSchema"
@@ -1446,23 +1443,15 @@
         "currentName" : {
           "type" : "string"
         },
-        "tokenLocation" : {
-          "$ref" : "#/definitions/JsonLocation"
-        },
-        "featureMask" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "formatFeatures" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "currentTokenId" : {
           "type" : "integer",
           "format" : "int32"
         },
         "parsingContext" : {
           "$ref" : "#/definitions/JsonStreamContext"
+        },
+        "tokenLocation" : {
+          "$ref" : "#/definitions/JsonLocation"
         },
         "currentLocation" : {
           "$ref" : "#/definitions/JsonLocation"
@@ -1522,11 +1511,22 @@
         "valueAsString" : {
           "type" : "string"
         },
+        "objectId" : {
+          "type" : "object"
+        },
         "inputSource" : {
           "type" : "object"
         },
         "currentValue" : {
           "type" : "object"
+        },
+        "featureMask" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "formatFeatures" : {
+          "type" : "integer",
+          "format" : "int32"
         }
       }
     },
@@ -1552,15 +1552,15 @@
     "JsonStreamContext" : {
       "type" : "object",
       "properties" : {
+        "parent" : {
+          "$ref" : "#/definitions/JsonStreamContext"
+        },
         "typeDesc" : {
           "type" : "string"
         },
         "currentIndex" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "parent" : {
-          "$ref" : "#/definitions/JsonStreamContext"
         },
         "currentName" : {
           "type" : "string"
@@ -1583,6 +1583,9 @@
     "Locale" : {
       "type" : "object",
       "properties" : {
+        "displayName" : {
+          "type" : "string"
+        },
         "script" : {
           "type" : "string"
         },
@@ -1629,9 +1632,6 @@
           "type" : "string"
         },
         "displayVariant" : {
-          "type" : "string"
-        },
-        "displayName" : {
           "type" : "string"
         },
         "language" : {
@@ -1890,6 +1890,9 @@
     "PublicKey" : {
       "type" : "object",
       "properties" : {
+        "format" : {
+          "type" : "string"
+        },
         "algorithm" : {
           "type" : "string"
         },
@@ -1899,9 +1902,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "format" : {
-          "type" : "string"
         }
       }
     },
@@ -1960,11 +1960,11 @@
         "defaultVisibilityChecker" : {
           "$ref" : "#/definitions/VisibilityCheckerObject"
         },
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
         "locale" : {
           "$ref" : "#/definitions/Locale"
+        },
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
         },
         "typeFactory" : {
           "$ref" : "#/definitions/TypeFactory"
@@ -1995,14 +1995,11 @@
     "SerializerProvider" : {
       "type" : "object",
       "properties" : {
-        "timeZone" : {
-          "$ref" : "#/definitions/TimeZone"
-        },
         "locale" : {
           "$ref" : "#/definitions/Locale"
         },
-        "generator" : {
-          "$ref" : "#/definitions/JsonGenerator"
+        "timeZone" : {
+          "$ref" : "#/definitions/TimeZone"
         },
         "config" : {
           "$ref" : "#/definitions/SerializationConfig"
@@ -2012,6 +2009,9 @@
         },
         "annotationIntrospector" : {
           "$ref" : "#/definitions/AnnotationIntrospector"
+        },
+        "generator" : {
+          "$ref" : "#/definitions/JsonGenerator"
         },
         "defaultNullValueSerializer" : {
           "$ref" : "#/definitions/JsonSerializerObject"
@@ -2184,10 +2184,10 @@
     "TimeZone" : {
       "type" : "object",
       "properties" : {
-        "id" : {
+        "displayName" : {
           "type" : "string"
         },
-        "displayName" : {
+        "id" : {
           "type" : "string"
         },
         "dstsavings" : {
@@ -2278,21 +2278,34 @@
         "issuerX500Principal" : {
           "$ref" : "#/definitions/X500Principal"
         },
-        "version" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "issuerDN" : {
           "$ref" : "#/definitions/Principal"
         },
         "subjectDN" : {
           "$ref" : "#/definitions/Principal"
         },
-        "sigAlgName" : {
-          "type" : "string"
+        "version" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "serialNumber" : {
           "type" : "integer"
+        },
+        "tbscertificate" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "extendedKeyUsage" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "sigAlgName" : {
+          "type" : "string"
         },
         "notBefore" : {
           "type" : "string",
@@ -2301,13 +2314,6 @@
         "notAfter" : {
           "type" : "string",
           "format" : "date-time"
-        },
-        "tbscertificate" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
         },
         "sigAlgOID" : {
           "type" : "string"
@@ -2331,28 +2337,11 @@
             "type" : "boolean"
           }
         },
-        "extendedKeyUsage" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string"
-          }
-        },
         "keyUsage" : {
           "type" : "array",
           "items" : {
             "type" : "boolean"
           }
-        },
-        "signature" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "basicConstraints" : {
-          "type" : "integer",
-          "format" : "int32"
         },
         "subjectAlternativeNames" : {
           "type" : "array",
@@ -2372,14 +2361,25 @@
             }
           }
         },
-        "nonCriticalExtensionOIDs" : {
+        "signature" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "basicConstraints" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "criticalExtensionOIDs" : {
           "type" : "array",
           "uniqueItems" : true,
           "items" : {
             "type" : "string"
           }
         },
-        "criticalExtensionOIDs" : {
+        "nonCriticalExtensionOIDs" : {
           "type" : "array",
           "uniqueItems" : true,
           "items" : {

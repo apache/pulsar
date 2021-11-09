@@ -80,10 +80,10 @@
 <ol>
 <li><p>你可以在大多数情况下使用单集群 Pulsar 安装，例如实验 Pulsar 或在初创公司或单个团队中使用 Pulsar。 如果你需要运行多集群 Pulsar 实例，请参阅<a href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster">指南</a>。</p></li>
 <li><p>如果你想使用所有内置的 <a href="/docs/zh-CN/next/io-overview">Pulsar IO</a> 连接器，你需要下载 <code>apache-pulsar-io-connectors</code> 包并安装 <code>apache-pulsar-io-connectors</code> 在每个 broker 节点或每个 function-worker 节点上的 pulsar 目录中的 <code>connectors</code> 目录下，如果你已经运行了一个独立的 function workers 集群 <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a>。</p></li>
-<li><p>If you want to use <a href="/docs/zh-CN/next/concepts-tiered-storage">Tiered Storage</a> feature in your Pulsar deployment, you need to download <code>apache-pulsar-offloaders</code>package and install <code>apache-pulsar-offloaders</code> under <code>offloaders</code> directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the <a href="/docs/zh-CN/next/cookbooks-tiered-storage">Tiered storage cookbook</a>.</p></li>
+<li><p>如果你想在 Pulsar 部署中使用 <a href="/docs/zh-CN/next/concepts-tiered-storage">分层存储</a> 功能，你需要下载 <code>apache-pulsar-offloaders</code> 包并安装 <code>apache-pulsar-offloaders</code> 在每个 broker 节点的 Pulsar 目录中的 <code>offloaders</code> 目录下。 有关如何配置此功能的更多详细信息，请参考<a href="/docs/zh-CN/next/cookbooks-tiered-storage">分层存储指南</a>。</p></li>
 </ol>
 </blockquote>
-<p>Deploying a Pulsar cluster consists of the following steps:</p>
+<p>部署 Pulsar 集群包括以下步骤：</p>
 <ol>
 <li>部署一个 <a href="#deploy-a-zookeeper-cluster">ZooKeeper</a> 集群 (可选)</li>
 <li>初始化<a href="#initialize-cluster-metadata">集群元数据</a></li>
@@ -94,8 +94,8 @@
 <h3><a class="anchor" aria-hidden="true" id="要求"></a><a href="#要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>要求</h3>
 <p>当前，Pulsar 可运行在 64 位 <strong>macOS</strong>、<strong>Linux</strong> 和 <strong>Windows</strong> 上。要想运行 Pulsar，你需要安装 64 位 JRE/JDK 8 或更新版本。</p>
 <blockquote>
-<p><strong>Tips</strong>  <br>
-You can reuse existing Zookeeper clusters.</p>
+<p><strong>提示</strong>  <br>
+你可以重用现有的 Zookeeper 集群。</p>
 </blockquote>
 <p>裸机部署 Pulsar， 推荐如下配置：</p>
 <ul>
@@ -107,14 +107,14 @@ You can reuse existing Zookeeper clusters.</p>
 <li>包含 Pulsar 所有 broker 主机的 <a href="https://en.wikipedia.org/wiki/Domain_Name_System">DNS</a>（域名解析服务器）</li>
 </ul>
 <blockquote>
-<p><strong>Note</strong></p>
+<p><strong>注意</strong></p>
 <ul>
-<li>Broker is only supported on 64-bit JVM. * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run. * If you do not have a DNS server, you can use the multi-host format in the service URL instead. Each machine in your cluster needs to have <a href="https://adoptopenjdk.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptopenjdk.net/?variant=openjdk11">Java 11</a> installed.</li>
+<li>只在 64 位 JVM 上支持 Broker。 * 如果你没有足够的机器，或者你想在集群模式下测试 Pulsar ( 并在以后扩展集群)，你可以将 Pulsar 完全部署在一个运行 ZooKeeper、bookie 和 broker 的节点上。 * 如果你没有 DNS 服务器，你可以在服务 URL 中使用多主机格式。 Each machine in your cluster needs to have <a href="https://adoptopenjdk.net/?variant=openjdk8">Java 8</a> or <a href="https://adoptopenjdk.net/?variant=openjdk11">Java 11</a> installed.</li>
 </ul>
 </blockquote>
 <p>下面是一个显示部署架构的图：</p>
 <p><img src="/docs/assets/pulsar-basic-setup.png" alt="alt-text"></p>
-<p>In this diagram, connecting clients need to communicate with the Pulsar cluster using a single URL. 在这种情况下，<code>pulsar-cluster.acme.com</code> 包含了所有的broker 的地址。 Pulsar消息brokers与BookKeeper bookies一起运行；反过来，brokers 和 bookies 都依赖 ZooKeeper。</p>
+<p>此图中，连接客户端需要使用单个 URL 与 Pulsar 集群通信。 在这种情况下，<code>pulsar-cluster.acme.com</code> 包含了所有的broker 的地址。 Pulsar消息brokers与BookKeeper bookies一起运行；反过来，brokers 和 bookies 都依赖 ZooKeeper。</p>
 <h3><a class="anchor" aria-hidden="true" id="硬件条件"></a><a href="#硬件条件" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>硬件条件</h3>
 <p>If you deploy a Pulsar cluster, keep in mind the following basic better choices when you do the capacity planning.</p>
 <h4><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h4>
