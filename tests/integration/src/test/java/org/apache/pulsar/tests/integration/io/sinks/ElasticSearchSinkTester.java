@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.io.sinks;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,6 +29,7 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -45,6 +47,7 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 
+@Slf4j
 public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> {
 
     private RestHighLevelClient elasticClient;
@@ -102,6 +105,19 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
                 serviceContainer.getMappedPort(9200),
                 "http"));
         elasticClient = new RestHighLevelClient(builder);
+    }
+
+    @Override
+    public void stopServiceContainer(PulsarCluster cluster) {
+        try {
+            if (elasticClient != null) {
+                elasticClient.close();
+            }
+        } catch (IOException e) {
+            log.warn("Error closing elasticClient, ignoring", e);
+        } finally {
+            super.stopServiceContainer(cluster);
+        }
     }
 
     @Override

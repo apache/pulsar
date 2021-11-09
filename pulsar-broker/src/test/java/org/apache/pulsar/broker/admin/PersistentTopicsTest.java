@@ -47,6 +47,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
@@ -460,7 +461,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5, true);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, false, false, 10);
+        persistentTopics.updatePartitionedTopic(testTenant, testNamespace, partitionedTopicName, false, false, false,
+                10);
     }
 
     @Test(timeOut = 10_000)
@@ -698,6 +700,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://prop-xyz/ns1/testGetBacklogSize";
 
         admin.topics().createPartitionedTopic(topicName, 1);
+        @Cleanup
         Producer<byte[]> batchProducer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .create();
@@ -717,6 +720,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://prop-xyz/ns1/testGetLastMessageId";
 
         admin.topics().createNonPartitionedTopic(topicName);
+        @Cleanup
         Producer<byte[]> batchProducer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(true)
                 .batchingMaxMessages(100)
@@ -730,6 +734,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         completableFuture.get();
         Assert.assertEquals(((BatchMessageIdImpl) admin.topics().getLastMessageId(topicName)).getBatchIndex(), 9);
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .create();
@@ -747,6 +752,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://tenant-xyz/ns-abc/topic-123";
 
         admin.topics().createPartitionedTopic(topicName, 2);
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName + "-partition-0").create();
 
         // Check examine message not allowed on partitioned topic.
@@ -785,6 +791,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://tenant-xyz/ns-abc/topic-testExamineMessageMetadata";
 
         admin.topics().createPartitionedTopic(topicName, 2);
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .producerName("testExamineMessageMetadataProducer")
                 .compressionType(CompressionType.LZ4)
@@ -922,11 +929,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String topicName2 = "persistent://tenant-xyz/ns-abc/testGetMessageById2";
         admin.topics().createNonPartitionedTopic(topicName1);
         admin.topics().createNonPartitionedTopic(topicName2);
+        @Cleanup
         ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName1)
                 .enableBatching(false).create();
         String data1 = "test1";
         MessageIdImpl id1 = (MessageIdImpl) producer1.send(data1.getBytes());
-
+        @Cleanup
         ProducerBase<byte[]> producer2 = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName2)
                 .enableBatching(false).create();
         String data2 = "test2";
@@ -964,6 +972,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topicName);
 
         AtomicLong publishTime = new AtomicLong(0);
+        @Cleanup
         ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .intercept(new ProducerInterceptor() {
@@ -1017,6 +1026,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         Map<MessageId, Long> publishTimeMap = new ConcurrentHashMap<>();
 
+        @Cleanup
         ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer().topic(topicName)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MINUTES)

@@ -20,6 +20,7 @@
 package org.apache.pulsar.proxy.server;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,8 +33,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
@@ -96,7 +95,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         TopicName topicName ;
-        List<RawMessage> messages = Lists.newArrayList();
+        List<RawMessage> messages = new ArrayList<>();
         ByteBuf buffer = (ByteBuf)(msg);
 
         try {

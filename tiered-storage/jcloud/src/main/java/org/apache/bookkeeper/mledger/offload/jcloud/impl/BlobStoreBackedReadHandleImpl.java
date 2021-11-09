@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -54,6 +55,13 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private final DataInputStream dataStream;
     private final ExecutorService executor;
 
+    enum State {
+        Opened,
+        Closed
+    }
+
+    private State state = null;
+
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream,
                                           ExecutorService executor) {
@@ -62,6 +70,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
+        state = State.Opened;
     }
 
     @Override
@@ -81,6 +90,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 try {
                     index.close();
                     inputStream.close();
+                    state = State.Closed;
                     promise.complete(null);
                 } catch (IOException t) {
                     promise.completeExceptionally(t);
@@ -94,6 +104,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.submit(() -> {
+            List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
+            boolean seeked = false;
+            try {
                 if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
@@ -101,49 +114,69 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     return;
                 }
                 long entriesToRead = (lastEntry - firstEntry) + 1;
-                List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
                 long nextExpectedId = firstEntry;
-                try {
-                    while (entriesToRead > 0) {
-                        int length = dataStream.readInt();
-                        if (length < 0) { // hit padding or new block
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
-                        }
-                        long entryId = dataStream.readLong();
 
-                        if (entryId == nextExpectedId) {
-                            ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
-                            entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
-                            int toWrite = length;
-                            while (toWrite > 0) {
-                                toWrite -= buf.writeBytes(dataStream, toWrite);
-                            }
-                            entriesToRead--;
-                            nextExpectedId++;
-                        } else if (entryId > nextExpectedId) {
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
-                        } else if (entryId < nextExpectedId
-                                && !index.getIndexEntryForEntry(nextExpectedId).equals(
-                                index.getIndexEntryForEntry(entryId)))  {
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
-                            continue;
-                        } else if (entryId > lastEntry) {
-                            log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                     nextExpectedId, entryId, lastEntry);
-                            throw new BKException.BKUnexpectedConditionException();
-                        } else {
-                            long ignored = inputStream.skip(length);
-                        }
-                    }
-
-                    promise.complete(LedgerEntriesImpl.create(entries));
-                } catch (Throwable t) {
-                    promise.completeExceptionally(t);
-                    entries.forEach(LedgerEntry::close);
+                // checking the data stream has enough data to read to avoid throw EOF exception when reading data.
+                // 12 bytes represent the stream have the length and entryID to read.
+                if (dataStream.available() < 12) {
+                    log.warn("There hasn't enough data to read, current available data has {} bytes,"
+                        + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
+                    inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
                 }
-            });
+
+                while (entriesToRead > 0) {
+                    if (state == State.Closed) {
+                        log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}", ledgerId, firstEntry, lastEntry);
+                        throw new BKException.BKUnexpectedConditionException();
+                    }
+                    int length = dataStream.readInt();
+                    if (length < 0) { // hit padding or new block
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        continue;
+                    }
+                    long entryId = dataStream.readLong();
+
+                    if (entryId == nextExpectedId) {
+                        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
+                        entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
+                        int toWrite = length;
+                        while (toWrite > 0) {
+                            toWrite -= buf.writeBytes(dataStream, toWrite);
+                        }
+                        entriesToRead--;
+                        nextExpectedId++;
+                    } else if (entryId > nextExpectedId && entryId < lastEntry) {
+                        log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
+                            + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                    } else if (entryId < nextExpectedId
+                        && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
+                        log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
+                        + ", seeking to the right position", entries, nextExpectedId);
+                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                    } else if (entryId > lastEntry) {
+                        // in the normal case, the entry id should increment in order. But if there has random access in
+                        // the read method, we should allow to seek to the right position and the entry id should
+                        // never over to the last entry again.
+                        if (!seeked) {
+                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            seeked = true;
+                            continue;
+                        }
+                        log.info("Expected to read {}, but read {}, which is greater than last entry {}",
+                            nextExpectedId, entryId, lastEntry);
+                        throw new BKException.BKUnexpectedConditionException();
+                    } else {
+                        long ignore = inputStream.skip(length);
+                    }
+                }
+
+                promise.complete(LedgerEntriesImpl.create(entries));
+            } catch (Throwable t) {
+                promise.completeExceptionally(t);
+                entries.forEach(LedgerEntry::close);
+            }
+        });
         return promise;
     }
 
@@ -191,18 +224,44 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                   VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize)
             throws IOException {
-        Blob blob = blobStore.getBlob(bucket, indexKey);
-        versionCheck.check(indexKey, blob);
-        OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
-        OffloadIndexBlock index;
-        try (InputStream payLoadStream = blob.getPayload().openStream()) {
-            index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
+        int retryCount = 3;
+        OffloadIndexBlock index = null;
+        IOException lastException = null;
+        // The following retry is used to avoid to some network issue cause read index file failure.
+        // If it can not recovery in the retry, we will throw the exception and the dispatcher will schedule to
+        // next read.
+        // If we use a backoff to control the retry, it will introduce a concurrent operation.
+        // We don't want to make it complicated, because in the most of case it shouldn't in the retry loop.
+        while (retryCount-- > 0) {
+            Blob blob = blobStore.getBlob(bucket, indexKey);
+            versionCheck.check(indexKey, blob);
+            OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
+            try (InputStream payLoadStream = blob.getPayload().openStream()) {
+                index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
+            } catch (IOException e) {
+                // retry to avoid the network issue caused read failure
+                log.warn("Failed to get index block from the offoaded index file {}, still have {} times to retry",
+                    indexKey, retryCount, e);
+                lastException = e;
+                continue;
+            }
+            lastException = null;
+            break;
+        }
+        if (lastException != null) {
+            throw lastException;
         }
 
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
                 versionCheck,
                 index.getDataObjectLength(),
                 readBufferSize);
+
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
+    }
+
+    // for testing
+    State getState() {
+        return this.state;
     }
 }

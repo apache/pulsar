@@ -125,7 +125,8 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume)", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks," +
+                "functions,packages)", required = true)
         private List<String> actions;
 
         @Override
@@ -338,10 +339,13 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-gpb", "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getPersistentTopics().getStats(persistentTopic));
+            print(persistentTopics.getStats(persistentTopic, getPreciseBacklog));
         }
     }
 

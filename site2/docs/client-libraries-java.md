@@ -130,6 +130,24 @@ Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/
 
 > In addition to client-level configuration, you can also apply [producer](#configure-producer) and [consumer](#configure-consumer) specific configuration as described in sections below.
 
+### Client memory allocator configuration
+You can set the client memory allocator configurations through Java properties.<br/>
+
+| Property | Type |  <div>Description</div> | Default | Available values
+|---|---|---|---|---
+`pulsar.allocator.pooled` | String | If set to `true`, the client uses a direct memory pool. </br> If set to `false`, the client uses a heap memory without pool | true | <li> true </li> <li> false </li> 
+`pulsar.allocator.exit_on_oom` | String | Whether to exit the JVM when OOM happens | false |  <li> true </li> <li> false </li>
+`pulsar.allocator.leak_detection` | String | Service URL provider for Pulsar service | Disabled | <li> Disabled </li> <li> Simple </li> <li> Advanced </li> <li> Paranoid </li>
+`pulsar.allocator.out_of_memory_policy` | String | When an OOM occurs, the client throws an exception or fallbacks to heap | FallbackToHeap | <li> ThrowException </li> <li> FallbackToHeap </li>
+
+**Example**:
+```
+-Dpulsar.allocator.pooled=true
+-Dpulsar.allocator.exit_on_oom=false
+-Dpulsar.allocator.leak_detection=Disabled
+-Dpulsar.allocator.out_of_memory_policy=ThrowException
+```
+
 ## Producer
 
 In Pulsar, producers write messages to topics. Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object (as in the section [above](#client-configuration)), you can create a {@inject: javadoc:Producer:/client/org/apache/pulsar/client/api/Producer} for a specific Pulsar [topic](reference-terminology.md#topic).
@@ -241,7 +259,7 @@ You can terminate the builder chain with `sendAsync()` and get a future return.
 
 In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
 
-Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object, you can create a {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} by specifying a [topic](reference-terminology.md#topic) and a [subscription](concepts-messaging.md#subscription-modes).
+Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object, you can create a {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} by specifying a [topic](reference-terminology.md#topic) and a [subscription](concepts-messaging.md#subscription-types).
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -308,7 +326,7 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `consumerName`|String|Consumer name|null
 `ackTimeoutMillis`|long|Timeout of unacked messages|0
 `tickDurationMillis`|long|Granularity of the ack-timeout redelivery.<br /><br />Using an higher `tickDurationMillis` reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000
-`priorityLevel`|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in the shared subscription mode. <br /><br />The broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br /><br />In shared subscription mode, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.<br /><br /> **Example 1**<br />If a subscription has consumerA with `priorityLevel` 0 and consumerB with `priorityLevel` 1, then the broker **only dispatches messages to consumerA until it runs out permits** and then starts dispatching messages to consumerB.<br /><br />**Example 2**<br />Consumer Priority, Level, Permits<br />C1, 0, 2<br />C2, 0, 1<br />C3, 0, 1<br />C4, 1, 2<br />C5, 1, 1<br /><br />Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0
+`priorityLevel`|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in Shared subscription type. <br /><br />The broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br /><br />In Shared subscription type, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.<br /><br /> **Example 1**<br />If a subscription has consumerA with `priorityLevel` 0 and consumerB with `priorityLevel` 1, then the broker **only dispatches messages to consumerA until it runs out permits** and then starts dispatching messages to consumerB.<br /><br />**Example 2**<br />Consumer Priority, Level, Permits<br />C1, 0, 2<br />C2, 0, 1<br />C3, 0, 1<br />C4, 1, 2<br />C5, 1, 1<br /><br />Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0
 `cryptoFailureAction`|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.<br /><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><li> **DISCARD**:silently acknowledge and not deliver message to an application.</li><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.</li><br />The decompression of message fails. <br /><br />If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br /><br />Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|ConsumerCryptoFailureAction.FAIL</li>
 `properties`|SortedMap<String, String>|A name or value property of this consumer.<br /><br />`properties` is application defined metadata attached to a consumer. <br /><br />When getting a topic stats, associate this metadata with the consumer stats for easier identification.|new TreeMap<>()
 `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br /> A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br />Only enabling `readCompacted` on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions). <br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false
@@ -425,8 +443,7 @@ pulsarClient.newConsumer()
         .subscribe();
 ```
 
-> #### Note
-> 
+> **Note**  
 > By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
 
 You can also subscribe to an explicit list of topics (across namespaces if you wish):
@@ -469,13 +486,13 @@ private void receiveMessageFromConsumer(Object consumer) {
 }
 ```
 
-### Subscription modes
+### Subscription types
 
-Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
+Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
 
-A subscription is identical with the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
+A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 
-Different subscription modes have different message distribution modes. This section describes the differences of subscription modes and how to use them.
+Different subscription types have different message distribution types. This section describes the differences of subscription types and how to use them.
 
 In order to better describe their differences, assuming you have a topic named "my-topic", and the producer has published 10 messages.
 
@@ -499,7 +516,7 @@ producer.newMessage().key("key-4").value("message-4-2").send();
 
 #### Exclusive
 
-Create a new consumer and subscribe with the `Exclusive` subscription mode.
+Create a new consumer and subscribe with the `Exclusive` subscription type.
 
 ```java
 Consumer consumer = client.newConsumer()
@@ -517,7 +534,7 @@ Only the first consumer is allowed to the subscription, other consumers receive 
 
 #### Failover
 
-Create new consumers and subscribe with the`Failover` subscription mode.
+Create new consumers and subscribe with the`Failover` subscription type.
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -564,7 +581,7 @@ consumer2 will receive:
 
 #### Shared
 
-Create new consumers and subscribe with `Shared` subscription mode:
+Create new consumers and subscribe with `Shared` subscription type.
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -581,7 +598,7 @@ Consumer consumer2 = client.newConsumer()
 //Both consumer1 and consumer 2 is active consumers.
 ```
 
-In shared subscription mode, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
+In Shared subscription type, multiple consumers can attach to the same subscription and messages are delivered in a round robin distribution across consumers.
 
 If a broker dispatches only one message at a time, consumer1 receives the following information.
 
@@ -603,11 +620,11 @@ consumer2 receives the following information.
 ("key-4", "message-4-2")
 ```
 
-`Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
+`Shared` subscription is different from `Exclusive` and `Failover` subscription types. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
 #### Key_shared
 
-This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode.
+This is a new subscription type since 2.4.0 release. Create new consumers and subscribe with `Key_Shared` subscription type.
 
 ```java
 Consumer consumer1 = client.newConsumer()
@@ -624,7 +641,7 @@ Consumer consumer2 = client.newConsumer()
 //Both consumer1 and consumer2 are active consumers.
 ```
 
-Just like in the `Shared` subscription, all consumers in the `Key_Shared` subscription mode can attach to the same subscription. But the `Key_Shared` subscription mode is different from the `Shared` subscription. In the `Key_Shared` subscription mode, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
+Just like in `Shared` subscription, all consumers in `Key_Shared` subscription type can attach to the same subscription. But `Key_Shared` subscription type is different from the `Shared` subscription. In `Key_Shared` subscription type, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
 
 consumer1 receives the following information.
 

@@ -121,13 +121,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String configurationStoreServers;
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving binary protobuf requests"
+        doc = "The port for serving binary protobuf requests."
+            + " If set, defines a server binding for bindAddress:brokerServicePort."
+            + " The Default value is 6650."
     )
 
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "The port for serving tls secured binary protobuf requests"
+        doc = "The port for serving TLS-secured binary protobuf requests."
+            + " If set, defines a server binding for bindAddress:brokerServicePortTls."
     )
     private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
@@ -167,6 +170,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The listener name must contain in the advertisedListeners."
                     + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Used to specify additional bind addresses for the broker."
+                    + " The value must format as <listener_name>:<scheme>://<host>:<port>,"
+                    + " multiple bind addresses should be separated with commas."
+                    + " Associates each bind address with an advertised listener and protocol handler."
+                    + " Note that the brokerServicePort, brokerServicePortTls, webServicePort, and"
+                    + " webServicePortTls properties define additional bindings.")
+    private String bindAddresses;
 
     @FieldContext(category=CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
@@ -687,6 +699,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Default number of message-bytes dispatching throttling-limit for every topic. \n\n"
             + "Using a value of 0, is disabling default message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Apply dispatch rate limiting on batch message instead individual "
+                    + "messages with in batch message. (Default is disabled)")
+        private boolean dispatchThrottlingOnBatchMessageEnabled = false;
 
     @FieldContext(
         dynamic = true,
@@ -766,6 +784,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will backoff the batch size to this minimum number."
     )
     private int dispatcherMinReadBatchSize = 1;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff initial time in milliseconds. By default it is 15s."
+    )
+    private int dispatcherReadFailureBackoffInitialTimeInMs = 15000;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff max time in milliseconds. By default it is 60s."
+    )
+    private int dispatcherReadFailureBackoffMaxTimeInMs = 60000;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "The read failure backoff mandatory stop time in milliseconds. By default it is 0s."
+    )
+    private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
 
     @FieldContext(
         dynamic = true,
@@ -1001,6 +1040,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
     private boolean systemTopicEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SCHEMA,
+            doc = "The schema compatibility strategy to use for system topics"
+    )
+    private SchemaCompatibilityStrategy systemTopicSchemaCompatibilityStrategy =
+            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE;
 
     @FieldContext(
         category = CATEGORY_SERVER,

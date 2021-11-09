@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.stats;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +34,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.proxy.server.ProxyService;
-
-import com.google.common.collect.Lists;
 
 import io.netty.channel.Channel;
 import io.swagger.annotations.Api;
@@ -59,7 +58,7 @@ public class ProxyStats {
     @ApiOperation(value = "Proxy stats api to get info for live connections", response = List.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 503, message = "Proxy service is not initialized") })
     public List<ConnectionStats> metrics() {
-        List<ConnectionStats> stats = Lists.newArrayList();
+        List<ConnectionStats> stats = new ArrayList<>();
         proxyService().getClientCnxs().forEach(cnx -> {
             if (cnx.getDirectProxyHandler() == null) {
                 return;

@@ -323,8 +323,7 @@ public class ResourceGroupService {
     protected boolean incrementUsage(String tenantName, String nsName,
                                   ResourceGroupMonitoringClass monClass,
                                   BytesAndMessagesCount incStats) throws PulsarAdminException {
-        final String tenantAndNsString = tenantName + "/" + nsName;
-        final ResourceGroup nsRG = this.namespaceToRGsMap.get(tenantAndNsString);
+        final ResourceGroup nsRG = this.namespaceToRGsMap.get(NamespaceName.get(tenantName, nsName));
         final ResourceGroup tenantRG = this.tenantToRGsMap.get(tenantName);
         if (tenantRG == null && nsRG == null) {
             return false;

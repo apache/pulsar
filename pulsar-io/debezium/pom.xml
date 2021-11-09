@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>2.9.0-SNAPSHOT</version>
+    <version>2.10.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-debezium</artifactId>
@@ -37,6 +37,7 @@
     <module>postgres</module>
     <module>mongodb</module>
     <module>oracle</module>
+    <module>mssql</module>
   </modules>
 
 </project>

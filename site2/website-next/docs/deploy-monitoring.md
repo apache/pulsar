@@ -1,7 +1,7 @@
 ---
 id: deploy-monitoring
 title: Monitor
-sidebar_label: Monitor
+sidebar_label: "Monitor"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -21,13 +21,17 @@ You can collect Pulsar broker metrics from brokers and export the metrics in JSO
 * *Destination dumps*, which contain stats for each individual topic. You can fetch the destination dumps using the command below:
 
   ```shell
+  
   bin/pulsar-admin broker-stats destinations
+  
   ```
 
 * Broker metrics, which contain the broker information and topics stats aggregated at namespace level. You can fetch the broker metrics by using the following command:
 
   ```shell
+  
   bin/pulsar-admin broker-stats monitoring-metrics
+  
   ```
 
 All the message rates are updated every minute.
@@ -35,7 +39,9 @@ All the message rates are updated every minute.
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
 ```shell
+
 http://$BROKER_ADDRESS:8080/metrics
+
 ```
 
 ### ZooKeeper stats
@@ -43,8 +49,10 @@ http://$BROKER_ADDRESS:8080/metrics
 The local ZooKeeper, configuration store server and clients that are shipped with Pulsar can expose detailed stats through Prometheus.
 
 ```shell
+
 http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
+
 ```
 
 The default port of local ZooKeeper is `8000` and the default port of configuration store is `8001`. You can change the default port of local ZooKeeper and configuration store by specifying system property `stats_server_port`.
@@ -56,7 +64,9 @@ You can configure the stats frameworks for BookKeeper by modifying the `statsPro
 The default BookKeeper configuration enables the Prometheus exporter. The configuration is included with Pulsar distribution.
 
 ```shell
+
 http://$BOOKIE_ADDRESS:8000/metrics
+
 ```
 
 The default port for bookie is `8000`. You can change the port by configuring `prometheusStatsHttpPort` in the `conf/bookkeeper.conf` file.
@@ -65,11 +75,13 @@ The default port for bookie is `8000`. You can change the port by configuring `p
 The acknowledgment state is persistent to the ledger first. When the acknowledgment state fails to be persistent to the ledger, they are persistent to ZooKeeper. To track the stats of acknowledgement, you can configure the metrics for the managed cursor. 
 
 ```
-brk_ml_cursor_persistLedgerSucceed(namespace="", ledger_name="", cursor_name:"")
+
+brk_ml_cursor_persistLedgerSucceed(namespace=", ledger_name="", cursor_name:")
 brk_ml_cursor_persistLedgerErrors(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_persistZookeeperSucceed(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_persistZookeeperErrors(namespace="", ledger_name="", cursor_name:"")
 brk_ml_cursor_nonContiguousDeletedMessagesRange(namespace="", ledger_name="", cursor_name:"")
+
 ```
 
 Those metrics are added in the Prometheus interface, you can monitor and check the metrics stats in the Grafana.
@@ -79,26 +91,32 @@ Those metrics are added in the Prometheus interface, you can monitor and check t
 You can collect functions worker stats from `functions-worker` and export the metrics in JSON formats, which contain functions worker JVM metrics.
 
 ```
+
 pulsar-admin functions-worker monitoring-metrics
+
 ```
 
 You can collect functions and connectors metrics from `functions-worker` and export the metrics in JSON formats.
 
 ```
+
 pulsar-admin functions-worker function-stats
+
 ```
 
 The aggregated functions and connectors metrics can be exposed in Prometheus formats as below. You can get [`FUNCTIONS_WORKER_ADDRESS`](http://pulsar.apache.org/docs/en/next/functions-worker/) and `WORKER_PORT` from the `functions_worker.yml` file.
 
 ```
+
 http://$FUNCTIONS_WORKER_ADDRESS:$WORKER_PORT/metrics:
+
 ```
 
 ## Configure Prometheus
 
 You can use Prometheus to collect all the metrics exposed for Pulsar components and set up [Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster. For details, refer to [Prometheus guide](https://prometheus.io/docs/introduction/getting_started/).
 
-When you run Pulsar on bare metal, you can provide the list of nodes to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is setup automatically. For details, refer to [Kubernetes instructions](helm-deploy.md). 
+When you run Pulsar on bare metal, you can provide the list of nodes to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is setup automatically. For details, refer to [Kubernetes instructions](helm-deploy). 
 
 ## Dashboards
 
@@ -106,7 +124,7 @@ When you collect time series statistics, the major problem is to make sure the n
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Pulsar manager](administration-pulsar-manager.md).
+The per-topic dashboard instructions are available at [Pulsar manager](administration-pulsar-manager).
 
 ### Grafana
 
@@ -117,9 +135,11 @@ When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled
 Enter the command below to use the dashboard manually:
 
 ```shell
+
 docker run -p3000:3000 \
         -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
         apachepulsar/pulsar-grafana:latest
+
 ```
 
 The following are some Grafana dashboards examples:
@@ -127,5 +147,5 @@ The following are some Grafana dashboards examples:
 - [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
 - [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
 
- ## Alerting rules
- You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).
+## Alerting rules
+You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, refer to [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/).

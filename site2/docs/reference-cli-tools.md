@@ -339,7 +339,7 @@ Options
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
-|`-m`, `--subscription-mode`|Subscription mode.|Durable|
+|`-m`, `--subscription-mode`|Subscription mode. Possible values: Durable, NonDurable.|Durable|
 |`-q`, `--queue-size`|The size of consumer's receiver queue.|0|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages.|0|
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full.|false|
@@ -361,6 +361,7 @@ $ pulsar-daemon command
 Commands
 * `start`
 * `stop`
+* `restart`
 
 
 ### `start`
@@ -385,7 +386,11 @@ Options
 |---|---|---|
 |-force|Stop the service forcefully if not stopped by normal shutdown.|false|
 
-
+### `restart`
+Restart a service that has already been started.
+```bash
+$ pulsar-daemon restart service
+```
 
 ## `pulsar-perf`
 A tool for performance testing a Pulsar broker.
@@ -431,7 +436,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full|false|
 |`--listener-name`|Listener name for the broker||
 |`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
@@ -479,7 +484,7 @@ Options
 |`-am`, `--access-mode`|Producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`|Shared|
 |`-au`, `--admin-url`|Pulsar admin URL||
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`-bb`, `--batch-max-bytes`|Maximum number of bytes per batch|4194304|
@@ -533,7 +538,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--listener-name`|Listener name for the broker||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
@@ -564,12 +569,15 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth_plugin`|Authentication plugin class name||
+|`--auth-plugin`|Authentication plugin class name||
 |`--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-t`, `--num-topic`|The number of topics|1|
 |`-f`, `--payload-file`|Use payload from a file instead of empty buffer||
+|`-e`, `--payload-delimiter`|The delimiter used to split lines when using payload from a file|\n|
+|`-fp`, `--format-payload`|Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds|false|
+|`-fc`, `--format-class`|Custom formatter class name|`org.apache.pulsar.testclient.DefaultMessageFormatter`|
 |`-u`, `--proxy-url`|Pulsar Proxy URL, e.g., "ws://localhost:8080/"||
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
 |`-s`, `--size`|Message size in byte|1024|

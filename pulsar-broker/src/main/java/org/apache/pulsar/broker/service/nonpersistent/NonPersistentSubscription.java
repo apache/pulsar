@@ -72,6 +72,8 @@ public class NonPersistentSubscription implements Subscription {
     // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
     private final boolean isDurable;
 
+    private KeySharedMode keySharedMode = null;
+
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable) {
         this.topic = topic;
         this.topicName = topic.getName();
@@ -141,7 +143,7 @@ public class NonPersistentSubscription implements Subscription {
                 break;
             case Key_Shared:
                 KeySharedMeta ksm = consumer.getKeySharedMeta();
-                KeySharedMode keySharedMode = ksm.getKeySharedMode();
+                keySharedMode = ksm.getKeySharedMode();
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
                         || ((NonPersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getKeySharedMode()
                         != keySharedMode) {
@@ -460,6 +462,12 @@ public class NonPersistentSubscription implements Subscription {
 
         subStats.type = getTypeString();
         subStats.msgDropRate = dispatcher.getMessageDropRate().getValueRate();
+
+        KeySharedMode keySharedMode = this.keySharedMode;
+        if (getType() == SubType.Key_Shared && keySharedMode != null) {
+            subStats.keySharedMode = keySharedMode.toString();
+        }
+
         return subStats;
     }
 
