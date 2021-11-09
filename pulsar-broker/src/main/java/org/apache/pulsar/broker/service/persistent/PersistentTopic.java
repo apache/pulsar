@@ -74,7 +74,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -324,9 +323,9 @@ public class PersistentTopic extends AbstractTopic
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
-                    if (policies.inactive_topic_policies != null) {
-                        inactiveTopicPolicies = policies.inactive_topic_policies;
-                    }
+
+                    inactiveTopicPolicies.updateNamespaceValue(policies.inactive_topic_policies);
+
                     updateUnackedMessagesAppliedOnSubscription(policies);
                     updateUnackedMessagesExceededOnConsumer(policies);
                 }).exceptionally(ex -> {
@@ -2198,8 +2197,8 @@ public class PersistentTopic extends AbstractTopic
             // This topic is not included in GC
             return;
         }
-        InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.getInactiveTopicDeleteMode();
-        int maxInactiveDurationInSec = inactiveTopicPolicies.getMaxInactiveDurationSeconds();
+        InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.get().getInactiveTopicDeleteMode();
+        int maxInactiveDurationInSec = inactiveTopicPolicies.get().getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
         } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
@@ -2415,16 +2414,8 @@ public class PersistentTopic extends AbstractTopic
         }
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
-        if (data.inactive_topic_policies != null) {
-            if (!topicPolicies.isPresent() || !topicPolicies.get().isInactiveTopicPoliciesSet()) {
-                this.inactiveTopicPolicies = data.inactive_topic_policies;
-            }
-        } else {
-            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
-            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
-                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                    cfg.isBrokerDeleteInactiveTopicsEnabled());
-        }
+
+        inactiveTopicPolicies.updateNamespaceValue(data.inactive_topic_policies);
 
         initializeRateLimiterIfNeeded(Optional.ofNullable(data));
 
@@ -3098,18 +3089,8 @@ public class PersistentTopic extends AbstractTopic
 
         maxSubscriptionsPerTopic.updateTopicValue(policies.getMaxSubscriptionsPerTopic());
 
-        if (policies.isInactiveTopicPoliciesSet()) {
-            inactiveTopicPolicies = policies.getInactiveTopicPolicies();
-        } else if (namespacePolicies.isPresent() && namespacePolicies.get().inactive_topic_policies != null) {
-            //topic-level policies is null , so use namespace-level
-            inactiveTopicPolicies = namespacePolicies.get().inactive_topic_policies;
-        } else {
-            //namespace-level policies is null , so use broker level
-            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
-            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
-                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                    cfg.isBrokerDeleteInactiveTopicsEnabled());
-        }
+        inactiveTopicPolicies.updateTopicValue(policies.getInactiveTopicPolicies());
+
         updateUnackedMessagesAppliedOnSubscription(namespacePolicies.orElse(null));
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
         if (this.subscribeRateLimiter.isPresent()) {
