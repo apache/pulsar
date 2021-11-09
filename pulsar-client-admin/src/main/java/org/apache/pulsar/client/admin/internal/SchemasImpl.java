@@ -31,7 +31,6 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -444,7 +443,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
             schema = response.getData().getBytes(UTF_8);
         }
 
-        return SchemaInfoImpl.builder()
+        return SchemaInfo.builder()
                 .schema(schema)
                 .type(response.getType())
                 .properties(response.getProperties())

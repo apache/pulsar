@@ -514,4 +514,13 @@ public class DefaultImplementation {
         byteBuffer.get(array);
         return array;
     }
+
+    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue) {
+        return catchExceptions(
+                () ->
+                    (SchemaInfo) getConstructor("org.apache.pulsar.client.impl.schema.SchemaInfoImpl",
+                            String.class, byte[].class, SchemaType.class, Map.class)
+                            .newInstance(name, schema, type, propertiesValue)
+                );
+    }
 }
