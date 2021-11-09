@@ -683,7 +683,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         DispatchRate namespaceDispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(10)
                 .dispatchThrottlingRateInByte(10)
-                .ratePeriodInSecond(10)
                 .build();
 
         admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
@@ -694,7 +693,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInByte(11)
                 .ratePeriodInSecond(12)
                 .build();
-        admin.namespaces().setSubscriptionDispatchRate(myNamespace, false, namespaceDispatchRate2);
+        admin.namespaces().setSubscriptionDispatchRate(myNamespace, true, namespaceDispatchRate2);
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace)));
         assertEquals(admin.topics().getSubscriptionDispatchRate(topic, true), expectedNamespaceDispatchRate);
@@ -899,7 +898,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         DispatchRate namespaceDispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(10)
                 .dispatchThrottlingRateInByte(10)
-                .ratePeriodInSecond(10)
                 .build();
 
         admin.namespaces().setDispatchRate(myNamespace, namespaceDispatchRate);
@@ -910,7 +908,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInByte(11)
                 .ratePeriodInSecond(12)
                 .build();
-        admin.namespaces().setDispatchRate(myNamespace, false, namespaceDispatchRate2);
+        admin.namespaces().setDispatchRate(myNamespace, true, namespaceDispatchRate2);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getDispatchRate(myNamespace)));
         assertEquals(admin.topics().getDispatchRate(topic, true), expectedNamespaceDispatchRate);
 
@@ -1736,15 +1734,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
 
         SubscribeRate expectedSubscribeRate = new SubscribeRate(1, 60);
-        SubscribeRate subscribeRate = new SubscribeRate(-1, 60);
+        SubscribeRate subscribeRate = new SubscribeRate(1, 30);
         log.info("Subscribe Rate: {} will be set to the namespace: {}", subscribeRate, myNamespace);
         admin.namespaces().setSubscribeRate(myNamespace, subscribeRate);
+
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(admin.namespaces().getSubscribeRate(myNamespace), subscribeRate));
 
-        SubscribeRate subscribeRate1 = new SubscribeRate(1, 30);
+        SubscribeRate subscribeRate1 = new SubscribeRate(-1, 60);
         log.info("Subscribe Rate: {} will be set to the namespace: {}", subscribeRate1, myNamespace);
-        admin.namespaces().setSubscribeRate(myNamespace, false, subscribeRate1);
+        admin.namespaces().setSubscribeRate(myNamespace, true, subscribeRate1);
 
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(admin.namespaces().getSubscribeRate(myNamespace), expectedSubscribeRate));
@@ -1984,7 +1983,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PublishRate publishMsgRate = new PublishRate(10, -1);
         admin.namespaces().setPublishRate(myNamespace, publishMsgRate);
         PublishRate newPublishMsgRate = new PublishRate(-1, 100L);
-        admin.namespaces().setPublishRate(myNamespace, false, newPublishMsgRate);
+        admin.namespaces().setPublishRate(myNamespace, true, newPublishMsgRate);
 
         Awaitility.await()
                 .until(() -> {
@@ -2470,7 +2469,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         DispatchRate namespaceDispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(10)
                 .dispatchThrottlingRateInByte(10)
-                .ratePeriodInSecond(10)
                 .build();
 
         admin.namespaces().setReplicatorDispatchRate(myNamespace, namespaceDispatchRate);
@@ -2481,7 +2479,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInByte(11)
                 .ratePeriodInSecond(12)
                 .build();
-        admin.namespaces().setReplicatorDispatchRate(myNamespace, false, namespaceDispatchRate2);
+        admin.namespaces().setReplicatorDispatchRate(myNamespace, true, namespaceDispatchRate2);
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.namespaces().getReplicatorDispatchRate(myNamespace)));
         assertEquals(admin.topics().getReplicatorDispatchRate(topic, true), expectedNamespaceDispatchRate);

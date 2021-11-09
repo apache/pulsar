@@ -671,10 +671,10 @@ public class Namespaces extends NamespacesBase {
             @PathParam("property") String property,
             @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             PublishRate publishRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetPublishRate(resetMode, publishRate);
+        internalSetPublishRate(updateMode, publishRate);
     }
 
     @GET
@@ -698,10 +698,10 @@ public class Namespaces extends NamespacesBase {
             @PathParam("property") String property,
             @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetTopicDispatchRate(resetMode, dispatchRate);
+        internalSetTopicDispatchRate(updateMode, dispatchRate);
     }
 
     @GET
@@ -724,10 +724,10 @@ public class Namespaces extends NamespacesBase {
     public void setSubscriptionDispatchRate(@PathParam("property") String property,
                                             @PathParam("cluster") String cluster,
                                             @PathParam("namespace") String namespace,
-                                            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+                                            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
                                             DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetSubscriptionDispatchRate(resetMode, dispatchRate);
+        internalSetSubscriptionDispatchRate(updateMode, dispatchRate);
     }
 
     @GET
@@ -751,11 +751,11 @@ public class Namespaces extends NamespacesBase {
     public void setReplicatorDispatchRate(
             @PathParam("tenant") String tenant,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @QueryParam("resetMode") @DefaultValue("true") boolean resetMode,
+            @QueryParam("updateMode") @DefaultValue("false") boolean updateMode,
             @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
                     DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, cluster, namespace);
-        internalSetReplicatorDispatchRate(resetMode, dispatchRate);
+        internalSetReplicatorDispatchRate(updateMode, dispatchRate);
     }
 
     @GET

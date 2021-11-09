@@ -1177,10 +1177,10 @@ public abstract class NamespacesBase extends AdminResource {
         return algorithm;
     }
 
-    protected void internalSetPublishRate(boolean resetMode, PublishRate publishRate) {
+    protected void internalSetPublishRate(boolean updateMode, PublishRate publishRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, publishRate);
-        if (!resetMode) {
+        if (updateMode) {
             Policies policies = getNamespacePolicies(namespaceName);
             PublishRate originalPublishRate =
                     policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
@@ -1241,12 +1241,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSetTopicDispatchRate(boolean resetMode, DispatchRateImpl dispatchRate) {
+    protected void internalSetTopicDispatchRate(boolean updateMode, DispatchRateImpl dispatchRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
-            if (!resetMode) {
+            if (updateMode) {
                 Policies policies = getNamespacePolicies(namespaceName);
                 DispatchRateImpl originalDispatchRate =
                         policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
@@ -1280,9 +1280,6 @@ public abstract class NamespacesBase extends AdminResource {
             newDispatchRate.setDispatchThrottlingRateInByte(newDispatchRate.getDispatchThrottlingRateInByte() == -1
                 ? originalDispatchRate.getDispatchThrottlingRateInByte()
                 : newDispatchRate.getDispatchThrottlingRateInByte());
-            newDispatchRate.setRatePeriodInSecond(newDispatchRate.getRatePeriodInSecond() == 1
-                ? originalDispatchRate.getRatePeriodInSecond()
-                : newDispatchRate.getRatePeriodInSecond());
             return newDispatchRate;
         }
 
@@ -1314,12 +1311,12 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscriptionDispatchRate(boolean resetMode, DispatchRateImpl dispatchRate) {
+    protected void internalSetSubscriptionDispatchRate(boolean updateMode, DispatchRateImpl dispatchRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
 
         try {
-            if (!resetMode) {
+            if (updateMode) {
                 Policies policies = getNamespacePolicies(namespaceName);
                 DispatchRateImpl originalDispatchRate =
                         policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
@@ -1363,11 +1360,11 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscribeRate(boolean resetMode, SubscribeRate subscribeRate) {
+    protected void internalSetSubscribeRate(boolean updateMode, SubscribeRate subscribeRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
         try {
-            if (!resetMode) {
+            if (updateMode) {
                 Policies policies = getNamespacePolicies(namespaceName);
                 SubscribeRate originalSubscribeRate =
                         policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
@@ -1398,9 +1395,6 @@ public abstract class NamespacesBase extends AdminResource {
                     newSubscribeRate.subscribeThrottlingRatePerConsumer == -1
                             ? originalSubscribeRate.subscribeThrottlingRatePerConsumer
                             : newSubscribeRate.subscribeThrottlingRatePerConsumer;
-            newSubscribeRate.ratePeriodInSecond = newSubscribeRate.ratePeriodInSecond == 30
-                    ? originalSubscribeRate.ratePeriodInSecond
-                    : newSubscribeRate.ratePeriodInSecond;
             return newSubscribeRate;
         }
 
@@ -1445,11 +1439,11 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetReplicatorDispatchRate(boolean resetMode, DispatchRateImpl dispatchRate) {
+    protected void internalSetReplicatorDispatchRate(boolean updateMode, DispatchRateImpl dispatchRate) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE);
         log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         try {
-            if (!resetMode) {
+            if (updateMode) {
                 Policies policies = getNamespacePolicies(namespaceName);
                 DispatchRateImpl originalDispatchRate =
                         policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());

@@ -2093,14 +2093,14 @@ public interface Namespaces {
      * Set message-publish-rate (topics under this namespace can publish this many messages per second).
      *
      * @param namespace
-     * @param resetMode
-     *            clear the previous rate and reset (default true). if it is false, merge the two rate
+     * @param updateMode
+     *            update publish rate. If it is true then merging the previous and current rate
      * @param publishMsgRate
      *            number of messages per second
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setPublishRate(String namespace, boolean resetMode, PublishRate publishMsgRate) throws PulsarAdminException;
+    void setPublishRate(String namespace, boolean updateMode, PublishRate publishMsgRate) throws PulsarAdminException;
 
     /**
      * Remove message-publish-rate (topics under this namespace can publish this many messages per second).
@@ -2125,12 +2125,12 @@ public interface Namespaces {
      * Set message-publish-rate (topics under this namespace can publish this many messages per second) asynchronously.
      *
      * @param namespace
-     * @param resetMode
-     *            clear the previous rate and reset (default true). if it is false, merge the two rate
+     * @param updateMode
+     *            update publish rate. If it is true then merging the previous and current rate
      * @param publishMsgRate
      *            number of messages per second
      */
-    CompletableFuture<Void> setPublishRateAsync(String namespace, boolean resetMode, PublishRate publishMsgRate);
+    CompletableFuture<Void> setPublishRateAsync(String namespace, boolean updateMode, PublishRate publishMsgRate);
 
     /**
      * Remove message-publish-rate asynchronously.
@@ -2186,14 +2186,14 @@ public interface Namespaces {
      * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
      *
      * @param namespace
-     * @param resetMode
-     *            clear the previous rate and reset (default true). if it is false, merge the two rate
+     * @param updateMode
+     *            update dispatch rate. If it is true then merging the previous and current rate
      * @param dispatchRate
      *            number of messages per second
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setDispatchRate(String namespace, boolean resetMode, DispatchRate dispatchRate) throws PulsarAdminException;
+    void setDispatchRate(String namespace, boolean updateMode, DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
      * Set message-dispatch-rate asynchronously.
@@ -2213,12 +2213,12 @@ public interface Namespaces {
      * topics under this namespace can dispatch this many messages per second
      *
      * @param namespace
-     * @param resetMode
-     *            clear the previous rate and reset (default true). if it is false, merge the two rat
+     * @param updateMode
+     *            update dispatch rate. If it is true then merging the previous and current rate
      * @param dispatchRate
      *            number of messages per second
      */
-    CompletableFuture<Void> setDispatchRateAsync(String namespace, boolean resetMode, DispatchRate dispatchRate);
+    CompletableFuture<Void> setDispatchRateAsync(String namespace, boolean updateMode, DispatchRate dispatchRate);
 
     /**
      * Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second).
@@ -2258,11 +2258,16 @@ public interface Namespaces {
      * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
      *
      * @param namespace
-     * @param resetMode     clear the previous rate and reset (default true). if false, merge two rate
-     * @param subscribeRate consumer subscribe limit by this subscribeRate
-     * @throws PulsarAdminException Unexpected error
+     * @param updateMode
+     *            update subscribe rate. If it is true then merging the previous and current rate
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
      */
-    void setSubscribeRate(String namespace, boolean resetMode, SubscribeRate subscribeRate) throws PulsarAdminException;
+    void setSubscribeRate(String namespace,
+                          boolean updateMode,
+                          SubscribeRate subscribeRate) throws PulsarAdminException;
 
     /**
      * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
@@ -2278,10 +2283,12 @@ public interface Namespaces {
      * Set namespace-subscribe-rate (topics under this namespace will limit by subscribeRate) asynchronously.
      *
      * @param namespace
-     * @param resetMode     clear the previous rate and reset (default true). if false, merge two rate
-     * @param subscribeRate consumer subscribe limit by this subscribeRate
+     * @param updateMode
+     *            update subscribe rate. If it is true then merging the previous and current rate
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
      */
-    CompletableFuture<Void> setSubscribeRateAsync(String namespace, boolean resetMode, SubscribeRate subscribeRate);
+    CompletableFuture<Void> setSubscribeRateAsync(String namespace, boolean updateMode, SubscribeRate subscribeRate);
 
     /**
      * Remove namespace-subscribe-rate (topics under this namespace will limit by subscribeRate).
@@ -2352,12 +2359,15 @@ public interface Namespaces {
      * Subscriptions under this namespace can dispatch this many messages per second
      *
      * @param namespace
-     * @param resetMode    clear the previous rate and reset (default true). if it is false, merge the two rate
-     * @param dispatchRate number of messages per second
-     * @throws PulsarAdminException Unexpected error
+     * @param updateMode
+     *            update subscription dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
      */
     void setSubscriptionDispatchRate(String namespace,
-                                     boolean resetMode,
+                                     boolean updateMode,
                                      DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
@@ -2378,11 +2388,13 @@ public interface Namespaces {
      * Subscriptions under this namespace can dispatch this many messages per second.
      *
      * @param namespace
-     * @param resetMode    clear the previous rate and reset (default true). if it is false, merge the two rate
-     * @param dispatchRate number of messages per second
+     * @param updateMode
+     *            update subscription dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
      */
     CompletableFuture<Void> setSubscriptionDispatchRateAsync(String namespace,
-                                                             boolean resetMode,
+                                                             boolean updateMode,
                                                              DispatchRate dispatchRate);
 
     /**
@@ -2429,12 +2441,15 @@ public interface Namespaces {
      * Replicators under this namespace can dispatch this many messages per second.
      *
      * @param namespace
-     * @param resetMode    clear the previous rate and reset (default true). if it is false, merge the two rate
-     * @param dispatchRate number of messages per second
-     * @throws PulsarAdminException Unexpected error
+     * @param updateMode
+     *            update replicator dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
      */
     void setReplicatorDispatchRate(String namespace,
-                                   boolean resetMode,
+                                   boolean updateMode,
                                    DispatchRate dispatchRate) throws PulsarAdminException;
 
     /**
@@ -2455,11 +2470,13 @@ public interface Namespaces {
      * Replicators under this namespace can dispatch this many messages per second.
      *
      * @param namespace
-     * @param resetMode    clear the previous rate and reset (default true). if it is false, merge the two rate
-     * @param dispatchRate number of messages per second
+     * @param updateMode
+     *            update replicator dispatch rate. If it is true then merging the previous and current rate
+     * @param dispatchRate
+     *            number of messages per second
      */
     CompletableFuture<Void> setReplicatorDispatchRateAsync(String namespace,
-                                                           boolean resetMode,
+                                                           boolean updateMode,
                                                            DispatchRate dispatchRate);
 
     /**

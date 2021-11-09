@@ -398,7 +398,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).deleteBookieAffinityGroup("myprop/clust/ns1");
 
         namespaces.run(split("set-replicator-dispatch-rate myprop/clust/ns1 -md 10 -bd 11 -dt 12"));
-        verify(mockNamespaces).setReplicatorDispatchRate("myprop/clust/ns1", true, DispatchRate.builder()
+        verify(mockNamespaces).setReplicatorDispatchRate("myprop/clust/ns1", false, DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(10)
                 .dispatchThrottlingRateInByte(11)
                 .ratePeriodInSecond(12)
@@ -678,7 +678,7 @@ public class PulsarAdminToolTest {
         namespaces = new CmdNamespaces(() -> admin);
 
         namespaces.run(split("set-dispatch-rate myprop/clust/ns1 -md -1 -bd -1 -dt 2"));
-        verify(mockNamespaces).setDispatchRate("myprop/clust/ns1", true, DispatchRate.builder()
+        verify(mockNamespaces).setDispatchRate("myprop/clust/ns1", false, DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
                 .dispatchThrottlingRateInByte(-1)
                 .ratePeriodInSecond(2)
@@ -691,7 +691,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).removeDispatchRate("myprop/clust/ns1");
 
         namespaces.run(split("set-publish-rate myprop/clust/ns1 -m 10 -b 20"));
-        verify(mockNamespaces).setPublishRate("myprop/clust/ns1", true, new PublishRate(10, 20));
+        verify(mockNamespaces).setPublishRate("myprop/clust/ns1", false, new PublishRate(10, 20));
 
         namespaces.run(split("get-publish-rate myprop/clust/ns1"));
         verify(mockNamespaces).getPublishRate("myprop/clust/ns1");
@@ -700,7 +700,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).removePublishRate("myprop/clust/ns1");
 
         namespaces.run(split("set-subscribe-rate myprop/clust/ns1 -sr 2 -st 60"));
-        verify(mockNamespaces).setSubscribeRate("myprop/clust/ns1", true, new SubscribeRate(2, 60));
+        verify(mockNamespaces).setSubscribeRate("myprop/clust/ns1", false, new SubscribeRate(2, 60));
 
         namespaces.run(split("get-subscribe-rate myprop/clust/ns1"));
         verify(mockNamespaces).getSubscribeRate("myprop/clust/ns1");
@@ -709,7 +709,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).removeSubscribeRate("myprop/clust/ns1");
 
         namespaces.run(split("set-subscription-dispatch-rate myprop/clust/ns1 -md -1 -bd -1 -dt 2"));
-        verify(mockNamespaces).setSubscriptionDispatchRate("myprop/clust/ns1", true, DispatchRate.builder()
+        verify(mockNamespaces).setSubscriptionDispatchRate("myprop/clust/ns1", false, DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
                 .dispatchThrottlingRateInByte(-1)
                 .ratePeriodInSecond(2)
