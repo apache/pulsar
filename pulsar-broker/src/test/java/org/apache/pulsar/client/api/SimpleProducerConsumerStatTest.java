@@ -33,9 +33,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.gson.Gson;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -46,6 +46,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -76,6 +77,11 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     @DataProvider(name = "batch_with_timeout")
     public Object[][] ackTimeoutSecProvider() {
         return new Object[][] { { 0, 0 }, { 0, 2 }, { 1000, 0 }, { 1000, 2 } };
+    }
+
+    @DataProvider(name = "batchingEnabled")
+    public Object[][] batchingEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     @Test(dataProvider = "batch_with_timeout")
@@ -427,14 +433,14 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
-    public void testProducerPendingQueueSizeStats() throws Exception {
+    @Test(dataProvider =  "batchingEnabled")
+    public void testProducerPendingQueueSizeStats(boolean batchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/tp1/my-ns/my-topic1");
 
         @Cleanup
-        Producer<byte[]> producer = producerBuilder.enableBatching(false).create();
+        Producer<byte[]> producer = producerBuilder.enableBatching(batchingEnabled).create();
 
         stopBroker();
 
@@ -443,6 +449,8 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             String message = "my-message-" + i;
             producer.sendAsync(message.getBytes());
         }
+        Awaitility.await().timeout(2, TimeUnit.MINUTES)
+                .until(() -> producer.getStats().getPendingQueueSize() == numMessages);
         assertEquals(producer.getStats().getPendingQueueSize(), numMessages);
     }
 }
