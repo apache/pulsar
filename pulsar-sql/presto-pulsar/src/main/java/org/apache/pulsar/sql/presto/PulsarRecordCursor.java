@@ -29,6 +29,8 @@ import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.block.Block;
@@ -55,9 +57,13 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ConsumerImpl.ChunkedMessageCtx;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
+import org.apache.pulsar.common.api.raw.RawMessageIdImpl;
+import org.apache.pulsar.common.api.raw.RawMessageImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -66,6 +72,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.sql.presto.util.CacheSizeAllocator;
 import org.apache.pulsar.sql.presto.util.NoStrictCacheSizeAllocator;
 import org.apache.pulsar.sql.presto.util.NullCacheSizeAllocator;
@@ -111,6 +118,8 @@ public class PulsarRecordCursor implements RecordCursor {
     private FieldValueProvider[] currentRowValues = null;
 
     PulsarDispatchingRowDecoderFactory decoderFactory;
+
+    protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentOpenHashMap<>();
 
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
@@ -265,7 +274,8 @@ public class PulsarRecordCursor implements RecordCursor {
                             metricsTracker.register_BYTES_READ(bytes);
 
                             // check if we have processed all entries in this split
-                            if (((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0) {
+                            // and no incomplete chunked messages exist
+                            if (entryExceedSplitEndPosition(entry) && chunkedMessagesMap.isEmpty()) {
                                 return;
                             }
 
@@ -279,15 +289,25 @@ public class PulsarRecordCursor implements RecordCursor {
                                                 // start time for message queue read
                                                 metricsTracker.start_MESSAGE_QUEUE_ENQUEUE_WAIT_TIME();
 
-                                                while (true) {
-                                                    if (!haveAvailableCacheSize(
-                                                            messageQueueCacheSizeAllocator, messageQueue)
-                                                            || !messageQueue.offer(message)) {
-                                                        Thread.sleep(1);
-                                                    } else {
-                                                        messageQueueCacheSizeAllocator.allocate(
-                                                                message.getData().readableBytes());
-                                                        break;
+                                                if (message.getNumChunksFromMsg() > 1)  {
+                                                    message = processChunkedMessages(message);
+                                                } else if (entryExceedSplitEndPosition(entry)) {
+                                                    // skip no chunk or no multi chunk message
+                                                    // that exceed split end position
+                                                    message.release();
+                                                    message = null;
+                                                }
+                                                if (message != null) {
+                                                    while (true) {
+                                                        if (!haveAvailableCacheSize(
+                                                                messageQueueCacheSizeAllocator, messageQueue)
+                                                                || !messageQueue.offer(message)) {
+                                                            Thread.sleep(1);
+                                                        } else {
+                                                            messageQueueCacheSizeAllocator.allocate(
+                                                                    message.getData().readableBytes());
+                                                            break;
+                                                        }
                                                     }
                                                 }
 
@@ -328,6 +348,69 @@ public class PulsarRecordCursor implements RecordCursor {
         }
     }
 
+    private boolean entryExceedSplitEndPosition(Entry entry) {
+        return ((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0;
+    }
+
+    private RawMessage processChunkedMessages(RawMessage message) {
+        final String uuid = message.getUUID();
+        final int chunkId = message.getChunkId();
+        final int totalChunkMsgSize = message.getTotalChunkMsgSize();
+        final int numChunks = message.getNumChunksFromMsg();
+
+        RawMessageIdImpl rawMessageId = (RawMessageIdImpl) message.getMessageId();
+        if (rawMessageId.getLedgerId() > pulsarSplit.getEndPositionLedgerId()
+                && !chunkedMessagesMap.containsKey(uuid)) {
+            // If the message is out of the split range, we only care about the incomplete chunked messages.
+            message.release();
+            return null;
+        }
+        if (chunkId == 0) {
+            ByteBuf chunkedMsgBuffer = Unpooled.directBuffer(totalChunkMsgSize, totalChunkMsgSize);
+            chunkedMessagesMap.computeIfAbsent(uuid, (key) -> ChunkedMessageCtx.get(numChunks, chunkedMsgBuffer));
+        }
+
+        ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.get(uuid);
+        if (chunkedMsgCtx == null || chunkedMsgCtx.getChunkedMsgBuffer() == null
+                || chunkId != (chunkedMsgCtx.getLastChunkedMessageId() + 1) || chunkId >= numChunks) {
+            // Means we lost the first chunk, it will happens when the beginning chunk didn't belong to this split.
+            log.info("Received unexpected chunk. messageId: %s, last-chunk-id: %s chunkId: %s, totalChunks: %s",
+                    message.getMessageId(),
+                    (chunkedMsgCtx != null ? chunkedMsgCtx.getLastChunkedMessageId() : null), chunkId,
+                    numChunks);
+            if (chunkedMsgCtx != null) {
+                if (chunkedMsgCtx.getChunkedMsgBuffer() != null) {
+                    ReferenceCountUtil.safeRelease(chunkedMsgCtx.getChunkedMsgBuffer());
+                }
+                chunkedMsgCtx.recycle();
+            }
+            chunkedMessagesMap.remove(uuid);
+            message.release();
+            return null;
+        }
+
+        chunkedMsgCtx.getChunkedMessageIds()[chunkId] = new MessageIdImpl(
+                rawMessageId.getLedgerId(), rawMessageId.getEntryId(), (int) rawMessageId.getBatchIndex());
+        // append the chunked payload and update lastChunkedMessage-id
+        chunkedMsgCtx.getChunkedMsgBuffer().writeBytes(message.getData());
+        chunkedMsgCtx.setLastChunkedMessageId(chunkId);
+
+        // if final chunk is not received yet then release payload and return
+        if (chunkId != (numChunks - 1)) {
+            message.release();
+            return null;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Chunked message completed. chunkId: %s, total-chunks: %s, msgId: %s, sequenceId: %s",
+                    chunkId, numChunks, rawMessageId, message.getSequenceId());
+        }
+        chunkedMessagesMap.remove(uuid);
+        ByteBuf unCompressedPayload = chunkedMsgCtx.getChunkedMsgBuffer();
+        chunkedMsgCtx.recycle();
+        return ((RawMessageImpl) message).updatePayloadForChunkedMessage(unCompressedPayload);
+    }
+
     @VisibleForTesting
     class ReadEntries implements AsyncCallbacks.ReadEntriesCallback {
 
@@ -341,8 +424,9 @@ public class PulsarRecordCursor implements RecordCursor {
         public void run() {
 
             if (outstandingReadsRequests.get() > 0) {
-                if (!cursor.hasMoreEntries() || ((PositionImpl) cursor.getReadPosition())
-                        .compareTo(pulsarSplit.getEndPosition()) >= 0) {
+                if (!cursor.hasMoreEntries() ||
+                        (((PositionImpl) cursor.getReadPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0
+                                && chunkedMessagesMap.isEmpty())) {
                     isDone = true;
 
                 } else {
@@ -408,7 +492,7 @@ public class PulsarRecordCursor implements RecordCursor {
 
         public boolean hasFinished() {
             return messageQueue.isEmpty() && isDone && outstandingReadsRequests.get() >= 1
-                && splitSize <= entriesProcessed;
+                && splitSize <= entriesProcessed && chunkedMessagesMap.isEmpty();
         }
 
         @Override

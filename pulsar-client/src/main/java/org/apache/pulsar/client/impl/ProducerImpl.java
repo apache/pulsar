@@ -479,6 +479,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
                 for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
+                    // Need to reset the schemaVersion, because the schemaVersion is a ByteBuf object in
+                    // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
+                    // we need to reset the ByteBuf of the schemaVersion in `MessageMetadata`, I think we need to
+                    // reset `ByteBuf` objects in `MessageMetadata` after call the method `MessageMetadata#writeTo()`.
+                    msg.getMessageBuilder().setSchemaVersion(msg.getSchemaVersion());
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, ClientCnx.getMaxMessageSize(), compressedPayload, compressed,
                             compressedPayload.readableBytes(), uncompressedSize, callback);

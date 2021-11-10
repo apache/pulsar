@@ -61,6 +61,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -2363,7 +2364,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return topicNameWithoutPartition;
     }
 
-    static class ChunkedMessageCtx {
+    @Data
+    public static class ChunkedMessageCtx {
 
         protected int totalChunks = -1;
         protected ByteBuf chunkedMsgBuffer;
@@ -2371,7 +2373,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         protected MessageIdImpl[] chunkedMessageIds;
         protected long receivedTime = 0;
 
-        static ChunkedMessageCtx get(int numChunksFromMsg, ByteBuf chunkedMsgBuffer) {
+        public static ChunkedMessageCtx get(int numChunksFromMsg, ByteBuf chunkedMsgBuffer) {
             ChunkedMessageCtx ctx = RECYCLER.get();
             ctx.totalChunks = numChunksFromMsg;
             ctx.chunkedMsgBuffer = chunkedMsgBuffer;
