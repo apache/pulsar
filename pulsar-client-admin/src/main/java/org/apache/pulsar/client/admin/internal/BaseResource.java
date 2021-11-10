@@ -267,7 +267,7 @@ public abstract class BaseResource {
 
     public static String getReasonFromServer(WebApplicationException e) {
         try {
-            return e.getResponse().readEntity(ErrorData.class).reason.toString();
+            return e.getResponse().readEntity(ErrorData.class).reason;
         } catch (Exception ex) {
             try {
                 return ObjectMapperFactory.getThreadLocal().readValue(
