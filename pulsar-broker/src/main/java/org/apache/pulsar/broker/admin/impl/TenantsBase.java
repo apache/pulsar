@@ -269,6 +269,16 @@ public class TenantsBase extends PulsarWebResource {
                         asyncResponse.resume(new RestException(ex));
                         return null;
                     });
+
+                    // After clearing TenantResources, we need to clear the information of zk-node at the same time
+                    try {
+                        pulsar().getPulsarResources().getTopicResources().clearTenantPersistence(tenant).get();
+                    } catch (ExecutionException | InterruptedException e) {
+                        // warn level log here since this failure has no side effect besides left a un-used metadata
+                        // and also will not affect the re-creation of tenant
+                        log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), tenant, e);
+                    }
+
                     log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
                 } catch (Exception e) {
                     log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
@@ -319,14 +329,6 @@ public class TenantsBase extends PulsarWebResource {
                 return null;
             }
 
-
-            try {
-                pulsar().getPulsarResources().getTopicResources().clearTenantPersistence(tenant).get();
-            } catch (ExecutionException | InterruptedException e) {
-                // warn level log here since this failure has no side effect besides left a un-used metadata
-                // and also will not affect the re-creation of tenant
-                log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), tenant, e);
-            }
             // delete tenant normally
             internalDeleteTenant(asyncResponse, tenant);
 
