@@ -364,7 +364,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     }
 
     @Test
-    public void testTotalSizeAfterDeleted() throws Exception {
+    public void testManagedLedgerTotalSize() throws Exception {
         final String topic = newTopicName();
         final int messages = 10;
 
