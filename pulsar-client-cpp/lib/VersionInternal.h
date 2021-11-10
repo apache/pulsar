@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_VERSION_H_
-#define LIB_VERSION_H_
+#ifndef LIB_VERSION_INTERNAL_H_
+#define LIB_VERSION_INTERNAL_H_
 
-#ifndef _PULSAR_VERSION_
-#define _PULSAR_VERSION_ "1.17"
+#ifndef _PULSAR_VERSION_INTERNAL_
+#define _PULSAR_VERSION_INTERNAL_ "1.17"
 #endif
 
-#endif /* LIB_VERSION_H_ */
+#endif /* LIB_VERSION_INTERNAL_H_ */

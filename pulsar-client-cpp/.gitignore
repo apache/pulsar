@@ -47,6 +47,9 @@ lib*.so*
 /perf/perfConsumer
 /system-test/SystemTest
 
+# Files generated from templates by CMAKE
+include/pulsar/Version.h
+
 # IDE generated files
 .csettings
 .cproject
