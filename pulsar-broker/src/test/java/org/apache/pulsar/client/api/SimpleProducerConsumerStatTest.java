@@ -33,7 +33,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.google.gson.Gson;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.slf4j.Logger;
@@ -46,6 +45,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -74,6 +74,11 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     @DataProvider(name = "batch_with_timeout")
     public Object[][] ackTimeoutSecProvider() {
         return new Object[][] { { 0, 0 }, { 0, 2 }, { 1000, 0 }, { 1000, 2 } };
+    }
+
+    @DataProvider(name = "batchingEnabled")
+    public Object[][] batchingEnabled() {
+        return new Object[][] { { true }, { false } };
     }
 
     @Test(dataProvider = "batch_with_timeout")
