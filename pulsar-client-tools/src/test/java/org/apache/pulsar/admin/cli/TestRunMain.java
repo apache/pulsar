@@ -29,13 +29,15 @@ public class TestRunMain {
 
     @Test
     public void runMainNoArguments() throws Exception {
+        PulsarAdminTool.resetLastExitCode();
         PulsarAdminTool.setAllowSystemExit(false);
         PulsarAdminTool.main(new String[0]);
-        assertEquals(PulsarAdminTool.getLastExitCode(), 1);
+        assertEquals(PulsarAdminTool.getLastExitCode(), 0);
     }
 
     @Test
     public void runMainDummyConfigFile() throws Exception {
+        PulsarAdminTool.resetLastExitCode();
         PulsarAdminTool.setAllowSystemExit(false);
         Path dummyEmptyFile = Files.createTempFile("test", ".conf");
         PulsarAdminTool.main(new String[] {dummyEmptyFile.toAbsolutePath().toString()});
