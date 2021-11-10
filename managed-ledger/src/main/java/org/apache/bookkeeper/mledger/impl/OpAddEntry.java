@@ -60,7 +60,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     private boolean closeWhenDone;
     private long startTime;
     volatile long lastInitTime;
+    @SuppressWarnings("unused")
     ByteBuf data;
+    private int dataLength;
 
     private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
@@ -95,6 +97,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         op.ml = ml;
         op.ledger = null;
         op.data = data;
+        op.dataLength = data.readableBytes();
         op.callback = callback;
         op.ctx = ctx;
         op.addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
@@ -102,7 +105,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         op.entryId = -1;
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
-        ml.mbean.addAddEntrySample(op.getDataLength());
+        ml.mbean.addAddEntrySample(op.dataLength);
         return op;
     }
 
@@ -161,7 +164,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         this.entryId = entryId;
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] write-complete: ledger-id={} entry-id={} size={} rc={}", this, ml.getName(),
-                    lh.getId(), entryId, getDataLength(), rc);
+                    lh.getId(), entryId, dataLength, rc);
         }
 
         if (rc != BKException.Code.OK) {
@@ -186,7 +189,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }
 
         ManagedLedgerImpl.NUMBER_OF_ENTRIES_UPDATER.incrementAndGet(ml);
-        ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, getDataLength());
+        ManagedLedgerImpl.TOTAL_SIZE_UPDATER.addAndGet(ml, dataLength);
         if (ml.hasActiveCursors()) {
             // Avoid caching entries if no cursor has been created
             EntryImpl entry = EntryImpl.create(ledger.getId(), entryId, data);
@@ -302,10 +305,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return data;
     }
 
-    public long getDataLength() {
-        return (data != null) ? data.readableBytes() : 0L;
-    }
-
     public int getNumberOfMessages() {
         return numberOfMessages;
     }
@@ -336,6 +335,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         ledger = null;
         data = null;
         numberOfMessages = 0;
+        dataLength = -1;
         callback = null;
         ctx = null;
         addOpCount = -1;
@@ -355,7 +355,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                 ", ledgerId=" + ledger != null ? String.valueOf(ledger.getId()) : "null" +
                 ", entryId=" + entryId +
                 ", startTime=" + startTime +
-                ", dataLength=" + getDataLength() +
+                ", dataLength=" + dataLength +
                 '}';
     }
 }
