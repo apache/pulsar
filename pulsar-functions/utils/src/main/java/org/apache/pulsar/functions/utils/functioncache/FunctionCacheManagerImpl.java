@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.functions.utils.functioncache;
 
+import com.google.common.base.Preconditions;
 import org.apache.pulsar.functions.utils.Exceptions;
 
 import java.io.File;
@@ -51,7 +52,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     @Override
     public ClassLoader getClassLoader(String fid) {
         if (fid == null) {
-            throw new NullPointerException("FunctionID not set");
+            throw new IllegalArgumentException("FunctionID not set");
         }
 
         synchronized (cacheFunctions) {

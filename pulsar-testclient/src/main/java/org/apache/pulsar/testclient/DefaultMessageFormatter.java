@@ -83,7 +83,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
         int s = (int) size;
         if (size == 0) {
             size = 20;
-        };
+        }
         String result = "";
         for(int i = 0; i < s; i++) {
             result = result + (char) ((int) 'a' + (int) (r.nextFloat() * 26));
