@@ -42,6 +42,12 @@ public class ConcurrentOpenHashMap<K, V> {
 
     private static final Object EmptyKey = null;
     private static final Object DeletedKey = new Object();
+    private static final Object EmptyValue = new Object() {
+        @Override
+        public boolean equals(Object obj) {
+            return obj == null;
+        }
+    };
 
     private static final float MapFillFactor = 0.66f;
 
@@ -141,6 +147,10 @@ public class ConcurrentOpenHashMap<K, V> {
         requireNonNull(value);
         long h = hash(key);
         return getSection(h).remove(key, value, (int) h) != null;
+    }
+
+    public void removeNullValue(K key) {
+        remove(key, EmptyValue);
     }
 
     private Section<K, V> getSection(long hash) {
