@@ -194,6 +194,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private long entriesReadCount;
     private long entriesReadSize;
     private int individualDeletedMessagesSerializedSize;
+    private static final String COMPACTION_CURSOR_NAME = "__compaction";
 
     class MarkDeleteEntry {
         final PositionImpl newPosition;
@@ -1068,7 +1069,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 Range.closedOpen(markDeletePosition, newMarkDeletePosition)));
                     }
                     markDeletePosition = newMarkDeletePosition;
-                    lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, Collections.emptyMap(),
+                    lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, isCompactionCursor() ?
+                            getProperties() : Collections.emptyMap(),
                             null, null);
                     individualDeletedMessages.clear();
                     if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null) {
@@ -1118,7 +1120,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         };
 
-        internalAsyncMarkDelete(newPosition, Collections.emptyMap(), new MarkDeleteCallback() {
+        internalAsyncMarkDelete(newPosition, isCompactionCursor() ? getProperties() : Collections.emptyMap(), new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
                 finalCallback.operationComplete();
@@ -3064,6 +3066,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         boolean isReadPositionChanged = readPosition != null && !readPosition.equals(statsLastReadPosition);
         statsLastReadPosition = readPosition;
         return isReadPositionOnTail || isReadPositionChanged;
+    }
+
+    private boolean isCompactionCursor() {
+        return COMPACTION_CURSOR_NAME.equals(name);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
