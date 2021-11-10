@@ -64,11 +64,7 @@ public class ByteBufSchema extends AbstractSchema<ByteBuf> {
 
     @Override
     public ByteBuf decode(ByteBuf byteBuf) {
-        if (null == byteBuf) {
-            return null;
-        } else {
-            return byteBuf;
-        }
+        return byteBuf;
     }
 
     @Override

@@ -211,13 +211,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected CompletableFuture<Message<T>> nextPendingReceive() {
         CompletableFuture<Message<T>> receivedFuture;
-        while (true) {
+        do {
             receivedFuture = pendingReceives.poll();
             // skip done futures (cancelling a future could mark it done)
-            if (receivedFuture == null || !receivedFuture.isDone()) {
-                break;
-            }
-        }
+        } while (receivedFuture != null && receivedFuture.isDone());
         return receivedFuture;
     }
 
