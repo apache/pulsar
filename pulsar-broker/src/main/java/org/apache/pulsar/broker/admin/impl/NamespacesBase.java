@@ -472,9 +472,6 @@ public abstract class NamespacesBase extends AdminResource {
                             .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange(), true));
                 }
             }
-
-            // clear resource of `/namespace/{namespaceName}` for zk-node
-            futures.add(namespaceResources().clearNamespace(namespaceName));
         } catch (Exception e) {
             log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
@@ -494,6 +491,8 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             try {
+                // clear resource of `/namespace/{namespaceName}` for zk-node
+                futures.add(namespaceResources().clearNamespace(namespaceName));
                 // remove partitioned topics znode
                 pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                         .clearPartitionedTopicMetadata(namespaceName);
