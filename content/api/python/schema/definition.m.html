@@ -1397,7 +1397,7 @@ class Record(with_metaclass(RecordMeta, object)):
         return self.__class__
 
     def validate_type(self, name, val):
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if not isinstance(val, self.__class__):
@@ -1432,7 +1432,7 @@ class Field(object):
         pass
 
     def validate_type(self, name, val):
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if type(val) != self.python_type():
@@ -1563,7 +1563,7 @@ class String(Field):
     def validate_type(self, name, val):
         t = type(val)
 
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if not (t is str or t.__name__ == 'unicode'):
@@ -2264,7 +2264,7 @@ def is_unicode(x):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Boolean.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Boolean.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
@@ -2503,7 +2503,7 @@ def is_unicode(x):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Bytes.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Bytes.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
@@ -3070,7 +3070,7 @@ def is_unicode(x):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Double.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Double.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
@@ -3108,7 +3108,7 @@ def is_unicode(x):
         pass
 
     def validate_type(self, name, val):
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if type(val) != self.python_type():
@@ -3299,7 +3299,7 @@ def type(self):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Field.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Field.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
@@ -3538,7 +3538,7 @@ def type(self):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Float.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Float.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
@@ -3777,7 +3777,7 @@ def type(self):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Integer.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Integer.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
@@ -4016,7 +4016,7 @@ def type(self):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Long.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Long.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if type(val) != self.python_type():
         raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
@@ -4686,7 +4686,7 @@ def type(self):
         return self.__class__
 
     def validate_type(self, name, val):
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if not isinstance(val, self.__class__):
@@ -4941,7 +4941,7 @@ def schema_info(cls, defined_names):
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.schema.definition.Record.validate_type', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.schema.definition.Record.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if not isinstance(val, self.__class__):
         raise TypeError("Invalid type '%s' for sub-record field '%s'. Expected: %s" % (
@@ -5017,7 +5017,7 @@ def schema_info(cls, defined_names):
     def validate_type(self, name, val):
         t = type(val)
 
-        if not val and not self._required:
+        if val is None and not self._required:
             return self.default()
 
         if not (t is str or t.__name__ == 'unicode'):
@@ -5236,7 +5236,7 @@ def schema_info(cls, defined_names):
   <div id="source-pulsar.schema.definition.String.validate_type" class="source">
     <pre><code>def validate_type(self, name, val):
     t = type(val)
-    if not val and not self._required:
+    if val is None and not self._required:
         return self.default()
     if not (t is str or t.__name__ == 'unicode'):
         raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
