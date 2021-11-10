@@ -49,7 +49,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     private final MetadataCache<LocalPolicies> localPoliciesCache;
 
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
-    private static final String OWNER_INFO_ROOT = "/namespace";
+    private static final String NAMESPACE_BASE_PATH = "/namespace";
 
     public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
@@ -124,13 +124,13 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     // clear resource of `/namespace/{namespaceName}` for zk-node
-    public CompletableFuture<Void> clearNamespace(NamespaceName ns) {
-        return deleteAsync(joinPath(OWNER_INFO_ROOT, ns.toString()));
+    public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
+        return deleteAsync(joinPath(NAMESPACE_BASE_PATH, ns.toString()));
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
-    public CompletableFuture<Void> clearTenant(String tenant) {
-        return deleteAsync(joinPath(OWNER_INFO_ROOT, tenant));
+    public CompletableFuture<Void> deleteTenantAsync(String tenant) {
+        return deleteAsync(joinPath(NAMESPACE_BASE_PATH, tenant));
     }
 
     public static NamespaceName namespaceFromPath(String path) {

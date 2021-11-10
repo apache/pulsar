@@ -299,7 +299,7 @@ public abstract class NamespacesBase extends AdminResource {
 
             try {
                 // clear resource of `/namespace/{namespaceName}` for zk-node
-                namespaceResources().clearNamespace(namespaceName).get();
+                namespaceResources().deleteNamespaceAsync(namespaceName).get();
                 namespaceResources().getPartitionedTopicResources().clearPartitionedTopicMetadata(namespaceName);
 
                 try {
@@ -492,10 +492,9 @@ public abstract class NamespacesBase extends AdminResource {
 
             try {
                 // clear resource of `/namespace/{namespaceName}` for zk-node
-                futures.add(namespaceResources().clearNamespace(namespaceName));
+                namespaceResources().deleteNamespaceAsync(namespaceName);
                 // remove partitioned topics znode
-                pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                        .clearPartitionedTopicMetadata(namespaceName);
+                namespaceResources().getPartitionedTopicResources().clearPartitionedTopicMetadata(namespaceName);
 
                 try {
                     pulsar().getPulsarResources().getTopicResources().clearDomainPersistence(namespaceName).get();
