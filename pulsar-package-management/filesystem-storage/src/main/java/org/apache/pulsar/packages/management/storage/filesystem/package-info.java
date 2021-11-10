@@ -18,6 +18,6 @@
  */
 
 /**
- * Packages management storage implementation with bookkeeper.
+ * Packages management storage implementation with filesystem.
  */
 package org.apache.pulsar.packages.management.storage.filesystem;
