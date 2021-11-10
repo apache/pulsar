@@ -416,7 +416,7 @@ To set a custom dead letter topic name:
   
 When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.  
   
-**Note**: this is only for partitioned consumers.|true `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
+**Note**: this is only for partitioned consumers.|true `replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false `negativeAckRedeliveryBackoff`|NegativeAckRedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `NegativeAckRedeliveryBackoff` for a consumer.| `NegativeAckRedeliveryExponentialBackoff`
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class.
 
@@ -485,6 +485,23 @@ consumer.acknowledge(messages)
 &gt;     .build();
 &gt; ```
 
+### Negative acknowledgment redelivery backoff
+
+The `NegativeAckRedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount` of messages.
+
+```java
+Consumer consumer =  client.newConsumer()
+        .topic(&quot;my-topic&quot;)
+        .subscriptionName(&quot;my-subscription&quot;)
+        .negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+                .minNackTimeMs(1000)
+                .maxNackTimeMs(60 * 1000)
+                .build())
+        .subscribe();
+```
+
+&gt; **Note** - The `negativeAckRedeliveryBackoff` does not work with `consumer.negativeAcknowledge(MessageId messageId)` because you are not able to get the redelivery count from the message ID. - If a consumer crashes, it triggers the redelivery of unacked messages. In this case, `NegativeAckRedeliveryBackoff` does not take effect and the messages might get redelivered earlier than the delay time from the backoff.
+
 ### 多主题订阅
 
 消费者除了订阅单个Pulsar主题外，你还可以使用[多主题订阅](/docs/zh-CN/next/concepts-messaging#multi-topic-subscriptions)订阅多个主题。 若要使用多主题订阅, 可以提供一个topic正则表达式 (regex) 或 主题`List` 。 如果通过 regex 选择主题, 则所有主题都必须位于同一Pulsar命名空间中。
@@ -552,7 +569,7 @@ Consumer multiTopicConsumer = consumerBuilder
         .subscribe();
 ```
 
-还可以使用 `subscribeAsync` 异步方法而不是同步的 `subscribe` 方法来订阅多个主题。具体例子如下。
+You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. The following is an example.
 
 ```java
 Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default.*&quot;);
@@ -972,7 +989,7 @@ PulsarClient client = PulsarClient.builder()
 * `providerDomain`
 * `privateKey`
 
-也可以设置可选的 `keyId`。例子如下所示。
+You can also set an optional `keyId`. The following is an example.
 
 ```java
 Map&lt;String, String&gt; authParams = new HashMap&lt;&gt;();
