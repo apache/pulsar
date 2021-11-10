@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
@@ -33,6 +35,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeClass;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.security.*;
 import java.security.cert.CertificateException;
@@ -41,6 +44,8 @@ import java.time.Instant;
 import java.util.*;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 
 /**
@@ -76,7 +81,50 @@ public class AuthenticationProviderTlsTest {
 
     @BeforeMethod
     public void resetStatistics() {
-        AuthenticationProviderTls.resetMetrics();
+        AuthenticationMetrics.resetTlsMetrics();
+    }
+
+    @Test
+    public void testInitializeWithValidValues() throws IOException {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setTlsLogEntireCertificateChain(true);
+        configuration.setTlsPrintWarnOnSelfSignedCertificate(true);
+        configuration.setTlsPrintWarnOnRsaKeySizeLessThanBits(1024);
+        configuration.setTlsPrintWarnOnClientCertNearingExpirationMillis(1234L);
+        configuration.setTlsPrintErrorOnClientCertNearingExpirationMillis(12345L);
+        configuration.setTlsPrintWarnOnClientCertValidityDurationExceedsMillis(123456L);
+        configuration.setTlsPrintWarnOnWildcardCertificate(true);
+
+        AuthenticationProviderTls authenticationProviderTls = new AuthenticationProviderTls();
+        authenticationProviderTls.initialize(configuration);
+
+        assertTrue(authenticationProviderTls.logEntireCertificateChain);
+        assertTrue(authenticationProviderTls.printWarnOnSelfSignedCertificate);
+        assertEquals(1024, authenticationProviderTls.printWarnIfRsaKeySizeLessThanBits);
+        assertEquals(1234L, authenticationProviderTls.printWarnOnClientCertNearingExpirationMillis);
+        assertEquals(12345L, authenticationProviderTls.printErrorOnClientCertNearingExpirationMillis);
+        assertEquals(123456L, authenticationProviderTls.printWarnOnClientCertValidityDurationExceedsMillis);
+        assertTrue(authenticationProviderTls.printWarnOnWildcardCertificate);
+    }
+
+    @Test
+    public void testInitializeWithInvalidValues() throws IOException {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setTlsPrintWarnOnRsaKeySizeLessThanBits(-1);
+        configuration.setTlsPrintWarnOnClientCertNearingExpirationMillis(-1L);
+        configuration.setTlsPrintErrorOnClientCertNearingExpirationMillis(-1L);
+        configuration.setTlsPrintWarnOnClientCertValidityDurationExceedsMillis(-1L);
+
+        AuthenticationProviderTls authenticationProviderTls = new AuthenticationProviderTls();
+        authenticationProviderTls.initialize(configuration);
+
+        assertFalse(authenticationProviderTls.logEntireCertificateChain);
+        assertFalse(authenticationProviderTls.printWarnOnSelfSignedCertificate);
+        assertEquals(0, authenticationProviderTls.printWarnIfRsaKeySizeLessThanBits);
+        assertEquals(0L, authenticationProviderTls.printWarnOnClientCertNearingExpirationMillis);
+        assertEquals(0L, authenticationProviderTls.printErrorOnClientCertNearingExpirationMillis);
+        assertEquals(0L, authenticationProviderTls.printWarnOnClientCertValidityDurationExceedsMillis);
+        assertFalse(authenticationProviderTls.printWarnOnWildcardCertificate);
     }
 
     @Test
@@ -88,35 +136,35 @@ public class AuthenticationProviderTlsTest {
     @Test
     public void testCheckIfWildcardCertificate() {
         AuthenticationProviderTls.checkIfWildcardCertificate(INTERMEDIATE_CN);
-        assertEquals(1, AuthenticationProviderTls.clientCertWildcardMetrics.get(), 0);
+        assertEquals(1, AuthenticationMetrics.getWildcardCertificateCount(), 0);
     }
 
     @Test
     public void testCheckIfSelfSignedCertificate() {
         AuthenticationProviderTls.checkIfSelfSignedCertificate(chain[chain.length-1], ROOT_CN);
-        assertEquals(1, AuthenticationProviderTls.clientCertSelfSignedMetrics.get(), 0);
+        assertEquals(1, AuthenticationMetrics.getClientCertSelfSignedCount(), 0);
     }
 
     @Test
     public void testCheckIfNearingExpiration() {
         AuthenticationProviderTls.checkIfNearingExpiration(chain[0], CLIENT_CN,
                 1, 35000L);
-        assertEquals(1, AuthenticationProviderTls.clientCertReachedWarnThresholdMetrics.get(), 0);
+        assertEquals(1, AuthenticationMetrics.getCertificateUnderWarnThresholdCount(), 0);
         AuthenticationProviderTls.checkIfNearingExpiration(chain[0], CLIENT_CN,
                 35000L, 1L);
-        assertEquals(1, AuthenticationProviderTls.clientCertReachedErrorThresholdMetrics.get(), 0);
+        assertEquals(1, AuthenticationMetrics.getCertificateUnderErrorThresholdCount(), 0);
     }
 
     @Test
     public void testCheckMaxValidityPeriod() {
         AuthenticationProviderTls.checkMaxValidityPeriod(chain[0], CLIENT_CN, 59999);
-        assertEquals(1, AuthenticationProviderTls.clientCertValidityDurationExceedsThresholdMetrics.get(), 0);
+        assertEquals(1, AuthenticationMetrics.getLongValidityCertificateCount(), 0);
     }
 
     @Test
     public void testCheckIfUsingSmallRsaKeySize() {
         AuthenticationProviderTls.checkIfUsingSmallRsaKeySize(chain[0], 4096, CLIENT_CN);
-        assertEquals(1, AuthenticationProviderTls.clientCertSmallRsaKeySizeMetrics.get(), 0);
+        assertEquals(1, AuthenticationMetrics.getSmallRsaKeySizeCount(), 0);
     }
 
     private X509Certificate[] generateCertificateChain(final String[][] chainCommonNames,

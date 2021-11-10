@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.security.auth.x500.X500Principal;
 
-import io.prometheus.client.Counter;
 import lombok.NonNull;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -42,43 +41,13 @@ import org.slf4j.LoggerFactory;
 public class AuthenticationProviderTls implements AuthenticationProvider {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationProviderTls.class);
 
-    static final Counter clientCertSelfSignedMetrics = Counter.build()
-            .name("pulsar_authentication_tls_cert_self_signed_count")
-            .help("Pulsar client authenticating with a TLS cert that is self-signed")
-            .register();
-
-    static final Counter clientCertSmallRsaKeySizeMetrics = Counter.build()
-            .name("pulsar_authentication_tls_cert_small_rsa_key_count")
-            .help("Pulsar client authenticating with a TLS cert that has a small rsa key")
-            .register();
-
-    static final Counter clientCertReachedWarnThresholdMetrics = Counter.build()
-            .name("pulsar_authentication_tls_cert_expiration_soon_count")
-            .help("Pulsar client authenticating with a TLS cert nearing expiration")
-            .register();
-
-    static final Counter clientCertReachedErrorThresholdMetrics = Counter.build()
-            .name("pulsar_authentication_tls_cert_expiration_imminent_count")
-            .help("Pulsar client authenticating with a TLS cert whose expiration is imminent")
-            .register();
-
-    static final Counter clientCertValidityDurationExceedsThresholdMetrics = Counter.build()
-            .name("pulsar_authentication_tls_cert_validity_too_long_count")
-            .help("Pulsar client authenticating with a TLS cert whose validity duration exceeds the system's configured (soft) maximum value")
-            .register();
-
-    static final Counter clientCertWildcardMetrics = Counter.build()
-            .name("pulsar_authentication_tls_cert_wildcard_count")
-            .help("Pulsar client authenticating with a TLS cert that has wildcard CN")
-            .register();
-
-    private boolean logEntireCertificateChain;
-    private boolean printWarnOnSelfSignedCertificate;
-    private int printWarnIfRsaKeySizeLessThanBits;
-    private long printWarnOnClientCertNearingExpirationMillis;
-    private long printErrorOnClientCertNearingExpirationMillis;
-    private long printWarnOnClientCertValidityDurationExceedsMillis;
-    private boolean printWarnOnWildcardCertificate;
+    boolean logEntireCertificateChain;
+    boolean printWarnOnSelfSignedCertificate;
+    int printWarnIfRsaKeySizeLessThanBits;
+    long printWarnOnClientCertNearingExpirationMillis;
+    long printErrorOnClientCertNearingExpirationMillis;
+    long printWarnOnClientCertValidityDurationExceedsMillis;
+    boolean printWarnOnWildcardCertificate;
 
     @Override
     public void close() throws IOException {
@@ -94,43 +63,49 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             LOG.info("Broker will emit warnings when a self-signed client cert is encountered");
         }
 
-        this.printWarnIfRsaKeySizeLessThanBits = config.getTlsPrintWarnOnRsaKeySizeLessThanBits();
-        if(0 != this.printWarnIfRsaKeySizeLessThanBits) {
+        if(0 < config.getTlsPrintWarnOnRsaKeySizeLessThanBits()) {
             LOG.info("Broker will emit warnings when a certificate has RSA key size less than "
                     + this.printWarnIfRsaKeySizeLessThanBits + " bits");
+            this.printWarnIfRsaKeySizeLessThanBits = config.getTlsPrintWarnOnRsaKeySizeLessThanBits();
+        } else if (0 > config.getTlsPrintWarnOnRsaKeySizeLessThanBits()) {
+            LOG.warn("Supplied tlsPrintWarnOnRsaKeySizeLessThanBits is negative which is not a valid value");
+            this.printWarnIfRsaKeySizeLessThanBits = 0;
         }
 
-        this.printWarnOnClientCertNearingExpirationMillis
-                = config.getTlsPrintWarnOnClientCertNearingExpirationMillis();
-        if(0 != this.printWarnOnClientCertNearingExpirationMillis) {
+        if(0 < config.getTlsPrintWarnOnClientCertNearingExpirationMillis()) {
             LOG.info("Broker will emit warnings when a certificate expiring within "
                     + this.printWarnOnClientCertNearingExpirationMillis + " milliseconds is encountered");
+            this.printWarnOnClientCertNearingExpirationMillis
+                    = config.getTlsPrintWarnOnClientCertNearingExpirationMillis();
+        } else if (0 > config.getTlsPrintWarnOnClientCertNearingExpirationMillis()) {
+            LOG.warn("Supplied tlsPrintWarnOnClientCertNearingExpirationMillis is negative which is not a valid value");
+            this.printWarnOnClientCertNearingExpirationMillis = 0;
         }
 
-        this.printErrorOnClientCertNearingExpirationMillis
-                = config.getTlsPrintErrorOnClientCertNearingExpirationMillis();
-        if(0 != this.printErrorOnClientCertNearingExpirationMillis) {
+        if(0 < config.getTlsPrintErrorOnClientCertNearingExpirationMillis()) {
             LOG.info("Broker will emit errors when a certificate expiring within "
                     + this.printErrorOnClientCertNearingExpirationMillis + " milliseconds is encountered");
+            this.printErrorOnClientCertNearingExpirationMillis
+                    = config.getTlsPrintErrorOnClientCertNearingExpirationMillis();
+        } else if (0 > config.getTlsPrintErrorOnClientCertNearingExpirationMillis()) {
+            LOG.warn("Supplied tlsPrintErrorOnClientCertNearingExpirationMillis is negative which is not a valid value");
+            this.printErrorOnClientCertNearingExpirationMillis = 0;
         }
 
-        this.printWarnOnClientCertValidityDurationExceedsMillis
-                = config.getTlsPrintWarnOnClientCertValidityDurationExceedsMillis();
-        if(0 != this.printWarnOnClientCertValidityDurationExceedsMillis) {
+        if(0 < config.getTlsPrintWarnOnClientCertValidityDurationExceedsMillis()) {
             LOG.info("Broker will emit warnings when encountering a certificate with validity period (notAfter - notBefore) exceeding "
                     + this.printWarnOnClientCertValidityDurationExceedsMillis + " milliseconds");
+            this.printWarnOnClientCertValidityDurationExceedsMillis
+                    = config.getTlsPrintWarnOnClientCertValidityDurationExceedsMillis();
+        } else if (0 > config.getTlsPrintWarnOnClientCertValidityDurationExceedsMillis()) {
+            LOG.warn("Supplied tsPrintWarnOnClientCertValidityDurationExceedsMillis is negative which is not a valid value");
+            this.printWarnOnClientCertValidityDurationExceedsMillis = 0;
         }
 
         this.printWarnOnWildcardCertificate = config.isTlsPrintWarnOnWildcardCertificate();
-    }
-
-    static void resetMetrics() {
-        clientCertSelfSignedMetrics.clear();
-        clientCertSmallRsaKeySizeMetrics.clear();
-        clientCertReachedWarnThresholdMetrics.clear();
-        clientCertReachedErrorThresholdMetrics.clear();
-        clientCertValidityDurationExceedsThresholdMetrics.clear();
-        clientCertWildcardMetrics.clear();
+        if(this.printWarnOnWildcardCertificate) {
+            LOG.info("Broker will emit warnings when encountering a wildcard certificate");
+        }
     }
 
     @Override
@@ -250,7 +225,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
 
         if(subject.equals(issuer)) {
             LOG.warn("Encountered self-signed certificate with CN " + commonName);
-            clientCertSelfSignedMetrics.inc();
+            AuthenticationMetrics.encounteredSelfSignedCertificate();
         }
     }
 
@@ -264,7 +239,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
     static void checkIfWildcardCertificate(@NonNull final String commonName) {
         if(commonName.contains("*")) {
             LOG.warn("Encountered client certificate with CN " + commonName + " that contains a wildcard");
-            clientCertWildcardMetrics.inc();
+            AuthenticationMetrics.encounteredWildcardCertificate();
         }
     }
 
@@ -287,7 +262,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             if(((RSAPublicKey) publicKey).getModulus().bitLength() < minimumAllowableBitLength) {
                 LOG.warn("Encountered a client certificate with CN " + commonName + " and RSA key size < " +
                         minimumAllowableBitLength);
-                clientCertSmallRsaKeySizeMetrics.inc();
+                AuthenticationMetrics.encounteredSmallRsaKeySize();
             }
         }
     }
@@ -325,10 +300,10 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
 
         if(warnInstant.isBefore(now)) {
             LOG.warn("Client certificate with CN " + commonName + " is nearing expiration (" + notAfter + ")");
-            clientCertReachedWarnThresholdMetrics.inc();
+            AuthenticationMetrics.encounteredCertificateUnderWarnThreshold();
         } else if(errorInstant.isBefore(now)) {
             LOG.error("Expiration of client certificate with CN " + commonName + " is imminent (" + notAfter + ")");
-            clientCertReachedErrorThresholdMetrics.inc();
+            AuthenticationMetrics.encounteredCertificateUnderErrorThreshold();
         }
     }
 
@@ -356,7 +331,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
         if(Duration.from(validityPeriod).toMillis() > maximumValidityDuration.toMillis() ) {
             LOG.warn("Encountered certificate with CN " + commonName + " and validity period exceeding "
                     + maximumValidityDuration + " (" + validityPeriod + ")");
-            clientCertValidityDurationExceedsThresholdMetrics.inc();
+            AuthenticationMetrics.encounteredLongValidityCertificate();
         } else if(LOG.isDebugEnabled()) {
             LOG.debug("Encountered certificate with CN " + commonName + " and validity period " + validityPeriod);
         }
