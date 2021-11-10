@@ -124,13 +124,13 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     // clear resource of `/namespace/{namespaceName}` for zk-node
-    public void clearNamespace(NamespaceName ns) throws MetadataStoreException {
-        delete(joinPath(OWNER_INFO_ROOT, ns.toString()));
+    public CompletableFuture<Void> clearNamespace(NamespaceName ns) {
+        return deleteAsync(joinPath(OWNER_INFO_ROOT, ns.toString()));
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
-    public void clearTenant(String tenant) throws MetadataStoreException {
-        delete(joinPath(OWNER_INFO_ROOT, tenant));
+    public CompletableFuture<Void> clearTenant(String tenant) {
+        return deleteAsync(joinPath(OWNER_INFO_ROOT, tenant));
     }
 
     public static NamespaceName namespaceFromPath(String path) {

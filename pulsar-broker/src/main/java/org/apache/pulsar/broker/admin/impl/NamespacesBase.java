@@ -277,13 +277,6 @@ public abstract class NamespacesBase extends AdminResource {
                 if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
                     futures.add(pulsar().getAdminClient().namespaces()
                             .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
-
-                    // clear resource of `/namespace/{namespaceName}` for zk-node
-                    try {
-                        namespaceResources().clearNamespace(namespaceName);
-                    } catch (NotFoundException e) {
-                        // If the z-node with the modified information is not there anymore, we're already good
-                    }
                 }
             }
         } catch (Exception e) {
@@ -305,6 +298,8 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             try {
+                // clear resource of `/namespace/{namespaceName}` for zk-node
+                namespaceResources().clearNamespace(namespaceName).get();
                 namespaceResources().getPartitionedTopicResources().clearPartitionedTopicMetadata(namespaceName);
 
                 try {
@@ -475,15 +470,11 @@ public abstract class NamespacesBase extends AdminResource {
                 if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
                     futures.add(pulsar().getAdminClient().namespaces()
                             .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange(), true));
-
-                    // clear resource of `/namespace/{namespaceName}` for zk-node
-                    try {
-                        namespaceResources().clearNamespace(namespaceName);
-                    } catch (NotFoundException e) {
-                        // If the z-node with the modified information is not there anymore, we're already good
-                    }
                 }
             }
+
+            // clear resource of `/namespace/{namespaceName}` for zk-node
+            futures.add(namespaceResources().clearNamespace(namespaceName));
         } catch (Exception e) {
             log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
