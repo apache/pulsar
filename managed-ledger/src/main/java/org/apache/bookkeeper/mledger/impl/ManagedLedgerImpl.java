@@ -799,8 +799,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (managedLedgerInterceptor == null) {
             return true;
         }
+        if (addOperation.getData() == null) {
+            log.error("[{}] Unexpected null data in beforeAddEntry()", name);
+            return false;
+        }
         try {
+            final long previousDataSize = addOperation.getData().readableBytes();
             managedLedgerInterceptor.beforeAddEntry(addOperation, addOperation.getNumberOfMessages());
+            TOTAL_SIZE_UPDATER.addAndGet(this, addOperation.getData().readableBytes() - previousDataSize);
             return true;
         } catch (Exception e) {
             addOperation.failed(
