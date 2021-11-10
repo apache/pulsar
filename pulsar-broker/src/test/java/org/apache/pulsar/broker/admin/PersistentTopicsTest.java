@@ -77,6 +77,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.zookeeper.KeeperException;
@@ -668,18 +669,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPeekWithSubscriptionNameNotExist() throws Exception {
         final String topicName = "testTopic";
-        final String topic = TopicName.get(
+        final TopicName topic = TopicName.get(
                 TopicDomain.persistent.value(),
                 testTenant,
                 testNamespace,
-                topicName).toString();
+                topicName);
         final String subscriptionName = "sub";
 
-        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, 3, true).get();
+        RetentionPolicies retention = new RetentionPolicies(10,10);
+        admin.namespaces().setRetention(topic.getNamespace(), retention);
+        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic.toString(), 3, true).get();
 
         final String partitionedTopic = topic + "-partition-0";
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic.toString()).create();
         for (int i = 0; i < 100; ++i) {
             producer.send("test" + i);
         }
