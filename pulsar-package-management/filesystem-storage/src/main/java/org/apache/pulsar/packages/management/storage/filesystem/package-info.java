@@ -20,4 +20,4 @@
 /**
  * Packages management storage implementation with bookkeeper.
  */
-package org.apache.pulsar.packages.management.storage.bookkeeper;
+package org.apache.pulsar.packages.management.storage.filesystem;
