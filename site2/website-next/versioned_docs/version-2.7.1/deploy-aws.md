@@ -79,6 +79,7 @@ $ cd pulsar/deployment/terraform-ansible/aws
 > 
 > ```
 
+
 In order to create the necessary AWS resources using Terraform, you need to create an SSH key. Enter the following commands to create a private SSH key in `~/.ssh/id_rsa` and a public key in `~/.ssh/id_rsa.pub`:
 
 ```bash

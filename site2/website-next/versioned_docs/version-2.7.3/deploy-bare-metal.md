@@ -243,7 +243,7 @@ $ PULSAR_EXTRA_OPTS="-Dstats_server_port=8001" bin/pulsar-daemon start zookeeper
 
 Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper for each cluster in your instance. You only need to write this data **once**.
 
-You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your Pulsar, so metadata can be initialized from a ZooKeeper, Broker, or Bookie machine. The following is an example:
+You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your ZooKeeper cluster. The following is an example:
 
 ```shell
 
@@ -405,6 +405,7 @@ webServicePortTls=8443
 > 
 > ```
 
+
 ### Enable Pulsar Functions (optional)
 
 If you want to enable [Pulsar Functions](functions-overview), you can follow the instructions as below:
@@ -472,6 +473,7 @@ brokerServiceurl=pulsar://us-west.example.com:6650
 >
 > 
 > ```
+
 
 Once that is complete, you can publish a message to the Pulsar topic:
 
