@@ -20,6 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
@@ -36,6 +37,8 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class PulsarAdminTool {
 
@@ -250,6 +253,11 @@ public class PulsarAdminTool {
             return false;
         }
 
+        if (isBlank(serviceUrl)) {
+            jcommander.usage();
+            return false;
+        }
+
         if (version) {
             System.out.println("Current version of pulsar admin client is: " + PulsarVersion.getVersion());
             return true;
@@ -286,11 +294,12 @@ public class PulsarAdminTool {
 
     public static void main(String[] args) throws Exception {
         lastExitCode = 0;
-        String configFile = null;
-        if (args.length > 0) {
-            configFile = args[0];
-            args = Arrays.copyOfRange(args, 1, args.length);
+        if (args.length == 0) {
+            System.out.println("Usage: pulsar-admin CONF_FILE_PATH [options] [command] [command options]");
+            exit(0);
+            return;
         }
+        String configFile = args[0];
         Properties properties = new Properties();
 
         if (configFile != null) {
@@ -302,6 +311,7 @@ public class PulsarAdminTool {
         PulsarAdminTool tool = new PulsarAdminTool(properties);
 
         int cmdPos;
+        args = Arrays.copyOfRange(args, 1, args.length);
         for (cmdPos = 0; cmdPos < args.length; cmdPos++) {
             if (tool.commandMap.containsKey(args[cmdPos])) {
                 break;
@@ -353,5 +363,9 @@ public class PulsarAdminTool {
         return lastExitCode;
     }
 
+    @VisibleForTesting
+    static void resetLastExitCode() {
+        lastExitCode = Integer.MIN_VALUE;
+    }
 
 }

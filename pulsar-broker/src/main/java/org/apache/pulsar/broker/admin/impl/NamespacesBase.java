@@ -829,6 +829,12 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    protected AutoTopicCreationOverride internalGetAutoTopicCreation() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoTopicCreationOverride;
+    }
+
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse,
                                                 AutoTopicCreationOverride autoTopicCreationOverride) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
@@ -899,6 +905,12 @@ public abstract class NamespacesBase extends AdminResource {
             asyncResponse.resume(new RestException(e.getCause()));
             return null;
         });
+    }
+
+    protected AutoSubscriptionCreationOverride internalGetAutoSubscriptionCreation() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoSubscriptionCreationOverride;
     }
 
     protected void internalRemoveAutoSubscriptionCreation(AsyncResponse asyncResponse) {
@@ -1726,6 +1738,12 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected SubscriptionAuthMode internalGetSubscriptionAuthMode() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.subscription_auth_mode;
+    }
+
     protected void internalModifyEncryptionRequired(boolean encryptionRequired) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -1742,6 +1760,12 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected Boolean internalGetEncryptionRequired() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.encryption_required;
     }
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {

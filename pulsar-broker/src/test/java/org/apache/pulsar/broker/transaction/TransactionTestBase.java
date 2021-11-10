@@ -285,7 +285,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 admin = null;
             }
             if (pulsarClient != null) {
-                pulsarClient.shutdown();
+                pulsarClient.close();
                 pulsarClient = null;
             }
             if (pulsarServiceList.size() > 0) {

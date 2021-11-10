@@ -69,10 +69,10 @@ public class PulsarConfigurationLoaderTest {
         // check whether converting correctly
         assertEquals(serviceConfiguration.getZookeeperServers(), "localhost:2181");
         assertEquals(serviceConfiguration.getConfigurationStoreServers(), "localhost:2184");
-        assertEquals(serviceConfiguration.getBrokerServicePort().get(), new Integer(7650));
-        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), new Integer(7651));
-        assertEquals(serviceConfiguration.getWebServicePort().get(), new Integer(9080));
-        assertEquals(serviceConfiguration.getWebServicePortTls().get(), new Integer(9443));
+        assertEquals(serviceConfiguration.getBrokerServicePort().get(), Integer.valueOf(7650));
+        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), Integer.valueOf((7651)));
+        assertEquals(serviceConfiguration.getWebServicePort().get(), Integer.valueOf((9080)));
+        assertEquals(serviceConfiguration.getWebServicePortTls().get(), Integer.valueOf((9443)));
 
         // check whether exception causes
         try {
@@ -119,8 +119,8 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
-        assertEquals(serviceConfig.getBrokerServicePort().get(), new Integer(7777));
-        assertEquals(serviceConfig.getBrokerServicePortTls().get(), new Integer(8777));
+        assertEquals(serviceConfig.getBrokerServicePort().get(), Integer.valueOf((7777)));
+        assertEquals(serviceConfig.getBrokerServicePortTls().get(), Integer.valueOf((8777)));
         assertFalse(serviceConfig.getWebServicePort().isPresent());
         assertFalse(serviceConfig.getWebServicePortTls().isPresent());
         assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
