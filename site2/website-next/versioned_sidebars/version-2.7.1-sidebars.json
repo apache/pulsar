@@ -491,6 +491,40 @@
           "id": "version-2.7.1/adaptors-storm"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.1/cookbooks-compaction"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/cookbooks-deduplication"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/cookbooks-non-persistent"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/cookbooks-retention-expiry"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/cookbooks-encryption"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/cookbooks-message-queue"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.1/cookbooks-bookkeepermetadata"
+        }
+      ]
     }
   ]
 }
