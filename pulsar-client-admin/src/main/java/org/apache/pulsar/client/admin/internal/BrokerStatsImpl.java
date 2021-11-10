@@ -50,16 +50,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getMetrics() throws PulsarAdminException {
-        try {
-            return getMetricsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMetricsAsync());
     }
 
     @Override
@@ -83,16 +74,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException {
-        try {
-            return getAllocatorStatsAsync(allocatorName).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getAllocatorStatsAsync(allocatorName));
     }
 
     @Override
@@ -116,16 +98,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getMBeans() throws PulsarAdminException {
-        try {
-            return getMBeansAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getMBeansAsync());
     }
 
     @Override
@@ -149,16 +122,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getTopics() throws PulsarAdminException {
-        try {
-            return getTopicsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getTopicsAsync());
     }
 
     @Override
@@ -182,16 +146,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public LoadManagerReport getLoadReport() throws PulsarAdminException {
-        try {
-            return getLoadReportAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getLoadReportAsync());
     }
 
     @Override
@@ -215,16 +170,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public String getPendingBookieOpsStats() throws PulsarAdminException {
-        try {
-            return getPendingBookieOpsStatsAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getPendingBookieOpsStatsAsync());
     }
 
     @Override

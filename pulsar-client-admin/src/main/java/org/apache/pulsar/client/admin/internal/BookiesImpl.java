@@ -43,16 +43,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
-        try {
-            return getBookiesRackInfoAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBookiesRackInfoAsync());
     }
 
     @Override
@@ -76,16 +67,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public BookiesClusterInfo getBookies() throws PulsarAdminException {
-        try {
-            return getBookiesAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBookiesAsync());
     }
 
     @Override
@@ -109,16 +91,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public BookieInfo getBookieRackInfo(String bookieAddress) throws PulsarAdminException {
-        try {
-            return getBookieRackInfoAsync(bookieAddress).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        return sync(() -> getBookieRackInfoAsync(bookieAddress));
     }
 
     @Override
@@ -142,16 +115,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public void deleteBookieRackInfo(String bookieAddress) throws PulsarAdminException {
-        try {
-            deleteBookieRackInfoAsync(bookieAddress).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> deleteBookieRackInfoAsync(bookieAddress));
     }
 
     @Override
@@ -163,16 +127,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo)
             throws PulsarAdminException {
-        try {
-            updateBookieRackInfoAsync(bookieAddress, group, bookieInfo).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> updateBookieRackInfoAsync(bookieAddress, group, bookieInfo));
     }
 
     @Override
