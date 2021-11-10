@@ -82,8 +82,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.zookeeper.KeeperException;
 import org.mockito.ArgumentCaptor;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -91,8 +89,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@PrepareForTest(PersistentTopics.class)
-@PowerMockIgnore("com.sun.management.*")
 @Slf4j
 @Test(groups = "broker")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
