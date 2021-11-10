@@ -378,9 +378,6 @@ public abstract class AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema) {
-        if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE.equals(schemaCompatibilityStrategy)) {
-            return CompletableFuture.completedFuture(null);
-        }
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
