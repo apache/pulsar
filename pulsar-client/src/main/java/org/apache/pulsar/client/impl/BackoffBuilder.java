@@ -21,8 +21,6 @@ package org.apache.pulsar.client.impl;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.annotations.VisibleForTesting;
-
 public class BackoffBuilder {
     private long initial;
     private TimeUnit unitInitial;

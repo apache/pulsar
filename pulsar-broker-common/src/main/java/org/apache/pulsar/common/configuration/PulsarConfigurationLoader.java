@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.configuration;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Objects.requireNonNull;
 import static org.apache.pulsar.common.util.FieldParser.update;
 

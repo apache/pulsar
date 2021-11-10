@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema.util;
 
-import org.apache.avro.Conversions;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;

@@ -23,7 +23,6 @@ import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.TopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
