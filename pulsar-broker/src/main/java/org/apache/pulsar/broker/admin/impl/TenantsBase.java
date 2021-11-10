@@ -51,6 +51,7 @@ import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -277,6 +278,13 @@ public class TenantsBase extends PulsarWebResource {
                         // warn level log here since this failure has no side effect besides left a un-used metadata
                         // and also will not affect the re-creation of tenant
                         log.warn("[{}] Failed to remove managed-ledger for {}", clientAppId(), tenant, e);
+                    }
+
+                    // clear resource of `/namespace/{tenant}` for zk-node
+                    try {
+                        namespaceResources().clearTenant(tenant);
+                    } catch (NotFoundException e) {
+                        // If the z-node with the modified information is not there anymore, we're already good
                     }
 
                     log.info("[{}] Deleted tenant {}", clientAppId(), tenant);

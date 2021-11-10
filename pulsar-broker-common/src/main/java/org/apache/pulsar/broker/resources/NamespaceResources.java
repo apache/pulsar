@@ -49,6 +49,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     private final MetadataCache<LocalPolicies> localPoliciesCache;
 
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+    private static final String OWNER_INFO_ROOT = "/namespace";
 
     public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
@@ -120,6 +121,16 @@ public class NamespaceResources extends BaseResources<Policies> {
     public static boolean pathIsFromNamespace(String path) {
         return path.startsWith(BASE_POLICIES_PATH + "/")
                 && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
+    }
+
+    // clear resource of `/namespace/{namespaceName}` for zk-node
+    public void clearNamespace(NamespaceName ns) throws MetadataStoreException {
+        delete(joinPath(OWNER_INFO_ROOT, ns.toString()));
+    }
+
+    // clear resource of `/namespace/{tenant}` for zk-node
+    public void clearTenant(String tenant) throws MetadataStoreException {
+        delete(joinPath(OWNER_INFO_ROOT, tenant));
     }
 
     public static NamespaceName namespaceFromPath(String path) {

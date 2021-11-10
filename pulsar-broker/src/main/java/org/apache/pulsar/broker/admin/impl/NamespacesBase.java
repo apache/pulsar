@@ -277,6 +277,13 @@ public abstract class NamespacesBase extends AdminResource {
                 if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
                     futures.add(pulsar().getAdminClient().namespaces()
                             .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
+
+                    // clear resource of `/namespace/{namespaceName}` for zk-node
+                    try {
+                        namespaceResources().clearNamespace(namespaceName);
+                    } catch (NotFoundException e) {
+                        // If the z-node with the modified information is not there anymore, we're already good
+                    }
                 }
             }
         } catch (Exception e) {
@@ -313,8 +320,6 @@ public abstract class NamespacesBase extends AdminResource {
 
                 // we have successfully removed all the ownership for the namespace, the policies znode can be deleted
                 // now
-                namespaceResources().deletePolicies(namespaceName);
-
                 try {
                     namespaceResources().deletePolicies(namespaceName);
                 } catch (NotFoundException e) {
@@ -470,6 +475,13 @@ public abstract class NamespacesBase extends AdminResource {
                 if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
                     futures.add(pulsar().getAdminClient().namespaces()
                             .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange(), true));
+
+                    // clear resource of `/namespace/{namespaceName}` for zk-node
+                    try {
+                        namespaceResources().clearNamespace(namespaceName);
+                    } catch (NotFoundException e) {
+                        // If the z-node with the modified information is not there anymore, we're already good
+                    }
                 }
             }
         } catch (Exception e) {
