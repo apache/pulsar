@@ -189,6 +189,44 @@
           "id": "version-2.7.2/transactions-api"
         }
       ]
+    },
+    {
+      "type": "category",
+      "label": "Administration",
+      "items": [
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-zk-bk"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-geo"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-pulsar-manager"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-stats"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-load-balance"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-proxy"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-upgrade"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.7.2/administration-isolation"
+        }
+      ]
     }
   ]
 }
