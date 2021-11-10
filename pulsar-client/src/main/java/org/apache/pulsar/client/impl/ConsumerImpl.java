@@ -2364,8 +2364,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return topicNameWithoutPartition;
     }
 
-    @Data
-    public static class ChunkedMessageCtx {
+    static class ChunkedMessageCtx {
 
         protected int totalChunks = -1;
         protected ByteBuf chunkedMsgBuffer;
@@ -2373,7 +2372,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         protected MessageIdImpl[] chunkedMessageIds;
         protected long receivedTime = 0;
 
-        public static ChunkedMessageCtx get(int numChunksFromMsg, ByteBuf chunkedMsgBuffer) {
+        static ChunkedMessageCtx get(int numChunksFromMsg, ByteBuf chunkedMsgBuffer) {
             ChunkedMessageCtx ctx = RECYCLER.get();
             ctx.totalChunks = numChunksFromMsg;
             ctx.chunkedMsgBuffer = chunkedMsgBuffer;

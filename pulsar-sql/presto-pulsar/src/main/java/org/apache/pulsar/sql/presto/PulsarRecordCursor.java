@@ -30,6 +30,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
@@ -57,8 +58,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.ConsumerImpl.ChunkedMessageCtx;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
@@ -350,65 +349,6 @@ public class PulsarRecordCursor implements RecordCursor {
 
     private boolean entryExceedSplitEndPosition(Entry entry) {
         return ((PositionImpl) entry.getPosition()).compareTo(pulsarSplit.getEndPosition()) >= 0;
-    }
-
-    private RawMessage processChunkedMessages(RawMessage message) {
-        final String uuid = message.getUUID();
-        final int chunkId = message.getChunkId();
-        final int totalChunkMsgSize = message.getTotalChunkMsgSize();
-        final int numChunks = message.getNumChunksFromMsg();
-
-        RawMessageIdImpl rawMessageId = (RawMessageIdImpl) message.getMessageId();
-        if (rawMessageId.getLedgerId() > pulsarSplit.getEndPositionLedgerId()
-                && !chunkedMessagesMap.containsKey(uuid)) {
-            // If the message is out of the split range, we only care about the incomplete chunked messages.
-            message.release();
-            return null;
-        }
-        if (chunkId == 0) {
-            ByteBuf chunkedMsgBuffer = Unpooled.directBuffer(totalChunkMsgSize, totalChunkMsgSize);
-            chunkedMessagesMap.computeIfAbsent(uuid, (key) -> ChunkedMessageCtx.get(numChunks, chunkedMsgBuffer));
-        }
-
-        ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.get(uuid);
-        if (chunkedMsgCtx == null || chunkedMsgCtx.getChunkedMsgBuffer() == null
-                || chunkId != (chunkedMsgCtx.getLastChunkedMessageId() + 1) || chunkId >= numChunks) {
-            // Means we lost the first chunk, it will happens when the beginning chunk didn't belong to this split.
-            log.info("Received unexpected chunk. messageId: %s, last-chunk-id: %s chunkId: %s, totalChunks: %s",
-                    message.getMessageId(),
-                    (chunkedMsgCtx != null ? chunkedMsgCtx.getLastChunkedMessageId() : null), chunkId,
-                    numChunks);
-            if (chunkedMsgCtx != null) {
-                if (chunkedMsgCtx.getChunkedMsgBuffer() != null) {
-                    ReferenceCountUtil.safeRelease(chunkedMsgCtx.getChunkedMsgBuffer());
-                }
-                chunkedMsgCtx.recycle();
-            }
-            chunkedMessagesMap.remove(uuid);
-            message.release();
-            return null;
-        }
-
-        chunkedMsgCtx.getChunkedMessageIds()[chunkId] = new MessageIdImpl(
-                rawMessageId.getLedgerId(), rawMessageId.getEntryId(), (int) rawMessageId.getBatchIndex());
-        // append the chunked payload and update lastChunkedMessage-id
-        chunkedMsgCtx.getChunkedMsgBuffer().writeBytes(message.getData());
-        chunkedMsgCtx.setLastChunkedMessageId(chunkId);
-
-        // if final chunk is not received yet then release payload and return
-        if (chunkId != (numChunks - 1)) {
-            message.release();
-            return null;
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Chunked message completed. chunkId: %s, total-chunks: %s, msgId: %s, sequenceId: %s",
-                    chunkId, numChunks, rawMessageId, message.getSequenceId());
-        }
-        chunkedMessagesMap.remove(uuid);
-        ByteBuf unCompressedPayload = chunkedMsgCtx.getChunkedMsgBuffer();
-        chunkedMsgCtx.recycle();
-        return ((RawMessageImpl) message).updatePayloadForChunkedMessage(unCompressedPayload);
     }
 
     @VisibleForTesting
@@ -813,6 +753,96 @@ public class PulsarRecordCursor implements RecordCursor {
             this.entryQueueCacheSizeAllocator = new NullCacheSizeAllocator();
             this.messageQueueCacheSizeAllocator = new NullCacheSizeAllocator();
             log.info("Init cacheSizeAllocator with NullCacheSizeAllocator.");
+        }
+    }
+
+    private RawMessage processChunkedMessages(RawMessage message) {
+        final String uuid = message.getUUID();
+        final int chunkId = message.getChunkId();
+        final int totalChunkMsgSize = message.getTotalChunkMsgSize();
+        final int numChunks = message.getNumChunksFromMsg();
+
+        RawMessageIdImpl rawMessageId = (RawMessageIdImpl) message.getMessageId();
+        if (rawMessageId.getLedgerId() > pulsarSplit.getEndPositionLedgerId()
+                && !chunkedMessagesMap.containsKey(uuid)) {
+            // If the message is out of the split range, we only care about the incomplete chunked messages.
+            message.release();
+            return null;
+        }
+        if (chunkId == 0) {
+            ByteBuf chunkedMsgBuffer = Unpooled.directBuffer(totalChunkMsgSize, totalChunkMsgSize);
+            chunkedMessagesMap.computeIfAbsent(uuid, (key) -> ChunkedMessageCtx.get(numChunks, chunkedMsgBuffer));
+        }
+
+        ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.get(uuid);
+        if (chunkedMsgCtx == null || chunkedMsgCtx.chunkedMsgBuffer == null
+                || chunkId != (chunkedMsgCtx.lastChunkedMessageId + 1) || chunkId >= numChunks) {
+            // Means we lost the first chunk, it will happens when the beginning chunk didn't belong to this split.
+            log.info("Received unexpected chunk. messageId: %s, last-chunk-id: %s chunkId: %s, totalChunks: %s",
+                    message.getMessageId(),
+                    (chunkedMsgCtx != null ? chunkedMsgCtx.lastChunkedMessageId : null), chunkId,
+                    numChunks);
+            if (chunkedMsgCtx != null) {
+                if (chunkedMsgCtx.chunkedMsgBuffer != null) {
+                    ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
+                }
+                chunkedMsgCtx.recycle();
+            }
+            chunkedMessagesMap.remove(uuid);
+            message.release();
+            return null;
+        }
+
+        // append the chunked payload and update lastChunkedMessage-id
+        chunkedMsgCtx.chunkedMsgBuffer.writeBytes(message.getData());
+        chunkedMsgCtx.lastChunkedMessageId = chunkId;
+
+        // if final chunk is not received yet then release payload and return
+        if (chunkId != (numChunks - 1)) {
+            message.release();
+            return null;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Chunked message completed. chunkId: %s, totalChunks: %s, msgId: %s, sequenceId: %s",
+                    chunkId, numChunks, rawMessageId, message.getSequenceId());
+        }
+        chunkedMessagesMap.remove(uuid);
+        ByteBuf unCompressedPayload = chunkedMsgCtx.chunkedMsgBuffer;
+        chunkedMsgCtx.recycle();
+        return ((RawMessageImpl) message).updatePayloadForChunkedMessage(unCompressedPayload);
+    }
+
+    static class ChunkedMessageCtx {
+
+        protected int totalChunks = -1;
+        protected ByteBuf chunkedMsgBuffer;
+        protected int lastChunkedMessageId = -1;
+
+        static ChunkedMessageCtx get(int numChunksFromMsg, ByteBuf chunkedMsgBuffer) {
+            ChunkedMessageCtx ctx = RECYCLER.get();
+            ctx.totalChunks = numChunksFromMsg;
+            ctx.chunkedMsgBuffer = chunkedMsgBuffer;
+            return ctx;
+        }
+
+        private final Recycler.Handle<ChunkedMessageCtx> recyclerHandle;
+
+        private ChunkedMessageCtx(Recycler.Handle<ChunkedMessageCtx> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        private static final Recycler<ChunkedMessageCtx> RECYCLER = new Recycler<ChunkedMessageCtx>() {
+            protected ChunkedMessageCtx newObject(Recycler.Handle<ChunkedMessageCtx> handle) {
+                return new ChunkedMessageCtx(handle);
+            }
+        };
+
+        public void recycle() {
+            this.totalChunks = -1;
+            this.chunkedMsgBuffer = null;
+            this.lastChunkedMessageId = -1;
+            recyclerHandle.recycle(this);
         }
     }
 
