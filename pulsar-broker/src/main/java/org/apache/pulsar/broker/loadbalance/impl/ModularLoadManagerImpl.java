@@ -356,7 +356,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // Attempt to local the data for the given bundle in metadata store
     // If it cannot be found, return the default bundle data.
-    private BundleData getBundleDataOrDefault(final String bundle) {
+    @Override
+    public BundleData getBundleDataOrDefault(final String bundle) {
         BundleData bundleData = null;
         try {
             Optional<BundleData> optBundleData = bundlesCache.get(getBundleDataPath(bundle)).join();
@@ -397,7 +398,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     // Get the metadata store path for the given bundle full name.
-    private static String getBundleDataPath(final String bundle) {
+    public static String getBundleDataPath(final String bundle) {
         return BUNDLE_DATA_PATH + "/" + bundle;
     }
 

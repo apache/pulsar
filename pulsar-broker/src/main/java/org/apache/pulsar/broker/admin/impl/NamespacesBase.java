@@ -85,6 +85,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.Policies.BundleType;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1124,9 +1125,7 @@ public abstract class NamespacesBase extends AdminResource {
         checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
 
-        String bundleRange = bundleName.equals(Policies.LARGEST_BUNDLE)
-                ? findLargestBundleWithTopics(namespaceName).getBundleRange()
-                : bundleName;
+        String bundleRange = getBundleRange(bundleName);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1178,8 +1177,22 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    private String getBundleRange(String bundleName) {
+        if (BundleType.LARGEST.toString().equals(bundleName)) {
+            return findLargestBundleWithTopics(namespaceName).getBundleRange();
+        } else if (BundleType.HOT.toString().equals(bundleName)) {
+            return findHotBundle(namespaceName).getBundleRange();
+        } else {
+            return bundleName;
+        }
+    }
+
     private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
-        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundlesWithHighestTopics(namespaceName);
+        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestTopics(namespaceName);
+    }
+
+    private NamespaceBundle findHotBundle(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestThroughput(namespaceName);
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
