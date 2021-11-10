@@ -322,7 +322,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
      * 2. starts with '/'
      * 3. not ends with '/', except root path "/"
      */
-    public static boolean isValidPath(String path) {
+   static boolean isValidPath(String path) {
         return StringUtils.equals(path, "/")
                 || StringUtils.isNotBlank(path)
                 && path.startsWith("/")
