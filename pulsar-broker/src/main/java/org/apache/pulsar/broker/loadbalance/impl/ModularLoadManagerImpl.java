@@ -915,6 +915,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
+            if (conf.isExposeBunlesMetricsInPrometheus()) {
+                updateLoadBalancingBundlesMetrics(getBundleStats());
+            }
         } catch (Exception e) {
             log.warn("Error when attempting to update local broker data", e);
             if (e instanceof ConcurrentModificationException) {
@@ -924,6 +927,33 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             lock.unlock();
         }
         return localData;
+    }
+
+    /**
+     * As any broker, update its bundle metrics.
+     *
+     * @param bundlesData
+     */
+    private void updateLoadBalancingBundlesMetrics(Map<String, NamespaceBundleStats> bundlesData) {
+        List<Metrics> metrics = Lists.newArrayList();
+        for (Map.Entry<String, NamespaceBundleStats> entry: bundlesData.entrySet()) {
+            final String bundle = entry.getKey();
+            final NamespaceBundleStats stats = entry.getValue();
+            Map<String, String> dimensions = new HashMap<>();
+            dimensions.put("broker", pulsar.getAdvertisedAddress());
+            dimensions.put("bundle", bundle);
+            dimensions.put("metric", "loadBalancing");
+            Metrics m = Metrics.create(dimensions);
+            m.put("brk_bundle_msg_rate_in", stats.msgRateIn);
+            m.put("brk_bundle_msg_rate_out", stats.msgRateOut);
+            m.put("brk_bundle_topics_count", stats.topics);
+            m.put("brk_bundle_consumer_count", stats.consumerCount);
+            m.put("brk_bundle_producer_count", stats.producerCount);
+            m.put("brk_bundle_msg_throughput_in", stats.msgThroughputIn);
+            m.put("brk_bundle_msg_throughput_out", stats.msgThroughputOut);
+            metrics.add(m);
+        }
+        this.loadBalancingMetrics.set(metrics);
     }
 
     /**

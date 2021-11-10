@@ -2837,7 +2837,6 @@ public class PersistentTopic extends AbstractTopic
         if (messageTtl.isPresent()) {
             return CompletableFuture.completedFuture(messageTtl.get());
         }
-        TopicName name = TopicName.get(topic);
 
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())

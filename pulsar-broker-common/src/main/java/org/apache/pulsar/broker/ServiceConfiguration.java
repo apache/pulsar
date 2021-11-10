@@ -2103,6 +2103,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
 
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable expose the broker bundles metrics."
+    )
+    private boolean exposeBunlesMetricsInPrometheus = false;
+
     /**** --- Functions --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
