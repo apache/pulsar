@@ -539,8 +539,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     while (reader.hasMoreEvents()) {
                         Message<TransactionBufferSnapshot> message = reader.readNext();
                         TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
-                        if (transactionBufferSnapshot != null &&
-                                topic.getName().equals(transactionBufferSnapshot.getTopicName())) {
+                        if (transactionBufferSnapshot != null
+                                && topic.getName().equals(transactionBufferSnapshot.getTopicName())) {
                             hasSnapshot = true;
                             callBack.handleSnapshot(transactionBufferSnapshot);
                             this.startReadCursorPosition = PositionImpl.get(
