@@ -22,6 +22,9 @@ package org.apache.pulsar.broker.authentication;
 import javax.naming.AuthenticationException;
 
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.util.FutureUtil;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for authentication state.
@@ -39,8 +42,36 @@ public interface AuthenticationState {
 
     /**
      * Challenge passed in auth data and get response data.
+     * @deprecated use and implement {@link AuthenticationState#authenticateAsync(AuthData)} instead.
      */
+    @Deprecated
     AuthData authenticate(AuthData authData) throws AuthenticationException;
+
+    /**
+     * Challenge passed in auth data. If authentication is complete after the execution of this method, return null.
+     * Otherwise, return response data to be sent to the client.
+     *
+     * <p>Note: the implementation of {@link AuthenticationState#authenticate(AuthData)} converted a null result into a
+     * zero length byte array when {@link AuthenticationState#isComplete()} returned false after authentication. In
+     * order to simplify this interface, the determination of whether to send a challenge back to the client is only
+     * based on the result of this method. In order to maintain backwards compatibility, the default implementation of
+     * this method calls {@link AuthenticationState#isComplete()} and returns a result compliant with the new
+     * paradigm.</p>
+     */
+    default CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
+        try {
+            AuthData result = this.authenticate(authData);
+            if (isComplete()) {
+                return CompletableFuture.completedFuture(null);
+            } else {
+                return result != null
+                        ? CompletableFuture.completedFuture(result)
+                        : CompletableFuture.completedFuture(AuthData.of(new byte[0]));
+            }
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+    }
 
     /**
      * Return AuthenticationDataSource.
@@ -49,7 +80,12 @@ public interface AuthenticationState {
 
     /**
      * Whether the authentication is completed or not.
+     * @deprecated this method's logic is captured by the result of
+     * {@link AuthenticationState#authenticateAsync(AuthData)}. When the result is a {@link CompletableFuture} with a
+     * null result, authentication is complete. When the result is a {@link CompletableFuture} with a nonnull result,
+     * authentication is incomplete and requires an auth challenge.
      */
+    @Deprecated
     boolean isComplete();
 
     /**
