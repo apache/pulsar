@@ -3420,4 +3420,3 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assert(future.get());
     }
 }
-}
