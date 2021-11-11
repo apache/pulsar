@@ -91,7 +91,7 @@ class OpReadEntry implements ReadEntriesCallback {
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
         cursor.readOperationCompleted();
-        log.info("ReadPosition : {}", cursor.readPosition.toString());
+
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
             cursor.ledger.getExecutor().execute(safeRun(() -> {
@@ -116,7 +116,6 @@ class OpReadEntry implements ReadEntriesCallback {
                 return;
             }
             updateReadPosition(nexReadPosition);
-            log.info("nexReadPosition : {}", nexReadPosition.toString());
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
@@ -160,7 +159,6 @@ class OpReadEntry implements ReadEntriesCallback {
 
             } finally {
                 cursor.ledger.getExecutor().executeOrdered(cursor.ledger.getName(), safeRun(() -> {
-                    log.info("callBack : {}", callback);
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
                 }));

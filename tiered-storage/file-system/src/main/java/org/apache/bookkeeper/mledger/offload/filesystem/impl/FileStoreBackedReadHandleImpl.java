@@ -111,21 +111,22 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             BytesWritable value = new BytesWritable();
             try {
                 key.set(firstEntry - 1);
-                reader.seek(key);
-                reader.next(key, value);
-                long entryId;
-                do {
-                    int length = value.getLength();
-                    entryId = key.get();
-                    ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
-                    buf.writeBytes(value.copyBytes());
-                    entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
-                } while (entryId < lastEntry && reader.next(key, value));
-                log.info("entries size : {}, entry length {}, entryId {}:{}",
-                        entries.size(), entries.get(0).getLength(),
-                        entries.get(0).getLedgerId(), entries.get(0).getEntryId());
-                if (entries.size() == 1 && entries.get(0).getLength() == 0) {
-                    entries.clear();
+                reader.getClosest(key, value, true);
+                long entryId = firstEntry - 1;
+                while (entryId < lastEntry && reader.next(key, value)) {
+                    if (key.get() <= lastEntry) {
+                        if (key.get() >= firstEntry) {
+                            int length = value.getLength();
+                            entryId = key.get();
+                            ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+                            buf.writeBytes(value.copyBytes());
+                            entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                if (entries.isEmpty()) {
                     promise.completeExceptionally(new BKException.BKNoSuchEntryException());
                     return;
                 }

@@ -2938,7 +2938,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Position nextPosition = ledger.getNextValidPosition(position);
         if (last.getLedgerId() < nextPosition.getLedgerId()
                 || last.getEntryId() < nextPosition.getEntryId() && last.getLedgerId() == nextPosition.getLedgerId()) {
-            getNextValidPosition(position);
+            return last;
         }
         return nextPosition;
     }
