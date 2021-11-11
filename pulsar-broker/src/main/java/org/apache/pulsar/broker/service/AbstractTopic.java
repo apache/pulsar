@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,12 +52,15 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -104,6 +108,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile int maxUnackedMessagesOnConsumerAppilied = 0;
 
+    protected final Map<BacklogQuota.BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
+
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
@@ -150,6 +156,22 @@ public abstract class AbstractTopic implements Topic {
 
         this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(
                 config.getMaxMessageSizeCheckIntervalInSeconds());
+
+
+        backLogQuotaMap = new HashMap<>();
+        double backlogQuotaGB = brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultLimitGB();
+        BacklogQuotaImpl brokerDefaultQuota = BacklogQuotaImpl.builder()
+                .limitSize(backlogQuotaGB > 0 ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                        : brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultLimitBytes())
+                .limitTime(brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultLimitSecond())
+                .retentionPolicy(brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
+                .build();
+        PolicyHierarchyValue<BacklogQuota> destinationStorageBacklogQuota = new PolicyHierarchyValue<>();
+        destinationStorageBacklogQuota.updateBrokerValue(brokerDefaultQuota);
+        backLogQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, destinationStorageBacklogQuota);
+        PolicyHierarchyValue<BacklogQuota> messageAgeBacklogQuota = new PolicyHierarchyValue<>();
+        messageAgeBacklogQuota.updateBrokerValue(brokerDefaultQuota);
+        backLogQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, messageAgeBacklogQuota);
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();

@@ -31,6 +31,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
@@ -2453,6 +2455,9 @@ public class PersistentTopic extends AbstractTopic
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
 
+        Arrays.stream(BacklogQuotaType.values()).forEach(
+                type -> backLogQuotaMap.get(type).updateNamespaceValue(
+                        data.backlog_quota_map == null ? null : data.backlog_quota_map.get(type)));
 
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
                 preCreateSubscriptionForCompactionIfNeeded());
@@ -2463,9 +2468,8 @@ public class PersistentTopic extends AbstractTopic
      * @return Backlog quota for topic
      */
     @Override
-    public BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType) {
-        TopicName topicName = TopicName.get(this.getName());
-        return brokerService.getBacklogQuotaManager().getBacklogQuota(topicName, backlogQuotaType);
+    public BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType) {
+        return backLogQuotaMap.get(backlogQuotaType).get();
     }
 
     /**
@@ -2497,8 +2501,7 @@ public class PersistentTopic extends AbstractTopic
      * @return determine if backlog quota enforcement needs to be done for topic based on size limit
      */
     public boolean isSizeBacklogExceeded() {
-        TopicName topicName = TopicName.get(getName());
-        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimitInSize(topicName);
+        long backlogQuotaLimitInBytes = getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
         if (backlogQuotaLimitInBytes < 0) {
             return false;
         }
@@ -2521,7 +2524,7 @@ public class PersistentTopic extends AbstractTopic
     public boolean isTimeBacklogExceeded() {
         TopicName topicName = TopicName.get(getName());
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        int backlogQuotaLimitInSecond = brokerService.getBacklogQuotaManager().getBacklogQuotaLimitInTime(topicName);
+        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
         // If backlog quota by time is not set and we have no durable cursor.
         if (backlogQuotaLimitInSecond <= 0
@@ -3088,8 +3091,12 @@ public class PersistentTopic extends AbstractTopic
         }
 
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(policies.getMaxSubscriptionsPerTopic());
-
         topicPolicies.getInactiveTopicPolicies().updateTopicValue(policies.getInactiveTopicPolicies());
+        Arrays.stream(BacklogQuotaType.values()).forEach(type ->
+                backLogQuotaMap.get(type).updateNamespaceValue(policies.getBackLogQuotaMap() == null ? null :
+                        policies.getBackLogQuotaMap().get(type.toString()))
+        );
+
 
         updateUnackedMessagesAppliedOnSubscription(namespacePolicies.orElse(null));
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
