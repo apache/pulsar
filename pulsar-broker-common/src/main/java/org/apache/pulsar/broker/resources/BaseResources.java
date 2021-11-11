@@ -197,7 +197,7 @@ public class BaseResources<T> {
         }
     }
 
-    protected static void deleteRecursiveAsync(BaseResources resources, final String pathRoot) {
+    protected static CompletableFuture<Void> deleteRecursiveAsync(BaseResources resources, final String pathRoot) {
         PathUtils.validatePath(pathRoot);
         List<String> tree = null;
         try {
@@ -210,7 +210,7 @@ public class BaseResources<T> {
             log.debug("Deleting {} with size {}", tree, tree.size());
             log.debug("Deleting " + tree.size() + " subnodes ");
 
-            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (int i = tree.size() - 1; i >= 0; --i) {
                 // Delete the leaves first and eventually get rid of the root
                 futures.add(resources.deleteAsync(tree.get(i)));
@@ -225,6 +225,8 @@ public class BaseResources<T> {
                 return null;
             });
         }
+
+        return null;
     }
 
     protected static List<String> listSubTreeBFS(BaseResources resources, final String pathRoot)

@@ -38,6 +38,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,21 +134,35 @@ public class NamespaceResources extends BaseResources<Policies> {
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
-        return existsAsync(namespacePath).thenAccept(exist -> {
-            if (exist) {
-                deleteAsync(namespacePath);
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteAsync(namespacePath).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
+                future.complete(null);
+            } else if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                future.complete(null);
             }
         });
+
+        return future;
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
     public CompletableFuture<Void> deleteTenantAsync(String tenant) {
         final String tenantPath = joinPath(NAMESPACE_BASE_PATH, tenant);
-        return existsAsync(tenantPath).thenAccept(exist -> {
-            if (exist) {
-                deleteAsync(tenantPath);
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteAsync(tenantPath).whenComplete((ignore, ex) -> {
+            if (ex != null && ex.getCause().getCause() instanceof KeeperException.NoNodeException) {
+                future.complete(null);
+            } else if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                future.complete(null);
             }
         });
+
+        return future;
     }
 
     public static NamespaceName namespaceFromPath(String path) {
