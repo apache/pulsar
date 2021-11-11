@@ -434,7 +434,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
-        if (brokerService.isBrokerEntryMetadataEnabled()) {
+        if (brokerService.hasBrokerEntryMetadataInterceptor()) {
             ledger.asyncAddEntry(headersAndPayload,
                     (int) publishContext.getNumberOfMessages(), this, publishContext);
         } else {
