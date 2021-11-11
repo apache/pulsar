@@ -250,7 +250,7 @@ public class PersistentTopic extends AbstractTopic
         }
     }
 
-    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws NamingException {
+    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
         super(topic, brokerService);
         this.ledger = ledger;
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
