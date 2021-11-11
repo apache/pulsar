@@ -105,6 +105,8 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setRuntimeFlags("-DKerberos");
         sinkConfig.setCleanupSubscription(true);
 
+        sinkConfig.setResources(Resources.getDefaultResources());
+
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));
         SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertEquals(

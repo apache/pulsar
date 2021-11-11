@@ -328,6 +328,7 @@ public class SinkConfigUtils {
             resources.setCpu(functionDetails.getResources().getCpu());
             resources.setRam(functionDetails.getResources().getRam());
             resources.setDisk(functionDetails.getResources().getDisk());
+            sinkConfig.setResources(resources);
         }
 
         if (isNotBlank(functionDetails.getRuntimeFlags())) {
