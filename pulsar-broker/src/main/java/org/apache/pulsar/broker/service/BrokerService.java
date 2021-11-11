@@ -1289,18 +1289,9 @@ public class BrokerService implements Closeable {
                 : CompletableFuture.completedFuture(null);
 
         maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName)).thenAccept(managedLedgerConfig -> {
-            if (isBrokerEntryMetadataEnabled()) {
+            if (hasBrokerEntryMetadataInterceptor()) {
                 // init managedLedger interceptor
-                Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
-                for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
-                    // add individual AppendOffsetMetadataInterceptor for each topic
-                    if (interceptor instanceof AppendIndexMetadataInterceptor) {
-                        interceptors.add(new AppendIndexMetadataInterceptor());
-                    } else {
-                        interceptors.add(interceptor);
-                    }
-                }
-                managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(interceptors));
+                managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(new HashSet<>(brokerEntryMetadataInterceptors)));
             }
 
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
@@ -2720,7 +2711,7 @@ public class BrokerService implements Closeable {
         return brokerEntryMetadataInterceptors;
     }
 
-    public boolean isBrokerEntryMetadataEnabled() {
+    public boolean hasBrokerEntryMetadataInterceptor() {
         return !brokerEntryMetadataInterceptors.isEmpty();
     }
 
