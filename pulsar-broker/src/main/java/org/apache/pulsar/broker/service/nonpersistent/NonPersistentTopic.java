@@ -151,7 +151,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                         Policies policies = optPolicies.get();
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                        inactiveTopicPolicies.updateNamespaceValue(policies.inactive_topic_policies);
+                        topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(policies.inactive_topic_policies);
                         setSchemaCompatibilityStrategy(policies);
                         schemaValidationEnforced = policies.schema_validation_enforced;
                     }
@@ -862,7 +862,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             // This topic is not included in GC
             return;
         }
-        int maxInactiveDurationInSec = inactiveTopicPolicies.get().getMaxInactiveDurationSeconds();
+        int maxInactiveDurationInSec = topicPolicies.getInactiveTopicPolicies().get().getMaxInactiveDurationSeconds();
         if (isActive()) {
             lastActive = System.nanoTime();
         } else {
@@ -975,7 +975,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         });
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
 
-        this.inactiveTopicPolicies.updateNamespaceValue(data.inactive_topic_policies);
+        this.topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(data.inactive_topic_policies);
 
         return checkReplicationAndRetryOnFailure();
     }

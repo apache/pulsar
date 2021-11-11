@@ -51,9 +51,9 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -81,8 +81,7 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile boolean isFenced;
 
-    // Inactive topic policies
-    protected final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
+    protected final HierarchyTopicPolicies topicPolicies;
 
     // Timestamp of when this topic was last seen active
     protected volatile long lastActive;
@@ -104,10 +103,6 @@ public abstract class AbstractTopic implements Topic {
     protected volatile boolean schemaValidationEnforced = false;
 
     protected volatile int maxUnackedMessagesOnConsumerAppilied = 0;
-
-    @VisibleForTesting
-    @Getter
-    protected volatile PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
@@ -145,17 +140,16 @@ public abstract class AbstractTopic implements Topic {
         ServiceConfiguration config = brokerService.pulsar().getConfiguration();
         this.replicatorPrefix = config.getReplicatorPrefix();
 
-        inactiveTopicPolicies = new PolicyHierarchyValue<>();
-        inactiveTopicPolicies.updateBrokerValue(new InactiveTopicPolicies(
+
+        topicPolicies = new HierarchyTopicPolicies();
+        topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
                 config.getBrokerDeleteInactiveTopicsMode(),
                 config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
                 config.isBrokerDeleteInactiveTopicsEnabled()));
+        topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
 
         this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(
                 config.getMaxMessageSizeCheckIntervalInSeconds());
-
-        maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
-        maxSubscriptionsPerTopic.updateBrokerValue(config.getMaxSubscriptionsPerTopic());
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
@@ -868,7 +862,7 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public boolean isDeleteWhileInactive() {
-        return this.inactiveTopicPolicies.get().isDeleteWhileInactive();
+        return topicPolicies.getInactiveTopicPolicies().get().isDeleteWhileInactive();
     }
 
     public boolean deletePartitionedTopicMetadataWhileInactive() {
@@ -880,7 +874,7 @@ public abstract class AbstractTopic implements Topic {
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
 
     public InactiveTopicPolicies getInactiveTopicPolicies() {
-        return inactiveTopicPolicies.get();
+        return topicPolicies.getInactiveTopicPolicies().get();
     }
 
     /**
@@ -940,5 +934,10 @@ public abstract class AbstractTopic implements Topic {
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerReadForPublishRateLimiting();
         }
+    }
+
+    @VisibleForTesting
+    public HierarchyTopicPolicies getHierarchyTopicPolicies() {
+        return topicPolicies;
     }
 }

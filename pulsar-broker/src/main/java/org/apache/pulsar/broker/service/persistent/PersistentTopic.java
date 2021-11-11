@@ -324,7 +324,7 @@ public class PersistentTopic extends AbstractTopic
 
                     schemaValidationEnforced = policies.schema_validation_enforced;
 
-                    inactiveTopicPolicies.updateNamespaceValue(policies.inactive_topic_policies);
+                    topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(policies.inactive_topic_policies);
 
                     updateUnackedMessagesAppliedOnSubscription(policies);
                     updateUnackedMessagesExceededOnConsumer(policies);
@@ -2197,8 +2197,9 @@ public class PersistentTopic extends AbstractTopic
             // This topic is not included in GC
             return;
         }
-        InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.get().getInactiveTopicDeleteMode();
-        int maxInactiveDurationInSec = inactiveTopicPolicies.get().getMaxInactiveDurationSeconds();
+        InactiveTopicDeleteMode deleteMode =
+                topicPolicies.getInactiveTopicPolicies().get().getInactiveTopicDeleteMode();
+        int maxInactiveDurationInSec = topicPolicies.getInactiveTopicPolicies().get().getMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
         } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
@@ -2406,7 +2407,7 @@ public class PersistentTopic extends AbstractTopic
         schemaValidationEnforced = data.schema_validation_enforced;
         updateUnackedMessagesAppliedOnSubscription(data);
         updateUnackedMessagesExceededOnConsumer(data);
-        maxSubscriptionsPerTopic.updateNamespaceValue(data.max_subscriptions_per_topic);
+        this.topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(data.max_subscriptions_per_topic);
 
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
@@ -2415,7 +2416,7 @@ public class PersistentTopic extends AbstractTopic
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
 
-        inactiveTopicPolicies.updateNamespaceValue(data.inactive_topic_policies);
+        this.topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(data.inactive_topic_policies);
 
         initializeRateLimiterIfNeeded(Optional.ofNullable(data));
 
@@ -3087,9 +3088,9 @@ public class PersistentTopic extends AbstractTopic
             updateMaxPublishRate(namespacePolicies.orElse(null));
         }
 
-        maxSubscriptionsPerTopic.updateTopicValue(policies.getMaxSubscriptionsPerTopic());
+        topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(policies.getMaxSubscriptionsPerTopic());
 
-        inactiveTopicPolicies.updateTopicValue(policies.getInactiveTopicPolicies());
+        topicPolicies.getInactiveTopicPolicies().updateTopicValue(policies.getInactiveTopicPolicies());
 
         updateUnackedMessagesAppliedOnSubscription(namespacePolicies.orElse(null));
         initializeTopicSubscribeRateLimiterIfNeeded(Optional.ofNullable(policies));
@@ -3161,7 +3162,7 @@ public class PersistentTopic extends AbstractTopic
             return false;
         }
 
-        Integer maxSubsPerTopic  = maxSubscriptionsPerTopic.get();
+        Integer maxSubsPerTopic  = topicPolicies.getMaxSubscriptionsPerTopic().get();
 
         if (maxSubsPerTopic != null && maxSubsPerTopic > 0) {
             return subscriptions != null && subscriptions.size() >= maxSubsPerTopic;
