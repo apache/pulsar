@@ -56,8 +56,6 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     int messageCount = 0;
     int messageDispatchCount = 0;
     int messageAckCount = 0;
-    boolean delegateSuperUserCheck = false;
-    boolean isSuperUser = false;
 
     private List<ResponseEvent> responseList = new ArrayList<>();
 
@@ -113,17 +111,6 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                               CommandAck ack) {
         messageAckCount++;
     }
-
-    @Override
-    public boolean delegateSuperUserCheck(){
-        return delegateSuperUserCheck;
-    }
-
-    @Override
-    public boolean isSuperUser(PulsarService pulsarService, String appId, String originalPrincipal){
-        return isSuperUser;
-    }
-
 
     @Override
     public void beforeSendMessage(Subscription subscription,
@@ -209,14 +196,6 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public int getConnectionCreationCount() {
         return connectionCreationCount;
-    }
-
-    public void setDelegateSuperUserCheck(boolean flag) {
-        delegateSuperUserCheck = flag;
-    }
-
-    public void setSuperUser(boolean flag) {
-        isSuperUser = flag;
     }
 
     public void clearResponseList() {

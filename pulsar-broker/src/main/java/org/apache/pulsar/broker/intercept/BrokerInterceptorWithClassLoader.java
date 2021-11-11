@@ -100,16 +100,6 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
-    public boolean delegateSuperUserCheck(){
-        return this.interceptor.delegateSuperUserCheck();
-    }
-
-    @Override
-    public boolean isSuperUser(PulsarService pulsarService, String appId, String originalPrincipal){
-        return this.interceptor.isSuperUser(pulsarService, appId, originalPrincipal);
-    }
-
-    @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
         this.interceptor.onPulsarCommand(command, cnx);
     }

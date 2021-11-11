@@ -30,12 +30,10 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
-import org.apache.pulsar.common.intercept.MessagePayloadProcessor;
+import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -47,7 +45,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -57,38 +54,45 @@ import static org.testng.Assert.assertNotNull;
 public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
 
-    public class TestPayloadProcessor implements MessagePayloadProcessor {
-        public ByteBuf interceptIn(String clusterName, ByteBuf headersAndPayload, Map<String,Object> contextMap){
-            byte[] newMessage = (new String("Modified Test Message")).getBytes();
-            return Unpooled.wrappedBuffer(newMessage, 0, newMessage.length);
-        }
-        public ByteBuf interceptOut(ByteBuf headersAndPayload){
-            byte[] bytes = new byte[headersAndPayload.readableBytes()];
-            headersAndPayload.readBytes(bytes);
-            String storedMessage = new String(bytes);
-            Assert.assertTrue(storedMessage.equals("Modified Test Message"));
+    public class TestPayloadProcessor implements ManagedLedgerPayloadProcessor {
+        @Override
+        public Processor inputProcessor() {
+            return new Processor() {
+                @Override
+                public ByteBuf process(Object contextObj, ByteBuf inputPayload) {
+                    byte[] newMessage = (new String("Modified Test Message")).getBytes();
+                    ByteBuf processedPayload =  Unpooled.wrappedBuffer(newMessage, 0, newMessage.length);
+                    inputPayload.release();
+                    return processedPayload.retainedDuplicate();
+                }
 
-            byte[] newMessage = (new String("Test Message")).getBytes();
-            return Unpooled.wrappedBuffer(newMessage, 0, newMessage.length);
+                @Override
+                public void release(ByteBuf processedPayload) {
+                    processedPayload.release();
+                }
+            };
         }
-    }
+        @Override
+        public Processor outputProcessor() {
+            return new Processor() {
+                @Override
+                public ByteBuf process(Object contextObj, ByteBuf inputPayload) {
+                    byte[] bytes = new byte[inputPayload.readableBytes()];
+                    inputPayload.readBytes(bytes);
+                    String storedMessage = new String(bytes);
+                    Assert.assertTrue(storedMessage.equals("Modified Test Message"));
 
-    protected static ServiceConfiguration getDefaultConf() {
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setAdvertisedAddress("localhost");
-        configuration.setClusterName("testcluster");
-        configuration.setManagedLedgerCacheSizeMB(8);
-        configuration.setActiveConsumerFailoverDelayTimeMillis(0);
-        configuration.setDefaultNumberOfNamespaceBundles(1);
-        configuration.setZookeeperServers("localhost:2181");
-        configuration.setConfigurationStoreServers("localhost:3181");
-        configuration.setAllowAutoTopicCreationType("non-partitioned");
-        configuration.setBrokerShutdownTimeoutMs(0L);
-        configuration.setBookkeeperClientExposeStatsToPrometheus(true);
-        configuration.setNumExecutorThreadPoolSize(5);
-        configuration.setBrokerMaxConnections(0);
-        configuration.setBrokerMaxConnectionsPerIp(0);
-        return configuration;
+                    byte[] newMessage = (new String("Test Message")).getBytes();
+                    inputPayload.release();
+                    return Unpooled.wrappedBuffer(newMessage, 0, newMessage.length).retainedDuplicate();
+                }
+
+                @Override
+                public void release(ByteBuf processedPayload) {
+                    processedPayload.release();
+                }
+            };
+        }
     }
 
     @Test
@@ -123,20 +127,17 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         ledger.close();
         factory.shutdown();
     }
-
     @Test
     public void testMessagePayloadProcessor() throws Exception {
-        final int MOCK_BATCH_SIZE = 2;
-        int numberOfEntries = 10;
         final String ledgerAndCursorName = "topicEntryWithPayloadProcessed";
 
-        Set<MessagePayloadProcessor> processors = new HashSet();
+        Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
         processors.add(new TestPayloadProcessor());
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerPayloadProcessor(getDefaultConf(), processors);
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(),processors);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
-        config.setManagedLedgerPayloadProcessor(interceptor);
+        config.setManagedLedgerInterceptor(interceptor);
 
         ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
@@ -148,9 +149,8 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         cursor.close();
         ledger.close();
         factory.shutdown();
-        config.setManagedLedgerPayloadProcessor(null);
+        config.setManagedLedgerInterceptor(null);
     }
-
 
     @Test(timeOut = 20000)
     public void testRecoveryIndex() throws Exception {

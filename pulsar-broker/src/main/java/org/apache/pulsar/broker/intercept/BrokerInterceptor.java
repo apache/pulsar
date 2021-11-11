@@ -125,15 +125,6 @@ public interface BrokerInterceptor extends AutoCloseable {
                               CommandAck ackCmd) {
     }
 
-    default boolean delegateSuperUserCheck(){
-        System.out.println("delegateSuperUserCheck in base class");
-        return false;
-    }
-
-    default boolean isSuperUser(PulsarService pulsarService, String appId, String originalPrincipal){
-        return false;
-    }
-
     /**
      * Called by the broker while new command incoming.
      */

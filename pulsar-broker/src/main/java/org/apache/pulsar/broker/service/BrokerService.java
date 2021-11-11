@@ -100,7 +100,6 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
-import org.apache.pulsar.broker.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -132,7 +131,7 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
-import org.apache.pulsar.common.intercept.MessagePayloadProcessor;
+import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -269,7 +268,7 @@ public class BrokerService implements Closeable {
     private BrokerInterceptor interceptor;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
-    private Set<MessagePayloadProcessor> brokerEntryPayloadProcessors;
+    private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -1281,7 +1280,7 @@ public class BrokerService implements Closeable {
                 : CompletableFuture.completedFuture(null);
 
         maxTopicsCheck.thenCompose(__ -> getManagedLedgerConfig(topicName)).thenAccept(managedLedgerConfig -> {
-            if (isBrokerEntryMetadataEnabled()) {
+            if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
                 for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
@@ -1292,15 +1291,9 @@ public class BrokerService implements Closeable {
                         interceptors.add(interceptor);
                     }
                 }
-                managedLedgerConfig.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(interceptors));
+                managedLedgerConfig.setManagedLedgerInterceptor(
+                        new ManagedLedgerInterceptorImpl(interceptors, brokerEntryPayloadProcessors));
             }
-
-            if (isBrokerPayloadProcessorEnabled()) {
-                managedLedgerConfig.setManagedLedgerPayloadProcessor(
-                        new ManagedLedgerPayloadProcessor(this.pulsar.getConfiguration(),
-                            brokerEntryPayloadProcessors));
-            }
-
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
 
             // Once we have the configuration, we can proceed with the async open operation

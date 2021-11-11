@@ -61,21 +61,36 @@ public interface ManagedLedgerInterceptor {
     void onUpdateManagedLedgerInfo(Map<String, String> propertiesMap);
 
     /**
-     * Intercept after entry is read from ledger, before it gets cached.
-     * @param ledgerData data from ledger
-     * @return data after processing, if any
+     * A reference handle to the payload processor
      */
-    default ByteBuf beforeCacheEntryFromLedger(ByteBuf ledgerData){
-        return ledgerData;
+    interface PayloadProcessorHandle {
+        /**
+         * To obtain the processed data
+         * @return processed data
+         */
+        ByteBuf getProcessedPayload();
+
+        /**
+         * To release resources used in processor, if any
+         */
+        void release();
+    }
+    /**
+     * Intercept after entry is read from ledger, before it gets cached.
+     * @param dataReadFromLedger data from ledger
+     * @return handle to the processor
+     */
+    default PayloadProcessorHandle processPayloadBeforeEntryCache(ByteBuf dataReadFromLedger){
+        return null;
     }
 
     /**
-     * Intercept before payload gets stored into ledger
-     * @param op OpAddEntry used to trigger ledger write.
-     * @param ledgerData data to be stored in ledger
-     * @return data after processing, if any
+     * Intercept before payload gets written to ledger
+     * @param ledgerWriteOp OpAddEntry used to trigger ledger write.
+     * @param dataToBeStoredInLedger data to be stored in ledger
+     * @return handle to the processor
      */
-    default ByteBuf beforeStoreEntryToLedger(OpAddEntry op,ByteBuf ledgerData){
-        return ledgerData;
+    default PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry ledgerWriteOp, ByteBuf dataToBeStoredInLedger){
+        return null;
     }
 }

@@ -154,26 +154,6 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public boolean delegateSuperUserCheck(){
-        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            if (value.delegateSuperUserCheck()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public boolean isSuperUser(PulsarService pulsarService, String appId, String originalPrincipal){
-        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            if (value.isSuperUser(pulsarService, appId, originalPrincipal)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
     public void onConnectionCreated(ServerCnx cnx) {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
             value.onConnectionCreated(cnx);
