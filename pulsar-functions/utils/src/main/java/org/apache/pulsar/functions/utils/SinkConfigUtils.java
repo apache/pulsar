@@ -575,6 +575,10 @@ public class SinkConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
+        if (newConfig.getCleanupSubscription() != null) {
+            mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
+        }
+
         return mergedConfig;
     }
 

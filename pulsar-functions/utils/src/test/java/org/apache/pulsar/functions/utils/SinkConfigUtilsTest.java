@@ -367,6 +367,22 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
+    public void testMergeDifferentCleanupSubscription() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(
+                mergedConfig.getCleanupSubscription().booleanValue(),
+                false
+        );
+        mergedConfig.setCleanupSubscription(sinkConfig.getCleanupSubscription());
+        assertEquals(
+                new Gson().toJson(sinkConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testValidateConfig() throws IOException {
         mockStatic(ConnectorUtils.class);
         mockStatic(NarUnpacker.class);
@@ -410,6 +426,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
         sinkConfig.setAutoAck(true);
         sinkConfig.setTimeoutMs(2000l);
         sinkConfig.setArchive("DummyArchive.nar");
+        sinkConfig.setCleanupSubscription(true);
         return sinkConfig;
     }
 
