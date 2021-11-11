@@ -832,7 +832,7 @@ public class SinkApiV3ResourceTest {
             PowerMockito.when(WorkerUtils.class, "dumpToTmpFile", any()).thenCallRealMethod();
 
             Map<String, String> inputTopics = new HashMap<>();
-            inputTopics.put("DifferntTopic", DEFAULT_SERDE);
+            inputTopics.put("DifferentTopic", DEFAULT_SERDE);
             testUpdateSinkMissingArguments(
                     tenant,
                     namespace,

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -161,15 +162,23 @@ public class DispatchRateLimiter {
     public void updateDispatchRate() {
         Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
         if (!dispatchRate.isPresent()) {
-            dispatchRate = Optional.ofNullable(getPoliciesDispatchRate(brokerService));
+            getPoliciesDispatchRateAsync(brokerService).thenAccept(dispatchRateOp -> {
+                if (!dispatchRateOp.isPresent()) {
+                    dispatchRateOp = Optional.of(createDispatchRate());
+                }
+                updateDispatchRate(dispatchRateOp.get());
+                log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type,
+                        dispatchRateOp.get());
 
-            if (!dispatchRate.isPresent()) {
-                dispatchRate = Optional.of(createDispatchRate());
-            }
+            }).exceptionally(ex -> {
+                log.error("[{}] failed to get the dispatch rate policy from the namespace resource for type {}",
+                        topicName, type, ex);
+                return null;
+            });
+        } else {
+            updateDispatchRate(dispatchRate.get());
+            log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate.get());
         }
-
-        updateDispatchRate(dispatchRate.get());
-        log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate.get());
     }
 
     public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
@@ -312,20 +321,21 @@ public class DispatchRateLimiter {
      *
      * @return
      */
-    public DispatchRate getPoliciesDispatchRate(BrokerService brokerService) {
+    public CompletableFuture<Optional<DispatchRate>> getPoliciesDispatchRateAsync(BrokerService brokerService) {
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-        final Optional<Policies> policies = getPolicies(brokerService, topicName);
-        return getPoliciesDispatchRate(cluster, policies, type);
+        return getPoliciesAsync(brokerService, topicName).thenApply(policiesOp ->
+                Optional.ofNullable(getPoliciesDispatchRate(cluster, policiesOp, type)));
+    }
+
+    public static CompletableFuture<Optional<Policies>> getPoliciesAsync(BrokerService brokerService,
+         String topicName) {
+        final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace);
     }
 
     public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
         final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
-        try {
-            return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPolicies(namespace);
-        } catch (Exception e) {
-            log.warn("Failed to get message-rate for {} ", topicName, e);
-            return Optional.empty();
-        }
+        return brokerService.pulsar().getPulsarResources().getNamespaceResources().getPoliciesIfCached(namespace);
     }
 
     /**

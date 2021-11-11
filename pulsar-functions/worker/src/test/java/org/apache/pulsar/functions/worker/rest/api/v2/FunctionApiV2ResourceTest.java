@@ -590,7 +590,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -632,7 +632,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -654,7 +654,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -1014,7 +1014,7 @@ public class FunctionApiV2ResourceTest {
     public void testUpdateFunctionSuccess() throws Exception {
         mockStatic(WorkerUtils.class);
         doNothing().when(WorkerUtils.class);
-        WorkerUtils.uploadToBookeeper(
+        WorkerUtils.uploadToBookKeeper(
                 any(Namespace.class),
                 any(InputStream.class),
                 anyString());
@@ -1031,8 +1031,8 @@ public class FunctionApiV2ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setOutput(outputTopic);
@@ -1068,7 +1068,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -1091,7 +1091,7 @@ public class FunctionApiV2ResourceTest {
         try {
             mockStatic(WorkerUtils.class);
             doNothing().when(WorkerUtils.class);
-            WorkerUtils.uploadToBookeeper(
+            WorkerUtils.uploadToBookKeeper(
                     any(Namespace.class),
                     any(InputStream.class),
                     anyString());
@@ -1427,10 +1427,10 @@ public class FunctionApiV2ResourceTest {
     public void testDownloadFunctionFile() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImplV2 function = new FunctionsImplV2(() -> mockedWorkerService);
-        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file://" + fileLocation, null).getEntity();
+        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file:///" + fileLocation, null).getEntity();
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1446,8 +1446,8 @@ public class FunctionApiV2ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         FunctionConfig functionConfig = new FunctionConfig();
@@ -1479,8 +1479,8 @@ public class FunctionApiV2ResourceTest {
 
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
-        String fileLocation = file.getAbsolutePath();
-        String filePackageUrl = "file://" + fileLocation;
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String filePackageUrl = "file:///" + fileLocation;
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
 

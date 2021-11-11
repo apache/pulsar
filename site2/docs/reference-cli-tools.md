@@ -209,7 +209,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-a` , `--advertised-address`|The standalone broker advertised address||
-|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookeeper|
+|`--bookkeeper-dir`|Local bookies’ base data directory|data/standalone/bookkeeper|
 |`--bookkeeper-port`|Local bookies’ base port|3181|
 |`--no-broker`|Only start ZooKeeper and BookKeeper services, not the broker|false|
 |`--num-bookies`|The number of local bookies|1|
@@ -312,6 +312,7 @@ Options
 |`-m`, `--messages`|Comma-separated string of messages to send; either -m or -f must be specified|[]|
 |`-n`, `--num-produce`|The number of times to send the message(s); the count of messages/files * num-produce should be below 1000|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible|0.0|
+|`-db`, `--disable-batching`|Disable batch sending of messages|false|
 |`-c`, `--chunking`|Split the message and publish in chunks if the message size is larger than the allowed max size|false|
 |`-s`, `--separator`|Character to split messages string with.|","|
 |`-k`, `--key`|Message key to add|key=value string, like k1=v1,k2=v2.|
@@ -339,7 +340,7 @@ Options
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
-|`-m`, `--subscription-mode`|Subscription mode.|Durable|
+|`-m`, `--subscription-mode`|Subscription mode. Possible values: Durable, NonDurable.|Durable|
 |`-q`, `--queue-size`|The size of consumer's receiver queue.|0|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages.|0|
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full.|false|
@@ -361,6 +362,7 @@ $ pulsar-daemon command
 Commands
 * `start`
 * `stop`
+* `restart`
 
 
 ### `start`
@@ -385,7 +387,11 @@ Options
 |---|---|---|
 |-force|Stop the service forcefully if not stopped by normal shutdown.|false|
 
-
+### `restart`
+Restart a service that has already been started.
+```bash
+$ pulsar-daemon restart service
+```
 
 ## `pulsar-perf`
 A tool for performance testing a Pulsar broker.

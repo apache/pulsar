@@ -125,6 +125,10 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public String resource_group_name = null;
 
+    public enum BundleType {
+        LARGEST, HOT;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,

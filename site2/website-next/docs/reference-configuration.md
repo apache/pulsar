@@ -1,7 +1,7 @@
 ---
 id: reference-configuration
 title: Pulsar configuration
-sidebar_label: Pulsar configuration
+sidebar_label: "Pulsar configuration"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -161,6 +161,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |exposeConsumerLevelMetricsInPrometheus|Whether to enable consumer level metrics.|false|
 |jvmGCMetricsLoggerClassName|Classname of Pluggable JVM GC metrics logger that can log GC specific metrics.|N/A|
 |bindAddress| Hostname or IP address the service binds on, default is 0.0.0.0.  |0.0.0.0|
+|bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
 |advertisedAddress| Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 |clusterName| Name of the cluster to which this broker belongs to ||
 |brokerDeduplicationEnabled|  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.  |false|
@@ -203,7 +204,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped. ||
 |tlsAllowInsecureConnection| Accept untrusted TLS certificate from client. If it is set to `true`, a client with a cert which cannot be verified with the 'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication. |false|
 |tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.3```, ```TLSv1.2``` ||
-|tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
+|tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```
+
 |tlsEnabledWithKeyStore| Enable TLS with KeyStore type configuration in broker |false|
 |tlsProvider| TLS Provider for KeyStore type ||
 |tlsKeyStoreType| LS KeyStore type configuration in broker: JKS, PKCS12 |JKS|
@@ -431,6 +433,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
+|bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
 |advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 | numAcceptorThreads | Number of threads to use for Netty Acceptor | 1 |
 | numIOThreads | Number of threads to use for Netty IO | 2 * Runtime.getRuntime().availableProcessors() |
@@ -480,6 +483,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |subscribeRatePeriodPerConsumerInSecond|Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.|30|
 | dispatchThrottlingRatePerTopicInMsg | Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled. |0 |
 | dispatchThrottlingRatePerTopicInByte | Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled. | 0|
+| dispatchThrottlingOnBatchMessageEnabled |Apply dispatch rate limiting on batch message instead individual messages with in batch message. (Default is disabled). | false|
+
 | dispatchThrottlingRateRelativeToPublishRate | Enable dispatch rate-limiting relative to publish rate. | false |
 |dispatchThrottlingRatePerSubscriptionInMsg|The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.|0|
 |dispatchThrottlingRatePerSubscriptionInByte|The default number of message-bytes dispatching throttling-limit for a subscription. The value of 0 disables message-byte dispatch-throttling.|0|
@@ -720,7 +725,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tlsHostnameVerificationEnabled|  Whether the hostname is validated when the proxy creates a TLS connection with brokers  |false|
 |tlsRequireTrustedClientCertOnConnect|  Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted. |false|
 |tlsProtocols|Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLSv1.3```, ```TLSv1.2``` ||
-|tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256```||
+|tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- ```
+
 | httpReverseProxyConfigs | HTTP directs to redirect to non-pulsar services | |
 | httpOutputBufferSize | HTTP output buffer size. The amount of data that will be buffered for HTTP requests before it is flushed to the channel. A larger buffer size may result in higher HTTP throughput though it may take longer for the client to see data. If using HTTP streaming via the reverse proxy, this should be set to the minimum value (1) so that clients see the data as soon as possible. | 32768 |
 | httpNumThreads | Number of threads to use for HTTP requests processing|  2 * Runtime.getRuntime().availableProcessors() |

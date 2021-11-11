@@ -35,7 +35,6 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -182,6 +181,16 @@ public interface AuthorizationProvider extends Closeable {
      * @return a boolean to determine whether authorized or not
      */
     CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                 AuthenticationDataSource authenticationData);
+
+    /**
+     * Allow consume operations with in this namespace
+     * @param namespaceName The namespace that the consume operations can be executed in
+     * @param role The role to check
+     * @param authenticationData authentication data related to the role
+     * @return a boolean to determine whether authorized or not
+     */
+    CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role,
                                                  AuthenticationDataSource authenticationData);
 
     /**

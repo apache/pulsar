@@ -72,13 +72,13 @@ public final class WorkerUtils {
 
     public static void uploadFileToBookkeeper(String packagePath, File sourceFile, Namespace dlogNamespace) throws IOException {
         try (FileInputStream uploadedInputStream = new FileInputStream(sourceFile)) {
-            uploadToBookeeper(dlogNamespace, uploadedInputStream, packagePath);
+            uploadToBookKeeper(dlogNamespace, uploadedInputStream, packagePath);
         }
     }
 
-    public static void uploadToBookeeper(Namespace dlogNamespace,
-                                         InputStream uploadedInputStream,
-                                         String destPkgPath)
+    public static void uploadToBookKeeper(Namespace dlogNamespace,
+                                          InputStream uploadedInputStream,
+                                          String destPkgPath)
             throws IOException {
 
         // if the dest directory does not exist, create it.
@@ -352,7 +352,9 @@ public final class WorkerUtils {
                 }
                 tries++;
                 if (tries % 6 == 0) {
-                    log.warn("Failed to acquire exclusive producer to topic {} after {} attempts.  Will retry if we are still the leader.", topic, tries);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Failed to acquire exclusive producer to topic {} after {} attempts.  Will retry if we are still the leader.", topic, tries);
+                    }
                 }
                 Thread.sleep(sleepInBetweenMs);
             } while (isLeader.get());

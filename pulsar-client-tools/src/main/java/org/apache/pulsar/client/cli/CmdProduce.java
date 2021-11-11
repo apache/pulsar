@@ -39,7 +39,6 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -107,6 +106,9 @@ public class CmdProduce {
                description = "Rate (in msg/sec) at which to produce," +
                        " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
+
+    @Parameter(names = { "-db", "--disable-batching" }, description = "Disable batch sending of messages")
+    private boolean disableBatching = false;
     
     @Parameter(names = { "-c",
             "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
@@ -246,6 +248,8 @@ public class CmdProduce {
             ProducerBuilder<?> producerBuilder = client.newProducer(schema).topic(topic);
             if (this.chunkingAllowed) {
                 producerBuilder.enableChunking(true);
+                producerBuilder.enableBatching(false);
+            } else if (this.disableBatching) {
                 producerBuilder.enableBatching(false);
             }
             if (isNotBlank(this.encKeyName) && isNotBlank(this.encKeyValue)) {

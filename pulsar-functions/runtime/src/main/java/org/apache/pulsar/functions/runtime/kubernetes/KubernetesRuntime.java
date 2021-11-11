@@ -72,7 +72,6 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -149,6 +148,7 @@ public class KubernetesRuntime implements Runtime {
     private int percentMemoryPadding;
     private double cpuOverCommitRatio;
     private double memoryOverCommitRatio;
+    private int gracePeriodSeconds;
     private final Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider;
     private final AuthenticationConfig authConfig;
     private Integer grpcPort;
@@ -186,6 +186,7 @@ public class KubernetesRuntime implements Runtime {
                       int percentMemoryPadding,
                       double cpuOverCommitRatio,
                       double memoryOverCommitRatio,
+                      int gracePeriodSeconds,
                       Optional<KubernetesFunctionAuthProvider> functionAuthDataCacheProvider,
                       boolean authenticationEnabled,
                       Integer grpcPort,
@@ -212,6 +213,7 @@ public class KubernetesRuntime implements Runtime {
         this.percentMemoryPadding = percentMemoryPadding;
         this.cpuOverCommitRatio = cpuOverCommitRatio;
         this.memoryOverCommitRatio = memoryOverCommitRatio;
+        this.gracePeriodSeconds = gracePeriodSeconds;
         this.authenticationEnabled = authenticationEnabled;
         this.manifestCustomizer = manifestCustomizer;
         this.functionInstanceClassPath = functionInstanceClassPath;
@@ -567,7 +569,7 @@ public class KubernetesRuntime implements Runtime {
     public void deleteStatefulSet() throws InterruptedException {
         String statefulSetName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
         final V1DeleteOptions options = new V1DeleteOptions();
-        options.setGracePeriodSeconds(5L);
+        options.setGracePeriodSeconds((long)gracePeriodSeconds);
         options.setPropagationPolicy("Foreground");
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
@@ -583,8 +585,8 @@ public class KubernetesRuntime implements Runtime {
                         response = appsClient.deleteNamespacedStatefulSetCall(
                                 statefulSetName,
                                 jobNamespace, null, null,
-                                5, null, "Foreground",
-                                null, null)
+                                gracePeriodSeconds, null, "Foreground",
+                                options, null)
                                 .execute();
                     } catch (ApiException e) {
                         // if already deleted
@@ -735,7 +737,7 @@ public class KubernetesRuntime implements Runtime {
                                 serviceName,
                                 jobNamespace, null, null,
                                 0, null,
-                                "Foreground", null, null).execute();
+                                "Foreground", options, null).execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {

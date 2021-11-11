@@ -486,6 +486,8 @@ message CommandProducer {
     // leave it empty and then it will always carry the same epoch number on
     // the subsequent reconnections.
     optional uint64 topic_epoch = 11;
+
+    optional bool txn_enabled = 12 [default = false];
 }
 
 message CommandSend {

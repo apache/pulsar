@@ -187,4 +187,18 @@ public class ConsumerImplTest {
         // then
         Assert.assertFalse(consumer.hasPendingBatchReceive());
     }
+
+    @Test
+    public void testClose() {
+        Exception checkException = null;
+        try {
+            if (consumer != null) {
+                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
+                consumer.close();
+            }
+        } catch (Exception e) {
+            checkException = e;
+        }
+        Assert.assertNull(checkException);
+    }
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -167,8 +168,15 @@ abstract class CliCommand {
 
     static Set<AuthAction> getAuthActions(List<String> actions) {
         Set<AuthAction> res = Sets.newTreeSet();
+        AuthAction authAction;
         for (String action : actions) {
-            res.add(AuthAction.valueOf(action));
+            try {
+                authAction = AuthAction.valueOf(action);
+            } catch (IllegalArgumentException exception) {
+                throw new ParameterException(String.format("Illegal auth action '%s'. Possible values: %s",
+                        action, Arrays.toString(AuthAction.values())));
+            }
+            res.add(authAction);
         }
 
         return res;
@@ -188,7 +196,11 @@ abstract class CliCommand {
 
     <T> void print(T item) {
         try {
-            System.out.println(writer.writeValueAsString(item));
+            if (item instanceof String) {
+                System.out.println(item);
+            } else {
+                System.out.println(writer.writeValueAsString(item));
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

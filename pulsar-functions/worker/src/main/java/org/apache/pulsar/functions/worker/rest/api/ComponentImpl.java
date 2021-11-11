@@ -267,10 +267,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (workerService == null) {
             return false;
         }
-        if (!workerService.isInitialized()) {
-            return false;
-        }
-        return true;
+        return workerService.isInitialized();
     }
 
     PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
@@ -1228,7 +1225,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", path);
-            WorkerUtils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream, path);
+            WorkerUtils.uploadToBookKeeper(worker().getDlogNamespace(), uploadedInputStream, path);
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());

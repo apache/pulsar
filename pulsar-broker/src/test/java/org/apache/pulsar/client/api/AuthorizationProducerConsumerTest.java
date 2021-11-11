@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -239,6 +240,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         String otherPrincipal = "Principal-1-to-access-sub";
         tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Collections.singleton(otherPrincipal));
+        TreeMap<String, Set<String>> permissionOnSubscription = new TreeMap<>();
+        permissionOnSubscription.put(subscriptionName, Collections.singleton(otherPrincipal));
+        Assert.assertEquals(tenantAdmin.namespaces().getPermissionOnSubscription(namespace), permissionOnSubscription);
 
         // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
         try {
@@ -259,6 +263,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         // now, grant subscription-access to subscriptionRole as well
         superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Sets.newHashSet(otherPrincipal, subscriptionRole));
+        TreeMap<String, Set<String>> permissionOnSubscription1 = new TreeMap<>();
+        permissionOnSubscription1.put(subscriptionName, Sets.newHashSet(otherPrincipal, subscriptionRole));
+        Assert.assertEquals(tenantAdmin.namespaces().getPermissionOnSubscription(namespace), permissionOnSubscription1);
 
         sub1Admin.topics().skipAllMessages(topicName, subscriptionName);
         sub1Admin.topics().skipMessages(topicName, subscriptionName, 1);
@@ -495,6 +502,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowConsumeOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
             return null;
         }
 

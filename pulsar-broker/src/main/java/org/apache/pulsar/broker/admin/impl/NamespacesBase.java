@@ -24,7 +24,6 @@ import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.collect.Sets.SetView;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -86,6 +85,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.Policies.BundleType;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -830,6 +830,12 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    protected AutoTopicCreationOverride internalGetAutoTopicCreation() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoTopicCreationOverride;
+    }
+
     protected void internalSetAutoTopicCreation(AsyncResponse asyncResponse,
                                                 AutoTopicCreationOverride autoTopicCreationOverride) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
@@ -900,6 +906,12 @@ public abstract class NamespacesBase extends AdminResource {
             asyncResponse.resume(new RestException(e.getCause()));
             return null;
         });
+    }
+
+    protected AutoSubscriptionCreationOverride internalGetAutoSubscriptionCreation() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.autoSubscriptionCreationOverride;
     }
 
     protected void internalRemoveAutoSubscriptionCreation(AsyncResponse asyncResponse) {
@@ -1107,11 +1119,13 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleRange,
+    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName,
                                                 boolean authoritative, boolean unload, String splitAlgorithmName) {
         validateSuperUserAccess();
-        checkNotNull(bundleRange, "BundleRange should not be null");
-        log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
+        checkNotNull(bundleName, "BundleRange should not be null");
+        log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
+
+        String bundleRange = getBundleRange(bundleName);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1161,6 +1175,24 @@ public abstract class NamespacesBase extends AdminResource {
             }
             return null;
         });
+    }
+
+    private String getBundleRange(String bundleName) {
+        if (BundleType.LARGEST.toString().equals(bundleName)) {
+            return findLargestBundleWithTopics(namespaceName).getBundleRange();
+        } else if (BundleType.HOT.toString().equals(bundleName)) {
+            return findHotBundle(namespaceName).getBundleRange();
+        } else {
+            return bundleName;
+        }
+    }
+
+    private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestTopics(namespaceName);
+    }
+
+    private NamespaceBundle findHotBundle(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestThroughput(namespaceName);
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
@@ -1719,6 +1751,12 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected SubscriptionAuthMode internalGetSubscriptionAuthMode() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.subscription_auth_mode;
+    }
+
     protected void internalModifyEncryptionRequired(boolean encryptionRequired) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -1735,6 +1773,12 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected Boolean internalGetEncryptionRequired() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.encryption_required;
     }
 
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
@@ -1950,34 +1994,6 @@ public abstract class NamespacesBase extends AdminResource {
                 throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
             }
             throw new RestException(e.getCause());
-        }
-    }
-
-    /**
-     * It validates that peer-clusters can't coexist in replication-clusters.
-     *
-     * @param clusterName:         given cluster whose peer-clusters can't be present into replication-cluster list
-     * @param replicationClusters: replication-cluster list
-     */
-    private void validatePeerClusterConflict(String clusterName, Set<String> replicationClusters) {
-        try {
-            ClusterData clusterData = clusterResources().getCluster(clusterName).orElseThrow(
-                    () -> new RestException(Status.PRECONDITION_FAILED, "Invalid replication cluster " + clusterName));
-            Set<String> peerClusters = clusterData.getPeerClusterNames();
-            if (peerClusters != null && !peerClusters.isEmpty()) {
-                SetView<String> conflictPeerClusters = Sets.intersection(peerClusters, replicationClusters);
-                if (!conflictPeerClusters.isEmpty()) {
-                    log.warn("[{}] {}'s peer cluster can't be part of replication clusters {}", clientAppId(),
-                            clusterName, conflictPeerClusters);
-                    throw new RestException(Status.CONFLICT,
-                            String.format("%s's peer-clusters %s can't be part of replication-clusters %s", clusterName,
-                                    conflictPeerClusters, replicationClusters));
-                }
-            }
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.warn("[{}] Failed to get cluster-data for {}", clientAppId(), clusterName, e);
         }
     }
 
@@ -2379,10 +2395,15 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaCompatibilityStrategy");
     }
 
-    protected boolean internalGetSchemaValidationEnforced() {
+    protected boolean internalGetSchemaValidationEnforced(boolean applied) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).schema_validation_enforced;
+        boolean schemaValidationEnforced = getNamespacePolicies(namespaceName).schema_validation_enforced;
+        if (!schemaValidationEnforced && applied) {
+            return pulsar().getConfiguration().isSchemaValidationEnforced();
+        } else {
+            return schemaValidationEnforced;
+        }
     }
 
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {

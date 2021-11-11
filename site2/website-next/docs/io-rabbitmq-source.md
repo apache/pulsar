@@ -1,7 +1,7 @@
 ---
 id: io-rabbitmq-source
 title: RabbitMQ source connector
-sidebar_label: RabbitMQ source connector
+sidebar_label: "RabbitMQ source connector"
 ---
 
 import Tabs from '@theme/Tabs';
@@ -41,44 +41,48 @@ Before using the RabbitMQ source connector, you need to create a configuration f
 
 * JSON 
 
-    ```json
-    {
-        "host": "localhost",
-        "port": "5672",
-        "virtualHost": "/",
-        "username": "guest",
-        "password": "guest",
-        "queueName": "test-queue",
-        "connectionName": "test-connection",
-        "requestedChannelMax": "0",
-        "requestedFrameMax": "0",
-        "connectionTimeout": "60000",
-        "handshakeTimeout": "10000",
-        "requestedHeartbeat": "60",
-        "prefetchCount": "0",
-        "prefetchGlobal": "false",
-        "passive": "false"
-    }
-    ```
+  ```json
+  
+  {
+      "host": "localhost",
+      "port": "5672",
+      "virtualHost": "/",
+      "username": "guest",
+      "password": "guest",
+      "queueName": "test-queue",
+      "connectionName": "test-connection",
+      "requestedChannelMax": "0",
+      "requestedFrameMax": "0",
+      "connectionTimeout": "60000",
+      "handshakeTimeout": "10000",
+      "requestedHeartbeat": "60",
+      "prefetchCount": "0",
+      "prefetchGlobal": "false",
+      "passive": "false"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        host: "localhost"
-        port: 5672
-        virtualHost: "/"
-        username: "guest"
-        password: "guest"
-        queueName: "test-queue"
-        connectionName: "test-connection"
-        requestedChannelMax: 0
-        requestedFrameMax: 0
-        connectionTimeout: 60000
-        handshakeTimeout: 10000
-        requestedHeartbeat: 60
-        prefetchCount: 0
-        prefetchGlobal: "false"
-        passive: "false"
-    ```
+  ```yaml
+  
+  configs:
+      host: "localhost"
+      port: 5672
+      virtualHost: "/"
+      username: "guest"
+      password: "guest"
+      queueName: "test-queue"
+      connectionName: "test-connection"
+      requestedChannelMax: 0
+      requestedFrameMax: 0
+      connectionTimeout: 60000
+      handshakeTimeout: 10000
+      requestedHeartbeat: 60
+      prefetchCount: 0
+      prefetchGlobal: "false"
+      passive: "false"
+  
+  ```
 

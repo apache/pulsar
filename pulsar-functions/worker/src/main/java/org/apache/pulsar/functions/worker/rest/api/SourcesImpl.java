@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -63,7 +62,6 @@ import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sources;
-import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 @Slf4j

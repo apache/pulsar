@@ -245,7 +245,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
-        consumer.receiveAsync().thenAccept(message -> {
+        consumer.receiveAsync().thenAcceptAsync(message -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());
@@ -260,16 +260,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // or if any consumer is already paused (to create fair chance for already paused consumers)
                 pausedConsumers.add(consumer);
 
-                // Since we din't get a mutex, the condition on the incoming queue might have changed after
+                // Since we didn't get a mutex, the condition on the incoming queue might have changed after
                 // we have paused the current consumer. We need to re-check in order to avoid this consumer
                 // from getting stalled.
                 resumeReceivingFromPausedConsumersIfNeeded();
             } else {
-                // Schedule next receiveAsync() if the incoming queue is not full. Use a different thread to avoid
-                // recursion and stack overflow
-                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
+                // Call receiveAsync() if the incoming queue is not full. Because this block is run with
+                // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
+                receiveMessageFromConsumer(consumer);
             }
-        }).exceptionally(ex -> {
+        }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
                     || ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                 // ignore the exception that happens when the consumer is closed
@@ -281,6 +281,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         });
     }
 
+    // Must be called from the internalPinnedExecutor thread
     private void messageReceived(ConsumerImpl<T> consumer, Message<T> message) {
         checkArgument(message instanceof MessageImpl);
         TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(),
@@ -409,17 +410,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
-        Message<T> message = incomingMessages.poll();
-        if (message == null) {
-            pendingReceives.add(result);
-            cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-        } else {
-            decreaseIncomingMessageSize(message);
-            checkState(message instanceof TopicMessageImpl);
-            unAckedMessageTracker.add(message.getMessageId());
-            resumeReceivingFromPausedConsumersIfNeeded();
-            result.complete(message);
-        }
+        internalPinnedExecutor.execute(() -> {
+            Message<T> message = incomingMessages.poll();
+            if (message == null) {
+                pendingReceives.add(result);
+                cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
+            } else {
+                decreaseIncomingMessageSize(message);
+                checkState(message instanceof TopicMessageImpl);
+                unAckedMessageTracker.add(message.getMessageId());
+                resumeReceivingFromPausedConsumersIfNeeded();
+                result.complete(message);
+            }
+        });
         return result;
     }
 
@@ -517,6 +520,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
         consumer.negativeAcknowledge(topicMessageId.getInnerMessageId());
+    }
+
+    @Override
+    public void negativeAcknowledge(Message<?> message) {
+        MessageId messageId = message.getMessageId();
+        checkArgument(messageId instanceof TopicMessageIdImpl);
+        TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
+
+        ConsumerImpl<T> consumer = consumers.get(topicMessageId.getTopicPartitionName());
+        consumer.negativeAcknowledge(message);
     }
 
     @Override
@@ -998,8 +1011,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 } else {
                     ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
                             client.externalExecutorProvider(), -1,
-                            true, subFuture, null, schema, interceptors,
-                            createIfDoesNotExist);
+                            true, subFuture, startMessageId, schema, interceptors,
+                            createIfDoesNotExist, startMessageRollbackDurationInSec);
 
                     synchronized (pauseMutex) {
                         if (paused) {
@@ -1294,8 +1307,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                                 client, partitionName, configurationData,
                                 client.externalExecutorProvider(),
-                                partitionIndex, true, subFuture, null, schema, interceptors,
-                                true /* createTopicIfDoesNotExist */);
+                                partitionIndex, true, subFuture, startMessageId, schema, interceptors,
+                                true /* createTopicIfDoesNotExist */, startMessageRollbackDurationInSec);
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();
@@ -1324,28 +1337,35 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     topicName, oldPartitionNumber, currentPartitionNumber);
                 return FutureUtil.failedFuture(new NotSupportedException("not support shrink topic partitions"));
             }
+        }).exceptionally(throwable -> {
+            log.warn("[{}] Failed to get partitions for topic to determine if new partitions are added", throwable);
+            return null;
         });
     }
 
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
         @Override
         public void run(Timeout timeout) throws Exception {
-            if (timeout.isCancelled() || getState() != State.Ready) {
-                return;
-            }
+            try {
+                if (timeout.isCancelled() || getState() != State.Ready) {
+                    return;
+                }
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] run partitionsAutoUpdateTimerTask", topic);
-            }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] run partitionsAutoUpdateTimerTask", topic);
+                }
 
-            // if last auto update not completed yet, do nothing.
-            if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
-                partitionsAutoUpdateFuture = topicsPartitionChangedListener.onTopicsExtended(partitionedTopics.keySet());
+                // if last auto update not completed yet, do nothing.
+                if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
+                    partitionsAutoUpdateFuture = topicsPartitionChangedListener.onTopicsExtended(partitionedTopics.keySet());
+                }
+            } catch (Throwable th) {
+                log.warn("Encountered error in partition auto update timer task for multi-topic consumer. Another task will be scheduled.", th);
+            } finally {
+                // schedule the next re-check task
+                partitionsAutoUpdateTimeout = client.timer()
+                        .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
             }
-
-            // schedule the next re-check task
-            partitionsAutoUpdateTimeout = client.timer()
-                .newTimeout(partitionsAutoUpdateTimerTask, conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
         }
     };
 

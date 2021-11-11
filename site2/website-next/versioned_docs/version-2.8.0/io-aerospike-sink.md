@@ -1,7 +1,7 @@
 ---
 id: io-aerospike-sink
 title: Aerospike sink connector
-sidebar_label: Aerospike sink connector
+sidebar_label: "Aerospike sink connector"
 original_id: io-aerospike-sink
 ---
 

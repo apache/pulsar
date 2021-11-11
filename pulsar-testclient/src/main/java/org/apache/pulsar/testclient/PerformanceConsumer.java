@@ -26,6 +26,8 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -36,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
+import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
@@ -185,6 +188,9 @@ public class PerformanceConsumer {
 
         @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
         public boolean enableBusyWait = false;
+
+        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
+        public String histogramFile = null;
     }
 
     public static void main(String[] args) throws Exception {
@@ -212,7 +218,7 @@ public class PerformanceConsumer {
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
             // keep compatibility with the previous version
             if (arguments.topic.size() == 1) {
-                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString();
+                String prefixTopicName = TopicName.get(arguments.topic.get(0)).toString().trim();
                 List<String> defaultTopics = Lists.newArrayList();
                 for (int i = 0; i < arguments.numTopics; i++) {
                     defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
@@ -406,7 +412,19 @@ public class PerformanceConsumer {
         long oldTime = System.nanoTime();
 
         Histogram reportHistogram = null;
+        HistogramLogWriter histogramLogWriter = null;
 
+        if (arguments.histogramFile != null) {
+            String statsFileName = arguments.histogramFile;
+            log.info("Dumping latency stats to {}", statsFileName);
+
+            PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
+            histogramLogWriter = new HistogramLogWriter(histogramLog);
+
+            // Some log header bits
+            histogramLogWriter.outputLogFormatVersion();
+            histogramLogWriter.outputLegend();
+        }
 
         while (true) {
             try {
@@ -430,6 +448,10 @@ public class PerformanceConsumer {
                     reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
                     reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
                     reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+
+            if (histogramLogWriter != null) {
+                histogramLogWriter.outputIntervalHistogram(reportHistogram);
+            }
 
             reportHistogram.reset();
             oldTime = now;

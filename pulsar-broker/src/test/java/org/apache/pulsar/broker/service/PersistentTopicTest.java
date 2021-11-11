@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
@@ -46,9 +47,11 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -117,18 +120,17 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -1768,7 +1770,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
         PersistentReplicator replicator = spy(
-                new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService));
+                new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService,
+                        (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster,
+                                brokerService.pulsar().getPulsarResources().getClusterResources()
+                                .getCluster(remoteCluster))));
         replicatorMap.put(remoteReplicatorName, replicator);
 
         // step-1 remove replicator : it will disconnect the producer but it will wait for callback to be completed
@@ -1813,7 +1818,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
-        PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService);
+        PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster,
+                brokerService, (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster,
+                brokerService.pulsar().getPulsarResources().getClusterResources()
+                        .getCluster(remoteCluster)));
 
         // PersistentReplicator constructor calls startProducer()
         verify(clientImpl)
@@ -1834,6 +1842,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testCompactorSubscription() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        when(compactedTopic.newCompactedLedger(any(Position.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(mock(CompactedTopicContext.class)));
         PersistentSubscription sub = new CompactorSubscription(topic, compactedTopic,
                                                                Compactor.COMPACTION_SUBSCRIPTION,
                                                                cursorMock);
@@ -2250,5 +2260,52 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         headers.writeInt(msgMetadataSize);
         messageData.writeTo(headers);
         return ByteBufPair.coalesce(ByteBufPair.get(headers, payload));
+    }
+
+    @Test
+    public void testGetReplicationClusters() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        TopicName name = TopicName.get(successTopicName);
+        CompletableFuture<List<String>> replicationClusters = topic.getReplicationClusters(name);
+        try {
+            replicationClusters.get();
+            fail("Should have failed");
+        } catch (ExecutionException ex) {
+            assertTrue(ex.getCause() instanceof BrokerServiceException.ServerMetadataException);
+        }
+
+        PulsarResources pulsarResources = spy(new PulsarResources(store, store));
+        NamespaceResources nsr = spy(new NamespaceResources(store, store, 30));
+        doReturn(nsr).when(pulsarResources).getNamespaceResources();
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        CompletableFuture<Optional<Policies>> policiesFuture = new CompletableFuture<>();
+        Policies policies = new Policies();
+        Set<String> namespaceClusters = new HashSet<>();
+        namespaceClusters.add("namespace-cluster");
+        policies.replication_clusters = namespaceClusters;
+        Optional<Policies> optionalPolicies = Optional.of(policies);
+        policiesFuture.complete(optionalPolicies);
+        doReturn(policiesFuture).when(nsr).getPoliciesAsync(any());
+
+        topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        replicationClusters = topic.getReplicationClusters(name);
+
+        assertEquals(replicationClusters.get(), namespaceClusters);
+
+        TopicPoliciesService topicPoliciesService = mock(TopicPoliciesService.class);
+        doReturn(topicPoliciesService).when(pulsar).getTopicPoliciesService();
+        CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture = new CompletableFuture<>();
+        TopicPolicies topicPolicies = new TopicPolicies();
+        List<String> topicClusters = new ArrayList<>();
+        topicClusters.add("topic-cluster");
+        topicPolicies.setReplicationClusters(topicClusters);
+        Optional<TopicPolicies> optionalTopicPolicies = Optional.of(topicPolicies);
+        topicPoliciesFuture.complete(optionalTopicPolicies);
+        when(topicPoliciesService.getTopicPoliciesAsyncWithRetry(any(), any(), any())).thenReturn(topicPoliciesFuture);
+
+        topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        replicationClusters = topic.getReplicationClusters(name);
+
+        assertEquals(replicationClusters.get(), topicClusters);
     }
 }

@@ -185,6 +185,29 @@
     },
     {
       "type": "category",
+      "label": "Cookbooks",
+      "items": [
+        "cookbooks-compaction",
+        "cookbooks-deduplication",
+        "cookbooks-non-persistent",
+        "cookbooks-retention-expiry",
+        "cookbooks-encryption",
+        "cookbooks-message-queue",
+        "cookbooks-bookkeepermetadata"
+      ]
+    },
+    {
+      "type": "category",
+      "label": "Development",
+      "items": [
+        "develop-tools",
+        "develop-binary-protocol",
+        "develop-schema",
+        "develop-load-manager"
+      ]
+    },
+    {
+      "type": "category",
       "label": "Reference",
       "items": [
         "reference-terminology",

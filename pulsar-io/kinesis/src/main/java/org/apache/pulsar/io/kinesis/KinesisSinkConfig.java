@@ -26,7 +26,7 @@ import lombok.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Map;
+
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Data

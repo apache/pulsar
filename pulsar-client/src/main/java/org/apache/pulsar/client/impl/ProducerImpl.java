@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
@@ -148,6 +149,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private Optional<Long> topicEpoch = Optional.empty();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
+
+    private boolean errorState;
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
@@ -257,6 +260,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this);
 
         grabCnx();
+    }
+
+    protected void semaphoreRelease(final int releaseCountRequest) {
+        if (semaphore.isPresent()) {
+            if (!errorState) {
+                final int availablePermits = semaphore.get().availablePermits();
+                if (availablePermits - releaseCountRequest < 0) {
+                    log.error("Semaphore permit release count request greater then availablePermits" +
+                                    " : availablePermits={}, releaseCountRequest={}",
+                            availablePermits, releaseCountRequest);
+                    errorState = true;
+                }
+            }
+            semaphore.get().release(releaseCountRequest);
+        }
     }
 
     protected OpSendMsgQueue createPendingMessagesQueue() {
@@ -1018,9 +1036,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void releaseSemaphoreForSendOp(OpSendMsg op) {
-        if (semaphore.isPresent()) {
-            semaphore.get().release(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
-        }
+
+        semaphoreRelease(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
+
         client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
     }
 
@@ -1258,7 +1276,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         "%s : createdAt %s ns ago, firstSentAt %s ns ago, lastSentAt %s ns ago, retryCount %s",
                         te.getMessage(),
                         ns - this.createdAt,
-                        ns - this.firstSentAt,
+                        this.firstSentAt <= 0 ? ns - this.lastSentAt : ns - this.firstSentAt,
                         ns - this.lastSentAt,
                         retryCount
                     );
@@ -1438,7 +1456,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
                        schemaInfo, connectionHandler.getEpoch(), userProvidedProducerName,
-                       conf.getAccessMode(), topicEpoch),
+                       conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction()),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1510,7 +1528,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         cnx.channel().close();
                         return null;
                     }
-                    log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
+                    if (cause instanceof PulsarClientException.ProducerFencedException) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] Failed to create producer: {}",
+                                    topic, producerName, cause.getMessage());
+                        }
+                    } else {
+                        log.error("[{}] [{}] Failed to create producer: {}", topic, producerName, cause.getMessage());
+                    }
                     // Close the producer since topic does not exists.
                     if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                         closeAsync().whenComplete((v, ex) -> {
@@ -1759,7 +1784,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             });
 
             pendingMessages.clear();
-            semaphore.ifPresent(s -> s.release(releaseCount.get()));
+            semaphoreRelease(releaseCount.get());
             if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);
             }
@@ -1785,7 +1810,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         batchMessageContainer.discard(ex);
-        semaphore.ifPresent(s -> s.release(numMessagesInBatch));
+        semaphoreRelease(numMessagesInBatch);
     }
 
     @Override
@@ -1828,10 +1853,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     processOpSendMsg(opSendMsg);
                 }
             } catch (PulsarClientException e) {
-                Thread.currentThread().interrupt();
-                semaphore.ifPresent(s -> s.release(batchMessageContainer.getNumMessagesInBatch()));
+                semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
             } catch (Throwable t) {
-                semaphore.ifPresent(s -> s.release(batchMessageContainer.getNumMessagesInBatch()));
+                semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
                 log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
             }
         }
@@ -1954,7 +1978,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     public int getPendingQueueSize() {
-        return pendingMessages.size();
+        if (!isBatchMessagingEnabled()) {
+            return pendingMessages.size();
+        }
+        MutableInt size = new MutableInt(0);
+        pendingMessages.forEach(op -> {
+            size.add(Math.max(op.numMessagesInBatch, 1));
+        });
+        return size.getValue();
     }
 
     @Override

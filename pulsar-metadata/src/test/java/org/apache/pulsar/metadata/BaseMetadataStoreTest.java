@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertTrue;
+import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -52,7 +53,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         // Supplier<String> lambda is used for providing the value.
         return new Object[][] {
                 { "ZooKeeper", stringSupplier(() -> zks.getConnectionString()) },
-                { "Memory", stringSupplier(() -> "memory://local") },
+                { "Memory", stringSupplier(() -> "memory://" + UUID.randomUUID()) },
         };
     }
 

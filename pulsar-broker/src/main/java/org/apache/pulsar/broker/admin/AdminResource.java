@@ -632,10 +632,7 @@ public abstract class AdminResource extends PulsarWebResource {
             return;
         }
 
-        List<CompletableFuture<Void>> createFutureList = new ArrayList<>();
-
         CompletableFuture<Void> createLocalFuture = new CompletableFuture<>();
-        createFutureList.add(createLocalFuture);
         checkTopicExistsAsync(topicName).thenAccept(exists -> {
             if (exists) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
@@ -658,7 +655,13 @@ public abstract class AdminResource extends PulsarWebResource {
             return null;
         });
 
-        FutureUtil.waitForAll(createFutureList).whenComplete((ignored, ex) -> {
+        List<String> replicatedClusters = new ArrayList<>();
+        if (!createLocalTopicOnly && topicName.isGlobal() && isNamespaceReplicated(namespaceName)) {
+            getNamespaceReplicatedClusters(namespaceName)
+                    .stream().filter(cluster -> !cluster.equals(pulsar().getConfiguration().getClusterName()))
+                    .forEach(replicatedClusters::add);
+        }
+        createLocalFuture.whenComplete((ignored, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName, ex.getCause());
                 if (ex.getCause() instanceof RestException) {
@@ -669,14 +672,20 @@ public abstract class AdminResource extends PulsarWebResource {
                 return;
             }
 
-            if (!createLocalTopicOnly && topicName.isGlobal() && isNamespaceReplicated(namespaceName)) {
-                getNamespaceReplicatedClusters(namespaceName)
-                        .stream()
-                        .filter(cluster -> !cluster.equals(pulsar().getConfiguration().getClusterName()))
-                        .forEach(cluster -> createFutureList.add(
-                                ((TopicsImpl) pulsar().getBrokerService().getClusterPulsarAdmin(cluster).topics())
+            if (!replicatedClusters.isEmpty()) {
+                replicatedClusters.forEach(cluster -> {
+                    pulsar().getPulsarResources().getClusterResources().getClusterAsync(cluster)
+                            .thenAccept(clusterDataOp -> {
+                                ((TopicsImpl) pulsar().getBrokerService()
+                                        .getClusterPulsarAdmin(cluster, clusterDataOp).topics())
                                         .createPartitionedTopicAsync(
-                                                topicName.getPartitionedTopicName(), numPartitions, true)));
+                                                topicName.getPartitionedTopicName(), numPartitions, true);
+                            })
+                            .exceptionally(throwable -> {
+                                log.error("Failed to create partition topic in cluster {}.", cluster, throwable);
+                                return null;
+                            });
+                });
             }
 
             log.info("[{}] Successfully created partitions for topic {} in cluster {}",

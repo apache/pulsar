@@ -24,10 +24,11 @@ import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -227,6 +228,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
 
+        jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
+        jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
+        jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
+
         initDeprecatedCommands();
     }
 
@@ -287,7 +292,8 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
         private String role;
 
-        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume)", required = true, splitter = CommaParameterSplitter.class)
+        @Parameter(names = "--actions", description = "Actions to be granted (produce,consume,sources,sinks," +
+                "functions,packages)", required = true)
         private List<String> actions;
 
         @Override
@@ -594,7 +600,8 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            String result = getTopics().getInternalInfo(topic);
+            String internalInfo = getTopics().getInternalInfo(topic);
+            JsonObject result = JsonParser.parseString(internalInfo).getAsJsonObject();
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
         }
@@ -771,7 +778,8 @@ public class CmdTopics extends CmdBase {
         private String resetTimeStr;
 
         @Parameter(names = { "--messageId",
-                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
+                "-m" }, description = "messageId to reset back to ('latest', 'earliest', or 'ledgerId:entryId')", required =
+                false)
         private String resetMessageIdStr;
 
         @Parameter(names = { "-e", "--exclude-reset-position" },
@@ -782,7 +790,14 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
-                MessageId messageId = validateMessageIdString(resetMessageIdStr);
+                MessageId messageId;
+                if ("earliest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.earliest;
+                } else if ("latest".equals(resetMessageIdStr)) {
+                    messageId = MessageId.latest;
+                } else {
+                    messageId = validateMessageIdString(resetMessageIdStr);
+                }
                 if (excludeResetPosition) {
                     getTopics().resetCursor(persistentTopic, subName, messageId, true);
                 } else {
@@ -796,7 +811,7 @@ public class CmdTopics extends CmdBase {
                 getTopics().resetCursor(persistentTopic, subName, timestamp);
             } else {
                 throw new PulsarAdminException(
-                        "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
+                        "Either Timestamp (--time) or messageId (--messageId) has to be provided to reset cursor");
             }
         }
     }
@@ -1241,6 +1256,50 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().removeBacklogQuota(persistentTopic, BacklogQuota.BacklogQuotaType.valueOf(backlogQuotaType));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the replication clusters for a topic")
+    private class GetReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopics().getReplicationClusters(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the replication clusters for a topic")
+    private class SetReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            getTopics().setReplicationClusters(persistentTopic, clusters);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the replication clusters for a topic")
+    private class RemoveReplicationClusters extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopics().removeReplicationClusters(persistentTopic);
         }
     }
 
@@ -1850,15 +1909,24 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--types",
-                "-t" }, description = "Subscription types enabled list (comma separated values)", required = true)
-        private String subTypes;
+        @Parameter(names = {"--types", "-t"}, description = "Subscription types enabled list (comma separated values)."
+                + " Possible values: (Exclusive, Shared, Failover, Key_Shared).", required = true)
+        private List<String> subTypes;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             Set<SubscriptionType> types = new HashSet<>();
-            Lists.newArrayList(subTypes.split(",")).forEach(s -> types.add(SubscriptionType.valueOf(s)));
+            subTypes.forEach(s -> {
+                SubscriptionType subType;
+                try {
+                    subType = SubscriptionType.valueOf(s);
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(String.format("Illegal subscription type %s. Possible values: %s.", s,
+                            Arrays.toString(SubscriptionType.values())));
+                }
+                types.add(subType);
+            });
             getTopics().setSubscriptionTypesEnabled(persistentTopic, types);
         }
     }
