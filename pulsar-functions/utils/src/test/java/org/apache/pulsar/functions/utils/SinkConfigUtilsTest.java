@@ -116,7 +116,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    private void testParseRetainOrderingField() throws IOException {
+    public void testParseRetainOrderingField() throws IOException {
         List<Boolean> testcases = Lists.newArrayList(true, false, null);
         for (Boolean testcase : testcases) {
             SinkConfig sinkConfig = createSinkConfig();
@@ -128,7 +128,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    private void testParseProcessingGuaranteesField() throws IOException {
+    public void testParseProcessingGuaranteesField() throws IOException {
         List<FunctionConfig.ProcessingGuarantees> testcases = Lists.newArrayList(
                 EFFECTIVELY_ONCE,
                 ATMOST_ONCE,
@@ -146,7 +146,7 @@ public class SinkConfigUtilsTest extends PowerMockTestCase {
     }
 
     @Test
-    private void testCleanSubscriptionField() throws IOException {
+    public void testCleanSubscriptionField() throws IOException {
         List<Boolean> testcases = Lists.newArrayList(true, false, null);
 
         for (Boolean testcase : testcases) {
