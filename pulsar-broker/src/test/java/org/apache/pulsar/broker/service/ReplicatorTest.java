@@ -1310,6 +1310,27 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
+    @Test
+    public void testLookupAnotherCluster() throws Exception {
+        log.info("--- Starting ReplicatorTest::testLookupAnotherCluster ---");
+
+        String namespace = "pulsar/r2/cross-cluster-ns";
+        admin1.namespaces().createNamespace(namespace);
+        final TopicName topicName = TopicName
+                .get("persistent://" + namespace + "/topic");
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder()
+                .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<byte[]> producer = client1.newProducer().topic(topicName.toString())
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
+        
+        producer.close();
+    }
+
     private void checkListContainExpectedTopic(PulsarAdmin admin, String namespace, List<String> expectedTopicList) {
         // wait non-partitioned topics replicators created finished
         final List<String> list = new ArrayList<>();

@@ -364,20 +364,23 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
-        return checkPermission(topicName, role, action)
-                .thenApply(isPermission -> isPermission && checkCluster(topicName));
+        return checkPermission(topicName, role, action).
+                thenApply(isPermission -> isPermission).
+                thenCompose(permission -> permission ? checkCluster(topicName) :
+                    CompletableFuture.completedFuture(false));
     }
 
-    private boolean checkCluster(TopicName topicName) {
+    private CompletableFuture<Boolean> checkCluster(TopicName topicName) {
         if (topicName.isGlobal() || conf.getClusterName().equals(topicName.getCluster())) {
-            return true;
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Topic [{}] does not belong to local cluster [{}]", topicName.toString(),
-                        conf.getClusterName());
-            }
-            return false;
+            return CompletableFuture.completedFuture(true);
         }
+        if (log.isDebugEnabled()) {
+            log.debug("Topic [{}] does not belong to local cluster [{}]", topicName.toString(), conf.getClusterName());
+        }
+        return pulsarResources.getClusterResources().listAsync()
+                .thenApply(clusters -> {
+                    return clusters.contains(topicName.getCluster());
+                });
     }
 
     public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
