@@ -37,9 +37,10 @@ public class AuthenticationMetrics {
             .help("Pulsar client authenticating with a TLS cert that is self-signed")
             .register();
 
-    private static final Counter clientCertSmallRsaKeySizeMetrics = Counter.build()
-            .name("pulsar_authentication_tls_cert_small_rsa_key_count")
-            .help("Pulsar client authenticating with a TLS cert that has a small rsa key")
+    private static final Counter clientCertInvalidKeySizeMetrics = Counter.build()
+            .name("pulsar_authentication_tls_cert_invalid_key_size_count")
+            .labelNames("algorithm")
+            .help("Pulsar client authenticating with a TLS cert that has a key size violation")
             .register();
 
     private static final Counter clientCertReachedWarnThresholdMetrics = Counter.build()
@@ -92,7 +93,7 @@ public class AuthenticationMetrics {
      * Log small RSA key size certificate encountered event to the authentication metrics.
      */
     public static void encounteredSmallRsaKeySize() {
-        clientCertSmallRsaKeySizeMetrics.inc();
+        clientCertInvalidKeySizeMetrics.labels("rsa").inc();
     }
 
     /**
@@ -128,7 +129,7 @@ public class AuthenticationMetrics {
      */
     public static void resetTlsMetrics() {
         clientCertSelfSignedMetrics.clear();
-        clientCertSmallRsaKeySizeMetrics.clear();
+        clientCertInvalidKeySizeMetrics.clear();
         clientCertReachedWarnThresholdMetrics.clear();
         clientCertReachedErrorThresholdMetrics.clear();
         clientCertValidityDurationExceedsThresholdMetrics.clear();
@@ -140,7 +141,7 @@ public class AuthenticationMetrics {
     }
 
     public static double getSmallRsaKeySizeCount() {
-        return clientCertSmallRsaKeySizeMetrics.get();
+        return clientCertInvalidKeySizeMetrics.labels("rsa").get();
     }
 
     public static double getCertificateUnderWarnThresholdCount() {
