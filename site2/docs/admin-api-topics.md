@@ -1511,7 +1511,7 @@ When a subscription does not process messages any more, you can unsubscribe it u
 ```shell
 pulsar-admin topics unsubscribe \
 --subscription my-subscription \
-persistent://test-tenant/ns1/tp1 \
+persistent://test-tenant/ns1/tp1 
 ```
 
 <!--REST API-->
