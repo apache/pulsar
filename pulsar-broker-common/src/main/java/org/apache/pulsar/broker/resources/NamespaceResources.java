@@ -25,8 +25,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import lombok.Getter;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -39,9 +40,13 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Getter
 public class NamespaceResources extends BaseResources<Policies> {
+    private static final Logger log = LoggerFactory.getLogger(NamespaceResources.class);
+
     private final IsolationPolicyResources isolationPolicies;
     private final PartitionedTopicResources partitionedTopicResources;
     private final MetadataStore configurationStore;
@@ -96,6 +101,10 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public void deletePolicies(NamespaceName ns) throws MetadataStoreException{
         delete(joinPath(BASE_POLICIES_PATH, ns.toString()));
+    }
+
+    public CompletableFuture<Void> deletePoliciesAsync(NamespaceName ns){
+        return deleteAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
     public Optional<Policies> getPolicies(NamespaceName ns) throws MetadataStoreException{
@@ -224,6 +233,22 @@ public class NamespaceResources extends BaseResources<Policies> {
         public CompletableFuture<Void> deletePartitionedTopicAsync(TopicName tn) {
             return deleteAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
                     tn.getEncodedLocalName()));
+        }
+
+        public CompletableFuture<Void> clearPartitionedTopicMetadataAsync(NamespaceName namespaceName) {
+            final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
+
+            existsAsync(globalPartitionedPath).thenApply(exist -> {
+                if (!exist) {
+                    Response.status(Status.NOT_FOUND);
+                    log.warn("The global partitioned path [{}] not found", globalPartitionedPath);
+                    return null;
+                }
+
+                return deleteAsync(globalPartitionedPath);
+            });
+
+            return null;
         }
 
         public void clearPartitionedTopicMetadata(NamespaceName namespaceName) throws MetadataStoreException {
