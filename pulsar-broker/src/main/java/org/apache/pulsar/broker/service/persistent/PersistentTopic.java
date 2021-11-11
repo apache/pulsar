@@ -280,6 +280,7 @@ public class PersistentTopic extends AbstractTopic
                     log.warn("[{}] failed to start replication", topic, e);
                 }
                 if (!isReplicatorStarted) {
+                    stopReplProducers();
                     throw new NamingException(
                             PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster);
                 }
