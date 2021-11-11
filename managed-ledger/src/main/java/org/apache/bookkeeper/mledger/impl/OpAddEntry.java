@@ -313,6 +313,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     }
 
     public void setData(ByteBuf data) {
+        this.dataLength = data.readableBytes();
         this.data = data;
     }
 
