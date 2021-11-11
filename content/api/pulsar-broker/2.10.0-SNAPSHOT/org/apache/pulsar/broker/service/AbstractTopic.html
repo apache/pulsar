@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":6,"i25":6,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":6,"i40":10,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":6,"i54":10,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10,"i61":10,"i62":10,"i63":6,"i64":10,"i65":10,"i66":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":6,"i26":6,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10,"i39":10,"i40":6,"i41":10,"i42":10,"i43":10,"i44":10,"i45":10,"i46":10,"i47":10,"i48":10,"i49":10,"i50":10,"i51":10,"i52":10,"i53":10,"i54":6,"i55":10,"i56":10,"i57":10,"i58":10,"i59":10,"i60":10,"i61":10,"i62":6,"i63":10,"i64":10,"i65":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -166,32 +166,24 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#hasBatchMessagePublished">hasBatchMessagePublished</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.InactiveTopicPolicies</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#inactiveTopicPolicies">inactiveTopicPolicies</a></span></code>&nbsp;</td>
-</tr>
-<tr class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isAllowAutoUpdateSchema">isAllowAutoUpdateSchema</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isEncryptionRequired">isEncryptionRequired</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isFenced">isFenced</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>protected long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#lastActive">lastActive</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/locks/ReentrantReadWriteLock.html?is-external=true" title="class or interface in java.util.concurrent.locks">ReentrantReadWriteLock</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#lock">lock</a></span></code>&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.PolicyHierarchyValue&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#maxSubscriptionsPerTopic">maxSubscriptionsPerTopic</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>protected int</code></td>
@@ -238,6 +230,10 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#topicEpoch">topicEpoch</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>protected org.apache.pulsar.common.policies.data.HierarchyTopicPolicies</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#topicPolicies">topicPolicies</a></span></code>&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code>protected <a href="../../../../../org/apache/pulsar/broker/service/PublishRateLimiter.html" title="interface in org.apache.pulsar.broker.service">PublishRateLimiter</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#topicPublishRateLimiter">topicPublishRateLimiter</a></span></code>&nbsp;</td>
 </tr>
@@ -367,205 +363,199 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getBytesOutCounter--">getBytesOutCounter</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i20" class="altColor">
+<td class="colFirst"><code>org.apache.pulsar.common.policies.data.HierarchyTopicPolicies</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getHierarchyTopicPolicies--">getHierarchyTopicPolicies</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.common.policies.data.InactiveTopicPolicies</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getInactiveTopicPolicies--">getInactiveTopicPolicies</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getMsgInCounter--">getMsgInCounter</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i23" class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getMsgOutCounter--">getMsgOutCounter</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i24" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getName--">getName</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code>abstract int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getNumberOfConsumers--">getNumberOfConsumers</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code>abstract int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getNumberOfSameAddressConsumers-java.lang.String-">getNumberOfSameAddressConsumers</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;clientAddress)</code>&nbsp;</td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>protected int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getNumberOfSameAddressConsumers-java.lang.String-java.util.List-">getNumberOfSameAddressConsumers</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;clientAddress,
                                <a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;? extends <a href="../../../../../org/apache/pulsar/broker/service/Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&gt;&nbsp;subscriptions)</code>&nbsp;</td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getNumberOfSameAddressProducers-java.lang.String-">getNumberOfSameAddressProducers</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;clientAddress)</code>&nbsp;</td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Map.html?is-external=true" title="class or interface in java.util">Map</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>,<a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getProducers--">getProducers</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getReplicatorPrefix--">getReplicatorPrefix</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getSchemaValidationEnforced--">getSchemaValidationEnforced</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i32" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;org.apache.pulsar.common.policies.data.TopicPolicies&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getTopicPolicies--">getTopicPolicies</a></span>()</code>
 <div class="block">Get <code>TopicPolicies</code> for this topic.</div>
 </td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/broker/service/PublishRateLimiter.html" title="interface in org.apache.pulsar.broker.service">PublishRateLimiter</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getTopicPublishRateLimiter--">getTopicPublishRateLimiter</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>protected int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#getWaitingProducersCount--">getWaitingProducersCount</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#handleConsumerAdded-java.lang.String-java.lang.String-">handleConsumerAdded</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;subscriptionName,
                    <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;consumerName)</code>&nbsp;</td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#handleProducerRemoved-org.apache.pulsar.broker.service.Producer-">handleProducerRemoved</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#hasLocalProducers--">hasLocalProducers</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Boolean.html?is-external=true" title="class or interface in java.lang">Boolean</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#hasSchema--">hasSchema</a></span>()</code>
 <div class="block">Whether a topic has had a schema defined for it.</div>
 </td>
 </tr>
-<tr id="i38" class="altColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#incrementPublishCount-int-long-">incrementPublishCount</a></span>(int&nbsp;numOfMessages,
                      long&nbsp;msgSizeInBytes)</code>&nbsp;</td>
 </tr>
-<tr id="i39" class="rowColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code>protected abstract <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#incrementTopicEpoch-java.util.Optional-">incrementTopicEpoch</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a>&gt;&nbsp;currentEpoch)</code>&nbsp;</td>
 </tr>
-<tr id="i40" class="altColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code>protected <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#incrementTopicEpochIfNeeded-org.apache.pulsar.broker.service.Producer-java.util.concurrent.CompletableFuture-">incrementTopicEpochIfNeeded</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer,
                            <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Void.html?is-external=true" title="class or interface in java.lang">Void</a>&gt;&nbsp;producerQueuedFuture)</code>&nbsp;</td>
 </tr>
-<tr id="i41" class="rowColor">
+<tr id="i42" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#internalAddProducer-org.apache.pulsar.broker.service.Producer-">internalAddProducer</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
-<tr id="i42" class="altColor">
+<tr id="i43" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isBrokerPublishRateExceeded--">isBrokerPublishRateExceeded</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isConsumersExceededOnTopic--">isConsumersExceededOnTopic</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isDeleteWhileInactive--">isDeleteWhileInactive</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isEncryptionRequired--">isEncryptionRequired</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i46" class="altColor">
+<tr id="i47" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isExceedMaximumMessageSize-int-">isExceedMaximumMessageSize</a></span>(int&nbsp;size)</code>&nbsp;</td>
 </tr>
-<tr id="i47" class="rowColor">
+<tr id="i48" class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isProducersExceeded--">isProducersExceeded</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i48" class="altColor">
+<tr id="i49" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isPublishRateExceeded--">isPublishRateExceeded</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i49" class="rowColor">
+<tr id="i50" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isResourceGroupPublishRateExceeded-int-int-">isResourceGroupPublishRateExceeded</a></span>(int&nbsp;numMessages,
                                   int&nbsp;bytes)</code>&nbsp;</td>
 </tr>
-<tr id="i50" class="altColor">
+<tr id="i51" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isResourceGroupRateLimitingEnabled--">isResourceGroupRateLimitingEnabled</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i51" class="rowColor">
+<tr id="i52" class="altColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isSameAddressConsumersExceededOnTopic-org.apache.pulsar.broker.service.Consumer-">isSameAddressConsumersExceededOnTopic</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/Consumer.html" title="class in org.apache.pulsar.broker.service">Consumer</a>&nbsp;consumer)</code>&nbsp;</td>
 </tr>
-<tr id="i52" class="altColor">
+<tr id="i53" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isSameAddressProducersExceeded-org.apache.pulsar.broker.service.Producer-">isSameAddressProducersExceeded</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
-<tr id="i53" class="rowColor">
+<tr id="i54" class="altColor">
 <td class="colFirst"><code>protected abstract boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isTerminated--">isTerminated</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i54" class="altColor">
+<tr id="i55" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#isTopicPublishRateExceeded-int-int-">isTopicPublishRateExceeded</a></span>(int&nbsp;numberMessages,
                           int&nbsp;bytes)</code>&nbsp;</td>
 </tr>
-<tr id="i55" class="rowColor">
+<tr id="i56" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#markBatchMessagePublished--">markBatchMessagePublished</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i56" class="altColor">
+<tr id="i57" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#recordAddLatency-long-java.util.concurrent.TimeUnit-">recordAddLatency</a></span>(long&nbsp;latency,
                 <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/TimeUnit.html?is-external=true" title="class or interface in java.util.concurrent">TimeUnit</a>&nbsp;unit)</code>
 <div class="block">record add-latency.</div>
 </td>
 </tr>
-<tr id="i57" class="rowColor">
+<tr id="i58" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#removeProducer-org.apache.pulsar.broker.service.Producer-">removeProducer</a></span>(<a href="../../../../../org/apache/pulsar/broker/service/Producer.html" title="class in org.apache.pulsar.broker.service">Producer</a>&nbsp;producer)</code>&nbsp;</td>
 </tr>
-<tr id="i58" class="altColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#resetBrokerPublishCountAndEnableReadIfRequired-boolean-">resetBrokerPublishCountAndEnableReadIfRequired</a></span>(boolean&nbsp;doneBrokerReset)</code>&nbsp;</td>
-</tr>
 <tr id="i59" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#resetInactiveTopicPolicies-org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode-int-boolean-">resetInactiveTopicPolicies</a></span>(org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode&nbsp;inactiveTopicDeleteMode,
-                          int&nbsp;maxInactiveDurationSeconds,
-                          boolean&nbsp;deleteWhileInactive)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#resetBrokerPublishCountAndEnableReadIfRequired-boolean-">resetBrokerPublishCountAndEnableReadIfRequired</a></span>(boolean&nbsp;doneBrokerReset)</code>&nbsp;</td>
 </tr>
 <tr id="i60" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#resetTopicPublishCountAndEnableReadIfRequired--">resetTopicPublishCountAndEnableReadIfRequired</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i61" class="rowColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#setDeleteWhileInactive-boolean-">setDeleteWhileInactive</a></span>(boolean&nbsp;deleteWhileInactive)</code>&nbsp;</td>
-</tr>
-<tr id="i62" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#setSchemaCompatibilityStrategy-org.apache.pulsar.common.policies.data.Policies-">setSchemaCompatibilityStrategy</a></span>(org.apache.pulsar.common.policies.data.Policies&nbsp;policies)</code>&nbsp;</td>
 </tr>
-<tr id="i63" class="rowColor">
+<tr id="i62" class="altColor">
 <td class="colFirst"><code>protected abstract <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html?is-external=true" title="class or interface in java.util.concurrent">CompletableFuture</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Long.html?is-external=true" title="class or interface in java.lang">Long</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#setTopicEpoch-long-">setTopicEpoch</a></span>(long&nbsp;newEpoch)</code>&nbsp;</td>
 </tr>
-<tr id="i64" class="altColor">
+<tr id="i63" class="rowColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#toString--">toString</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i65" class="rowColor">
+<tr id="i64" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#updateMaxPublishRate-org.apache.pulsar.common.policies.data.Policies-">updateMaxPublishRate</a></span>(org.apache.pulsar.common.policies.data.Policies&nbsp;policies)</code>&nbsp;</td>
 </tr>
-<tr id="i66" class="altColor">
+<tr id="i65" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/service/AbstractTopic.html#updatePublishDispatcher-org.apache.pulsar.common.policies.data.PublishRate-">updatePublishDispatcher</a></span>(org.apache.pulsar.common.policies.data.PublishRate&nbsp;publishRate)</code>
 <div class="block">update topic publish dispatcher for this topic.</div>
@@ -667,13 +657,13 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <pre>protected volatile&nbsp;boolean isFenced</pre>
 </li>
 </ul>
-<a name="inactiveTopicPolicies">
+<a name="topicPolicies">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>inactiveTopicPolicies</h4>
-<pre>protected&nbsp;org.apache.pulsar.common.policies.data.InactiveTopicPolicies inactiveTopicPolicies</pre>
+<h4>topicPolicies</h4>
+<pre>protected final&nbsp;org.apache.pulsar.common.policies.data.HierarchyTopicPolicies topicPolicies</pre>
 </li>
 </ul>
 <a name="lastActive">
@@ -746,15 +736,6 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <li class="blockList">
 <h4>maxUnackedMessagesOnConsumerAppilied</h4>
 <pre>protected volatile&nbsp;int maxUnackedMessagesOnConsumerAppilied</pre>
-</li>
-</ul>
-<a name="maxSubscriptionsPerTopic">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>maxSubscriptionsPerTopic</h4>
-<pre>protected volatile&nbsp;org.apache.pulsar.common.policies.data.PolicyHierarchyValue&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/Integer.html?is-external=true" title="class or interface in java.lang">Integer</a>&gt; maxSubscriptionsPerTopic</pre>
 </li>
 </ul>
 <a name="topicPublishRateLimiter">
@@ -1478,15 +1459,6 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <pre>public&nbsp;boolean&nbsp;deletePartitionedTopicMetadataWhileInactive()</pre>
 </li>
 </ul>
-<a name="setDeleteWhileInactive-boolean-">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>setDeleteWhileInactive</h4>
-<pre>public&nbsp;void&nbsp;setDeleteWhileInactive(boolean&nbsp;deleteWhileInactive)</pre>
-</li>
-</ul>
 <a name="isTerminated--">
 <!--   -->
 </a>
@@ -1503,17 +1475,6 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <li class="blockList">
 <h4>getInactiveTopicPolicies</h4>
 <pre>public&nbsp;org.apache.pulsar.common.policies.data.InactiveTopicPolicies&nbsp;getInactiveTopicPolicies()</pre>
-</li>
-</ul>
-<a name="resetInactiveTopicPolicies-org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode-int-boolean-">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>resetInactiveTopicPolicies</h4>
-<pre>public&nbsp;void&nbsp;resetInactiveTopicPolicies(org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode&nbsp;inactiveTopicDeleteMode,
-                                       int&nbsp;maxInactiveDurationSeconds,
-                                       boolean&nbsp;deleteWhileInactive)</pre>
 </li>
 </ul>
 <a name="getTopicPolicies--">
@@ -1560,11 +1521,20 @@ implements <a href="../../../../../org/apache/pulsar/broker/service/Topic.html" 
 <a name="updatePublishDispatcher-org.apache.pulsar.common.policies.data.PublishRate-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>updatePublishDispatcher</h4>
 <pre>protected&nbsp;void&nbsp;updatePublishDispatcher(org.apache.pulsar.common.policies.data.PublishRate&nbsp;publishRate)</pre>
 <div class="block">update topic publish dispatcher for this topic.</div>
+</li>
+</ul>
+<a name="getHierarchyTopicPolicies--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getHierarchyTopicPolicies</h4>
+<pre>public&nbsp;org.apache.pulsar.common.policies.data.HierarchyTopicPolicies&nbsp;getHierarchyTopicPolicies()</pre>
 </li>
 </ul>
 </li>

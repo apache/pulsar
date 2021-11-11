@@ -92,7 +92,7 @@
 <ul>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#counter">Counter</a>: 累计度量，代表一个单调递增的计数器。 值默认会增加。 你可以将值重置为零或重新启动你的集群。</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#gauge">Gauge</a>: 本指标代表一个可以随意增加或减少的数值。</li>
-<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: 直方图样本观测 (通常是请求持续时间和响应大小) ，并将它们计入可配置的 bucket 中。 The <code>_bucket</code> suffix is the number of observations within a histogram bucket, configured with parameter <code>{le=&quot;&lt;upper inclusive bound&gt;&quot;}</code>. The <code>_count</code> suffix is the number of observations, shown as a time series and behaves like a counter. The <code>_sum</code> suffix is the sum of observed values, also shown as a time series and behaves like a counter. These suffixes are together denoted by <code>_*</code> in this doc.</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: 直方图样本观测 (通常是请求持续时间和响应大小) ，并将它们计入可配置的 bucket 中。 <code>_bucket</code> 后缀是用参数 <code>{le=&quot;&lt; upper inclusive bound&gt;&quot;}</code> 配置的直方图桶内的观察次数。 <code>_count</code> 后缀是以时间序列显示的观察次数，其行为就像计数器。 <code>_sum</code> 后缀是观察到的值的总量，也作为时间序列显示并像计数器一样。 这些后缀由 <code>_*</code> 在本文档中指明。</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>: 与直方图类似的总结样本观察 (通常是请求持续时间和响应大小)。 但它同时也提供了总观测次数以及所有观测值的总和，它会在滑动的时间窗口上计算可配置的分位数。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
@@ -147,8 +147,8 @@
 <tr><td>bookie_journal_JOURNAL_QUEUE_SIZE</td><td>计量表</td><td>日志队列中待处理的请求总数。</td></tr>
 <tr><td>bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE</td><td>计量表</td><td>在强制写入队列中等待的强制写入 (fsync) 请求总数。</td></tr>
 <tr><td>bookie_journal_JOURNAL_CB_QUEUE_SIZE</td><td>计量表</td><td>回调队列中待处理的回调总数。</td></tr>
-<tr><td>bookie_journal_JOURNAL_ADD_ENTRY</td><td>总结</td><td>The summary of request latency of adding entries to the journal.</td></tr>
-<tr><td>bookie_journal_JOURNAL_SYNC</td><td>总结</td><td>The summary of fsync latency of syncing data to the journal disk.</td></tr>
+<tr><td>bookie_journal_JOURNAL_ADD_ENTRY</td><td>总结</td><td>在日志中添加条目的请求延迟的总数。</td></tr>
+<tr><td>bookie_journal_JOURNAL_SYNC</td><td>总结</td><td>同步数据到日志磁盘的 fsync 延迟的总数。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="存储度量值"></a><a href="#存储度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>存储度量值</h3>
@@ -360,11 +360,11 @@
 <tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_lb_bandwidth_in_usage</td><td>计量表</td><td>The broker inbound bandwith usage (in percent).</td></tr>
-<tr><td>pulsar_lb_bandwidth_out_usage</td><td>计量表</td><td>The broker outbound bandwith usage (in percent).</td></tr>
-<tr><td>pulsar_lb_cpu_usage</td><td>计量表</td><td>The broker cpu usage (in percent).</td></tr>
-<tr><td>pulsar_lb_directMemory_usage</td><td>计量表</td><td>The broker process direct memory usage (in percent).</td></tr>
-<tr><td>pulsar_lb_memory_usage</td><td>计量表</td><td>The broker process memory usage (in percent).</td></tr>
+<tr><td>pulsar_lb_bandwidth_in_usage</td><td>计量表</td><td>Broker 入站带宽使用量(百分比)。</td></tr>
+<tr><td>pulsar_lb_bandwidth_out_usage</td><td>计量表</td><td>Broker 出站带宽使用量(百分比)。</td></tr>
+<tr><td>pulsar_lb_cpu_usage</td><td>计量表</td><td>Broker cpu 的使用率（百分比）。</td></tr>
+<tr><td>pulsar_lb_directMemory_usage</td><td>计量表</td><td>Broker 进程的直接内存使用量（ 百分比 ）</td></tr>
+<tr><td>pulsar_lb_memory_usage</td><td>计量表</td><td>Broker 进程的内存使用量（ 百分比 ）</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="bundleunloading-度量值"></a><a href="#bundleunloading-度量值" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleUnloading 度量值</h4>
@@ -479,8 +479,8 @@
 <tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_expired_token_count</td><td>计数器</td><td>The number of expired tokens in Pulsar.</td></tr>
-<tr><td>pulsar_expiring_token_minutes</td><td>直方图</td><td>The remaining time of expiring tokens in minutes.</td></tr>
+<tr><td>pulsar_expired_token_count</td><td>计数器</td><td>在 Pulsar 中过期令牌的数量。</td></tr>
+<tr><td>pulsar_expiring_token_minutes</td><td>直方图</td><td>剩余的令牌在几分钟内到期。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="authentication-metrics"></a><a href="#authentication-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Authentication metrics</h3>
@@ -496,15 +496,15 @@
 <tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_authentication_success_count</td><td>计数器</td><td>The number of successful authentication operations.</td></tr>
-<tr><td>pulsar_authentication_failures_count</td><td>计数器</td><td>The number of failing authentication operations.</td></tr>
+<tr><td>pulsar_authentication_success_count</td><td>计数器</td><td>成功认证操作的数量。</td></tr>
+<tr><td>pulsar_authentication_failures_count</td><td>计数器</td><td>失败的认证操作的数量。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="jetty-metrics"></a><a href="#jetty-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Jetty metrics</h3>
 <blockquote>
-<p>For a functions-worker running separately from brokers, its Jetty metrics are only exposed when <code>includeStandardPrometheusMetrics</code> is set to <code>true</code>.</p>
+<p>对于与brokers分开运行的function-worker，只有当<code>includeStandardPrometheusMetrics</code>被设置为<code>true</code>时，其Jetty指标才会被暴露。</p>
 </blockquote>
-<p>All the jetty metrics are labelled with the following labels:</p>
+<p>所有 jetty 度量值都带有以下标签：</p>
 <ul>
 <li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> 就是你在 <code>broker.conf</code> 中配置的集群名称。</li>
 </ul>
@@ -513,24 +513,24 @@
 <tr><th>配置项</th><th>类型</th><th>说明</th></tr>
 </thead>
 <tbody>
-<tr><td>jetty_requests_total</td><td>计数器</td><td>Number of requests.</td></tr>
-<tr><td>jetty_requests_active</td><td>计量表</td><td>Number of requests currently active.</td></tr>
-<tr><td>jetty_requests_active_max</td><td>计量表</td><td>Maximum number of requests that have been active at once.</td></tr>
-<tr><td>jetty_request_time_max_seconds</td><td>计量表</td><td>Maximum time spent handling requests.</td></tr>
-<tr><td>jetty_request_time_seconds_total</td><td>计数器</td><td>Total time spent in all request handling.</td></tr>
-<tr><td>jetty_dispatched_total</td><td>计数器</td><td>Number of dispatches.</td></tr>
-<tr><td>jetty_dispatched_active</td><td>计量表</td><td>Number of dispatches currently active.</td></tr>
-<tr><td>jetty_dispatched_active_max</td><td>计量表</td><td>Maximum number of active dispatches being handled.</td></tr>
-<tr><td>jetty_dispatched_time_max</td><td>计量表</td><td>Maximum time spent in dispatch handling.</td></tr>
-<tr><td>jetty_dispatched_time_seconds_total</td><td>计数器</td><td>Total time spent in dispatch handling.</td></tr>
-<tr><td>jetty_async_requests_total</td><td>计数器</td><td>Total number of async requests.</td></tr>
-<tr><td>jetty_async_requests_waiting</td><td>计量表</td><td>Currently waiting async requests.</td></tr>
-<tr><td>jetty_async_requests_waiting_max</td><td>计量表</td><td>Maximum number of waiting async requests.</td></tr>
-<tr><td>jetty_async_dispatches_total</td><td>计数器</td><td>Number of requested that have been asynchronously dispatched.</td></tr>
-<tr><td>jetty_expires_total</td><td>计数器</td><td>Number of async requests requests that have expired.</td></tr>
-<tr><td>jetty_responses_total</td><td>计数器</td><td>Number of responses, labeled by status code. The <code>code</code> label can be &quot;1xx&quot;, &quot;2xx&quot;, &quot;3xx&quot;, &quot;4xx&quot;, or &quot;5xx&quot;.</td></tr>
-<tr><td>jetty_stats_seconds</td><td>计量表</td><td>Time in seconds stats have been collected for.</td></tr>
-<tr><td>jetty_responses_bytes_total</td><td>计数器</td><td>Total number of bytes across all responses.</td></tr>
+<tr><td>jetty_requests_total</td><td>计数器</td><td>请求数量。</td></tr>
+<tr><td>jetty_requests_activity</td><td>计量表</td><td>当前活跃的请求数量。</td></tr>
+<tr><td>jetty_requests_active_max</td><td>计量表</td><td>一次活跃请求的最大数量。</td></tr>
+<tr><td>jetty_request_time_max_seconds</td><td>计量表</td><td>处理请求的最大时间。</td></tr>
+<tr><td>jetty_request_time_seconds_total</td><td>计数器</td><td>在所有请求处理中花费的总时间。</td></tr>
+<tr><td>jetty_dispatched_total</td><td>计数器</td><td>调度数量。</td></tr>
+<tr><td>jetty_dispatched_activity</td><td>计量表</td><td>当前活跃的调度数量。</td></tr>
+<tr><td>jetty_dispatched_active_max</td><td>计量表</td><td>正在处理的最大活动调度数。</td></tr>
+<tr><td>jetty_dispatched_time_max</td><td>计量表</td><td>调度处理花费的最大时间。</td></tr>
+<tr><td>jetty_dispatched_time_seconds_total</td><td>计数器</td><td>调度处理的总时间。</td></tr>
+<tr><td>jetty_async_requests_total</td><td>计数器</td><td>异步请求总数。</td></tr>
+<tr><td>jetty_async_requests_waiting</td><td>计量表</td><td>目前等待中的异步请求。</td></tr>
+<tr><td>jetty_async_requests_waiting_max</td><td>计量表</td><td>等待异步请求的最大数量。</td></tr>
+<tr><td>jetty_async_appailches_total</td><td>计数器</td><td>已被异步派发的请求数。</td></tr>
+<tr><td>jetty_expires_total</td><td>计数器</td><td>已经过期的异步请求数量。</td></tr>
+<tr><td>jetty_responses_total</td><td>计数器</td><td>响应的数量，按状态代码标示。 <code>code</code> 标签可以是 &quot;1. xx&quot;, &quot;2xx&quot;, &quot;3xx&quot;, &quot;4xx&quot;, 或者&quot;5xx&quot;.</td></tr>
+<tr><td>jetty_stats_seconds</td><td>计量表</td><td>收集统计资料的时间，以秒为单位。</td></tr>
+<tr><td>jetty_responses_bytes_total</td><td>计数器</td><td>所有响应的字节总数.</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h2>
@@ -602,7 +602,7 @@
 <tr><td>split_read_latency_per_query</td><td>总结</td><td>每个查询的总读取延迟。</td></tr>
 <tr><td>split_record_deserialize_time</td><td>总结</td><td>将消息反序列化到记录花费的时间。 例如，Avro、JSON 等等。</td></tr>
 <tr><td>split_record_deserialize_time_per_query</td><td>总结</td><td>每个查询将消息反序列化到记录花费的时间。</td></tr>
-<tr><td>split_total_execution_time</td><td>总结</td><td>The total execution time.</td></tr>
+<tr><td>split_total_execution_time</td><td>总结</td><td>总执行时间。</td></tr>
 </tbody>
 </table>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.7.1/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值">服务器度量值</a></li><li><a href="#请求度量值">请求度量值</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#服务器度量值-1">服务器度量值</a></li><li><a href="#日志度量值">日志度量值</a></li><li><a href="#存储度量值">存储度量值</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#命名空间度量值">命名空间度量值</a></li><li><a href="#主题度量值">主题度量值</a></li><li><a href="#managedledgercache-度量值">ManagedLedgerCache 度量值</a></li><li><a href="#managedledger-度量值">ManagedLedger 度量值</a></li><li><a href="#loadbalancing-度量值">LoadBalancing 度量值</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#托管的-ledger-bookie-客户端度量值">托管的 ledger bookie 客户端度量值</a></li><li><a href="#token-metrics">Token metrics</a></li><li><a href="#authentication-metrics">Authentication metrics</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#代理">代理</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
