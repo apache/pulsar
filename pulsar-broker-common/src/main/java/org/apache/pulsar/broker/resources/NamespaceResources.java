@@ -132,12 +132,22 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
-        return deleteAsync(joinPath(NAMESPACE_BASE_PATH, ns.toString()));
+        final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
+        return existsAsync(namespacePath).thenAccept(exist -> {
+            if (exist) {
+                deleteAsync(namespacePath);
+            }
+        });
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
     public CompletableFuture<Void> deleteTenantAsync(String tenant) {
-        return deleteAsync(joinPath(NAMESPACE_BASE_PATH, tenant));
+        final String tenantPath = joinPath(NAMESPACE_BASE_PATH, tenant);
+        return existsAsync(tenantPath).thenAccept(exist -> {
+            if (exist) {
+                deleteAsync(tenantPath);
+            }
+        });
     }
 
     public static NamespaceName namespaceFromPath(String path) {
@@ -242,6 +252,14 @@ public class NamespaceResources extends BaseResources<Policies> {
                     deleteAsync(globalPartitionedPath);
                 }
             });
+        }
+
+        public void clearPartitionedTopicMetadata(NamespaceName namespaceName) throws MetadataStoreException {
+            final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
+            // check whether partitioned topics metadata node exist
+            if (exists(globalPartitionedPath)) {
+                deleteRecursive(this, globalPartitionedPath);
+            }
         }
     }
 }
