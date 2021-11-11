@@ -1500,9 +1500,9 @@ admin.topics().getSubscriptions(topic);
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
-### Delete (unsubscribe) subscription 
+### Unsubscribe subscription 
 
-When a subscription does not process messages any more, you can delete (unsubscribe) using one of the following methods. 
+When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
 
 <!--DOCUSAURUS_CODE_TABS-->
 
