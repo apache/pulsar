@@ -115,7 +115,6 @@ public class PulsarAdminTool {
                 .enableTlsHostnameVerification(tlsEnableHostnameVerification)
                 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
                 .useKeyStoreTls(useKeyStoreTls)
-                .extraClientHeaders(properties.getProperty("extraClientHeaders"))
                 .tlsTrustStoreType(tlsTrustStoreType)
                 .tlsTrustStorePath(tlsTrustStorePath)
                 .tlsTrustStorePassword(tlsTrustStorePassword);

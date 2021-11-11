@@ -224,7 +224,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     volatile PositionImpl lastConfirmedEntry;
 
     private ManagedLedgerInterceptor managedLedgerInterceptor;
-    private ManagedLedgerInterceptor managedLedgerPayloadProcessor;
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
@@ -310,6 +309,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         STATE_UPDATER.set(this, State.None);
         this.ledgersStat = null;
         this.mbean = new ManagedLedgerMBeanImpl(this);
+        if (config.getManagedLedgerInterceptor() != null) {
+            this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
+        }
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
@@ -320,12 +322,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
-        if (config.getManagedLedgerInterceptor() != null) {
-            this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
-        }
-        if (config.getManagedLedgerPayloadProcessor() != null) {
-            this.managedLedgerPayloadProcessor = config.getManagedLedgerPayloadProcessor();
-        }
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -1717,10 +1713,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
         return managedLedgerInterceptor;
-    }
-
-    public ManagedLedgerInterceptor getManagedLedgerPayloadProcessor(){
-        return managedLedgerPayloadProcessor;
     }
 
     void clearPendingAddEntries(ManagedLedgerException e) {

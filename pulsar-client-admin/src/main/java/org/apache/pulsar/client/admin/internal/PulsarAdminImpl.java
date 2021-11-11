@@ -77,7 +77,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
     public static final int DEFAULT_READ_TIMEOUT_SECONDS = 60;
     public static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 300;
     public static final int DEFAULT_CERT_REFRESH_SECONDS = 300;
-    public static final String EXTRA_CLIENT_HEADERS = "extra-headers";
 
     private final Clusters clusters;
     private final Brokers brokers;
@@ -174,9 +173,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
-        if (clientConfigData.getExtraClientHeaders() != null) {
-            httpConfig.property(EXTRA_CLIENT_HEADERS, clientConfigData.getExtraClientHeaders());
-        }
         httpConfig.register(MultiPartFeature.class);
         httpConfig.connectorProvider(asyncConnectorProvider);
 

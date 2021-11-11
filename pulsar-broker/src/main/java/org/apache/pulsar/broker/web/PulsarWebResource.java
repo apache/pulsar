@@ -179,16 +179,6 @@ public abstract class PulsarWebResource {
      *             if not authorized
      */
     public void validateSuperUserAccess() {
-        if (pulsar() != null && pulsar().getBrokerInterceptor() != null
-                && pulsar().getBrokerInterceptor().delegateSuperUserCheck()){
-            boolean isSuperUser = pulsar().getBrokerInterceptor().isSuperUser(pulsar(),
-                    clientAppId(), originalPrincipal());
-            if (!isSuperUser){
-                log.info("[{}] Check super user access failed: principal:{}", uri.getRequestUri(), originalPrincipal());
-                throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
-            }
-            return;
-        }
         if (config().isAuthenticationEnabled()) {
             String appId = clientAppId();
             if (log.isDebugEnabled()) {

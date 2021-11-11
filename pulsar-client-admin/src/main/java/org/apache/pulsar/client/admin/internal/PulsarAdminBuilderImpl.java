@@ -181,15 +181,4 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         this.clientBuilderClassLoader = clientBuilderClassLoader;
         return this;
     }
-
-    /**
-     *  Set extra headers.
-     * @param extraClientHeaders
-     * @return
-     */
-    @Override
-    public PulsarAdminBuilder extraClientHeaders(String extraClientHeaders){
-        conf.setExtraClientHeaders(extraClientHeaders);
-        return this;
-    }
 }

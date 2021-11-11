@@ -29,6 +29,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
 
@@ -63,6 +64,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     @SuppressWarnings("unused")
     ByteBuf data;
     private int dataLength;
+    private ManagedLedgerInterceptor.PayloadProcessorHandle payloadProcessorHandle = null;
 
     private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(OpAddEntry.class, OpAddEntry.State.class, "state");
@@ -105,6 +107,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         op.entryId = -1;
         op.startTime = System.nanoTime();
         op.state = State.OPEN;
+        op.payloadProcessorHandle = null;
         ml.mbean.addAddEntrySample(op.dataLength);
         return op;
     }
@@ -125,8 +128,12 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
-            if (ml.getManagedLedgerPayloadProcessor() != null)
-                duplicateBuffer = ml.getManagedLedgerPayloadProcessor().beforeStoreEntryToLedger(this,duplicateBuffer);
+            if (ml.getManagedLedgerInterceptor() != null) {
+                payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this, duplicateBuffer);
+                if (payloadProcessorHandle != null) {
+                    duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
+                }
+            }
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
             log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
@@ -139,6 +146,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
+            if (payloadProcessorHandle != null) {
+                payloadProcessorHandle.release();
+            }
         }
     }
 
@@ -179,6 +189,9 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     // Called in executor hashed on managed ledger name, once the add operation is complete
     @Override
     public void safeRun() {
+        if (payloadProcessorHandle != null) {
+            payloadProcessorHandle.release();
+        }
         // Remove this entry from the head of the pending queue
         OpAddEntry firstInQueue = ml.pendingAddEntries.poll();
         if (firstInQueue == null) {
@@ -349,6 +362,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         entryId = -1;
         startTime = -1;
         lastInitTime = -1;
+        payloadProcessorHandle = null;
         recyclerHandle.recycle(this);
     }
 
