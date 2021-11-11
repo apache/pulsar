@@ -77,7 +77,7 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">准备Kubernetes资源</h1></header><article><div><span><p>对于获得功能齐全的Pulsar集群，在部署Apache Pulsar Helm chart之前，你需要准备一些资源。 下文提供了部署Pulsar Helm chart之前如何准备Kubernetes集群资源的说明。</p>
 <ul>
-<li><a href="#google-kubernetes-engine">Google Kubernetes Engine</a>
+<li><a href="#google-kubernetes-engine">谷歌 Kubernetes 引擎（GKE）</a>
 <ul>
 <li><a href="#manual-cluster-creation">手动创建集群</a></li>
 <li><a href="#scripted-cluster-creation">脚本创建集群</a>
@@ -106,7 +106,7 @@
 <tr><th><strong>变量</strong></th><th><strong>说明</strong></th><th><strong>默认值</strong></th></tr>
 </thead>
 <tbody>
-<tr><td>PROJECT</td><td>你的GCP项目ID</td><td>没有默认值。 必须指定该变量。</td></tr>
+<tr><td>进程</td><td>你的GCP项目ID</td><td>没有默认值。 必须指定该变量。</td></tr>
 <tr><td>CLUSTER_NAME</td><td>你的GKE集群名称</td><td><code>pulsar-dev</code></td></tr>
 <tr><td>CONFDIR</td><td>保存Kubernetes配置的配置目录</td><td>${HOME}/.config/streamnative</td></tr>
 <tr><td>INT_NETWORK</td><td>在集群内使用的IP空间</td><td><code>default</code></td></tr>

@@ -166,7 +166,7 @@
 </ul>
 <blockquote>
 <p>Note</p>
-<p>Cumulative acknowledgement cannot be used in <a href="#subscription-types">Shared subscription type</a>, because this subscription type involves multiple consumers which have access to the same subscription. In Shared subscription type, messages are acknowledged individually.</p>
+<p>Cumulative acknowledgement cannot be used in <a href="#subscription-types">Shared subscription type</a>, because this subscription type involves multiple consumers which have access to the same subscription. 在共享订阅模式，消息都是单条确认模式。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="取消确认"></a><a href="#取消确认" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>取消确认</h3>
 <p>当消费者在某个时间没有成功的消费某条消息，消费者想重新消费到这条消息，这个消费者可以发送一条取消确认消息到 broker，broker 会将这条消息重新发给消费者。</p>
@@ -261,13 +261,13 @@ Currently, dead letter topic is enabled only in Shared subscription type.</p>
 <p><img src="/docs/assets/pulsar-subscription-types.png" alt="Subscription types"></p>
 <blockquote>
 <h3><a class="anchor" aria-hidden="true" id="pub-sub-or-queuing"></a><a href="#pub-sub-or-queuing" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pub-Sub or Queuing</h3>
-<p>In Pulsar, you can use different subscriptions flexibly. 如果你想在消费者当中使用传统的”发布-订阅消息“，你可以为每个消费者指定一个特定的订阅名称， It is exclusive subscription type. 如果你想在消费者当中实现”消息队列“的效果，则多个消费者会拥有相同的订阅名称(如共享模式，灾备模式，key共享模式)。 * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.</p>
+<p>In Pulsar, you can use different subscriptions flexibly. 如果你想在消费者当中使用传统的”发布-订阅消息“，你可以为每个消费者指定一个特定的订阅名称， 这就是独占模式。 如果你想在消费者当中实现”消息队列“的效果，则多个消费者会拥有相同的订阅名称(如共享模式，灾备模式，key共享模式)。 如果你想同时实现两种效果，则可以将订阅模式和其他的订阅模式结合起来使用。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="exclusive"></a><a href="#exclusive" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Exclusive</h3>
 <p>In <em>exclusive</em> type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs.</p>
 <p>In the diagram below, only <strong>Consumer A-0</strong> is allowed to consume messages.</p>
 <blockquote>
-<p>Exclusive is the default subscription type.</p>
+<p>Exclusive模式为默认订阅模式。</p>
 </blockquote>
 <p><img src="/docs/assets/pulsar-exclusive-subscriptions.png" alt="独占订阅"></p>
 <h3><a class="anchor" aria-hidden="true" id="failover灾备"></a><a href="#failover灾备" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Failover（灾备）</h3>

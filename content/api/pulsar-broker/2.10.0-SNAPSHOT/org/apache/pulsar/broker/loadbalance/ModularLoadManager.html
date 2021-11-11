@@ -18,7 +18,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":18,"i13":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":18,"i14":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -158,54 +158,60 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#getBundleDataOrDefault-java.lang.String-">getBundleDataOrDefault</a></span>(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;bundle)</code>
+<div class="block">Fetch bundle's load report data.</div>
+</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.pulsar.common.stats.Metrics&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#getLoadBalancingMetrics--">getLoadBalancingMetrics</a></span>()</code>
 <div class="block">Fetch load balancing metrics.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#initialize-org.apache.pulsar.broker.PulsarService-">initialize</a></span>(<a href="../../../../../org/apache/pulsar/broker/PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar)</code>
 <div class="block">Initialize this load manager using the given pulsar service.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="https://docs.oracle.com/javase/8/docs/api/java/util/Optional.html?is-external=true" title="class or interface in java.util">Optional</a>&lt;<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#selectBrokerForAssignment-org.apache.pulsar.common.naming.ServiceUnitId-">selectBrokerForAssignment</a></span>(org.apache.pulsar.common.naming.ServiceUnitId&nbsp;serviceUnit)</code>
 <div class="block">As the leader broker, find a suitable broker for the assignment of the given bundle.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#start--">start</a></span>()</code>
 <div class="block">As any broker, start the load manager.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#stop--">stop</a></span>()</code>
 <div class="block">As any broker, stop the load manager.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#updateLocalBrokerData--">updateLocalBrokerData</a></span>()</code>
 <div class="block">As any broker, retrieve the namespace bundle stats and system resource usage to update data local to this broker.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#writeBrokerDataOnZooKeeper--">writeBrokerDataOnZooKeeper</a></span>()</code>
 <div class="block">As any broker, write the local broker data to ZooKeeper.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>default void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#writeBrokerDataOnZooKeeper-boolean-">writeBrokerDataOnZooKeeper</a></span>(boolean&nbsp;force)</code>
 <div class="block">As any broker, write the local broker data to ZooKeeper, forced or not.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/broker/loadbalance/ModularLoadManager.html#writeBundleDataOnZooKeeper--">writeBundleDataOnZooKeeper</a></span>()</code>
 <div class="block">As the leader broker, write bundle data aggregated from all brokers to ZooKeeper.</div>
@@ -389,7 +395,7 @@ var activeTableTab = "activeTableTab";
 <a name="getLoadBalancingMetrics--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getLoadBalancingMetrics</h4>
 <pre><a href="https://docs.oracle.com/javase/8/docs/api/java/util/List.html?is-external=true" title="class or interface in java.util">List</a>&lt;org.apache.pulsar.common.stats.Metrics&gt;&nbsp;getLoadBalancingMetrics()</pre>
@@ -397,6 +403,22 @@ var activeTableTab = "activeTableTab";
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>List of LoadBalancing Metrics</dd>
+</dl>
+</li>
+</ul>
+<a name="getBundleDataOrDefault-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getBundleDataOrDefault</h4>
+<pre><a href="../../../../../org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;getBundleDataOrDefault(<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/String.html?is-external=true" title="class or interface in java.lang">String</a>&nbsp;bundle)</pre>
+<div class="block">Fetch bundle's load report data.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>bundle</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>bundle data</dd>
 </dl>
 </li>
 </ul>

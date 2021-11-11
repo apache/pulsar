@@ -78,108 +78,108 @@
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar SQL 配置和部署</h1></header><article><div><span><p>你可通过下面指南配置 Presto Pulsar 连接器并部署一个集群。</p>
 <h2><a class="anchor" aria-hidden="true" id="配置-presto-pulsar-连接器"></a><a href="#配置-presto-pulsar-连接器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Presto Pulsar 连接器</h2>
 <p>你可以在 <code>${project.root}/conf/presto/catalog/pulsar.properties</code> 属性文件中配置 Presto Pulsar 连接器。 连接器和默认值的配置如下。</p>
-<pre><code class="hljs css language-properties"><span class="hljs-comment"># name of the connector to be displayed in the catalog</span>
+<pre><code class="hljs css language-properties"><span class="hljs-comment"># 目录中显示的 connector 名称</span>
 <span class="hljs-meta">connector.name</span>=<span class="hljs-string">pulsar</span>
 <span class="hljs-comment">
-# the url of Pulsar broker service</span>
+# Pulsar broker 服务的URL</span>
 <span class="hljs-meta">pulsar.web-service-url</span>=<span class="hljs-string">http://localhost:8080</span>
 <span class="hljs-comment">
-# URI of Zookeeper cluster</span>
+# Zookeeper集群的URI</span>
 <span class="hljs-meta">pulsar.zookeeper-uri</span>=<span class="hljs-string">localhost:2181</span>
 <span class="hljs-comment">
-# minimum number of entries to read at a single time</span>
+# 一次性读取的最小条目数</span>
 <span class="hljs-meta">pulsar.entry-read-batch-size</span>=<span class="hljs-string">100</span>
 <span class="hljs-comment">
-# default number of splits to use per query</span>
+# 每次查询默认使用的分片数量</span>
 <span class="hljs-meta">pulsar.target-num-splits</span>=<span class="hljs-string">4</span>
 <span class="hljs-comment">
-# max size of one batch message (default value is 5MB)</span>
+# 一个批处理信息的最大大小（默认值为5MB）。</span>
 <span class="hljs-meta">pulsar.max-message-size</span>=<span class="hljs-string">5242880</span>
 <span class="hljs-comment">
-# number of split used when querying data from pulsar</span>
+# 从pulsar查询数据时使用的分片数</span>
 <span class="hljs-meta">pulsar.target-num-splits</span>=<span class="hljs-string">2</span>
 <span class="hljs-comment">
-# size of queue to buffer entry read from pulsar</span>
+# 缓冲从 pulsar 读取的entry的队列大小</span>
 <span class="hljs-meta">pulsar.max-split-entry-queue-size</span>=<span class="hljs-string">1000</span>
 <span class="hljs-comment">
-# size of queue to buffer message extract from entries</span>
+# 队列的大小，缓冲从 entries 中提取的消息</span>
 <span class="hljs-meta">pulsar.max-split-message-queue-size</span>=<span class="hljs-string">10000</span>
 <span class="hljs-comment">
-# status provider to record connector metrics</span>
+# 状态提供者，记录 connector 的指标</span>
 <span class="hljs-meta">pulsar.stats-provider</span>=<span class="hljs-string">org.apache.bookkeeper.stats.NullStatsProvider</span>
 <span class="hljs-comment">
-# config in map format for stats provider e.g. {"key1":"val1","key2":"val2"}</span>
-<span class="hljs-meta">pulsar.stats-provider-configs</span>=<span class="hljs-string">{}</span>
+# 以 map 格式提供给状态 provider ，例如：{"key1": "val1", "key2": "val2"}。</span>
+<span class="hljs-meta">pulsar.stats-provider-configs</span>=<span class="hljs-string">{}。</span>
 <span class="hljs-comment">
-# whether to rewrite Pulsar's default topic delimiter '/'</span>
+# 是否重写Pulsar的默认主题分隔符'/'。</span>
 <span class="hljs-meta">pulsar.namespace-delimiter-rewrite-enable</span>=<span class="hljs-string">false</span>
 <span class="hljs-comment">
-# delimiter used to rewrite Pulsar's default delimiter '/', use if default is causing incompatibility with other system like Superset</span>
-<span class="hljs-meta">pulsar.rewrite-namespace-delimiter</span>=<span class="hljs-string">“/”</span>
+# 用于改写Pulsar默认的分隔符'/'，如果默认的分隔符会导致与其他系统（如Superset）不兼容，则使用该分隔符</span>
+<span class="hljs-meta">pulsar.rewrite-namespace-delimiter</span>=<span class="hljs-string">"/"</span>
 <span class="hljs-comment">
-# maximum number of thread pool size for ledger offloader.</span>
+# ledger 卸载器的最大线程池数量。</span>
 <span class="hljs-meta">pulsar.managed-ledger-offload-max-threads</span>=<span class="hljs-string">2</span>
 <span class="hljs-comment">
-# driver used to offload or read cold data to or from long-term storage</span>
+# 用来卸载或从长期存储中读取冷数据的驱动程序</span>
 <span class="hljs-meta">pulsar.managed-ledger-offload-driver</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
-# directory to load offloaders nar file.</span>
+# 用来加载卸载器nar文件的目录。</span>
 <span class="hljs-meta">pulsar.offloaders-directory</span>=<span class="hljs-string">"./offloaders"</span>
 <span class="hljs-comment">
-# properties and configurations related to specific offloader implementation as map e.g. {"key1":"val1","key2":"val2"}</span>
-<span class="hljs-meta">pulsar.offloader-properties</span>=<span class="hljs-string">{}</span>
+# 与特定卸载器实现相关的属性和配置为地图，例如{"key1": "val1", "key2": "val2"}。</span>
+<span class="hljs-meta">pulsar.offloader-properties</span>=<span class="hljs-string">{}。</span>
 <span class="hljs-comment">
-# authentication plugin used to authenticate to Pulsar cluster</span>
+# 用来验证Pulsar集群的认证插件</span>
 <span class="hljs-meta">pulsar.auth-plugin</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
-# authentication parameter used to authenticate to the Pulsar cluster as a string e.g. "key1:val1,key2:val2".</span>
+# 用来向Pulsar集群认证的认证参数是一个字符串，例如："key1:val1,key2:val2"。</span>
 <span class="hljs-meta">pulsar.auth-params</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
-# whether the Pulsar client accept an untrusted TLS certificate from broker</span>
+# Pulsar客户端是否接受来自 Broker 的不受信任的TLS证书</span>
 <span class="hljs-meta">pulsar.tls-allow-insecure-connection</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
-# whether to allow hostname verification when a client connects to broker over TLS.</span>
+# 当客户端通过TLS连接到 broker 时，是否允许主机名验证。</span>
 <span class="hljs-meta">pulsar.tls-hostname-verification-enable</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
-# path for the trusted TLS certificate file of Pulsar broker</span>
+# Pulsar broker 的可信任TLS证书文件的路径</span>
 <span class="hljs-meta">pulsar.tls-trust-cert-file-path</span>=<span class="hljs-string">null</span>
 <span class="hljs-comment">
-# set the threshold for BookKeeper request throttle, default is disabled</span>
+# 设置BookKeeper请求节流的阈值，默认为禁用</span>
 <span class="hljs-meta">pulsar.bookkeeper-throttle-value</span>=<span class="hljs-string">0</span>
 <span class="hljs-comment">
-# set the number of IO thread</span>
+# 设置IO线程的数量</span>
 <span class="hljs-meta">pulsar.bookkeeper-num-io-threads</span>=<span class="hljs-string">2 * Runtime.getRuntime().availableProcessors()</span>
 <span class="hljs-comment">
-# set the number of worker thread</span>
+# 设置工作线程的数量</span>
 <span class="hljs-meta">pulsar.bookkeeper-num-worker-threads</span>=<span class="hljs-string">Runtime.getRuntime().availableProcessors()</span>
 <span class="hljs-comment">
-# whether to use BookKeeper V2 wire protocol</span>
+# 是否使用BookKeeper V2 wire协议</span>
 <span class="hljs-meta">pulsar.bookkeeper-use-v2-protocol</span>=<span class="hljs-string">true</span>
 <span class="hljs-comment">
-# interval to check the need for sending an explicit LAC, default is disabled</span>
+# 检查是否需要发送显式LAC的时间间隔，默认为禁用</span>
 <span class="hljs-meta">pulsar.bookkeeper-explicit-interval</span>=<span class="hljs-string">0</span>
 <span class="hljs-comment">
-# size for managed ledger entry cache (in MB).</span>
+# managed ledger entry 缓存的大小（单位：MB）。</span>
 <span class="hljs-meta">pulsar.managed-ledger-cache-size-MB</span>=<span class="hljs-string">0</span>
 <span class="hljs-comment">
-# number of threads to be used for managed ledger tasks dispatching</span>
+# managed ledger 任务调度的线程数</span>
 <span class="hljs-meta">pulsar.managed-ledger-num-worker-threads</span>=<span class="hljs-string">Runtime.getRuntime().availableProcessors()</span>
 <span class="hljs-comment">
-# number of threads to be used for managed ledger scheduled tasks</span>
+# managed ledger scheduled 任务的线程数量</span>
 <span class="hljs-meta">pulsar.managed-ledger-num-scheduler-threads</span>=<span class="hljs-string">Runtime.getRuntime().availableProcessors()</span>
 <span class="hljs-comment">
-# directory used to store extraction NAR file</span>
+# 用来存储NAR文件的目录</span>
 <span class="hljs-meta">pulsar.nar-extraction-directory</span>=<span class="hljs-string">System.getProperty("java.io.tmpdir")</span>
 </code></pre>
 <p>Presto 可通过多个主机连接到 Pulsar 集群。 要为 broker 配置多个主机，需要添加多个 URL 到 <code>pulsar.web-service-url</code>。 要为 ZooKeeper 配置多个主机，需要添加多个 URI 到 <code>pulsar.zookeeper-uri</code>。 示例如下：</p>
 <pre><code class="hljs">pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
 </code></pre>
-<p>A frequently asked question is why my latest message not showing up when querying with Pulsar SQL. It's not a bug but controlled by a setting, by default BookKeeper LAC only advanced when subsequent entries are added. If there is no subsequent entries added, the last entry written will not be visible to readers until the ledger is closed. This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly read from BookKeeper ledger. We can add following setting to change the behavior: In Broker config, set bookkeeperExplicitLacIntervalInMills &gt; 0 bookkeeperUseV2WireProtocol=false</p>
-<p>And in Presto config, set pulsar.bookkeeper-explicit-interval &gt; 0 pulsar.bookkeeper-use-v2-protocol=false</p>
-<p>However,keep in mind that using bk V3 protocol will introduce additional GC overhead to BK as it uses Protobuf.</p>
+<p>一个经常被问到的问题是，为什么我的最新信息在用Pulsar SQL查询时没有显示出来。 这不是一个错误，而是由一个设置控制的，默认情况下，BookKeeper LAC只在随后的记录被添加时才前移。 如果没有后续的记录添加，最后写入的记录将不会被读者看到，直到 ledger关闭。 这对使用 managed ledger 的Pulsar来说不是问题，但Pulsar SQL直接从BookKeeper ledger 中读取。 我们可以添加以下设置来改变行为。 在 broker 配置中，设置 bookkeeperExplicitLacIntervalInMills &gt; 0 bookkeeperUseV2WireProtocol=false</p>
+<p>并在Presto配置中，设置 pulsar.bookkeeper-explicit-interval &gt; 0 pulsar.bookkeeper-use-v2-protocol=false</p>
+<p>然而，请记住，使用bk V3协议将给BK带来额外的GC开销，因为它使用Protobuf。</p>
 <h2><a class="anchor" aria-hidden="true" id="从现有-presto-集群查询数据"></a><a href="#从现有-presto-集群查询数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>从现有 Presto 集群查询数据</h2>
-<p>If you already have a Presto cluster, you can copy the Presto Pulsar connector plugin to your existing cluster. Download the archived plugin package with the following command.</p>
+<p>如果你已经有 Presto 集群，可以将 Presto Pulsar 连接器插件复制到现有的集群中。 使用以下命令下载存档的插件包。</p>
 <pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.8.1/apache-pulsar-2.8.1-bin.tar.gz
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="部署新群集"></a><a href="#部署新群集" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>部署新群集</h2>
@@ -216,7 +216,7 @@ Options:
   -D NAME=VALUE         Set a Java system property
 
 </code></pre>
-<p>The default configuration for the cluster is located in <code>${project.root}/conf/presto</code>. You can customize your deployment by modifying the default configuration.</p>
+<p>集群的默认配置位于 <code>${project.root}/conf/presto</code>。你可以通过修改默认配置自定义部署。</p>
 <p>你可以设置 worker 从不同的配置目录读取数据，或者设置不同的目录来写入数据。</p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar sql-worker run --etc-dir /tmp/incubator-pulsar/conf/presto --data-dir /tmp/presto-1
 </code></pre>
@@ -224,11 +224,11 @@ Options:
 <pre><code class="hljs css language-bash">$ ./bin/pulsar sql-worker start
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="在多节点上部署一个集群"></a><a href="#在多节点上部署一个集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>在多节点上部署一个集群</h3>
-<p>You can deploy a Pulsar SQL cluster or Presto cluster on multiple nodes. The following example shows how to deploy a cluster on three-node cluster.</p>
+<p>可以在多个节点上部署一个 Pulsar SQL 集群或 Presto 集群。下面的示例显示如何在三个节点集群上部署集群。</p>
 <ol>
 <li>将 Pulsar 二进制文件复制到三个节点。</li>
 </ol>
-<p>The first node runs as Presto coordinator. The minimal configuration requirement in the <code>${project.root}/conf/presto/config.properties</code> file is as follows.</p>
+<p>第一个节点用作 Presto 协调器（coordinator）。<code>${project.root}/conf/presto/config.properties</code> 文件中的最小配置要求如下。</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">coordinator</span>=<span class="hljs-string">true</span>
 <span class="hljs-meta">node-scheduler.include-coordinator</span>=<span class="hljs-string">true</span>
 <span class="hljs-meta">http-server.http.port</span>=<span class="hljs-string">8080</span>
@@ -270,8 +270,8 @@ Options:
 </code></pre>
 <p>关于 Presto 部署的更多信息，请参阅 <a href="https://trino.io/docs/current/installation/deployment.html">Presto 部署</a>。</p>
 <blockquote>
-<p>Note<br>
-The broker does not advance LAC, so when Pulsar SQL bypass broker to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting &quot;bookkeeperExplicitLacIntervalInMills&quot; in the broker.conf.</p>
+<p>注意<br>
+Broker 不提前LAC，所以当 Pulsar SQL 绕过 Broker 查询数据时，它只能读取到所有 bookies 得到的LAC的记录。 你可以通过在 broker.conf 中设置 &quot;bookkeeperExplicitLacIntervalInMills&quot;，在 broker 上启用定期写入LAC。</p>
 </blockquote>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/sql-getting-started"><span class="arrow-prev">← </span><span>查询数据</span></a><a class="docs-next button" href="/docs/zh-CN/next/sql-rest-api"><span>REST API</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#配置-presto-pulsar-连接器">配置 Presto Pulsar 连接器</a></li><li><a href="#从现有-presto-集群查询数据">从现有 Presto 集群查询数据</a></li><li><a href="#部署新群集">部署新群集</a><ul class="toc-headings"><li><a href="#在多节点上部署一个集群">在多节点上部署一个集群</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2021 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
