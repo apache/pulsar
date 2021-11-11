@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -108,8 +107,6 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile int maxUnackedMessagesOnConsumerAppilied = 0;
 
-    protected final Map<BacklogQuota.BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
-
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
@@ -146,36 +143,40 @@ public abstract class AbstractTopic implements Topic {
         ServiceConfiguration config = brokerService.pulsar().getConfiguration();
         this.replicatorPrefix = config.getReplicatorPrefix();
 
-
         topicPolicies = new HierarchyTopicPolicies();
-        topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
-                config.getBrokerDeleteInactiveTopicsMode(),
-                config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                config.isBrokerDeleteInactiveTopicsEnabled()));
-        topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
+        updateTopicPolicyByBrokerConfig(topicPolicies, config);
 
         this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(
                 config.getMaxMessageSizeCheckIntervalInSeconds());
 
-
-        backLogQuotaMap = new HashMap<>();
-        double backlogQuotaGB = brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultLimitGB();
-        BacklogQuotaImpl brokerDefaultQuota = BacklogQuotaImpl.builder()
-                .limitSize(backlogQuotaGB > 0 ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
-                        : brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultLimitBytes())
-                .limitTime(brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultLimitSecond())
-                .retentionPolicy(brokerService.pulsar().getConfiguration().getBacklogQuotaDefaultRetentionPolicy())
-                .build();
-        PolicyHierarchyValue<BacklogQuota> destinationStorageBacklogQuota = new PolicyHierarchyValue<>();
-        destinationStorageBacklogQuota.updateBrokerValue(brokerDefaultQuota);
-        backLogQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, destinationStorageBacklogQuota);
-        PolicyHierarchyValue<BacklogQuota> messageAgeBacklogQuota = new PolicyHierarchyValue<>();
-        messageAgeBacklogQuota.updateBrokerValue(brokerDefaultQuota);
-        backLogQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, messageAgeBacklogQuota);
-
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
         updatePublishDispatcher(Optional.empty());
+    }
+
+    private void updateTopicPolicyByBrokerConfig(HierarchyTopicPolicies topicPolicies, ServiceConfiguration config) {
+        topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
+                config.getBrokerDeleteInactiveTopicsMode(),
+                config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                config.isBrokerDeleteInactiveTopicsEnabled()));
+
+        topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
+
+        //init backlogQuota
+        double backlogQuotaGB = config.getBacklogQuotaDefaultLimitGB();
+        BacklogQuotaImpl brokerDefaultQuota = BacklogQuotaImpl.builder()
+                .limitSize(backlogQuotaGB > 0 ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
+                        : config.getBacklogQuotaDefaultLimitBytes())
+                .limitTime(config.getBacklogQuotaDefaultLimitSecond())
+                .retentionPolicy(config.getBacklogQuotaDefaultRetentionPolicy())
+                .build();
+        PolicyHierarchyValue<BacklogQuota> destinationStorageBacklogQuota = new PolicyHierarchyValue<>();
+        destinationStorageBacklogQuota.updateBrokerValue(brokerDefaultQuota);
+        topicPolicies.getBackLogQuotaMap()
+                .put(BacklogQuota.BacklogQuotaType.destination_storage, destinationStorageBacklogQuota);
+        PolicyHierarchyValue<BacklogQuota> messageAgeBacklogQuota = new PolicyHierarchyValue<>();
+        messageAgeBacklogQuota.updateBrokerValue(brokerDefaultQuota);
+        topicPolicies.getBackLogQuotaMap().put(BacklogQuota.BacklogQuotaType.message_age, messageAgeBacklogQuota);
     }
 
     protected boolean isProducersExceeded() {

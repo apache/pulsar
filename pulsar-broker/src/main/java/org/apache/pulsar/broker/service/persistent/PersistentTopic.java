@@ -2456,7 +2456,7 @@ public class PersistentTopic extends AbstractTopic
         }
 
         Arrays.stream(BacklogQuotaType.values()).forEach(
-                type -> backLogQuotaMap.get(type).updateNamespaceValue(
+                type -> this.topicPolicies.getBackLogQuotaMap().get(type).updateNamespaceValue(
                         data.backlog_quota_map == null ? null : data.backlog_quota_map.get(type)));
 
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
@@ -2469,7 +2469,7 @@ public class PersistentTopic extends AbstractTopic
      */
     @Override
     public BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType) {
-        return backLogQuotaMap.get(backlogQuotaType).get();
+        return this.topicPolicies.getBackLogQuotaMap().get(backlogQuotaType).get();
     }
 
     /**
@@ -3093,8 +3093,9 @@ public class PersistentTopic extends AbstractTopic
         topicPolicies.getMaxSubscriptionsPerTopic().updateTopicValue(policies.getMaxSubscriptionsPerTopic());
         topicPolicies.getInactiveTopicPolicies().updateTopicValue(policies.getInactiveTopicPolicies());
         Arrays.stream(BacklogQuotaType.values()).forEach(type ->
-                backLogQuotaMap.get(type).updateNamespaceValue(policies.getBackLogQuotaMap() == null ? null :
-                        policies.getBackLogQuotaMap().get(type.toString()))
+                this.topicPolicies.getBackLogQuotaMap().get(type).updateNamespaceValue(
+                        policies.getBackLogQuotaMap() == null ? null :
+                                policies.getBackLogQuotaMap().get(type.toString()))
         );
 
 

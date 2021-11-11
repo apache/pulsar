@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.common.policies.data;
 
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Getter;
 
 /**
@@ -28,9 +30,11 @@ import lombok.Getter;
 public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
+    final Map<BacklogQuota.BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
 
     public HierarchyTopicPolicies() {
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
+        backLogQuotaMap = new HashMap<>();
     }
 }
