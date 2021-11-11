@@ -234,7 +234,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateGlobalNamespaceOwnership();
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
-            validateTopicAllowToCreate(topicName);
+            validateTopicAllowdToCreate(topicName);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
@@ -268,7 +268,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateNamespaceName(tenant, namespace);
         validateGlobalNamespaceOwnership();
         validateTopicName(tenant, namespace, encodedTopic);
-        validateTopicAllowToCreate(topicName);
+        validateTopicAllowdToCreate(topicName);
         internalCreateNonPartitionedTopic(authoritative);
     }
 
