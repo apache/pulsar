@@ -238,17 +238,11 @@ public class NamespaceResources extends BaseResources<Policies> {
         public CompletableFuture<Void> clearPartitionedTopicMetadataAsync(NamespaceName namespaceName) {
             final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
 
-            existsAsync(globalPartitionedPath).thenApply(exist -> {
-                if (!exist) {
-                    Response.status(Status.NOT_FOUND);
-                    log.warn("The global partitioned path [{}] not found", globalPartitionedPath);
-                    return null;
+            return existsAsync(globalPartitionedPath).thenAccept(exist -> {
+                if (exist) {
+                    deleteAsync(globalPartitionedPath);
                 }
-
-                return deleteAsync(globalPartitionedPath);
             });
-
-            return null;
         }
 
         public void clearPartitionedTopicMetadata(NamespaceName namespaceName) throws MetadataStoreException {
