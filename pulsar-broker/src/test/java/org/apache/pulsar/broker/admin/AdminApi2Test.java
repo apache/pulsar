@@ -2273,16 +2273,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertNotNull(admin.topics().getStats(partitionedTopicName + "-partition-" + 6).getSubscriptions().get(subName1));
     }
 
-    @Test
-    public void testPartitionedStatsAggregationByProducerName() throws Exception {
-        final String topic = "persistent://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name";
+    @Test(dataProvider = "topicType")
+    public void testPartitionedStatsAggregationByProducerName(String topicType) throws Exception {
+        final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name";
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
-
-        @Cleanup
-        Producer<byte[]> producer1 = client.newProducer()
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -2297,7 +2294,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 .create();
 
         @Cleanup
-        Producer<byte[]> producer2 = client.newProducer()
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -2330,104 +2327,18 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         topicStats.getPublishers().forEach(p -> assertTrue(p.isPartialProducerSupported()));
     }
 
-    @Test
-    public void testPartitionedStatsAggregationByProducerNamePerPartition() throws Exception {
-        final String topic = "persistent://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name-per-pt";
+    @Test(dataProvider = "topicType")
+    public void testPartitionedStatsAggregationByProducerNamePerPartition(String topicType) throws Exception {
+        final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name-per-pt";
         admin.topics().createPartitionedTopic(topic, 2);
 
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
-
-        @Cleanup
-        Producer<byte[]> producer1 = client.newProducer()
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
                 .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
                 .create();
 
         @Cleanup
-        Producer<byte[]> producer2 = client.newProducer()
-                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 1)
-                .create();
-
-        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
-        assertEquals(topicStats.getPartitions().size(), 2);
-        assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 2);
-        assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
-        assertEquals(topicStats.getPublishers().size(), 2);
-        topicStats.getPublishers().forEach(p -> assertTrue(p.isPartialProducerSupported()));
-    }
-
-    @Test
-    public void testPartitionedStatsAggregationByProducerNameNonPersistent() throws Exception {
-        final String topic = "non-persistent://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name-non";
-        admin.topics().createPartitionedTopic(topic, 10);
-
-        @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
-
-        @Cleanup
-        Producer<byte[]> producer1 = client.newProducer()
-                .topic(topic)
-                .enableLazyStartPartitionedProducers(true)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.CustomPartition)
-                .messageRouter(new MessageRouter() {
-                    @Override
-                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
-                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
-                    }
-                })
-                .accessMode(ProducerAccessMode.Shared)
-                .create();
-
-        @Cleanup
-        Producer<byte[]> producer2 = client.newProducer()
-                .topic(topic)
-                .enableLazyStartPartitionedProducers(true)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.CustomPartition)
-                .messageRouter(new MessageRouter() {
-                    @Override
-                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
-                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 5;
-                    }
-                })
-                .accessMode(ProducerAccessMode.Shared)
-                .create();
-
-        for (int i = 0; i < 10; i++) {
-            producer1.newMessage()
-                    .key(String.valueOf(i % 5))
-                    .value(("message".getBytes(StandardCharsets.UTF_8)))
-                    .send();
-            producer2.newMessage()
-                    .key(String.valueOf(i % 5 + 5))
-                    .value(("message".getBytes(StandardCharsets.UTF_8)))
-                    .send();
-        }
-
-        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(topic, true);
-        assertEquals(topicStats.getPartitions().size(), 10);
-        assertEquals(topicStats.getPartitions().values().stream().mapToInt(e -> e.getPublishers().size()).sum(), 10);
-        assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
-        assertEquals(topicStats.getPublishers().size(), 2);
-        topicStats.getPublishers().forEach(p -> assertTrue(p.isPartialProducerSupported()));
-    }
-
-    @Test
-    public void testPartitionedStatsAggregationByProducerNamePerPartitionNonPersistent() throws Exception {
-        final String topic = "non-persistent://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name-per-pt-non";
-        admin.topics().createPartitionedTopic(topic, 2);
-
-        @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
-
-        @Cleanup
-        Producer<byte[]> producer1 = client.newProducer()
-                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
-                .create();
-
-        @Cleanup
-        Producer<byte[]> producer2 = client.newProducer()
+        Producer<byte[]> producer2 = pulsarClient.newProducer()
                 .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 1)
                 .create();
 

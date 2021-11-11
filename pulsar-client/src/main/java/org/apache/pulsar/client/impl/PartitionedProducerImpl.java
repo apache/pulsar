@@ -150,7 +150,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
 
-        final BiConsumer<Boolean, Throwable> after = (failFast, createException) -> {
+        final BiConsumer<Boolean, Throwable> afterCreatingProducer = (failFast, createException) -> {
             final Runnable closeRunnable = () -> {
                 log.error("[{}] Could not create partitioned producer.", topic, createFail.get().getCause());
                 closeAsync().handle((ok, closeException) -> {
@@ -185,7 +185,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
         final ProducerImpl<T> firstProducer = createProducer(indexList.get(0));
         firstProducer.producerCreatedFuture().handle((prod, createException) -> {
-            after.accept(true, createException);
+            afterCreatingProducer.accept(true, createException);
             if (createException != null) {
                 throw new RuntimeException(createException);
             }
@@ -194,7 +194,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         }).thenApply(name -> {
             for (int i = 1; i < indexList.size(); i++) {
                 createProducer(indexList.get(i), name).producerCreatedFuture().handle((prod, createException) -> {
-                    after.accept(false, createException);
+                    afterCreatingProducer.accept(false, createException);
                     return null;
                 });
             }
