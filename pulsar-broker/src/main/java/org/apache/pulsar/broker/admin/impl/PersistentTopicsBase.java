@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.broker.PulsarService.isNotAllowedToCreateTopic;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -241,6 +242,13 @@ public class PersistentTopicsBase extends AdminResource {
                         topicName, clientAppId(), e.getMessage(), e);
                 throw new RestException(e);
             }
+        }
+    }
+
+    protected void validateTopicAllowdToCreate(TopicName topicName) {
+        if (isNotAllowedToCreateTopic(topicName)) {
+            log.warn("Try to create a topic in the system topic format! {}", topicName);
+            throw new RestException(Status.CONFLICT, "Cannot create topic in system topic format!");
         }
     }
 

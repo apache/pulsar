@@ -1649,10 +1649,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
 
-    private static boolean isTransactionSystemTopic(TopicName topicName) {
+    public static boolean isTransactionSystemTopic(TopicName topicName) {
         String topic = topicName.toString();
         return topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
                 || topic.startsWith(TopicName.get(TopicDomain.persistent.value(),
+                NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString())
+                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
+    }
+
+    public static boolean isNotAllowedToCreateTopic(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.startsWith(TopicName.get(TopicDomain.persistent.value(),
                 NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString())
                 || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
