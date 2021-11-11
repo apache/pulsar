@@ -141,8 +141,8 @@ public class Producer {
     private String parseRemoteClusterName(String producerName, boolean isRemote) {
         if (isRemote) {
             String clusterName = producerName.split("\\.")[2];
-            return clusterName.contains(REPL_PRODUCER_NAME_DELIMITER) ?
-                    clusterName.split(REPL_PRODUCER_NAME_DELIMITER)[1] : clusterName;
+            return clusterName.contains(REPL_PRODUCER_NAME_DELIMITER)
+                    ? clusterName.split(REPL_PRODUCER_NAME_DELIMITER)[1] : clusterName;
         }
         return null;
     }
