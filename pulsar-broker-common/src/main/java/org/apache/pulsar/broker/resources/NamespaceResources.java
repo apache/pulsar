@@ -25,8 +25,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import lombok.Getter;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -239,18 +237,11 @@ public class NamespaceResources extends BaseResources<Policies> {
             final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
 
             return existsAsync(globalPartitionedPath).thenAccept(exist -> {
+                // check whether partitioned topics metadata node exist
                 if (exist) {
                     deleteAsync(globalPartitionedPath);
                 }
             });
-        }
-
-        public void clearPartitionedTopicMetadata(NamespaceName namespaceName) throws MetadataStoreException {
-            final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
-            // check whether partitioned topics metadata node exist
-            if (exists(globalPartitionedPath)) {
-                deleteRecursive(this, globalPartitionedPath);
-            }
         }
     }
 }
