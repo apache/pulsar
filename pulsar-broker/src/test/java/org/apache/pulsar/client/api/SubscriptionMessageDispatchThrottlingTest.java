@@ -332,7 +332,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, subscriptionDispatchRate);
         admin.namespaces().setDispatchRate(namespace, topicDispatchRate);
-        admin.brokers().updateDynamicConfiguration("brokerDispatchThrottlingMaxByteRate", "" + brokerRate);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
 
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
@@ -448,7 +448,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         final String subName = "my-subscriber-name-" + subscription;
 
         final int byteRate = 1000;
-        admin.brokers().updateDynamicConfiguration("brokerDispatchThrottlingMaxByteRate", "" + byteRate);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + byteRate);
         admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
         admin.namespaces().createNamespace(namespace2, Sets.newHashSet("test"));
 

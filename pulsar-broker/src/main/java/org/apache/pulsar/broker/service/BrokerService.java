@@ -2021,11 +2021,11 @@ public class BrokerService implements Closeable {
                 (brokerPublisherThrottlingMaxByteRate) ->
                         updateBrokerPublisherThrottlingMaxRate());
         // add listener to notify broker dispatch-rate dynamic config
-        registerConfigurationListener("brokerDispatchThrottlingMaxMessageRate",
-                (brokerDispatchThrottlingMaxMessageRate) ->
+        registerConfigurationListener("dispatchThrottlingRateInMsg",
+                (dispatchThrottlingRateInMsg) ->
                         updateBrokerDispatchThrottlingMaxRate());
-        registerConfigurationListener("brokerDispatchThrottlingMaxByteRate",
-                (brokerDispatchThrottlingMaxByteRate) ->
+        registerConfigurationListener("dispatchThrottlingRateInByte",
+                (dispatchThrottlingRateInByte) ->
                         updateBrokerDispatchThrottlingMaxRate());
         // add listener to notify topic publish-rate monitoring
         if (!preciseTopicPublishRateLimitingEnable) {

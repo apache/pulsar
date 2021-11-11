@@ -152,8 +152,8 @@ public class DispatchRateLimiter {
                 dispatchThrottlingRateInByte = config.getDispatchThrottlingRatePerReplicatorInByte();
                 break;
             case BROKER:
-                dispatchThrottlingRateInMsg = config.getBrokerDispatchThrottlingMaxMessageRate();
-                dispatchThrottlingRateInByte = config.getBrokerDispatchThrottlingMaxByteRate();
+                dispatchThrottlingRateInMsg = config.getDispatchThrottlingRateInMsg();
+                dispatchThrottlingRateInByte = config.getDispatchThrottlingRateInByte();
                 break;
             default:
                 dispatchThrottlingRateInMsg = -1;
