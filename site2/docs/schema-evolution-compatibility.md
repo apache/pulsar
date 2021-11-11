@@ -626,6 +626,10 @@ None
 
 In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.
 
+> **Tip**
+> 
+> You can set schema compatibility check strategy at namespace or broker level. For how to set the strategy, see [here](schema-manage.md/#set-schema-compatibility-check-strategy).
+
 ## Schema verification
 
 When a producer or a consumer tries to connect to a topic, a broker performs some checks to verify a schema.
