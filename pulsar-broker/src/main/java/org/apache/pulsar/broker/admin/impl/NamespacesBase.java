@@ -298,8 +298,10 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             try {
-                // clear partitioned topic resources
-                namespaceResources().getPartitionedTopicResources().clearPartitionedTopicMetadata(namespaceName);
+                // remove partitioned topics znode
+                pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .clearPartitionedTopicMetadata(namespaceName);
+
                 // clear resource of `/namespace/{namespaceName}` for zk-node
                 namespaceResources().deleteNamespaceAsync(namespaceName)
                         // clear resource for manager-ledger z-node
@@ -489,8 +491,10 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             try {
-                // clear partitioned topic resources
-                namespaceResources().getPartitionedTopicResources().clearPartitionedTopicMetadata(namespaceName);
+                // remove partitioned topics znode
+                pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .clearPartitionedTopicMetadata(namespaceName);
+
                 // clear resource of `/namespace/{namespaceName}` for zk-node
                 namespaceResources().deleteNamespaceAsync(namespaceName)
                         // clear resource for manager-ledger z-node
