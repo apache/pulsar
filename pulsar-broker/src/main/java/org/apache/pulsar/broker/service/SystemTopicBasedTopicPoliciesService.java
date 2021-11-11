@@ -70,7 +70,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     final Map<NamespaceName, Boolean> policyCacheInitMap = new ConcurrentHashMap<>();
 
-    private final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
+    @VisibleForTesting
+    final Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
     public SystemTopicBasedTopicPoliciesService(PulsarService pulsarService) {
         this.pulsarService = pulsarService;
@@ -470,7 +471,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).add(listener);
+        listeners.compute(topicName, (k, oldValue) -> {
+            if (oldValue == null) {
+                oldValue = Lists.newCopyOnWriteArrayList();
+            }
+            oldValue.add(listener);
+            return oldValue;
+        });
     }
 
     @Override

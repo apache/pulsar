@@ -23,7 +23,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
@@ -33,6 +32,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -42,10 +42,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.BackoffBuilder;
-import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -72,7 +70,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private static final TopicName TOPIC5 = TopicName.get("persistent", NamespaceName.get(NAMESPACE3), "topic-1");
     private static final TopicName TOPIC6 = TopicName.get("persistent", NamespaceName.get(NAMESPACE3), "topic-2");
 
-    private NamespaceEventsSystemTopicFactory systemTopicFactory;
     private SystemTopicBasedTopicPoliciesService systemTopicBasedTopicPoliciesService;
 
     @BeforeMethod(alwaysRun = true)
@@ -88,6 +85,39 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testConcurrentlyRegisterUnregisterListeners() throws ExecutionException, InterruptedException {
+        TopicName topicName = TopicName.get("test");
+        class TopicPolicyListenerImpl implements TopicPolicyListener<TopicPolicies> {
+
+            @Override
+            public void onUpdate(TopicPolicies data) {
+                //no op.
+            }
+        }
+
+        CompletableFuture<Void> f = CompletableFuture.completedFuture(null).thenRunAsync(() -> {
+            for (int i = 0; i < 100; i++) {
+                TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
+                systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
+                Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
+                Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
+                systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
+            }
+        });
+
+        for (int i = 0; i < 100; i++) {
+            TopicPolicyListener<TopicPolicies> listener = new TopicPolicyListenerImpl();
+            systemTopicBasedTopicPoliciesService.registerListener(topicName, listener);
+            Assert.assertNotNull(systemTopicBasedTopicPoliciesService.listeners.get(topicName));
+            Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.get(topicName).size() >= 1);
+            systemTopicBasedTopicPoliciesService.unregisterListener(topicName, listener);
+        }
+
+        f.get();
+        Assert.assertTrue(systemTopicBasedTopicPoliciesService.listeners.isEmpty());
     }
 
     @Test
@@ -235,7 +265,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.lookups().lookupTopic(TOPIC4.toString());
         admin.lookups().lookupTopic(TOPIC5.toString());
         admin.lookups().lookupTopic(TOPIC6.toString());
-        systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
     }
 
