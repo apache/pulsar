@@ -249,7 +249,7 @@ public class NamespaceResources extends BaseResources<Policies> {
             return existsAsync(globalPartitionedPath).thenAccept(exist -> {
                 // check whether partitioned topics metadata node exist
                 if (exist) {
-                    deleteAsync(globalPartitionedPath);
+                    deleteRecursiveAsync(this,globalPartitionedPath);
                 }
             });
         }

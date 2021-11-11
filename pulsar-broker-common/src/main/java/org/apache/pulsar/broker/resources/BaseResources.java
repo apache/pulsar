@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -29,8 +30,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import javax.ws.rs.core.Response;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -191,6 +194,36 @@ public class BaseResources<T> {
         for (int i = tree.size() - 1; i >= 0; --i) {
             // Delete the leaves first and eventually get rid of the root
             resources.delete(tree.get(i));
+        }
+    }
+
+    protected static void deleteRecursiveAsync(BaseResources resources, final String pathRoot) {
+        PathUtils.validatePath(pathRoot);
+        List<String> tree = null;
+        try {
+            tree = listSubTreeBFS(resources, pathRoot);
+        } catch (MetadataStoreException e) {
+
+        }
+
+        if (tree != null) {
+            log.debug("Deleting {} with size {}", tree, tree.size());
+            log.debug("Deleting " + tree.size() + " subnodes ");
+
+            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            for (int i = tree.size() - 1; i >= 0; --i) {
+                // Delete the leaves first and eventually get rid of the root
+                futures.add(resources.deleteAsync(tree.get(i)));
+            }
+
+            FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                if (exception != null) {
+                    log.error("Failed to remove partitioned topics", exception);
+                    return null;
+                }
+                Response.noContent().build();
+                return null;
+            });
         }
     }
 

@@ -298,15 +298,13 @@ public abstract class NamespacesBase extends AdminResource {
             }
 
             try {
-                // remove partitioned topics znode
-                pulsar().getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                        .clearPartitionedTopicMetadata(namespaceName);
-
                 // clear resource of `/namespace/{namespaceName}` for zk-node
                 namespaceResources().deleteNamespaceAsync(namespaceName)
                         // clear resource for manager-ledger z-node
                         .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
                                 .clearDomainPersistence(namespaceName))
+                        .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
+                                .clearPartitionedTopicMetadataAsync(namespaceName))
                         .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
                                 .clearNamespacePersistence(namespaceName))
                         // we have successfully removed all the ownership for the namespace, the policies
@@ -497,6 +495,8 @@ public abstract class NamespacesBase extends AdminResource {
 
                 // clear resource of `/namespace/{namespaceName}` for zk-node
                 namespaceResources().deleteNamespaceAsync(namespaceName)
+                        .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
+                                .clearPartitionedTopicMetadataAsync(namespaceName))
                         // clear resource for manager-ledger z-node
                         .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
                                 .clearDomainPersistence(namespaceName))
