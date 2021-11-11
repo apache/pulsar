@@ -190,7 +190,7 @@ public final class TestMsg {
         throws com.google.protobuf.InvalidProtocolBufferException {
       this();
       if (extensionRegistry == null) {
-        throw new java.lang.IllegalArgumentException();
+        throw new java.lang.NullPointerException();
       }
       int mutable_bitField0_ = 0;
       com.google.protobuf.UnknownFieldSet.Builder unknownFields =
@@ -319,7 +319,7 @@ public final class TestMsg {
           throws com.google.protobuf.InvalidProtocolBufferException {
         this();
         if (extensionRegistry == null) {
-          throw new java.lang.IllegalArgumentException();
+          throw new java.lang.NullPointerException();
         }
         int mutable_bitField0_ = 0;
         com.google.protobuf.UnknownFieldSet.Builder unknownFields =
@@ -347,7 +347,7 @@ public final class TestMsg {
               }
               case 18: {
                 java.lang.String s = input.readStringRequireUtf8();
-                if ((mutable_bitField0_ & 0x00000002) != 0x00000002) {
+                if (!((mutable_bitField0_ & 0x00000002) == 0x00000002)) {
                   urls_ = new com.google.protobuf.LazyStringArrayList();
                   mutable_bitField0_ |= 0x00000002;
                 }
@@ -362,7 +362,7 @@ public final class TestMsg {
           throw new com.google.protobuf.InvalidProtocolBufferException(
               e).setUnfinishedMessage(this);
         } finally {
-          if ((mutable_bitField0_ & 0x00000002) == 0x00000002) {
+          if (((mutable_bitField0_ & 0x00000002) == 0x00000002)) {
             urls_ = urls_.getUnmodifiableView();
           }
           this.unknownFields = unknownFields.build();
@@ -804,7 +804,7 @@ public final class TestMsg {
         public Builder setTitle(
             java.lang.String value) {
           if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   
           title_ = value;
@@ -826,7 +826,7 @@ public final class TestMsg {
         public Builder setTitleBytes(
             com.google.protobuf.ByteString value) {
           if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
           
@@ -837,7 +837,7 @@ public final class TestMsg {
 
         private com.google.protobuf.LazyStringList urls_ = com.google.protobuf.LazyStringArrayList.EMPTY;
         private void ensureUrlsIsMutable() {
-          if ((bitField0_ & 0x00000002) != 0x00000002) {
+          if (!((bitField0_ & 0x00000002) == 0x00000002)) {
             urls_ = new com.google.protobuf.LazyStringArrayList(urls_);
             bitField0_ |= 0x00000002;
            }
@@ -874,7 +874,7 @@ public final class TestMsg {
         public Builder setUrls(
             int index, java.lang.String value) {
           if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   ensureUrlsIsMutable();
           urls_.set(index, value);
@@ -887,7 +887,7 @@ public final class TestMsg {
         public Builder addUrls(
             java.lang.String value) {
           if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   ensureUrlsIsMutable();
           urls_.add(value);
@@ -920,7 +920,7 @@ public final class TestMsg {
         public Builder addUrlsBytes(
             com.google.protobuf.ByteString value) {
           if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
           ensureUrlsIsMutable();
@@ -1412,7 +1412,7 @@ public final class TestMsg {
       public Builder setFoo(
           java.lang.String value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   
         foo_ = value;
@@ -1434,7 +1434,7 @@ public final class TestMsg {
       public Builder setFooBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
         
@@ -1494,7 +1494,7 @@ public final class TestMsg {
       public Builder setNestedMessage(org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage.NestedMessage value) {
         if (nestedMessageBuilder_ == null) {
           if (value == null) {
-            throw new IllegalArgumentException();
+            throw new NullPointerException();
           }
           nestedMessage_ = value;
           onChanged();
@@ -1836,7 +1836,7 @@ public final class TestMsg {
         throws com.google.protobuf.InvalidProtocolBufferException {
       this();
       if (extensionRegistry == null) {
-        throw new java.lang.IllegalArgumentException();
+        throw new java.lang.NullPointerException();
       }
       int mutable_bitField0_ = 0;
       com.google.protobuf.UnknownFieldSet.Builder unknownFields =
@@ -1953,7 +1953,7 @@ public final class TestMsg {
             }
             case 146: {
               java.lang.String s = input.readStringRequireUtf8();
-              if ((mutable_bitField0_ & 0x00020000) != 0x00020000) {
+              if (!((mutable_bitField0_ & 0x00020000) == 0x00020000)) {
                 repeatedField_ = new com.google.protobuf.LazyStringArrayList();
                 mutable_bitField0_ |= 0x00020000;
               }
@@ -1961,7 +1961,7 @@ public final class TestMsg {
               break;
             }
             case 154: {
-              if ((mutable_bitField0_ & 0x00040000) != 0x00040000) {
+              if (!((mutable_bitField0_ & 0x00040000) == 0x00040000)) {
                 mapField_ = com.google.protobuf.MapField.newMapField(
                     MapFieldDefaultEntryHolder.defaultEntry);
                 mutable_bitField0_ |= 0x00040000;
@@ -2270,7 +2270,7 @@ public final class TestMsg {
 
     public boolean containsMapField(
         java.lang.String key) {
-      if (key == null) { throw new java.lang.IllegalArgumentException(); }
+      if (key == null) { throw new java.lang.NullPointerException(); }
       return internalGetMapField().getMap().containsKey(key);
     }
     /**
@@ -2294,7 +2294,7 @@ public final class TestMsg {
     public double getMapFieldOrDefault(
         java.lang.String key,
         double defaultValue) {
-      if (key == null) { throw new java.lang.IllegalArgumentException(); }
+      if (key == null) { throw new java.lang.NullPointerException(); }
       java.util.Map<java.lang.String, java.lang.Double> map =
           internalGetMapField().getMap();
       return map.containsKey(key) ? map.get(key) : defaultValue;
@@ -2305,7 +2305,7 @@ public final class TestMsg {
 
     public double getMapFieldOrThrow(
         java.lang.String key) {
-      if (key == null) { throw new java.lang.IllegalArgumentException(); }
+      if (key == null) { throw new java.lang.NullPointerException(); }
       java.util.Map<java.lang.String, java.lang.Double> map =
           internalGetMapField().getMap();
       if (!map.containsKey(key)) {
@@ -3018,7 +3018,7 @@ public final class TestMsg {
       public Builder setStringField(
           java.lang.String value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   
         stringField_ = value;
@@ -3040,7 +3040,7 @@ public final class TestMsg {
       public Builder setStringFieldBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
         
@@ -3399,7 +3399,7 @@ public final class TestMsg {
        */
       public Builder setBytesField(com.google.protobuf.ByteString value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   
         bytesField_ = value;
@@ -3443,7 +3443,7 @@ public final class TestMsg {
        */
       public Builder setTestEnum(org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.TestEnum value) {
         if (value == null) {
-          throw new IllegalArgumentException();
+          throw new NullPointerException();
         }
         
         testEnum_ = value.getNumber();
@@ -3485,7 +3485,7 @@ public final class TestMsg {
       public Builder setSubMessage(org.apache.pulsar.sql.presto.decoder.protobufnative.TestMsg.SubMessage value) {
         if (subMessageBuilder_ == null) {
           if (value == null) {
-            throw new IllegalArgumentException();
+            throw new NullPointerException();
           }
           subMessage_ = value;
           onChanged();
@@ -3579,7 +3579,7 @@ public final class TestMsg {
 
       private com.google.protobuf.LazyStringList repeatedField_ = com.google.protobuf.LazyStringArrayList.EMPTY;
       private void ensureRepeatedFieldIsMutable() {
-        if ((bitField0_ & 0x00020000) != 0x00020000) {
+        if (!((bitField0_ & 0x00020000) == 0x00020000)) {
           repeatedField_ = new com.google.protobuf.LazyStringArrayList(repeatedField_);
           bitField0_ |= 0x00020000;
          }
@@ -3616,7 +3616,7 @@ public final class TestMsg {
       public Builder setRepeatedField(
           int index, java.lang.String value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   ensureRepeatedFieldIsMutable();
         repeatedField_.set(index, value);
@@ -3629,7 +3629,7 @@ public final class TestMsg {
       public Builder addRepeatedField(
           java.lang.String value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   ensureRepeatedFieldIsMutable();
         repeatedField_.add(value);
@@ -3662,7 +3662,7 @@ public final class TestMsg {
       public Builder addRepeatedFieldBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) {
-    throw new IllegalArgumentException();
+    throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
         ensureRepeatedFieldIsMutable();
@@ -3683,7 +3683,7 @@ public final class TestMsg {
       }
       private com.google.protobuf.MapField<java.lang.String, java.lang.Double>
       internalGetMutableMapField() {
-        onChanged();
+        onChanged();;
         if (mapField_ == null) {
           mapField_ = com.google.protobuf.MapField.newMapField(
               MapFieldDefaultEntryHolder.defaultEntry);
@@ -3703,7 +3703,7 @@ public final class TestMsg {
 
       public boolean containsMapField(
           java.lang.String key) {
-        if (key == null) { throw new java.lang.IllegalArgumentException(); }
+        if (key == null) { throw new java.lang.NullPointerException(); }
         return internalGetMapField().getMap().containsKey(key);
       }
       /**
@@ -3727,7 +3727,7 @@ public final class TestMsg {
       public double getMapFieldOrDefault(
           java.lang.String key,
           double defaultValue) {
-        if (key == null) { throw new java.lang.IllegalArgumentException(); }
+        if (key == null) { throw new java.lang.NullPointerException(); }
         java.util.Map<java.lang.String, java.lang.Double> map =
             internalGetMapField().getMap();
         return map.containsKey(key) ? map.get(key) : defaultValue;
@@ -3738,7 +3738,7 @@ public final class TestMsg {
 
       public double getMapFieldOrThrow(
           java.lang.String key) {
-        if (key == null) { throw new java.lang.IllegalArgumentException(); }
+        if (key == null) { throw new java.lang.NullPointerException(); }
         java.util.Map<java.lang.String, java.lang.Double> map =
             internalGetMapField().getMap();
         if (!map.containsKey(key)) {
@@ -3758,7 +3758,7 @@ public final class TestMsg {
 
       public Builder removeMapField(
           java.lang.String key) {
-        if (key == null) { throw new java.lang.IllegalArgumentException(); }
+        if (key == null) { throw new java.lang.NullPointerException(); }
         internalGetMutableMapField().getMutableMap()
             .remove(key);
         return this;
@@ -3777,7 +3777,7 @@ public final class TestMsg {
       public Builder putMapField(
           java.lang.String key,
           double value) {
-        if (key == null) { throw new java.lang.IllegalArgumentException(); }
+        if (key == null) { throw new java.lang.NullPointerException(); }
         
         internalGetMutableMapField().getMutableMap()
             .put(key, value);
