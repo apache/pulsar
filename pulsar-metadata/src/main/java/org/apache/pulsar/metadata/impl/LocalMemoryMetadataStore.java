@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -90,11 +91,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             Value v = map.get(path);
             if (v != null) {
                 return FutureUtils.value(
@@ -109,11 +109,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             String firstKey = path.equals("/") ? path : path + "/";
             String lastKey = path.equals("/") ? "0" : path + "0"; // '0' is lexicographically just after '/'
 
@@ -132,13 +131,12 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Boolean> existsFromStore(String path) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             Value v = map.get(path);
-            return FutureUtils.value(v != null ? true : false);
+            return FutureUtils.value(v != null);
         }
     }
 
@@ -150,11 +148,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     @Override
     public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
                                             EnumSet<CreateOption> options) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             boolean hasVersion = optExpectedVersion.isPresent();
             int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
@@ -203,11 +200,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+        if (!isValidPath(path)) {
+            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+        }
         synchronized (map) {
-            if (!isValidPath(path)) {
-                return FutureUtils.exception(new MetadataStoreException(""));
-            }
-
             Value value = map.get(path);
             if (value == null) {
                 return FutureUtils.exception(new NotFoundException(""));
@@ -229,13 +225,5 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             receivedNotification(new Notification(NotificationType.ChildrenChanged, parent));
             parent = parent(parent);
         }
-    }
-
-    private static boolean isValidPath(String path) {
-        if (path == null || !path.startsWith("/")) {
-            return false;
-        }
-
-        return !path.equals("/") || !path.endsWith("/");
     }
 }
