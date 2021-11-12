@@ -19,9 +19,10 @@
 
 package org.apache.pulsar.common.policies.data;
 
-import java.util.HashMap;
+import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import lombok.Getter;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 
 /**
  * Topic policy hierarchy value container
@@ -30,11 +31,14 @@ import lombok.Getter;
 public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<InactiveTopicPolicies> inactiveTopicPolicies;
     final PolicyHierarchyValue<Integer> maxSubscriptionsPerTopic;
-    final Map<BacklogQuota.BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
+    final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
 
     public HierarchyTopicPolicies() {
         inactiveTopicPolicies = new PolicyHierarchyValue<>();
         maxSubscriptionsPerTopic = new PolicyHierarchyValue<>();
-        backLogQuotaMap = new HashMap<>();
+        backLogQuotaMap = new ImmutableMap.Builder<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>>()
+                .put(BacklogQuotaType.destination_storage, new PolicyHierarchyValue<>())
+                .put(BacklogQuotaType.message_age, new PolicyHierarchyValue<>())
+                .build();
     }
 }

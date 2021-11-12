@@ -229,7 +229,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             String partition = TopicName.get(testTopic).getPartition(i).toString();
             Topic topic = pulsar.getBrokerService().getOrCreateTopic(partition).get();
             partitions.add(topic);
-            BacklogQuota defaultBacklogQuota = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage);
+            BacklogQuota defaultBacklogQuota = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age);
             defaultBacklogQuotas.add(defaultBacklogQuota);
         }
 
@@ -237,18 +237,19 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .limitTime(1000)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
-
         admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
 
         Awaitility.await()
                 .untilAsserted(() -> Assert.assertEquals(admin.topics().getBacklogQuotaMap(testTopic)
                         .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
 
-        partitions.forEach(topic -> {
-            BacklogQuota backlogQuotaInTopic = topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age);
-            Assert.assertEquals(backlogQuota, backlogQuotaInTopic);
-        });
-
+        for (int i = 0; i < partitions.size(); i++) {
+            Assert.assertEquals(partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age),
+                    backlogQuota);
+            //destination_storage should keep the same.
+            Assert.assertEquals(partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage),
+                    defaultBacklogQuotas.get(i));
+        }
 
         admin.topics().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await()

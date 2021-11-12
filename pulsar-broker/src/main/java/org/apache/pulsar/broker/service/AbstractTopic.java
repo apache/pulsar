@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup;
@@ -55,11 +57,9 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -144,7 +144,14 @@ public abstract class AbstractTopic implements Topic {
         this.replicatorPrefix = config.getReplicatorPrefix();
 
         topicPolicies = new HierarchyTopicPolicies();
-        updateTopicPolicyByBrokerConfig(topicPolicies, config);
+        updateTopicPolicyByBrokerConfig(topicPolicies, brokerService);
+        brokerService.pulsar().getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                .thenAccept(optPolicies -> optPolicies.ifPresent(this::updateTopicPolicyByNamespacePolicy))
+                .exceptionally(throwable -> {
+                    log.error("[{}] updateTopicPolicyByNamespacePolicy error", topic, throwable);
+                    return null;
+                });
 
         this.topicMaxMessageSizeCheckIntervalMs = TimeUnit.SECONDS.toMillis(
                 config.getMaxMessageSizeCheckIntervalInSeconds());
@@ -154,7 +161,22 @@ public abstract class AbstractTopic implements Topic {
         updatePublishDispatcher(Optional.empty());
     }
 
-    private void updateTopicPolicyByBrokerConfig(HierarchyTopicPolicies topicPolicies, ServiceConfiguration config) {
+    protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}]updateTopicPolicyByNamespacePolicy,data={}", topic, namespacePolicies);
+        }
+        if (namespacePolicies.deleted) {
+            return;
+        }
+        topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(namespacePolicies.max_subscriptions_per_topic);
+        topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(namespacePolicies.inactive_topic_policies);
+        Arrays.stream(BacklogQuota.BacklogQuotaType.values()).forEach(
+                type -> this.topicPolicies.getBackLogQuotaMap().get(type)
+                        .updateNamespaceValue(MapUtils.getObject(namespacePolicies.backlog_quota_map, type)));
+    }
+
+    private void updateTopicPolicyByBrokerConfig(HierarchyTopicPolicies topicPolicies, BrokerService brokerService) {
+        ServiceConfiguration config = brokerService.pulsar().getConfiguration();
         topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
                 config.getBrokerDeleteInactiveTopicsMode(),
                 config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
@@ -163,20 +185,12 @@ public abstract class AbstractTopic implements Topic {
         topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
 
         //init backlogQuota
-        double backlogQuotaGB = config.getBacklogQuotaDefaultLimitGB();
-        BacklogQuotaImpl brokerDefaultQuota = BacklogQuotaImpl.builder()
-                .limitSize(backlogQuotaGB > 0 ? (long) (backlogQuotaGB * BacklogQuotaImpl.BYTES_IN_GIGABYTE)
-                        : config.getBacklogQuotaDefaultLimitBytes())
-                .limitTime(config.getBacklogQuotaDefaultLimitSecond())
-                .retentionPolicy(config.getBacklogQuotaDefaultRetentionPolicy())
-                .build();
-        PolicyHierarchyValue<BacklogQuota> destinationStorageBacklogQuota = new PolicyHierarchyValue<>();
-        destinationStorageBacklogQuota.updateBrokerValue(brokerDefaultQuota);
         topicPolicies.getBackLogQuotaMap()
-                .put(BacklogQuota.BacklogQuotaType.destination_storage, destinationStorageBacklogQuota);
-        PolicyHierarchyValue<BacklogQuota> messageAgeBacklogQuota = new PolicyHierarchyValue<>();
-        messageAgeBacklogQuota.updateBrokerValue(brokerDefaultQuota);
-        topicPolicies.getBackLogQuotaMap().put(BacklogQuota.BacklogQuotaType.message_age, messageAgeBacklogQuota);
+                .get(BacklogQuota.BacklogQuotaType.destination_storage)
+                .updateBrokerValue(brokerService.getBacklogQuotaManager().getDefaultQuota());
+        topicPolicies.getBackLogQuotaMap()
+                .get(BacklogQuota.BacklogQuotaType.message_age)
+                .updateBrokerValue(brokerService.getBacklogQuotaManager().getDefaultQuota());
     }
 
     protected boolean isProducersExceeded() {

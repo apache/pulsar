@@ -2401,6 +2401,9 @@ public class PersistentTopic extends AbstractTopic
             log.debug("Ignore the update because it has been deleted : {}", data);
             return CompletableFuture.completedFuture(null);
         }
+
+        updateTopicPolicyByNamespacePolicy(data);
+
         isEncryptionRequired = data.encryption_required;
 
         setSchemaCompatibilityStrategy(data);
@@ -2409,7 +2412,6 @@ public class PersistentTopic extends AbstractTopic
         schemaValidationEnforced = data.schema_validation_enforced;
         updateUnackedMessagesAppliedOnSubscription(data);
         updateUnackedMessagesExceededOnConsumer(data);
-        this.topicPolicies.getMaxSubscriptionsPerTopic().updateNamespaceValue(data.max_subscriptions_per_topic);
 
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
@@ -2417,8 +2419,6 @@ public class PersistentTopic extends AbstractTopic
         }
         //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
         Optional<TopicPolicies> topicPolicies = getTopicPolicies();
-
-        this.topicPolicies.getInactiveTopicPolicies().updateNamespaceValue(data.inactive_topic_policies);
 
         initializeRateLimiterIfNeeded(Optional.ofNullable(data));
 
@@ -2454,10 +2454,6 @@ public class PersistentTopic extends AbstractTopic
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
-
-        Arrays.stream(BacklogQuotaType.values()).forEach(
-                type -> this.topicPolicies.getBackLogQuotaMap().get(type).updateNamespaceValue(
-                        data.backlog_quota_map == null ? null : data.backlog_quota_map.get(type)));
 
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
                 preCreateSubscriptionForCompactionIfNeeded());
