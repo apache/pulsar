@@ -297,34 +297,39 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
 
-            // clear resource of `/namespace/{namespaceName}` for zk-node
-            namespaceResources().deleteNamespaceAsync(namespaceName)
-                    .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
-                            .clearPartitionedTopicMetadataAsync(namespaceName))
-                    // clear resource for manager-ledger z-node
-                    .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
-                            .clearDomainPersistence(namespaceName))
-                    .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
-                            .clearNamespacePersistence(namespaceName))
-                    // we have successfully removed all the ownership for the namespace, the policies
-                    // z-node can be deleted now
-                    .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
-                    // clear z-node of local policies
-                    .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
-                    .whenComplete((ignore, ex) -> {
-                        if (ex != null) {
-                            log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
-                                    clientAppId(), namespaceName, ex);
-                            asyncResponse.resume(new RestException(ex));
-                        } else {
-                            log.info("[{}] Remove namespace or managed-ledger successfully {}",
-                                    clientAppId(), namespaceName);
-                            asyncResponse.resume(Response.noContent().build());
-                        }
-                    });
+            internalClearZkSources(asyncResponse);
 
             return null;
         });
+    }
+
+    // clear zk-node resources for deleting namespace
+    protected void internalClearZkSources(AsyncResponse asyncResponse) {
+        // clear resource of `/namespace/{namespaceName}` for zk-node
+        namespaceResources().deleteNamespaceAsync(namespaceName)
+                .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
+                        .clearPartitionedTopicMetadataAsync(namespaceName))
+                // clear resource for manager-ledger z-node
+                .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
+                        .clearDomainPersistence(namespaceName))
+                .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
+                        .clearNamespacePersistence(namespaceName))
+                // we have successfully removed all the ownership for the namespace, the policies
+                // z-node can be deleted now
+                .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
+                // clear z-node of local policies
+                .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
+                .whenComplete((ignore, ex) -> {
+                    if (ex != null) {
+                        log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
+                                clientAppId(), namespaceName, ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        log.info("[{}] Remove namespace or managed-ledger successfully {}",
+                                clientAppId(), namespaceName);
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
     }
 
     @SuppressWarnings("deprecation")
@@ -481,31 +486,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
             }
 
-            // clear resource of `/namespace/{namespaceName}` for zk-node
-            namespaceResources().deleteNamespaceAsync(namespaceName)
-                    .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
-                            .clearPartitionedTopicMetadataAsync(namespaceName))
-                    // clear resource for manager-ledger z-node
-                    .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
-                            .clearDomainPersistence(namespaceName))
-                    .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
-                            .clearNamespacePersistence(namespaceName))
-                    // we have successfully removed all the ownership for the namespace, the policies
-                    // z-node can be deleted now
-                    .thenCompose(ignore -> namespaceResources().deletePoliciesAsync(namespaceName))
-                    // clear z-node of local policies
-                    .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
-                    .whenComplete((ignore, ex) -> {
-                        if (ex != null) {
-                            log.warn("[{}] Failed to force remove namespace or managed-ledger for {}",
-                                    clientAppId(), namespaceName, ex);
-                            asyncResponse.resume(new RestException(ex));
-                        } else {
-                            log.info("[{}] Remove forcefully namespace or managed-ledger successfully {}",
-                                    clientAppId(), namespaceName);
-                            asyncResponse.resume(Response.noContent().build());
-                        }
-                    });
+            internalClearZkSources(asyncResponse);
 
             return null;
         });

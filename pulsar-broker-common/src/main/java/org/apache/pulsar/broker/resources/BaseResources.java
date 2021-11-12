@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -30,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import javax.ws.rs.core.Response;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -184,13 +182,10 @@ public class BaseResources<T> {
         return sb.toString();
     }
 
-
-
     protected static void deleteRecursive(BaseResources resources, final String pathRoot) throws MetadataStoreException {
         PathUtils.validatePath(pathRoot);
         List<String> tree = listSubTreeBFS(resources, pathRoot);
         log.debug("Deleting {} with size {}", tree, tree.size());
-        log.debug("Deleting " + tree.size() + " subnodes ");
         for (int i = tree.size() - 1; i >= 0; --i) {
             // Delete the leaves first and eventually get rid of the root
             resources.delete(tree.get(i));
@@ -203,12 +198,11 @@ public class BaseResources<T> {
         try {
             tree = listSubTreeBFS(resources, pathRoot);
         } catch (MetadataStoreException e) {
-
+            // no-op
         }
 
         if (tree != null) {
             log.debug("Deleting {} with size {}", tree, tree.size());
-            log.debug("Deleting " + tree.size() + " subnodes ");
 
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (int i = tree.size() - 1; i >= 0; --i) {
@@ -221,7 +215,6 @@ public class BaseResources<T> {
                     log.error("Failed to remove partitioned topics", exception);
                     return null;
                 }
-                Response.noContent().build();
                 return null;
             });
         }
@@ -240,12 +233,18 @@ public class BaseResources<T> {
             if (node == null) {
                 break;
             }
-            List<String> children = resources.getChildren(node);
-            for (final String child : children) {
-                final String childPath = node + "/" + child;
-                queue.add(childPath);
-                tree.add(childPath);
-            }
+            CompletableFuture<List<String>> childrenAsync = resources.getChildrenAsync(node);
+
+            childrenAsync.whenComplete((children, ex) -> {
+                if (ex == null) {
+                    for (final String child : children) {
+                        final String childPath = node + "/" + child;
+                        queue.add(childPath);
+                        tree.add(childPath);
+                    }
+                }
+            });
+
         }
         return tree;
     }
