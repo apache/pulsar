@@ -538,14 +538,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     boolean hasSnapshot = false;
                     while (reader.hasMoreEvents()) {
                         Message<TransactionBufferSnapshot> message = reader.readNext();
-                        TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
-                        if (transactionBufferSnapshot != null
-                                && topic.getName().equals(transactionBufferSnapshot.getTopicName())) {
-                            hasSnapshot = true;
-                            callBack.handleSnapshot(transactionBufferSnapshot);
-                            this.startReadCursorPosition = PositionImpl.get(
-                                    transactionBufferSnapshot.getMaxReadPositionLedgerId(),
-                                    transactionBufferSnapshot.getMaxReadPositionEntryId());
+                        if (topic.getName().equals(message.getKey())) {
+                            TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
+                            if (transactionBufferSnapshot != null) {
+                                hasSnapshot = true;
+                                callBack.handleSnapshot(transactionBufferSnapshot);
+                                this.startReadCursorPosition = PositionImpl.get(
+                                        transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                        transactionBufferSnapshot.getMaxReadPositionEntryId());
+                            }
                         }
                     }
                     if (!hasSnapshot) {
