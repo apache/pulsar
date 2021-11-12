@@ -23758,11 +23758,11 @@
                         "$ref": "#/definitions/X509Certificate"
                     }
                 },
-                "httpAuthType": {
-                    "type": "string"
-                },
                 "peerAddress": {
                     "$ref": "#/definitions/SocketAddress"
+                },
+                "httpAuthType": {
+                    "type": "string"
                 },
                 "commandData": {
                     "type": "string"
@@ -23772,17 +23772,17 @@
         "AutoFailoverPolicyData": {
             "type": "object",
             "properties": {
-                "policyType": {
-                    "type": "string",
-                    "enum": [
-                        "min_available"
-                    ]
-                },
                 "parameters": {
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "policyType": {
+                    "type": "string",
+                    "enum": [
+                        "min_available"
+                    ]
                 }
             }
         },
@@ -23797,15 +23797,15 @@
         "AutoTopicCreationOverride": {
             "type": "object",
             "properties": {
+                "topicType": {
+                    "type": "string"
+                },
                 "defaultNumPartitions": {
                     "type": "integer",
                     "format": "int32"
                 },
                 "allowAutoTopicCreation": {
                     "type": "boolean"
-                },
-                "topicType": {
-                    "type": "string"
                 }
             }
         },
@@ -23836,16 +23836,16 @@
                 "name": {
                     "type": "string"
                 },
+                "maxLineLength": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "paddingChar": {
                     "type": "string"
                 },
                 "paddingByte": {
                     "type": "string",
                     "format": "byte"
-                },
-                "maxLineLength": {
-                    "type": "integer",
-                    "format": "int32"
                 }
             }
         },
@@ -24168,17 +24168,20 @@
                 "address": {
                     "type": "string"
                 },
-                "msgRateOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "metadata": {
                     "type": "object",
                     "additionalProperties": {
                         "type": "string"
                     }
                 },
-                "msgThroughputOut": {
+                "connectedSince": {
+                    "type": "string"
+                },
+                "availablePermits": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "msgRateOut": {
                     "type": "number",
                     "format": "double"
                 },
@@ -24190,11 +24193,22 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "msgRateRedeliver": {
+                "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
                 },
                 "chunkedMessageRate": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "clientVersion": {
+                    "type": "string"
+                },
+                "avgMessagesPerEntry": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "msgRateRedeliver": {
                     "type": "number",
                     "format": "double"
                 },
@@ -24213,24 +24227,10 @@
                 "consumerName": {
                     "type": "string"
                 },
-                "availablePermits": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "avgMessagesPerEntry": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "blockedConsumerOnUnackedMsgs": {
                     "type": "boolean"
                 },
                 "readPositionWhenJoining": {
-                    "type": "string"
-                },
-                "connectedSince": {
-                    "type": "string"
-                },
-                "clientVersion": {
                     "type": "string"
                 },
                 "keyHashRanges": {
@@ -24258,10 +24258,10 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "displayName": {
+                "numericCodeAsString": {
                     "type": "string"
                 },
-                "numericCodeAsString": {
+                "displayName": {
                     "type": "string"
                 },
                 "symbol": {
@@ -24352,11 +24352,11 @@
                 "numberFormat": {
                     "$ref": "#/definitions/NumberFormat"
                 },
-                "timeZone": {
-                    "$ref": "#/definitions/TimeZone"
-                },
                 "lenient": {
                     "type": "boolean"
+                },
+                "timeZone": {
+                    "$ref": "#/definitions/TimeZone"
                 }
             }
         },
@@ -24450,11 +24450,11 @@
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
                 },
-                "locale": {
-                    "$ref": "#/definitions/Locale"
-                },
                 "factory": {
                     "$ref": "#/definitions/DeserializerFactory"
+                },
+                "locale": {
+                    "$ref": "#/definitions/Locale"
                 },
                 "config": {
                     "$ref": "#/definitions/DeserializationConfig"
@@ -24578,6 +24578,14 @@
                         "format": "double"
                     }
                 },
+                "receivedTotal": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "processedSuccessfullyTotal": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "systemExceptionsTotal": {
                     "type": "integer",
                     "format": "int64"
@@ -24589,20 +24597,20 @@
                 "avgProcessLatency": {
                     "type": "number",
                     "format": "double"
-                },
-                "receivedTotal": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "processedSuccessfullyTotal": {
-                    "type": "integer",
-                    "format": "int64"
                 }
             }
         },
         "FunctionInstanceStatsDataBase": {
             "type": "object",
             "properties": {
+                "receivedTotal": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "processedSuccessfullyTotal": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "systemExceptionsTotal": {
                     "type": "integer",
                     "format": "int64"
@@ -24614,14 +24622,6 @@
                 "avgProcessLatency": {
                     "type": "number",
                     "format": "double"
-                },
-                "receivedTotal": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "processedSuccessfullyTotal": {
-                    "type": "integer",
-                    "format": "int64"
                 }
             }
         },
@@ -24932,19 +24932,19 @@
                 "currentValue": {
                     "type": "object"
                 },
-                "outputBuffered": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "outputContext": {
-                    "$ref": "#/definitions/JsonStreamContext"
-                },
                 "highestEscapedChar": {
                     "type": "integer",
                     "format": "int32"
                 },
                 "outputTarget": {
                     "type": "object"
+                },
+                "outputBuffered": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "outputContext": {
+                    "$ref": "#/definitions/JsonStreamContext"
                 }
             }
         },
@@ -24982,6 +24982,9 @@
                     "type": "integer",
                     "format": "int32"
                 },
+                "closed": {
+                    "type": "boolean"
+                },
                 "textCharacters": {
                     "type": "array",
                     "items": {
@@ -24991,12 +24994,12 @@
                 "text": {
                     "type": "string"
                 },
+                "booleanValue": {
+                    "type": "boolean"
+                },
                 "byteValue": {
                     "type": "string",
                     "format": "byte"
-                },
-                "booleanValue": {
-                    "type": "boolean"
                 },
                 "doubleValue": {
                     "type": "number",
@@ -25014,8 +25017,8 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "closed": {
-                    "type": "boolean"
+                "objectId": {
+                    "type": "object"
                 },
                 "intValue": {
                     "type": "integer",
@@ -25148,9 +25151,6 @@
                 "valueAsString": {
                     "type": "string"
                 },
-                "objectId": {
-                    "type": "object"
-                },
                 "inputSource": {
                     "type": "object"
                 },
@@ -25184,13 +25184,6 @@
                 "parent": {
                     "$ref": "#/definitions/JsonStreamContext"
                 },
-                "typeDesc": {
-                    "type": "string"
-                },
-                "currentIndex": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "currentName": {
                     "type": "string"
                 },
@@ -25198,6 +25191,13 @@
                     "type": "object"
                 },
                 "entryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "typeDesc": {
+                    "type": "string"
+                },
+                "currentIndex": {
                     "type": "integer",
                     "format": "int32"
                 }
@@ -25487,13 +25487,22 @@
                     "type": "number",
                     "format": "double"
                 },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
+                },
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
                 "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "cpu": {
@@ -25513,15 +25522,6 @@
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
                 }
             }
         },
@@ -25811,16 +25811,8 @@
                     "type": "number",
                     "format": "double"
                 },
-                "producerId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "address": {
                     "type": "string"
-                },
-                "msgRateIn": {
-                    "type": "number",
-                    "format": "double"
                 },
                 "metadata": {
                     "type": "object",
@@ -25828,25 +25820,7 @@
                         "type": "string"
                     }
                 },
-                "producerName": {
-                    "type": "string"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "averageMsgSize": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "chunkedMessageRate": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "connectedSince": {
-                    "type": "string"
-                },
-                "clientVersion": {
                     "type": "string"
                 },
                 "accessMode": {
@@ -25856,6 +25830,32 @@
                         "Exclusive",
                         "WaitForExclusive"
                     ]
+                },
+                "msgRateIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "averageMsgSize": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "chunkedMessageRate": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "producerId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "clientVersion": {
+                    "type": "string"
                 }
             }
         },
@@ -25866,11 +25866,34 @@
                     "type": "number",
                     "format": "double"
                 },
-                "replicationBacklog": {
+                "connected": {
+                    "type": "boolean"
+                },
+                "replicationDelayInSeconds": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "replicationDelayInSeconds": {
+                "msgRateIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgRateOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgRateExpired": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "replicationBacklog": {
                     "type": "integer",
                     "format": "int64"
                 },
@@ -25885,29 +25908,6 @@
                 },
                 "outboundConnectedSince": {
                     "type": "string"
-                },
-                "msgRateIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgRateOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "connected": {
-                    "type": "boolean"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgRateExpired": {
-                    "type": "number",
-                    "format": "double"
                 }
             }
         },
@@ -25921,25 +25921,23 @@
                 "type": {
                     "type": "string"
                 },
+                "backlogSize": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "nonContiguousDeletedMessagesRangesSerializedSize": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "allowOutOfOrderDelivery": {
+                    "type": "boolean"
+                },
+                "keySharedMode": {
+                    "type": "string"
+                },
                 "msgRateOut": {
                     "type": "number",
                     "format": "double"
-                },
-                "durable": {
-                    "type": "boolean"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "consumers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/ConsumerStats"
-                    }
                 },
                 "bytesOutCounter": {
                     "type": "integer",
@@ -25949,17 +25947,33 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "backlogSize": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "nonContiguousDeletedMessagesRangesSerializedSize": {
-                    "type": "integer",
-                    "format": "int32"
+                "consumers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ConsumerStats"
+                    }
                 },
                 "nonContiguousDeletedMessagesRanges": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "durable": {
+                    "type": "boolean"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "chunkedMessageRate": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "msgRateExpired": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "msgBacklog": {
                     "type": "integer",
@@ -25968,10 +25982,6 @@
                 "msgRateRedeliver": {
                     "type": "number",
                     "format": "double"
-                },
-                "chunkedMessageRate": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "msgBacklogNoDelayed": {
                     "type": "integer",
@@ -25990,10 +26000,6 @@
                 },
                 "activeConsumerName": {
                     "type": "string"
-                },
-                "msgRateExpired": {
-                    "type": "number",
-                    "format": "double"
                 },
                 "totalMsgExpired": {
                     "type": "integer",
@@ -26019,12 +26025,6 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "allowOutOfOrderDelivery": {
-                    "type": "boolean"
-                },
-                "keySharedMode": {
-                    "type": "string"
-                },
                 "consumersAfterMarkDeletePosition": {
                     "type": "object",
                     "additionalProperties": {
@@ -26036,16 +26036,6 @@
         "NonPersistentTopicStats": {
             "type": "object",
             "properties": {
-                "subscriptions": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/NonPersistentSubscriptionStats"
-                    }
-                },
-                "msgDropRate": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "publishers": {
                     "type": "array",
                     "items": {
@@ -26058,6 +26048,24 @@
                         "$ref": "#/definitions/NonPersistentReplicatorStats"
                     }
                 },
+                "subscriptions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/NonPersistentSubscriptionStats"
+                    }
+                },
+                "msgDropRate": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "backlogSize": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "nonContiguousDeletedMessagesRangesSerializedSize": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "msgRateIn": {
                     "type": "number",
                     "format": "double"
@@ -26066,35 +26074,9 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "bytesInCounter": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "offloadedStorageSize": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "waitingPublishers": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "deduplicationStatus": {
-                    "type": "string"
-                },
-                "topicEpoch": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "compaction": {
-                    "$ref": "#/definitions/CompactionStats"
                 },
                 "msgInCounter": {
                     "type": "integer",
@@ -26112,24 +26094,42 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgChunkPublished": {
-                    "type": "boolean"
-                },
                 "storageSize": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "backlogSize": {
+                "topicEpoch": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "nonContiguousDeletedMessagesRangesSerializedSize": {
+                "compaction": {
+                    "$ref": "#/definitions/CompactionStats"
+                },
+                "offloadedStorageSize": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "waitingPublishers": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "deduplicationStatus": {
+                    "type": "string"
                 },
                 "nonContiguousDeletedMessagesRanges": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "msgChunkPublished": {
+                    "type": "boolean"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 }
             }
         },
@@ -26243,28 +26243,20 @@
         "OffloadPolicies": {
             "type": "object",
             "properties": {
-                "managedLedgerOffloadThresholdInBytes": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "managedLedgerOffloadDeletionLagInMillis": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "offloadersDirectory": {
+                "managedLedgerOffloadRegion": {
                     "type": "string"
                 },
-                "managedLedgerOffloadDriver": {
+                "managedLedgerOffloadServiceEndpoint": {
                     "type": "string"
                 },
-                "managedLedgerOffloadMaxThreads": {
+                "managedLedgerOffloadMaxBlockSizeInBytes": {
                     "type": "integer",
                     "format": "int32"
                 },
-                "managedLedgerOffloadPrefetchRounds": {
+                "managedLedgerOffloadReadBufferSizeInBytes": {
                     "type": "integer",
                     "format": "int32"
                 },
@@ -26327,17 +26319,25 @@
                 "managedLedgerOffloadBucket": {
                     "type": "string"
                 },
-                "managedLedgerOffloadRegion": {
+                "managedLedgerOffloadThresholdInBytes": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "managedLedgerOffloadDeletionLagInMillis": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "managedLedgerOffloadDriver": {
                     "type": "string"
                 },
-                "managedLedgerOffloadServiceEndpoint": {
+                "offloadersDirectory": {
                     "type": "string"
                 },
-                "managedLedgerOffloadMaxBlockSizeInBytes": {
+                "managedLedgerOffloadMaxThreads": {
                     "type": "integer",
                     "format": "int32"
                 },
-                "managedLedgerOffloadReadBufferSizeInBytes": {
+                "managedLedgerOffloadPrefetchRounds": {
                     "type": "integer",
                     "format": "int32"
                 }
@@ -27133,16 +27133,8 @@
         "PublisherStats": {
             "type": "object",
             "properties": {
-                "producerId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "address": {
                     "type": "string"
-                },
-                "msgRateIn": {
-                    "type": "number",
-                    "format": "double"
                 },
                 "metadata": {
                     "type": "object",
@@ -27150,25 +27142,7 @@
                         "type": "string"
                     }
                 },
-                "producerName": {
-                    "type": "string"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "averageMsgSize": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "chunkedMessageRate": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "connectedSince": {
-                    "type": "string"
-                },
-                "clientVersion": {
                     "type": "string"
                 },
                 "accessMode": {
@@ -27178,6 +27152,32 @@
                         "Exclusive",
                         "WaitForExclusive"
                     ]
+                },
+                "msgRateIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "averageMsgSize": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "chunkedMessageRate": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "producerId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "clientVersion": {
+                    "type": "string"
                 }
             }
         },
@@ -27192,11 +27192,34 @@
         "ReplicatorStats": {
             "type": "object",
             "properties": {
-                "replicationBacklog": {
+                "connected": {
+                    "type": "boolean"
+                },
+                "replicationDelayInSeconds": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "replicationDelayInSeconds": {
+                "msgRateIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgRateOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgRateExpired": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "replicationBacklog": {
                     "type": "integer",
                     "format": "int64"
                 },
@@ -27211,29 +27234,6 @@
                 },
                 "outboundConnectedSince": {
                     "type": "string"
-                },
-                "msgRateIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgRateOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "connected": {
-                    "type": "boolean"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgRateExpired": {
-                    "type": "number",
-                    "format": "double"
                 }
             }
         },
@@ -27462,6 +27462,9 @@
         "SerializerProvider": {
             "type": "object",
             "properties": {
+                "generator": {
+                    "$ref": "#/definitions/JsonGenerator"
+                },
                 "timeZone": {
                     "$ref": "#/definitions/TimeZone"
                 },
@@ -27476,9 +27479,6 @@
                 },
                 "annotationIntrospector": {
                     "$ref": "#/definitions/AnnotationIntrospector"
-                },
-                "generator": {
-                    "$ref": "#/definitions/JsonGenerator"
                 },
                 "defaultNullValueSerializer": {
                     "$ref": "#/definitions/JsonSerializerObject"
@@ -27584,25 +27584,23 @@
                 "type": {
                     "type": "string"
                 },
+                "backlogSize": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "nonContiguousDeletedMessagesRangesSerializedSize": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "allowOutOfOrderDelivery": {
+                    "type": "boolean"
+                },
+                "keySharedMode": {
+                    "type": "string"
+                },
                 "msgRateOut": {
                     "type": "number",
                     "format": "double"
-                },
-                "durable": {
-                    "type": "boolean"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "consumers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/ConsumerStats"
-                    }
                 },
                 "bytesOutCounter": {
                     "type": "integer",
@@ -27612,17 +27610,33 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "backlogSize": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "nonContiguousDeletedMessagesRangesSerializedSize": {
-                    "type": "integer",
-                    "format": "int32"
+                "consumers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ConsumerStats"
+                    }
                 },
                 "nonContiguousDeletedMessagesRanges": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "durable": {
+                    "type": "boolean"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "chunkedMessageRate": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "msgRateExpired": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "msgBacklog": {
                     "type": "integer",
@@ -27631,10 +27645,6 @@
                 "msgRateRedeliver": {
                     "type": "number",
                     "format": "double"
-                },
-                "chunkedMessageRate": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "msgBacklogNoDelayed": {
                     "type": "integer",
@@ -27653,10 +27663,6 @@
                 },
                 "activeConsumerName": {
                     "type": "string"
-                },
-                "msgRateExpired": {
-                    "type": "number",
-                    "format": "double"
                 },
                 "totalMsgExpired": {
                     "type": "integer",
@@ -27681,12 +27687,6 @@
                 "lastMarkDeleteAdvancedTimestamp": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "allowOutOfOrderDelivery": {
-                    "type": "boolean"
-                },
-                "keySharedMode": {
-                    "type": "string"
                 },
                 "consumersAfterMarkDeletePosition": {
                     "type": "object",
@@ -27755,9 +27755,6 @@
         "TimeZone": {
             "type": "object",
             "properties": {
-                "displayName": {
-                    "type": "string"
-                },
                 "dstsavings": {
                     "type": "integer",
                     "format": "int32"
@@ -27768,12 +27765,23 @@
                 },
                 "id": {
                     "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
                 }
             }
         },
         "TopicStats": {
             "type": "object",
             "properties": {
+                "backlogSize": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "nonContiguousDeletedMessagesRangesSerializedSize": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "msgRateIn": {
                     "type": "number",
                     "format": "double"
@@ -27782,53 +27790,9 @@
                     "type": "number",
                     "format": "double"
                 },
-                "subscriptions": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/SubscriptionStats"
-                    }
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "bytesInCounter": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "offloadedStorageSize": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "publishers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/PublisherStats"
-                    }
-                },
-                "waitingPublishers": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "replication": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/ReplicatorStats"
-                    }
-                },
-                "deduplicationStatus": {
-                    "type": "string"
-                },
-                "topicEpoch": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "compaction": {
-                    "$ref": "#/definitions/CompactionStats"
                 },
                 "msgInCounter": {
                     "type": "integer",
@@ -27846,24 +27810,60 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgChunkPublished": {
-                    "type": "boolean"
-                },
                 "storageSize": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "backlogSize": {
+                "publishers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PublisherStats"
+                    }
+                },
+                "replication": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/ReplicatorStats"
+                    }
+                },
+                "topicEpoch": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "nonContiguousDeletedMessagesRangesSerializedSize": {
+                "compaction": {
+                    "$ref": "#/definitions/CompactionStats"
+                },
+                "offloadedStorageSize": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "waitingPublishers": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "deduplicationStatus": {
+                    "type": "string"
                 },
                 "nonContiguousDeletedMessagesRanges": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "subscriptions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/SubscriptionStats"
+                    }
+                },
+                "msgChunkPublished": {
+                    "type": "boolean"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 }
             }
         },
@@ -28274,9 +28274,6 @@
                 "functions": {
                     "$ref": "#/definitions/FunctionsWorkerService"
                 },
-                "sinks": {
-                    "$ref": "#/definitions/SinksWorkerService"
-                },
                 "sources": {
                     "$ref": "#/definitions/SourcesWorkerService"
                 },
@@ -28291,6 +28288,9 @@
                 },
                 "workerConfig": {
                     "$ref": "#/definitions/WorkerConfig"
+                },
+                "sinks": {
+                    "$ref": "#/definitions/SinksWorkerService"
                 }
             }
         },
@@ -28327,14 +28327,17 @@
                 "issuerX500Principal": {
                     "$ref": "#/definitions/X500Principal"
                 },
-                "extendedKeyUsage": {
+                "keyUsage": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "boolean"
                     }
                 },
                 "sigAlgName": {
                     "type": "string"
+                },
+                "serialNumber": {
+                    "type": "integer"
                 },
                 "notBefore": {
                     "type": "string",
@@ -28343,6 +28346,13 @@
                 "notAfter": {
                     "type": "string",
                     "format": "date-time"
+                },
+                "tbscertificate": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "sigAlgOID": {
                     "type": "string"
@@ -28366,11 +28376,32 @@
                         "type": "boolean"
                     }
                 },
-                "keyUsage": {
+                "extendedKeyUsage": {
                     "type": "array",
                     "items": {
-                        "type": "boolean"
+                        "type": "string"
                     }
+                },
+                "version": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "issuerDN": {
+                    "$ref": "#/definitions/Principal"
+                },
+                "subjectDN": {
+                    "$ref": "#/definitions/Principal"
+                },
+                "signature": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "basicConstraints": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "subjectAlternativeNames": {
                     "type": "array",
@@ -28389,37 +28420,6 @@
                             "type": "object"
                         }
                     }
-                },
-                "serialNumber": {
-                    "type": "integer"
-                },
-                "tbscertificate": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "issuerDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "subjectDN": {
-                    "$ref": "#/definitions/Principal"
-                },
-                "version": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "signature": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "basicConstraints": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "criticalExtensionOIDs": {
                     "type": "array",
