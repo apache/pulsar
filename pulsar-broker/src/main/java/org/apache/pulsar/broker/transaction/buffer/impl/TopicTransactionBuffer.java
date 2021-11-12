@@ -472,12 +472,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 try {
                     while (reader.hasMoreEvents()) {
                         Message<TransactionBufferSnapshot> message = reader.readNext();
-                        TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
-                        if (topic.getName().equals(transactionBufferSnapshot.getTopicName())) {
-                            callBack.handleSnapshot(transactionBufferSnapshot);
-                            this.startReadCursorPosition = PositionImpl.get(
-                                    transactionBufferSnapshot.getMaxReadPositionLedgerId(),
-                                    transactionBufferSnapshot.getMaxReadPositionEntryId());
+                        if (topic.getName().equals(message.getKey())) {
+                            TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
+                            if (transactionBufferSnapshot != null) {
+                                callBack.handleSnapshot(transactionBufferSnapshot);
+                                this.startReadCursorPosition = PositionImpl.get(
+                                        transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                        transactionBufferSnapshot.getMaxReadPositionEntryId());
+                            }
                         }
                     }
                 } catch (PulsarClientException pulsarClientException) {
