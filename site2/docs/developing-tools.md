@@ -63,8 +63,7 @@ names. In all cases, the BASE name of the tenants, namespaces, and topics are us
     * `stop <tenant> <namespace> <topic>`
 * Shutdown a previously created group of topics
     * `stop_group <tenant> <group>`
-* Copy the historical data from one ZooKeeper to another and simulate based on the message rates and sizes in that
-history
+* Copy the historical data from one ZooKeeper to another and simulate based on the message rates and sizes in that history
     * `copy <tenant> <source zookeeper> <target zookeeper> [--rate-multiplier value]`
 * Simulate the load of the historical data on the current ZooKeeper (should be same ZooKeeper being simulated on)
     * `simulate <tenant> <zookeeper> [--rate-multiplier value]`

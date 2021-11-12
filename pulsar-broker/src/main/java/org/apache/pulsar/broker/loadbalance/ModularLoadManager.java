@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -125,4 +126,12 @@ public interface ModularLoadManager {
      * @return List of LoadBalancing Metrics
      */
     List<Metrics> getLoadBalancingMetrics();
+
+    /**
+     * Fetch bundle's load report data.
+     *
+     * @param bundle
+     * @return bundle data
+     */
+    BundleData getBundleDataOrDefault(String bundle);
 }

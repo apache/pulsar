@@ -35,15 +35,12 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.schema.Schemas;
@@ -324,7 +321,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 SchemaCompatibilityStrategy.FULL);
         byte[] changeSchemaBytes = (new String(Schema.AVRO(Schemas.PersonOne.class)
                 .getSchemaInfo().getSchema(), UTF_8) + "/n   /n   /n").getBytes();
-        SchemaInfo schemaInfo = SchemaInfoImpl.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
+        SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
         admin.schemas().createSchema(fqtn, schemaInfo);
 
         admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
@@ -396,6 +393,28 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         consumerOne.close();
         producerOne.close();
 
+    }
+
+    @Test
+    public void testAutoProduceSchemaAlwaysCompatible() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String topic = "topic" + randomName(16);
+
+        String namespace = "test-namespace-" + randomName(16);
+        String topicName = TopicName.get(
+                TopicDomain.persistent.value(), tenant, namespace, topic).toString();
+        NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        // set ALWAYS_COMPATIBLE
+        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+
+        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        // should not fail
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).subscriptionName("my-sub").topic(topicName).subscribe();
+
+        producer.close();
+        consumer.close();
     }
 
     @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")

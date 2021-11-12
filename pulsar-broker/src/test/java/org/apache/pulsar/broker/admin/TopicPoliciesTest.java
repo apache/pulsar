@@ -2146,7 +2146,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace, namespaceLevelMaxSub);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         Awaitility.await().until(() -> Integer.valueOf(namespaceLevelMaxSub)
-                .equals(persistentTopic.getMaxSubscriptionsPerTopic().getNamespaceValue()));
+                .equals(persistentTopic.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().getNamespaceValue()));
 
         try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .serviceUrl(brokerUrl.toString()).build()) {
@@ -2173,7 +2173,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
         //Removed namespace-level policy, broker-level should take effect
         admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
-        Awaitility.await().until(() -> persistentTopic.getMaxSubscriptionsPerTopic().getNamespaceValue() == null);
+        Awaitility.await().until(() -> persistentTopic
+                .getHierarchyTopicPolicies()
+                .getMaxSubscriptionsPerTopic()
+                .getNamespaceValue() == null);
         consumerList.add(pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
         assertEquals(consumerList.size(), brokerLevelMaxSub);
