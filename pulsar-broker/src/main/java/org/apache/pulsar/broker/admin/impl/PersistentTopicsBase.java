@@ -162,7 +162,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         try {
-            return topicResources().listPersistentTopicsAsync(namespaceName).join();
+            return topicResources().listPersistentTopicsAsync(namespaceName).thenApply(topics ->
+                    topics.stream().filter(topic ->
+                            !isNotAllowedToCreateTopic(TopicName.get(topic))).collect(Collectors.toList())).join();
         } catch (Exception e) {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
@@ -245,7 +247,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void validateTopicAllowdToCreate(TopicName topicName) {
+    protected void validateCreateTopic(TopicName topicName) {
         if (isNotAllowedToCreateTopic(topicName)) {
             log.warn("Try to create a topic in the system topic format! {}", topicName);
             throw new RestException(Status.CONFLICT, "Cannot create topic in system topic format!");
@@ -3691,7 +3693,10 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            throw new RestException(e);
+            if (e.getCause() instanceof NotAllowedException) {
+                throw new RestException(Status.CONFLICT, e.getCause());
+            }
+            throw new RestException(e.getCause());
         }
     }
 
